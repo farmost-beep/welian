@@ -170,6 +170,10 @@ def main():
     p_bot_uninstall = sub.add_parser("bot-uninstall", help="Uninstall bot launchd service")
     sub.add_parser("bot-status", help="Check bot launchd service status")
 
+    sub.add_parser("agent-install", help="Install agent as launchd service")
+    sub.add_parser("agent-uninstall", help="Uninstall agent launchd service")
+    sub.add_parser("agent-status", help="Check agent launchd service status")
+
     p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
     p_agent.add_argument("--port", type=int, default=9800)
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
@@ -294,7 +298,6 @@ def main():
         result = subprocess.run(["launchctl", "list", "com.welian.bot"], capture_output=True)
         if result.returncode == 0:
             print("✓ Bot service is running")
-            # Parse launchctl output
             output = result.stdout.decode()
             for line in output.strip().split("\n"):
                 if any(k in line for k in ["PID", "Status", "LastExit"]):
@@ -302,6 +305,38 @@ def main():
         else:
             print("✗ Bot service is not running")
             print("  Install with: welian bot-install")
+
+    elif args.command == "agent-install":
+        import subprocess
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.agent.plist")
+        result = subprocess.run(["launchctl", "list", "com.welian.agent"], capture_output=True)
+        if result.returncode == 0:
+            print("Agent service already installed. Run 'welian agent-uninstall' first.")
+            return
+        subprocess.run(["launchctl", "load", plist_path], check=True)
+        print("✓ Agent installed as launchd service")
+        print(f"  Plist: {plist_path}")
+        print("  Auto-starts on login, restarts on crash")
+        print("  Logs: ~/.welian/logs/agent-stdout.log")
+
+    elif args.command == "agent-uninstall":
+        import subprocess
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.agent.plist")
+        subprocess.run(["launchctl", "unload", plist_path], capture_output=True)
+        print("✓ Agent service uninstalled")
+
+    elif args.command == "agent-status":
+        import subprocess
+        result = subprocess.run(["launchctl", "list", "com.welian.agent"], capture_output=True)
+        if result.returncode == 0:
+            print("✓ Agent service is running")
+            output = result.stdout.decode()
+            for line in output.strip().split("\n"):
+                if any(k in line for k in ["PID", "Status", "LastExit"]):
+                    print(f"  {line.strip()}")
+        else:
+            print("✗ Agent service is not running")
+            print("  Install with: welian agent-install")
 
     elif args.command == "agent":
         import asyncio
