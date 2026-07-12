@@ -195,7 +195,14 @@ class SessionManager:
             logger.info(f"Reset session: {wechat_user_id[:12]}...")
 
     def stats(self) -> dict:
-        return {"active_users": len(self._clients), "cloud": CLOUD_URL or "(offline)"}
+        # Check if LLM is actually available
+        try:
+            from ..llm.router import get_client
+            llm = get_client()
+            llm_info = f"✅ {llm.model}" if hasattr(llm, 'model') else "✅ LLM"
+        except Exception:
+            llm_info = "(no LLM)"
+        return {"active_users": len(self._clients), "cloud": llm_info}
 
 
 sessions = SessionManager()
@@ -332,7 +339,14 @@ class WelianBot:
         self._should_run = True
         logger.info("=== Welian Bot starting ===")
         logger.info(f"  ilink: {ILINK_BASE_URL}")
-        logger.info(f"  Cloud: {CLOUD_URL or '(offline mode)'}")
+        # Show actual LLM status
+        try:
+            from ..llm.router import get_client
+            llm = get_client()
+            llm_name = getattr(llm, 'model', 'unknown')
+            logger.info(f"  LLM: ✅ {llm_name}")
+        except Exception as e:
+            logger.info(f"  LLM: ⚠ {e}")
         logger.info(f"  Data: {WELIAN_HOME}")
 
         # Handle graceful shutdown
