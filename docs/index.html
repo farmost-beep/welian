@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>Welian — Better relationships, better you</title>
+<title>Welian — 每段关系都值得用心</title>
 <meta name="description" content="Welian — an AI companion for your relationships.">
 <meta name="theme-color" content="#F5F4EE">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <!-- Clerk — authentication (Passkey / Google / Apple / WeChat) -->
 <!-- Must load from Clerk's own Frontend API domain, not jsdelivr -->
 <script defer crossorigin="anonymous"
@@ -49,33 +49,33 @@ html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 
 /* ── Nav ── */
-nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(245,244,238,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:50}
+nav{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;position:sticky;top:0;background:rgba(245,244,238,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid transparent;transition:border-color .3s}
+nav.scrolled{border-bottom-color:var(--border)}
 nav .brand{display:flex;align-items:center;gap:3px}
-nav .brand .name{font-family:'Newsreader',serif;font-size:1.15em;font-weight:500}
-nav .brand .inf{color:var(--accent);font-size:1.05em}
+nav .brand .name{font-family:'Newsreader',serif;font-size:1.2em;font-weight:500;letter-spacing:-.01em}
+nav .brand .inf{color:var(--accent);font-size:1.1em}
 nav .links{display:flex;gap:10px;align-items:center}
 nav .links a{font-size:.8em;color:var(--dim);text-decoration:none;transition:color .2s}
-nav .links .cta{background:var(--text);color:var(--bg);padding:7px 16px;border-radius:8px;font-size:.8em;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:transform .15s,box-shadow .2s}
+nav .links .cta{background:var(--text);color:var(--bg);padding:7px 18px;border-radius:8px;font-size:.8em;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:transform .15s,box-shadow .2s}
 nav .links .cta:active{transform:scale(.96)}
 nav .links .desktop-only{display:none}
 nav #langBtn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.8em;cursor:pointer;color:var(--dim);font-family:inherit;transition:border-color .2s,color .2s}
 nav #langBtn:active{border-color:var(--accent);color:var(--accent)}
 nav .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
 nav .status-dot.offline{background:var(--dimmer)}
-nav .status-dot.online{background:var(--green)}
+nav .status-dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(74,124,89,.15)}
 nav .status-text{font-size:.72em;color:var(--dim)}
 
-/* ── Main layout (mobile-first: hero compact, chat primary) ── */
-main{display:flex;flex-direction:column}
+/* ── Layout: single centered column ── */
+.page{min-height:100vh;display:flex;flex-direction:column}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 16px}
 
-/* ── Hero (compact on mobile, secondary on desktop) ── */
-.hero{padding:20px 20px 12px;text-align:center}
-h1{font-family:'Newsreader',serif;font-size:1.4em;font-weight:400;letter-spacing:-.02em;line-height:1.25;margin-bottom:6px}
-h1 em{font-style:italic;color:var(--accent)}
-.sub{font-family:'Newsreader',serif;font-size:.85em;font-style:italic;color:var(--dim)}
+/* ── Tagline (compact, elegant) ── */
+.tagline{font-family:'Newsreader',serif;font-size:1.5em;font-weight:400;letter-spacing:-.01em;text-align:center;margin-bottom:20px;color:var(--text);line-height:1.3}
+.tagline em{font-style:italic;color:var(--accent);font-weight:500}
 
 /* ── Chat (the star) ── */
-.chat-section{padding:0 16px 24px;display:flex;flex-direction:column;gap:12px}
+.chat-section{width:100%;max-width:620px;display:flex;flex-direction:column;gap:14px}
 .chat-frame{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-md)}
 .chat-head{display:flex;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .chat-head .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -85,7 +85,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .chat-head .mode-badge{font-size:.68em;padding:3px 10px;border-radius:20px;font-weight:600;margin-left:8px;letter-spacing:.04em;text-transform:uppercase;transition:all .3s}
 .chat-head .mode-badge.demo{background:var(--dimmer);color:var(--bg)}
 .chat-head .mode-badge.live{background:var(--green);color:#fff;box-shadow:0 0 0 3px rgba(74,124,89,.18)}
-.chat-body{height:55vh;min-height:300px;max-height:520px;overflow-y:auto;padding:18px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.chat-body{height:56vh;min-height:300px;max-height:560px;overflow-y:auto;padding:18px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .chat-body::-webkit-scrollbar{width:4px}
 .chat-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .msg{margin-bottom:16px;animation:fadein .4s ease}
@@ -100,7 +100,7 @@ h1 em{font-style:italic;color:var(--accent)}
 .msg .typing{display:inline-block;width:7px;height:14px;background:var(--green);border-radius:1px;animation:blink 1s infinite;vertical-align:text-bottom}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 
-/* ── Input area (prominent) ── */
+/* ── Input area ── */
 .chat-input{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg)}
 .chat-input input{flex:1;background:none;border:none;color:var(--text);font-size:.95em;font-family:inherit;outline:none;min-width:0;padding:4px 0}
 .chat-input input::placeholder{color:var(--dimmer)}
@@ -108,12 +108,12 @@ h1 em{font-style:italic;color:var(--accent)}
 .chat-input .send{color:var(--accent);cursor:pointer;font-size:1em;border:1.5px solid var(--accent);background:var(--accent-bg);font-family:inherit;flex-shrink:0;padding:8px 14px;border-radius:10px;transition:.2s;font-weight:500;line-height:1}
 .chat-input .send:active{background:var(--accent);color:#fff;transform:scale(.95)}
 
-/* ── Quick action hints (pill-shaped, tappable) ── */
+/* ── Quick action hints ── */
 .chat-hint{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:4px 4px 0}
 .chat-hint span{font-size:.78em;color:var(--dim);cursor:pointer;transition:.2s;padding:8px 16px;border-radius:24px;border:1px solid var(--border);background:var(--surface);white-space:nowrap;user-select:none;-webkit-user-select:none}
 .chat-hint span:active{color:var(--accent);border-color:var(--accent);background:var(--accent-bg);transform:scale(.96)}
 
-/* ── Connect panel (empty state) ── */
+/* ── Connect panel ── */
 .connect-panel{padding:24px 16px;text-align:center}
 .connect-panel h3{font-family:'Newsreader',serif;font-size:1.15em;font-weight:400;margin-bottom:12px}
 .connect-panel p{font-size:.82em;color:var(--dim);margin-bottom:16px;line-height:1.7}
@@ -126,14 +126,14 @@ h1 em{font-style:italic;color:var(--accent)}
 .connect-panel button:active{transform:scale(.96);opacity:.9}
 .connect-panel .err{color:#C65D5D;font-size:.75em;margin-top:8px}
 
-/* ── Footer (cleaner) ── */
-footer{border-top:1px solid var(--border);padding:16px 20px;text-align:center;font-size:.72em;color:var(--dim);display:flex;flex-direction:column;gap:6px;align-items:center}
+/* ── Footer ── */
+footer{border-top:1px solid var(--border);padding:14px 20px;text-align:center;font-size:.72em;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
 footer a{color:var(--dim);text-decoration:none}
 footer .sep{display:none}
 footer .inf{color:var(--accent)}
 footer .privacy{color:var(--dimmer);max-width:400px}
 
-/* ── Clerk auth container ── */
+/* ── Clerk auth ── */
 #clerk-auth{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,244,238,.95);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;overflow-y:auto;box-sizing:border-box}
 #clerk-auth.show{display:flex}
 #clerk-auth .card{background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:440px;width:100%;box-shadow:var(--shadow-lg);box-sizing:border-box;position:relative;overflow:visible}
@@ -144,38 +144,31 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 #clerk-auth .cl-internal,#clerk-auth .cl-card,#clerk-auth .cl-form{max-width:100%!important;min-width:0!important}
 #clerk-auth .cl-socialButtonsBlockButton{max-width:100%!important}
 
-/* ── Mobile — fix Clerk component overflow ── */
+/* ── Mobile ── */
 @media(max-width:480px){
   #clerk-auth .card{padding:24px 18px;border-radius:16px}
   #clerk-auth .card h2{font-size:1.2em}
   #clerk-auth #clerk-container{overflow-x:hidden;max-width:100%}
   #clerk-auth .cl-card,.cl-card-socialButtonsBlock,.cl-form{max-width:100%!important;min-width:0!important}
   #clerk-auth .cl-socialButtonsBlockButton{width:100%!important}
-  nav{padding:10px 14px}
+  nav{padding:10px 16px}
   nav .links{gap:8px}
   nav .links .desktop-only{display:none}
-  .hero{padding:16px 16px 8px}
-  h1{font-size:1.35em}
-  .sub{font-size:.82em}
-  .chat-section{padding:0 14px 20px}
-  .chat-body{height:50vh;min-height:280px}
+  main{padding:16px 14px 12px}
+  .tagline{font-size:1.3em;margin-bottom:16px}
+  .chat-body{height:52vh;min-height:280px}
   .chat-hint span{font-size:.76em;padding:9px 14px}
-  footer{padding:14px 16px}
+  footer{padding:12px 16px}
 }
 
 /* ── Tablet ── */
-@media(min-width:640px){
-  body{font-size:16px}
-  .hero{padding:28px 32px 14px}
-  h1{font-size:1.8em}
-  .sub{font-size:1em}
-  .chat-section{padding:0 32px 32px}
-  .chat-frame{max-width:620px;margin:0 auto}
-  .chat-body{height:58vh;max-height:560px}
-  footer{padding:18px 32px}
+@media(min-width:481px) and (max-width:879px){
+  .tagline{font-size:1.7em;margin-bottom:22px}
+  .chat-section{max-width:560px}
+  .chat-body{height:58vh;max-height:580px}
 }
 
-/* ── Desktop (two-column, chat primary) ── */
+/* ── Desktop ── */
 @media(min-width:880px){
   body{font-size:16px}
   nav{padding:16px 48px}
@@ -183,22 +176,22 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   nav .links a{font-size:.85em}
   nav .links .desktop-only{display:inline}
   nav .links .cta{padding:8px 18px;font-size:.82em}
-
-  .page{min-height:100vh;display:flex;flex-direction:column}
-  main{flex:1;display:grid;grid-template-columns:2fr 3fr;min-height:calc(100vh - 56px)}
-
-  .hero{padding:0 56px;grid-column:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;max-width:480px}
-  h1{font-size:2.2em;margin-bottom:12px}
-  .sub{font-size:1.1em}
-
-  .chat-section{padding:0 56px 0 28px;display:flex;flex-direction:column;justify-content:center;gap:14px}
-  .chat-frame{max-width:none;margin:0}
-  .chat-body{height:62vh;max-height:none;min-height:380px}
+  main{padding:32px 24px 24px}
+  .tagline{font-size:2em;margin-bottom:28px}
+  .chat-section{max-width:640px}
+  .chat-body{height:60vh;max-height:620px;min-height:380px}
   .chat-hint span:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
   .chat-input .send:hover{background:var(--accent);color:#fff}
-
-  footer{flex-direction:row;justify-content:space-between;align-items:center;padding:18px 48px;text-align:left}
+  footer{flex-direction:row;justify-content:space-between;align-items:center;padding:16px 48px;text-align:left;max-width:900px;margin:0 auto;width:100%}
+  footer .sep{display:inline}
   footer .privacy{max-width:none}
+}
+
+/* ── Large desktop ── */
+@media(min-width:1200px){
+  .tagline{font-size:2.2em}
+  .chat-section{max-width:680px}
+  .chat-body{height:62vh}
 }
 </style>
 </head>
@@ -206,7 +199,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 
 <div class="page">
 
-<nav>
+<nav id="nav">
   <div class="brand"><span class="name">Welian</span><span class="inf">∞</span></div>
   <div class="links">
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
@@ -217,10 +210,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 </nav>
 
 <main>
-  <div class="hero">
-    <h1 data-i18n="hero_title">Be a better friend.<br>A better family.<br><em>A better you.</em></h1>
-    <div class="sub" data-i18n="hero_sub">The quality of your relationships shapes the quality of your life.</div>
-  </div>
+  <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
 
   <div class="chat-section" id="chat">
     <div class="chat-frame">
@@ -289,8 +279,7 @@ const AGENT_TUNNEL_URL = 'https://agent.welian.app';  // Direct tunnel (no disco
 // ── i18n ──
 const I18N = {
   en: {
-    hero_title: 'Be a better friend.<br>A better family.<br><em>A better you.</em>',
-    hero_sub: 'The quality of your relationships shapes the quality of your life.',
+    tagline: 'Every relationship deserves <em>care</em>',
     demo: 'Demo',
     welcome: 'Hi, I\'m Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nThis is a demo. Sign in and connect your local agent to use your real data.',
     input_ph: 'Talk to Welian…',
@@ -329,8 +318,7 @@ const I18N = {
     retry: 'Retry',
   },
   zh: {
-    hero_title: '做更好的朋友。<br>更好的家人。<br><em>更好的自己。</em>',
-    hero_sub: '关系的质量，决定了生活的质量。',
+    tagline: '每段关系都值得<em>用心</em>',
     demo: '演示',
     welcome: '你好，我是 Welian 😊\n\n我帮你记住重要的事，建议该联系谁，帮你找到合适的话。\n\n这是演示模式。登录并连接本地 agent 来使用你的真实数据。',
     input_ph: '跟 Welian 聊聊…',
@@ -442,6 +430,11 @@ const navStatus = document.getElementById('navStatus');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const authBtn = document.getElementById('authBtn');
+
+// ── Nav scroll effect ──
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 4);
+});
 
 // ── Clerk init ──
 let clerkReady = false;
