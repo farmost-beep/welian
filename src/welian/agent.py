@@ -209,39 +209,70 @@ class LocalAgent:
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
     async def _start_tunnel(self):
-        """Start cloudflared named tunnel (agent.welian.app) and register with discovery."""
-        import subprocess
+        """Start cloudflared tunnel and register with discovery service.
 
-        TUNNEL_URL = "https://agent.welian.app"
+        Uses Clerk user_id (from 'welian login') as the key, so any device
+        logged into the same Clerk account can discover this tunnel.
+        Falls back to device_id if not logged in.
+        """
+        import subprocess, re, time, urllib.request
+
+        # Determine registry key: prefer Clerk user_id, fall back to device_id
+        from .cli import _get_user_id
+        user_id = _get_user_id()
+        registry_key = user_id or self.device_id
 
         try:
-            # Start named tunnel (uses ~/.cloudflared/config.yml)
-            proc = subprocess.Popen(
-                ["cloudflared", "tunnel", "run", "welian-agent"],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                env={**os.environ, "NO_AUTO_UPDATE": "true"},
-            )
-            # Wait for tunnel to connect
-            import time
-            for _ in range(15):
-                line = proc.stdout.readline().decode("utf-8", errors="replace")
-                if "Registered tunnel connection" in line:
-                    break
-                time.sleep(1)
+            # Try named tunnel first (permanent URL)
+            tunnel_url = "https://agent.welian.app"
+            try:
+                proc = subprocess.Popen(
+                    ["cloudflared", "tunnel", "run", "welian-agent"],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    env={**os.environ, "NO_AUTO_UPDATE": "true"},
+                )
+                for _ in range(15):
+                    line = proc.stdout.readline().decode("utf-8", errors="replace")
+                    if "Registered tunnel connection" in line:
+                        break
+                    time.sleep(1)
+            except Exception:
+                # Fall back to quick tunnel
+                proc = subprocess.Popen(
+                    ["cloudflared", "tunnel", "--url", f"http://localhost:{self.port}"],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    env={**os.environ, "NO_AUTO_UPDATE": "true"},
+                )
+                tunnel_url = ""
+                for _ in range(30):
+                    line = proc.stdout.readline().decode("utf-8", errors="replace")
+                    if "trycloudflare.com" in line:
+                        m = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', line)
+                        if m:
+                            tunnel_url = m.group(0)
+                            break
+                    time.sleep(1)
 
-            self.tunnel_url = TUNNEL_URL
-            print(f"  Tunnel: {TUNNEL_URL}")
+            if not tunnel_url:
+                print("  ⚠ Tunnel failed to start")
+                return
 
-            # Register with discovery service
-            import urllib.request
+            self.tunnel_url = tunnel_url
+            print(f"  Tunnel: {tunnel_url}")
+
+            # Register with discovery service using user_id (or device_id)
             req = urllib.request.Request(
                 f"{self.DISCOVERY_URL}/discover/register",
-                data=json.dumps({"device_id": self.device_id, "tunnel_url": TUNNEL_URL}).encode(),
+                data=json.dumps({"device_id": registry_key, "tunnel_url": tunnel_url}).encode(),
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
             urllib.request.urlopen(req, timeout=10)
-            print(f"  Registered device: {self.device_id}")
+            if user_id:
+                print(f"  Registered to Clerk user: {user_id}")
+            else:
+                print(f"  Registered to device: {self.device_id}")
+                print(f"  ⚠ Run 'welian login' to enable multi-device discovery")
         except FileNotFoundError:
             print("  ⚠ cloudflared not installed — tunnel disabled")
         except Exception as e:

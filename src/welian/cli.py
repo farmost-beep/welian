@@ -17,6 +17,7 @@ Usage:
   welian export [--password XXX]     # encrypted export
   welian import <file> [--password XXX]
   welian balance
+  welian login                       # link CLI to Clerk account (for tunnel discovery)
 """
 import sys
 import os
@@ -24,6 +25,94 @@ import json
 import argparse
 from . import engine, intent, ai, tokens
 from .edge import EdgeClient
+
+# ── Login / Logout ──
+
+WELIAN_CONFIG_DIR = os.path.expanduser("~/.welian")
+WELIAN_AUTH_FILE = os.path.join(WELIAN_CONFIG_DIR, "auth.json")
+LOGIN_CALLBACK_PORT = 9876
+
+
+def _do_login():
+    """Link CLI to Clerk account via browser OAuth flow."""
+    import webbrowser
+    import http.server
+    import threading
+    import urllib.parse
+
+    os.makedirs(WELIAN_CONFIG_DIR, exist_ok=True)
+
+    if os.path.exists(WELIAN_AUTH_FILE):
+        with open(WELIAN_AUTH_FILE) as f:
+            auth = json.load(f)
+        print(f"Already logged in as: {auth.get('user_id')}")
+        print(f"  Run 'welian logout' to unlink.")
+        return
+
+    result = {"user_id": None}
+
+    class CallbackHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            result["user_id"] = params.get("user_id", [None])[0]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            if result["user_id"]:
+                self.wfile.write(b"<h2>Login successful!</h2><p>You can close this tab and return to your terminal.</p>")
+            else:
+                self.wfile.write(b"<h2>Login failed</h2>")
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("localhost", LOGIN_CALLBACK_PORT), CallbackHandler)
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+
+    callback_url = f"http://localhost:{LOGIN_CALLBACK_PORT}"
+    login_url = f"https://welian.app?cli_callback={urllib.parse.quote(callback_url)}"
+    print(f"Opening browser for login...")
+    print(f"  If browser doesn't open, visit: {login_url}")
+    print()
+    webbrowser.open(login_url)
+
+    thread.join(timeout=60)
+    server.server_close()
+
+    if result["user_id"]:
+        auth = {"user_id": result["user_id"], "logged_in_at": str(__import__("datetime").datetime.now())}
+        with open(WELIAN_AUTH_FILE, "w") as f:
+            json.dump(auth, f, indent=2)
+        print(f"✓ Logged in as: {result['user_id']}")
+        print(f"  Saved to {WELIAN_AUTH_FILE}")
+        print()
+        print("Now run: welian agent --tunnel")
+        print("  Your phone will auto-discover your agent via your Clerk account.")
+    else:
+        print("✗ Login timed out or failed.")
+
+
+def _do_logout():
+    """Unlink CLI from Clerk account."""
+    if os.path.exists(WELIAN_AUTH_FILE):
+        os.remove(WELIAN_AUTH_FILE)
+        print("✓ Logged out.")
+    else:
+        print("Not logged in.")
+
+
+def _get_user_id():
+    """Get stored Clerk user_id, or None."""
+    if os.path.exists(WELIAN_AUTH_FILE):
+        try:
+            with open(WELIAN_AUTH_FILE) as f:
+                auth = json.load(f)
+            return auth.get("user_id")
+        except Exception:
+            pass
+    return None
+
 
 def main():
     parser = argparse.ArgumentParser(prog="welian", description="Welian — AI companion for relationships")
@@ -73,6 +162,9 @@ def main():
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
     p_agent.add_argument("--token", default="", help="Pairing token (auto-generated if empty)")
     p_agent.add_argument("--tunnel", action="store_true", help="Start Cloudflare tunnel for remote/mobile access")
+
+    sub.add_parser("login", help="Link CLI to your Clerk account (for tunnel discovery)")
+    sub.add_parser("logout", help="Unlink CLI from Clerk account")
 
     args = parser.parse_args()
 
@@ -167,6 +259,12 @@ def main():
         cloud = args.cloud or os.environ.get("WELIAN_CLOUD_URL", "")
         agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token, tunnel=args.tunnel)
         asyncio.run(agent.start())
+
+    elif args.command == "login":
+        _do_login()
+
+    elif args.command == "logout":
+        _do_logout()
 
     else:
         parser.print_help()

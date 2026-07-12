@@ -241,6 +241,13 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
 const CLERK_PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 const DISCOVERY_URL = 'https://welian-ai.farmost.workers.dev';
 
+// ── CLI Login detection (welian.app?cli_callback=http://localhost:9876) ──
+// If cli_callback param is present, redirect user_id back to CLI after Clerk auth
+// Don't replace body — let normal sign-in UI show, onAuthed handles redirect
+const cliCallback = new URLSearchParams(location.search).get('cli_callback');
+
+// ── Main app (below) ──
+
 // ── State ──
 let isAuthed = false;   // Clerk auth state
 let isLive = false;     // Connected to local agent
@@ -323,6 +330,12 @@ async function initClerk() {
     console.log('Initial user check:', !!clerkInstance.user);
     if (clerkInstance.user) {
       onAuthed(clerkInstance.user);
+    } else if (cliCallback) {
+      // CLI login flow: auto-open auth modal if not logged in
+      console.log('CLI login: opening auth modal');
+      document.getElementById('clerk-auth').classList.add('show');
+      const container = document.getElementById('clerk-container');
+      mountClerkSignIn(container);
     }
 
     // Also poll for user as fallback (addListener might not fire on first sign-in)
@@ -387,6 +400,13 @@ function onAuthed(user) {
   navStatus.style.display = 'inline-flex';
   // Close auth modal if open
   document.getElementById('clerk-auth').classList.remove('show');
+
+  // CLI login flow: redirect user_id back to CLI callback
+  if (cliCallback && clerkUserId) {
+    window.location.href = cliCallback + '?user_id=' + encodeURIComponent(clerkUserId);
+    return;
+  }
+
   // Auto-connect to local agent (no token needed)
   autoConnectAgent();
 }
@@ -443,26 +463,29 @@ async function autoConnectAgent() {
     }
   }
 
-  console.log('All local ports failed, trying tunnel...');
+  console.log('All local ports failed, trying discovery...');
 
-  // Phase 2: try permanent tunnel URL (for mobile/remote)
-  // Single-user phase: one tunnel at agent.welian.app
-  // Multi-user phase: will need discovery service to map user_id → tunnel URL
-  if (!connected) {
-    const tunnelUrl = 'https://agent.welian.app';
-    console.log('Trying tunnel:', tunnelUrl);
-    addSystemMsg('Connecting via tunnel…');
+  // Phase 2: lookup tunnel URL via discovery service (for mobile/remote)
+  if (!connected && clerkUserId) {
+    console.log('Looking up tunnel via discovery service…');
     try {
-      const result = await tryBridgeConnect(tunnelUrl, 'tunnel');
-      console.log('Tunnel result:', result);
-      if (result === 'auth_ok') {
-        onAgentConnected('tunnel');
-        connected = true;
-        return;
+      const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
+      const data = await resp.json();
+      if (data.found && data.tunnel_url) {
+        console.log('Found tunnel:', data.tunnel_url);
+        addSystemMsg('Connecting via tunnel…');
+        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
+        console.log('Tunnel result:', result);
+        if (result === 'auth_ok') {
+          onAgentConnected('tunnel');
+          connected = true;
+          return;
+        }
+      } else {
+        console.log('No tunnel registered for user', clerkUserId);
       }
     } catch(e) {
-      console.log('Tunnel exception:', e.message);
-      removeBridge();
+      console.log('Discovery lookup failed:', e.message);
     }
   }
 
