@@ -79,6 +79,9 @@ class EdgeClient:
         elif intent_type == intent.INTENT_CHECK:
             return self._handle_check(payload)
 
+        elif intent_type == intent.INTENT_QUERY:
+            return self._handle_query()
+
         else:
             return self._fallback(text)
 
@@ -107,6 +110,36 @@ class EdgeClient:
                 return f"✓ 记下了\n\n  新联系人：{contact_name}\n  摘要：{summary[:60]}\n\n  下次可以告诉我更多关于他/她的事 🌱"
         else:
             return f"✓ 记下了：{summary[:60]}\n\n  你可以告诉我跟谁聊的，我帮你关联起来。"
+
+    # ── Query (查) — stats and contact list, fully local ──
+
+    def _handle_query(self) -> str:
+        d = engine.get_dashboard()
+        lines = [
+            f"📊 你的关系网络概览\n",
+            f"  联系人：{d['total_contacts']} 人",
+            f"  待办事项：{d['pending_todos']} 条",
+            f"  近期活动（7天）：{d['recent_activities']} 条",
+            f"  即将生日（14天）：{len(d['upcoming_birthdays'])} 人",
+        ]
+        if d['leverage_suggestions']:
+            lines.append(f"  待联系建议：{d['leverage_suggestions']} 人")
+        if d['nurture_reminders']:
+            lines.append(f"  陪伴提醒：{d['nurture_reminders']} 人")
+
+        # List contacts if any
+        contacts = engine.list_contacts()
+        if contacts:
+            lines.append(f"\n  联系人列表：")
+            for c in contacts[:10]:
+                nature = engine.infer_nature(c)
+                role = engine.contact_role(c)
+                lines.append(f"    · {c['name']} [{nature}] [{role}]")
+            if len(contacts) > 10:
+                lines.append(f"    …还有 {len(contacts) - 10} 人")
+
+        lines.append(f"\n  试试 \"who to reach out\" 看看该联系谁 🌱")
+        return "\n".join(lines)
 
     # ── Ask (问) — scoring local, AI formatting via LLM ──
 
@@ -304,13 +337,29 @@ class EdgeClient:
     # ── Helpers ──
 
     def _fallback(self, text: str) -> str:
-        return (f"你说的「{text[:30]}」我记下了 😊\n\n"
-                f"你可以试试这些：\n"
+        # Try LLM for free-form conversation
+        try:
+            llm = self._get_llm()
+            dashboard = engine.get_dashboard()
+            context = (f"你是 Welian，一个关系管理 AI 助手。\n"
+                      f"用户数据概览：{dashboard['total_contacts']} 个联系人，"
+                      f"{dashboard['pending_todos']} 条待办，"
+                      f"{dashboard['recent_activities']} 条近期活动。\n"
+                      f"用户说：{text}\n"
+                      f"请用中文简短回复。如果用户在问数据相关问题，直接回答。"
+                      f"如果用户在闲聊，自然回应并引导到关系管理话题。")
+            return llm.chat(context, system="你是 Welian，简洁友好地回复。")
+        except Exception:
+            pass
+        # No LLM available — be honest, don't pretend to record
+        return (f"我能帮你管理关系：\n\n"
                 f"  · \"who to reach out\" — 这周该联系谁\n"
                 f"  · \"note: met with X about Y\" — 记一下\n"
                 f"  · \"draft a message to X\" — 拟条消息\n"
                 f"  · \"how is X doing\" — 看看一段关系\n"
-                f"  · \"monthly review\" — 这个月的你")
+                f"  · \"monthly review\" — 这个月的你\n"
+                f"  · \"有多少联系人\" — 查看联系人\n\n"
+                f"你想做什么？")
 
     def _help_text(self) -> str:
         return ("你可以跟我说：\n\n"

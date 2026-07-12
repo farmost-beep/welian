@@ -20,6 +20,7 @@ INTENT_ASK = "ask"
 INTENT_DRAFT = "draft"
 INTENT_REPORT = "report"
 INTENT_CHECK = "check"        # check a specific bond
+INTENT_QUERY = "query"        # query contacts/stats
 INTENT_HELP = "help"
 INTENT_UNKNOWN = "unknown"
 
@@ -36,6 +37,15 @@ ASK_PATTERNS = [
     r"该联系谁", r"who.*(reach|contact|connect)", r"建议联系",
     r"本周.*联系", r"this week.*contact",
     r"明天见.*上次", r"见面.*功课",
+]
+
+QUERY_PATTERNS = [
+    r"多少.*联系人", r"多少.*contact", r"几个.*联系人",
+    r"联系.*列表", r"contact.*list", r"list.*contact",
+    r"所有.*联系人", r"全部.*联系人", r"all.*contact",
+    r"看看.*联系人", r"查看.*联系人",
+    r"统计", r"概览", r"overview", r"dashboard",
+    r"有多少", r"how many",
 ]
 
 DRAFT_PATTERNS = [
@@ -84,6 +94,11 @@ def parse(text):
     for pat in ASK_PATTERNS:
         if re.search(pat, t, re.IGNORECASE):
             return INTENT_ASK, {}
+
+    # Query (stats, contact list)
+    for pat in QUERY_PATTERNS:
+        if re.search(pat, t, re.IGNORECASE):
+            return INTENT_QUERY, {}
 
     # Report
     for pat in REPORT_PATTERNS:
