@@ -369,7 +369,8 @@ function onAuthed(user) {
   navStatus.style.display = 'inline-flex';
   // Close auth modal if open
   document.getElementById('clerk-auth').classList.remove('show');
-  showConnectPanel();
+  // Auto-connect to local agent (no token needed)
+  autoConnectAgent();
 }
 
 function onSignedOut() {
@@ -384,52 +385,38 @@ function onSignedOut() {
   addSystemMsg('Signed out. Running in demo mode.');
 }
 
-// ── Connect panel ──
-function showConnectPanel() {
-  clearChat();
-  const panel = document.createElement('div');
-  panel.className = 'msg';
-  panel.innerHTML = `<div class="bubble system">
-    <div class="connect-panel">
-      <h3>Connect your local agent</h3>
-      <p>Your relationship data stays on your device. Connect Welian to your local agent to use it here.</p>
-      <div class="step"><b>Step 1.</b> Install Welian CLI:<br><code>pip install welian</code></div>
-      <div class="step"><b>Step 2.</b> Start the agent:<br><code>welian agent</code></div>
-      <div class="step"><b>Step 3.</b> Copy the pairing token and paste it below:</div>
-      <input id="tokenInput" type="text" placeholder="Pairing token" onkeydown="if(event.key==='Enter')connectAgent()">
-      <button onclick="connectAgent()">Connect</button>
-      <div class="err" id="connectErr"></div>
-    </div>
-  </div>`;
-  body.appendChild(panel);
+// ── Auto-connect to local agent ──
+// Agent injects pairing token into bridge HTML, so no manual token entry needed.
+// We just embed the iframe and wait for auth_ok.
+
+let bridgeFrame = null;
+let bridgeReady = false;
+
+function removeBridge() {
+  if (bridgeFrame) {
+    bridgeFrame.remove();
+    bridgeFrame = null;
+    bridgeReady = false;
+  }
 }
 
-async function connectAgent() {
-  const token = document.getElementById('tokenInput').value.trim();
-  const errEl = document.getElementById('connectErr');
-  if (!token) { errEl.textContent = 'Please enter the pairing token'; return; }
+async function autoConnectAgent() {
+  clearChat();
+  addSystemMsg('Looking for local agent…');
 
-  errEl.textContent = 'Connecting...';
-
-  // Use iframe bridge: embed http://localhost:PORT/ which connects to ws://localhost:PORT/ws
-  // This avoids mixed-content blocking (https:// → ws://)
   const ports = [9800, 9801, 9802];
   let connected = false;
 
   for (const port of ports) {
     console.log(`Trying iframe bridge on port ${port}...`);
     try {
-      const result = await tryBridgeConnect(port, token);
+      const result = await tryBridgeConnect(port);
       if (result === 'auth_ok') {
         onAgentConnected(port);
         connected = true;
         return;
-      } else if (result === 'auth_fail') {
-        errEl.textContent = 'Invalid token';
-        removeBridge();
-        return;
       } else if (result === 'no_bridge') {
-        continue; // try next port
+        continue;
       }
     } catch(e) {
       console.log(`Port ${port} failed:`, e.message);
@@ -440,61 +427,51 @@ async function connectAgent() {
 
   if (!connected) {
     removeBridge();
-    errEl.innerHTML = 'Cannot find local agent.<br><small>Make sure <code>welian agent</code> is running.</small>';
+    clearChat();
+    const panel = document.createElement('div');
+    panel.className = 'msg';
+    panel.innerHTML = `<div class="bubble system">
+      <div class="connect-panel">
+        <h3>Local agent not found</h3>
+        <p>Your relationship data stays on your device. Start the local agent to connect.</p>
+        <div class="step"><b>Step 1.</b> Install Welian CLI:<br><code>pip install welian</code></div>
+        <div class="step"><b>Step 2.</b> Start the agent:<br><code>welian agent</code></div>
+        <button onclick="autoConnectAgent()">Retry</button>
+      </div>
+    </div>`;
+    body.appendChild(panel);
   }
 }
 
-let bridgeFrame = null;
-let bridgePort = null;
-let bridgeReady = false;
-let pendingBridgeMessages = [];
-
-function removeBridge() {
-  if (bridgeFrame) {
-    bridgeFrame.remove();
-    bridgeFrame = null;
-    bridgeReady = false;
-  }
-}
-
-function tryBridgeConnect(port, token) {
+function tryBridgeConnect(port) {
   return new Promise((resolve) => {
     let resolved = false;
     const timeout = setTimeout(() => {
       if (!resolved) { resolved = true; resolve('no_bridge'); }
     }, 3000);
 
-    // Create hidden iframe
+    // Create hidden iframe — agent injects token into the page
     bridgeFrame = document.createElement('iframe');
     bridgeFrame.style.display = 'none';
     bridgeFrame.src = `http://localhost:${port}/`;
-    bridgePort = port;
 
-    // Listen for postMessage from bridge
     const handler = (e) => {
       const msg = e.data;
       if (!msg || msg.source !== 'welian-bridge') return;
 
-      if (msg.type === 'ready') {
-        console.log('Bridge ready, sending connect command');
-        bridgeReady = true;
-        bridgeFrame.contentWindow.postMessage({
-          source: 'welian-parent',
-          type: 'connect',
-          token: token
-        }, '*');
-      } else if (msg.type === 'ws-message' && !resolved) {
+      if (msg.type === 'ws-message' && !resolved) {
         const data = msg.data;
         if (data.type === 'auth_ok') {
           resolved = true;
           clearTimeout(timeout);
+          bridgeReady = true;
           window.removeEventListener('message', handler);
           resolve('auth_ok');
         } else if (data.type === 'error') {
           resolved = true;
           clearTimeout(timeout);
           window.removeEventListener('message', handler);
-          resolve('auth_fail');
+          resolve('no_bridge');
         }
       } else if (msg.type === 'ws-error' && !resolved) {
         resolved = true;
@@ -505,7 +482,6 @@ function tryBridgeConnect(port, token) {
     };
     window.addEventListener('message', handler);
 
-    // If iframe fails to load (no agent on this port)
     bridgeFrame.onerror = () => {
       if (!resolved) { resolved = true; clearTimeout(timeout); resolve('no_bridge'); }
     };

@@ -69,13 +69,6 @@ body{font-family:-apple-system,Inter,sans-serif;background:var(--bg);color:var(-
 .chat-input input{flex:1;background:none;border:none;color:var(--text);font-size:.85em;font-family:inherit;outline:none;min-width:0}
 .chat-input input::placeholder{color:var(--dimmer)}
 .chat-input .send{color:var(--dim);cursor:pointer;font-size:.78em;border:none;background:none;font-family:inherit;flex-shrink:0;padding:4px 6px}
-.connect{padding:24px 20px;text-align:center}
-.connect h3{font-size:1.1em;font-weight:400;margin-bottom:12px}
-.connect p{font-size:.8em;color:var(--dim);margin-bottom:16px}
-.connect input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:.85em;width:220px;text-align:center;outline:none;margin:4px}
-.connect input:focus{border-color:var(--accent)}
-.connect button{background:var(--text);color:var(--bg);border:none;padding:10px 24px;border-radius:6px;font-size:.85em;font-family:inherit;cursor:pointer;margin:4px}
-.connect .err{color:#C65D5D;font-size:.75em;margin-top:8px}
 .hint{font-size:.67em;color:var(--dimmer);text-align:center;padding:8px}
 .hint span{color:var(--dim);cursor:pointer;border-bottom:1px solid transparent;padding:1px 3px}
 </style>
@@ -86,17 +79,9 @@ body{font-family:-apple-system,Inter,sans-serif;background:var(--bg);color:var(-
   <div class="chat-head">
     <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
     <span class="title">Welian Local</span>
-    <span class="badge off" id="badge">Offline</span>
+    <span class="badge off" id="badge">Connecting…</span>
   </div>
-  <div class="chat-body" id="body">
-    <div id="connectPanel" class="connect">
-      <h3>Welian Local Agent</h3>
-      <p>Enter your pairing token to connect.</p>
-      <input id="tokenInput" type="text" placeholder="Pairing token" onkeydown="if(event.key==='Enter')doConnect()">
-      <button onclick="doConnect()">Connect</button>
-      <div class="err" id="err"></div>
-    </div>
-  </div>
+  <div class="chat-body" id="body"></div>
   <div class="chat-input" id="inputBar" style="display:none">
     <input id="input" type="text" placeholder="Talk to Welian…" onkeydown="if(event.key==='Enter')send()">
     <button class="send" onclick="send()">→</button>
@@ -109,6 +94,7 @@ body{font-family:-apple-system,Inter,sans-serif;background:var(--bg);color:var(-
 </div>
 
 <script>
+const PAIRING_TOKEN = "__PAIRING_TOKEN__";
 const wsUrl = `ws://${location.host}/ws`;
 let ws = null;
 let isIframe = window.parent !== window;
@@ -118,7 +104,6 @@ function $(id){return document.getElementById(id)}
 function addMsg(who,text){
   const d=document.createElement('div');d.className='msg';
   const label=who==='ai'?'Welian':'You';
-  const div=document.createElement('div');div.textContent=text;
   d.innerHTML='<div class="who '+who+'">'+label+'</div><div class="bubble '+who+'"></div>';
   d.querySelector('.bubble').textContent=text;
   $('body').appendChild(d);$('body').scrollTop=$('body').scrollHeight;
@@ -134,41 +119,32 @@ function notifyParent(type,data){
   if(isIframe) parent.postMessage({source:'welian-bridge',type:type,data:data},parentOrigin);
 }
 
-function connect(token){
+function connect(){
   ws=new WebSocket(wsUrl);
-  ws.onopen=()=>{ws.send(JSON.stringify({type:'auth',token:token}))};
+  ws.onopen=()=>{ws.send(JSON.stringify({type:'auth',token:PAIRING_TOKEN}))};
   ws.onmessage=(e)=>{
     const data=JSON.parse(e.data);
     notifyParent('ws-message',data);
-    // Handle in standalone mode
     if(!isIframe){
       rmTyping();
       if(data.type==='auth_ok'){onConnected()}
-      else if(data.type==='error'&&data.message.includes('Authentication')){$('err').textContent='Invalid token';ws.close()}
+      else if(data.type==='error'){$('badge').textContent='Error';addMsg('ai','Error: '+data.message)}
       else if(data.type==='response'&&data.reply){addMsg('ai',data.reply)}
       else if(data.type==='response'&&data.data){addMsg('ai',JSON.stringify(data.data,null,2))}
-      else if(data.type==='error'){addMsg('ai','Error: '+data.message)}
     }
   };
-  ws.onerror=()=>{notifyParent('ws-error',{});if(!isIframe){$('err').textContent='Connection failed'}};
+  ws.onerror=()=>{notifyParent('ws-error',{});if(!isIframe){$('badge').textContent='Offline'}};
   ws.onclose=()=>{notifyParent('ws-close',{})};
 }
 
-function doConnect(){
-  const token=$('tokenInput').value.trim();
-  if(!token){$('err').textContent='Enter token';return}
-  $('err').textContent='Connecting...';
-  connect(token);
-}
-
 function onConnected(){
-  $('connectPanel').style.display='none';
   $('inputBar').style.display='flex';
   $('hints').style.display='block';
   $('badge').textContent='Live';
   $('badge').className='badge live';
-  $('body').innerHTML='';
-  addMsg('ai','Connected to your local agent ✅\\n\\nYour data is on your device.\\n\\nTry: "who to reach out" or "note: met with X about Y"');
+  if(!isIframe){
+    addMsg('ai','Connected to your local agent ✅\\n\\nYour data is on your device.\\n\\nTry: "who to reach out" or "note: met with X about Y"');
+  }
 }
 
 function send(){
@@ -185,9 +161,11 @@ window.addEventListener('message',(e)=>{
   const msg=e.data;
   if(!msg||msg.source!=='welian-parent')return;
   parentOrigin=e.origin;
-  if(msg.type==='connect'){connect(msg.token)}
-  else if(msg.type==='send'&&ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(msg.payload))}
+  if(msg.type==='send'&&ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(msg.payload))}
 });
+
+// Auto-connect on load (token is injected by agent)
+connect();
 
 // Notify parent if in iframe
 if(isIframe){
@@ -348,7 +326,10 @@ class LocalAgent:
         print()
 
         async def index_handler(request):
-            return web.Response(text=BRIDGE_HTML, content_type="text/html")
+            # Inject pairing token directly into the page —
+            # no manual token entry needed.
+            html = BRIDGE_HTML.replace("__PAIRING_TOKEN__", self.pairing_token)
+            return web.Response(text=html, content_type="text/html")
 
         async def health_handler(request):
             return web.json_response({
