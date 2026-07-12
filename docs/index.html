@@ -67,7 +67,6 @@ nav .status-dot.offline{background:var(--dimmer)}
 nav .status-dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(74,124,89,.15)}
 nav .status-text{font-size:.72em;color:var(--dim)}
 nav .mode-badge{font-size:.62em;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;transition:all .3s}
-nav .mode-badge.demo{background:var(--dimmer);color:var(--bg)}
 nav .mode-badge.live{background:var(--green);color:#fff;box-shadow:0 0 0 3px rgba(74,124,89,.18)}
 
 /* ── Page layout: chat fills the screen ── */
@@ -214,8 +213,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="links">
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
     <button id="langBtn" onclick="toggleLang()">中文</button>
-    <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Demo</span></span>
-    <span class="mode-badge demo" id="modeBadge" data-i18n="demo">Demo</span>
+    <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
     <button class="cta" id="authBtn" onclick="toggleAuth()">Sign in</button>
   </div>
 </nav>
@@ -278,7 +276,8 @@ const I18N = {
     tagline: 'Every relationship deserves <em>care</em>',
     tagline_sub: 'Your relationship companion — remembers what matters, suggests who to reach',
     demo: 'Demo',
-    welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nThis is a demo. Sign in and connect your local agent to use your real data.",
+    welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nSign in and connect your local agent to get started.",
+    signin_prompt: 'Please sign in to connect your local agent first. 🔑',
     input_ph: 'Message Welian…',
     hint_reach: 'Who to reach out',
     hint_reach_desc: 'See who deserves a check-in',
@@ -322,7 +321,8 @@ const I18N = {
     tagline: '每段关系都值得<em>用心</em>',
     tagline_sub: '你的关系管家，记住重要的事，建议该联系谁',
     demo: '演示',
-    welcome: '你好，我是 Welian 😊\n\n我帮你记住重要的事，建议该联系谁，帮你找到合适的话。\n\n这是演示模式。登录并连接本地 agent 来使用你的真实数据。',
+    welcome: '你好，我是 Welian 😊\n\n我帮你记住重要的事，建议该联系谁，帮你找到合适的话。\n\n登录并连接本地 agent 即可开始使用。',
+    signin_prompt: '请先登录并连接本地 agent。🔑',
     input_ph: '跟 Welian 聊聊…',
     hint_reach: '该联系谁',
     hint_reach_desc: '看看谁值得主动联系',
@@ -422,7 +422,7 @@ window.addEventListener('message', (e) => {
 
 const body = document.getElementById('chatBody');
 const input = document.getElementById('input');
-const modeBadge = document.getElementById('modeBadge');
+const modeBadge = document.getElementById('modeBadge'); // null (removed from UI)
 const navStatus = document.getElementById('navStatus');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
@@ -750,8 +750,7 @@ function onSignedOut() {
   removeBridge();
   authBtn.textContent = 'Sign in';
   navStatus.style.display = 'none';
-  modeBadge.textContent = 'Demo';
-  modeBadge.className = 'mode-badge demo';
+  if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();
   showWelcome();
 }
@@ -911,8 +910,7 @@ function tryBridgeConnect(url, label) {
 
 function onAgentConnected(port) {
   isLive = true;
-  modeBadge.textContent = 'Live';
-  modeBadge.className = 'mode-badge live';
+  if (modeBadge) { modeBadge.textContent = 'Live'; modeBadge.className = 'mode-badge live'; }
   statusDot.className = 'status-dot online';
   statusText.textContent = 'Connected';
 
@@ -945,8 +943,7 @@ function onBridgeMessage(e) {
     removeTyping();
     addSystemMsg('Connection lost. Retrying…');
     isLive = false;
-    modeBadge.textContent = 'Demo';
-    modeBadge.className = 'mode-badge';
+    if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
     statusDot.className = 'status-dot offline';
     statusText.textContent = 'Disconnected';
   }
@@ -1025,11 +1022,9 @@ async function send() {
       payload: { cmd: 'chat', id: reqId, text: text }
     }, '*');
   } else {
-    // Demo mode: mock reply
-    setTimeout(() => {
-      removeTyping();
-      addMsg('ai', mockReply(text));
-    }, 600 + Math.random() * 400);
+    // Not connected — prompt to sign in
+    removeTyping();
+    addMsg('ai', I18N[currentLang].signin_prompt);
   }
 }
 
@@ -1051,24 +1046,6 @@ function quickDraft() {
   input.focus();
   const len = input.value.length;
   input.setSelectionRange(len, len);
-}
-
-// ── Mock replies (demo mode) ──
-const mockReplies = {
-'reach': ['💡 3 people worth reaching out to this week:\n\n🔴 Sarah — 21 days · Leverage[Career]\n   Ask about: Q3 budget adjustment\n🟡 Mike — 18 days · Leverage[Career]\n   Share: tech spec is ready for review\n🟡 Alex — 16 days · Leverage[Investment]\n   Discuss: Q3 partnership framework\n\n📌 You connected 2 people last week —\n   good relationships are bridges 🤝', 'reach', 'who', 'contact', 'connect', 'out', 'this week'],
-'note': ['✓ Noted\n\n  Contact: Sarah · Leverage[Career]\n  Date: ' + new Date().toLocaleDateString('en-US') + '\n  Summary: Discussed Q3 plan, she\'ll reply next week\n  Todo extracted:\n    🔴 Follow up with Sarah on Q3 budget (Wed)\n\n  That\'s your 4th note this week.\n  The more you tell me, the more I can help 🌱', 'note', 'record', 'met', 'logged', 'quick'],
-'draft': ['📝 Draft (warm · casual)\n\n  Hey! It\'s been way too long.\n  Was just thinking about our college days\n  the other day. How have you been?\n\n  Say "confirm" to send, or tell me\n  what to change.', 'draft', 'message', 'write', 'compose', 'old friend', 'reach out'],
-'nurture': ['📌 Old Friend · Lifelong bond\n\n  Your bond: 15 years\n\n  What I remember:\n    · Son\'s name is Leo, taking exams this month\n    · Doesn\'t drink spirits, only wine\n    · You were there when his dad was hospitalized\n\n  Recent moments:\n    Jul 11 — watched the game together\n    Jun 20 — sent birthday wishes ✓\n\n  💡 Leo\'s exam results come out Wednesday.\n     Want to check in?\n\n  (No scores, no pressure for bonds like these —\n   you care, and that\'s enough.)', 'old friend', 'nurture', 'bond', 'how is', 'doing', 'check', 'status', 'relationship'],
-'review': ['📊 This month — you\n\n🌱 As a friend\n  · 3 meaningful conversations\n  · Showed up when a friend\'s dad had surgery ✓\n  · Reconnected with college roommate after 2 years\n\n🏡 As family\n  · Called parents 4 times (last month: 2 ↑)\n  · Attended kid\'s parent-teacher meeting ✓\n  · ⚠️ Anniversary next Wednesday\n\n🤝 As collaborator\n  · Delivered on 5 of 6 commitments (83%)\n  · Connected 2 people (good relationships are bridges)\n  · Sarah\'s project review on track → noted\n\n—— How was your month? Only you can judge :)', 'monthly', 'review', 'this month', 'how am i', 'report', 'dashboard'],
-'help': ['Here\'s what I can do:\n\n  · "note: met with X about Y" — I\'ll remember\n  · "who to reach out" — I\'ll suggest\n  · "draft a message to X" — I\'ll write it\n  · "how is X doing" — I\'ll recap a bond\n  · "monthly review" — see your month\n\n  Leverage ties: who + why + what to say\n  Lifelong bonds: remember what matters + show up\n\n  Try me 😊', 'help', 'what can you', 'how', 'try', 'start'],
-};
-
-function mockReply(text) {
-  const t = text.toLowerCase();
-  for (const [key, data] of Object.entries(mockReplies)) {
-    if (data.slice(1).some(k => t.includes(k.toLowerCase()))) return data[0];
-  }
-  return 'Got it 😊\n\n  Try these:\n  · "who to reach out"\n  · "note: met with X about Y"\n  · "draft a message to X"\n  · "how is old friend doing"\n  · "monthly review"';
 }
 
 // ── Init ──
