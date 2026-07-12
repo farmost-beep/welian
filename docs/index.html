@@ -164,7 +164,11 @@ footer .inf{color:var(--accent)}
 <script>
 const body=document.getElementById('chatBody'),input=document.getElementById('input');
 
-const replies={
+// API endpoint — empty string means use mock mode
+const API_URL = ''; // Set to 'https://api.welian.app' when API is deployed
+
+// Mock replies (fallback when no API available)
+const mockReplies={
 'reach':['💡 3 people worth reaching out to this week:\n\n🔴 Sarah — 21 days · Leverage[Career]\n   Ask about: Q3 budget adjustment\n🟡 Mike — 18 days · Leverage[Career]\n   Share: tech spec is ready for review\n🟡 Alex — 16 days · Leverage[Investment]\n   Discuss: Q3 partnership framework\n\n📌 You connected 2 people last week —\n   good relationships are bridges 🤝','reach','who','contact','connect','out','this week'],
 'note':['✓ Noted\n\n  Contact: Sarah · Leverage[Career]\n  Date: '+new Date().toLocaleDateString('en-US')+'\n  Summary: Discussed Q3 plan, she\'ll reply next week\n  Todo extracted:\n    🔴 Follow up with Sarah on Q3 budget (Wed)\n\n  That\'s your 4th note this week.\n  The more you tell me, the more I can help 🌱','note','record','met','logged','quick'],
 'draft':['📝 Draft (warm · casual)\n\n  Hey! It\'s been way too long.\n  Was just thinking about our college days\n  the other day. How have you been?\n\n  Say "confirm" to send, or tell me\n  what to change.','draft','message','write','compose','old friend','reach out'],
@@ -173,12 +177,26 @@ const replies={
 'help':['Here\'s what I can do:\n\n  · "note: met with X about Y" — I\'ll remember\n  · "who to reach out" — I\'ll suggest\n  · "draft a message to X" — I\'ll write it\n  · "how is X doing" — I\'ll recap a bond\n  · "monthly review" — see your month\n\n  Leverage ties: who + why + what to say\n  Lifelong bonds: remember what matters + show up\n\n  Try me 😊','help','what can you','how','try','start'],
 };
 
-function matchReply(text){
+function mockMatchReply(text){
   const t=text.toLowerCase();
-  for(const[key,data]of Object.entries(replies)){
+  for(const[key,data]of Object.entries(mockReplies)){
     if(data.slice(1).some(k=>t.includes(k.toLowerCase())))return data[0];
   }
   return 'Got it 😊\n\n  Try these:\n  · "who to reach out"\n  · "note: met with X about Y"\n  · "draft a message to X"\n  · "how is old friend doing"\n  · "monthly review"';
+}
+
+async function apiChat(text){
+  if(!API_URL) return null;
+  try{
+    const res=await fetch(API_URL+'/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,user_id:'web-demo'})
+    });
+    if(!res.ok) return null;
+    const data=await res.json();
+    return data.reply;
+  }catch(e){ return null; }
 }
 
 function addMsg(who,text){
@@ -195,10 +213,13 @@ function addTyping(){
 }
 function removeTyping(){document.getElementById('typing')?.remove()}
 
-function send(){
+async function send(){
   const text=input.value.trim();if(!text)return;input.value='';
   addMsg('you',text);addTyping();
-  setTimeout(()=>{removeTyping();addMsg('ai',matchReply(text))},600+Math.random()*400);
+  // Try API first, fall back to mock
+  const apiReply=await apiChat(text);
+  removeTyping();
+  addMsg('ai',apiReply!==null?apiReply:mockMatchReply(text));
 }
 
 function quickSend(text){

@@ -1,0 +1,42 @@
+# Welian configuration
+# Copy to config.local.yaml for local overrides
+
+# Data directory (default: ~/.welian/data)
+# data_dir: ~/.welian/data
+
+# AI / LLM configuration
+ai:
+  engine: "claude"              # claude | openai
+  model: "claude-sonnet-4-6"
+  api_key_env: "ANTHROPIC_API_KEY"
+  draft:
+    default_tone: "warm"
+    max_length: 80
+    signature: ""
+
+# Token billing (BUSINESS_MODEL §3)
+tokens:
+  free_monthly: 100
+  pro_monthly: 500
+  costs:
+    ai_record_enhance: 1
+    ai_draft: 2
+    advise_engine: 3
+    weekly_report: 3
+    meeting_prep: 3
+    anchor_assist: 3
+    role_dashboard: 5
+    annual_report: 20
+
+# WeChat bot bridge
+bot:
+  hub_url: "ws://localhost:9800"
+  bot_id: "welian-bot"
+
+# API server
+api:
+  host: "127.0.0.1"
+  port: 8000
+  cors_origins:
+    - "https://welian.app"
+    - "http://localhost:*"
