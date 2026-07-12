@@ -44,6 +44,21 @@ TIMELINE_FILE = _DATA_DIR / "timeline.json"
 TODOS_FILE = _DATA_DIR / "todos.json"
 USAGE_FILE = _DATA_DIR / "usage.json"
 
+
+def _init_paths():
+    """Re-initialize data paths after WELIAN_HOME change.
+
+    Called by bot SessionManager when switching to a per-user data directory.
+    """
+    global _CONFIG, _DATA_DIR, CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE, USAGE_FILE
+    _CONFIG = _load_config()
+    _DATA_DIR = Path(_CONFIG.get("data_dir", str(_get_home_dir() / "data")))
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    CONTACTS_FILE = _DATA_DIR / "contacts.json"
+    TIMELINE_FILE = _DATA_DIR / "timeline.json"
+    TODOS_FILE = _DATA_DIR / "todos.json"
+    USAGE_FILE = _DATA_DIR / "usage.json"
+
 NATURE_LEVERAGE = "leverage"
 NATURE_NURTURE = "nurture"
 NATURE_DUAL = "dual"

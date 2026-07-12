@@ -12,6 +12,9 @@ Usage:
 
   # Bot mode: run edge bot (local data + cloud AI)
   welian bot
+  welian bot-install    # install as launchd service (auto-start + restart)
+  welian bot-uninstall  # remove launchd service
+  welian bot-status     # check service status
 
   # Data management
   welian export [--password XXX]     # encrypted export
@@ -163,6 +166,10 @@ def main():
 
     sub.add_parser("bot", help="Run WeChat bot (edge mode: local data + cloud AI)")
 
+    p_bot_install = sub.add_parser("bot-install", help="Install bot as launchd service (auto-start + restart on crash)")
+    p_bot_uninstall = sub.add_parser("bot-uninstall", help="Uninstall bot launchd service")
+    sub.add_parser("bot-status", help="Check bot launchd service status")
+
     p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
     p_agent.add_argument("--port", type=int, default=9800)
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
@@ -258,6 +265,43 @@ def main():
         print(f"  Data: local (edge)")
         print(f"  AI: cloud if WELIAN_CLOUD_URL set, else offline")
         asyncio.run(run_hub_bridge())
+
+    elif args.command == "bot-install":
+        import subprocess, shutil
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.bot.plist")
+        # Check if already loaded
+        result = subprocess.run(["launchctl", "list", "com.welian.bot"], capture_output=True)
+        if result.returncode == 0:
+            print("Bot service already installed. Run 'welian bot-uninstall' first.")
+            return
+        # Load launchd plist
+        subprocess.run(["launchctl", "load", plist_path], check=True)
+        print("✓ Bot installed as launchd service")
+        print(f"  Plist: {plist_path}")
+        print("  Auto-starts on login, restarts on crash")
+        print()
+        print("  Logs: ~/.welian/logs/bot.log")
+        print("  Stop: welian bot-uninstall")
+
+    elif args.command == "bot-uninstall":
+        import subprocess
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.bot.plist")
+        subprocess.run(["launchctl", "unload", plist_path], capture_output=True)
+        print("✓ Bot service uninstalled")
+
+    elif args.command == "bot-status":
+        import subprocess
+        result = subprocess.run(["launchctl", "list", "com.welian.bot"], capture_output=True)
+        if result.returncode == 0:
+            print("✓ Bot service is running")
+            # Parse launchctl output
+            output = result.stdout.decode()
+            for line in output.strip().split("\n"):
+                if any(k in line for k in ["PID", "Status", "LastExit"]):
+                    print(f"  {line.strip()}")
+        else:
+            print("✗ Bot service is not running")
+            print("  Install with: welian bot-install")
 
     elif args.command == "agent":
         import asyncio
