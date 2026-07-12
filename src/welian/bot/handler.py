@@ -1,79 +1,31 @@
-"""WeChat bot handler — bridges WeChat messages to Welian engine.
+"""WeChat bot handler — runs on the EDGE, calls cloud for AI only.
 
-Supports two modes:
-1. OpeniLink Hub bridge (WebSocket, production)
-2. HTTP webhook (for testing/development)
+Architecture (SPEC §7.1):
+  WeChat user → Bot (edge) → EdgeClient (local engine) → Cloud (AI only)
+                ↑ all data stays here           ↑ only minimal context sent
 
-Message flow:
-  WeChat user → Bot → handler.process(user_id, text) → reply → Bot → WeChat user
+The bot process runs on the user's device (or a device they control).
+All relationship data stays local. Only AI operations hit the cloud.
 """
 import json
 import os
 import asyncio
 import websockets
-from .. import engine, intent, ai, tokens
-from ..api.server import _handle_record, _handle_ask, _handle_draft, _handle_report, _handle_check, _fallback, _help_text, _intent_to_feature
 
-# ── Core message processing ──
+from ..edge import EdgeClient
+
+# ── Edge client instance ──
+# The bot runs on the edge — it has a local EdgeClient
+_cloud_url = os.environ.get("WELIAN_CLOUD_URL", "")  # empty = offline mode
+_edge = EdgeClient(cloud_url=_cloud_url)
 
 def process_message(user_id, text):
-    """Process a user message and return Welian's reply.
+    """Process a user message via the edge client.
 
-    This is the single entry point for all bot integrations.
+    All data operations happen locally. AI features call the cloud
+    with minimal context only.
     """
-    text = text.strip()
-    if not text:
-        return "跟我说点什么吧 😊"
-
-    intent_type, payload = intent.parse(text)
-
-    if intent_type == intent.INTENT_HELP:
-        return _help_text()
-
-    elif intent_type == intent.INTENT_RECORD:
-        # Ensure user has a data directory (multi-tenant)
-        _ensure_user_data(user_id)
-        reply = _handle_record(payload, user_id)
-        tokens.consume(user_id, "ai_record_enhance")
-        return reply
-
-    elif intent_type == intent.INTENT_ASK:
-        _ensure_user_data(user_id)
-        ok, remaining, msg = tokens.consume(user_id, "advise_engine")
-        if not ok:
-            return msg
-        return _handle_ask(user_id)
-
-    elif intent_type == intent.INTENT_DRAFT:
-        _ensure_user_data(user_id)
-        ok, remaining, msg = tokens.consume(user_id, "ai_draft")
-        if not ok:
-            return msg
-        return _handle_draft(payload, user_id)
-
-    elif intent_type == intent.INTENT_REPORT:
-        _ensure_user_data(user_id)
-        ok, remaining, msg = tokens.consume(user_id, "role_dashboard")
-        if not ok:
-            return msg
-        return _handle_report(user_id)
-
-    elif intent_type == intent.INTENT_CHECK:
-        _ensure_user_data(user_id)
-        return _handle_check(payload)
-
-    else:
-        return _fallback(text)
-
-def _ensure_user_data(user_id):
-    """Ensure user has a data directory. In production, this would set up
-    per-user SQLite or isolated JSON files."""
-    import os
-    from pathlib import Path
-    home = Path.home() / ".welian" / "users" / user_id
-    home.mkdir(parents=True, exist_ok=True)
-    # In production, engine would use per-user data paths
-    # For now, all users share the default data dir (single-tenant MVP)
+    return _edge.chat(text)
 
 # ── OpeniLink Hub bridge ──
 
@@ -83,15 +35,20 @@ BOT_ID = os.environ.get("WELIAN_BOT_ID", "welian-bot")
 async def run_hub_bridge():
     """Run the OpeniLink Hub WebSocket bridge.
 
-    Connects to the Hub, receives WeChat messages, processes them,
-    and sends replies back through the Hub API.
+    The bot connects to the Hub (which interfaces with WeChat),
+    receives messages, processes them via the edge client, and
+    sends replies back.
+
+    Data flow:
+      WeChat → Hub → Bot(edge) → EdgeClient(local) → [Cloud AI if needed]
+      ← reply ← Bot ← EdgeClient ← [Cloud AI result]
     """
-    print(f"Welian bot connecting to {HUB_URL}...")
+    print(f"Welian bot (edge) connecting to {HUB_URL}...")
+    print(f"  Cloud URL: {_cloud_url or '(offline mode)'}")
     while True:
         try:
             async with websockets.connect(HUB_URL) as ws:
                 print("✓ Connected to Hub")
-                # Register bot
                 await ws.send(json.dumps({
                     "type": "register",
                     "bot_id": BOT_ID,
@@ -102,6 +59,7 @@ async def run_hub_bridge():
                     if msg.get("type") == "message":
                         user_id = msg.get("from", "default")
                         text = msg.get("content", "")
+                        # Process on edge — data stays local
                         reply = process_message(user_id, text)
                         await ws.send(json.dumps({
                             "type": "reply",

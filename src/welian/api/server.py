@@ -1,26 +1,29 @@
-"""FastAPI server — HTTP API for welian.app and WeChat bot.
+"""Welian cloud API — AI-only, no data storage.
+
+SPEC §7.1: 数据归你，智能来云。
+
+The cloud receives ONLY minimal context snippets from the edge client.
+It never sees full contacts.json, timeline.json, or any user data.
+It processes AI requests and returns results. Nothing is stored.
 
 Endpoints:
-- POST /chat          — main chat endpoint (natural language in, response out)
-- GET  /dashboard     — role dashboard data
-- GET  /contacts      — list contacts
-- GET  /balance       — token balance
-- GET  /health        — health check
+- POST /ai/draft     — draft a message from minimal context
+- POST /ai/extract   — extract todos/key_points from interaction text
+- POST /ai/advise    — format advise from candidate list (no scoring)
+- GET  /health       — health check
 """
-import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
-from .. import engine, intent, ai, tokens
+from ..llm.router import get_client
 
-app = FastAPI(title="Welian API", version="1.0.0")
+app = FastAPI(title="Welian Cloud API", version="2.0.0")
 
-# CORS — allow welian.app and localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://welian.app", "http://localhost:*", "http://127.0.0.1:*"],
+    allow_origins=["*"],  # Edge clients from anywhere
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,177 +31,166 @@ app.add_middleware(
 
 # ── Models ──
 
-class ChatRequest(BaseModel):
-    message: str
-    user_id: str = "default"
+class DraftRequest(BaseModel):
+    name: str
+    nature: Optional[str] = None
+    memories: List[str] = []
+    last_interaction: str = ""
+    user_context: str = ""
+    tone: str = "warm"
 
-class ChatResponse(BaseModel):
-    reply: str
-    intent: str
-    tokens_used: int = 0
-    tokens_remaining: int = 0
+class DraftResponse(BaseModel):
+    result: str
+
+class ExtractRequest(BaseModel):
+    interaction_text: str
+    contact_name: str = ""
+
+class ExtractResponse(BaseModel):
+    result: dict  # {"pending": str, "key_points": [str]}
+
+class AdviseRequest(BaseModel):
+    leverage: List[dict] = []
+    nurture: List[dict] = []
+
+class AdviseResponse(BaseModel):
+    result: str
+
+# ── System prompts ──
+
+DRAFT_SYSTEM = """You are Welian, an AI companion that helps people be better friends, family members, and collaborators.
+
+Draft a short, natural message. Return ONLY the message text.
+- For nurture relationships: warm, no agenda, just reaching out
+- For leverage relationships: respectful but purposeful
+- Keep it under 80 characters, like a real text message"""
+
+EXTRACT_SYSTEM = """Extract actionable items from an interaction record.
+Return JSON: {"pending": "follow-up task or empty", "key_points": ["point1", "point2"]}
+Be concise. Only extract real action items."""
+
+ADVISE_SYSTEM = """You are Welian. Format relationship suggestions in a warm, human way.
+- For leverage ties: who + why + what to talk about
+- For nurture bonds: gentle reminders, no urgency, no scores
+Return formatted text only."""
 
 # ── Routes ──
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0", "mode": "ai-only"}
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
-    """Main chat endpoint — processes natural language and returns Welian's reply."""
-    text = req.message.strip()
-    if not text:
-        return ChatResponse(reply="跟我说点什么吧 😊", intent="empty")
+@app.post("/ai/draft", response_model=DraftResponse)
+async def draft(req: DraftRequest):
+    """Draft a message from minimal context.
 
-    intent_type, payload = intent.parse(text)
-    tokens_used = 0
+    Receives ONLY: name, nature, 3 memory snippets (50 chars each),
+    last interaction (100 chars), user context.
+    Does NOT receive: full contact record, all memories, notes, platforms.
+    """
+    # Build prompt from minimal context
+    parts = [f"Draft a message to {req.name}."]
+    if req.nature == "nurture":
+        parts.append("This is a lifelong bond — be warm, no agenda.")
+    elif req.nature == "leverage":
+        parts.append("This is a professional tie — be respectful but purposeful.")
+    if req.memories:
+        parts.append(f"What I remember: {'; '.join(req.memories)}")
+    if req.last_interaction:
+        parts.append(f"Last interaction: {req.last_interaction}")
+    if req.user_context:
+        parts.append(f"Context: {req.user_context}")
+    parts.append(f"Tone: {req.tone}")
 
-    if intent_type == intent.INTENT_HELP:
-        reply = _help_text()
+    prompt = "\n".join(parts)
+    result = _call_llm(prompt, DRAFT_SYSTEM)
 
-    elif intent_type == intent.INTENT_RECORD:
-        reply = _handle_record(payload, req.user_id)
-        tokens_used = 1
-
-    elif intent_type == intent.INTENT_ASK:
-        reply = _handle_ask(req.user_id)
-        tokens_used = 3
-
-    elif intent_type == intent.INTENT_DRAFT:
-        reply = _handle_draft(payload, req.user_id)
-        tokens_used = 2
-
-    elif intent_type == intent.INTENT_REPORT:
-        reply = _handle_report(req.user_id)
-        tokens_used = 5
-
-    elif intent_type == intent.INTENT_CHECK:
-        reply = _handle_check(payload)
-        tokens_used = 0  # checking is free
-
-    else:
-        reply = _fallback(text)
-
-    # Consume tokens
-    remaining = 0
-    if tokens_used > 0:
-        ok, remaining, msg = tokens.consume(req.user_id, _intent_to_feature(intent_type))
-        if not ok:
-            reply = msg
-            tokens_used = 0
-    else:
-        bal = tokens.get_balance(req.user_id)
-        remaining = bal["remaining"]
-
-    return ChatResponse(
-        reply=reply,
-        intent=intent_type,
-        tokens_used=tokens_used,
-        tokens_remaining=remaining,
-    )
-
-@app.get("/dashboard")
-async def dashboard(user_id: str = "default"):
-    """Get role dashboard data."""
-    return engine.role_dashboard()
-
-@app.get("/contacts")
-async def contacts(nature: Optional[str] = None, role: Optional[str] = None):
-    """List contacts, optionally filtered."""
-    return engine.list_contacts(nature=nature, role=role)
-
-@app.get("/balance")
-async def balance(user_id: str = "default"):
-    """Get token balance."""
-    return tokens.get_balance(user_id)
-
-# ── Handlers ──
-
-def _handle_record(payload, user_id):
-    contact_name = payload.get("contact")
-    summary = payload.get("summary", payload.get("raw", ""))
-
-    if contact_name:
-        contact, _ = engine.resolve_contact(contact_name)
-        if contact:
-            engine.add_timeline(contact["id"], summary)
-            # Check for pending todo
-            todos = [t for t in engine.list_todos() if t.get("contact") == contact["id"]]
-            lines = [f"✓ 记下了\n\n  联系人：{contact['name']}"]
-            lines.append(f"  时间：{date.today().isoformat()}" if False else f"  摘要：{summary[:60]}")
-            if todos:
-                lines.append(f"\n  帮你记了条待办：")
-                lines.append(f"    🔴 {todos[0]['task'][:50]}")
-            lines.append(f"\n  多记一点，我就能多帮你想到一点 🌱")
-            return "\n".join(lines)
+    if result is None:
+        # Fallback: template
+        if req.nature == "nurture":
+            result = f"嘿 {req.name}，好久没联系了，最近怎么样？想你了 😊"
+        elif req.nature == "leverage":
+            result = f"{req.name}你好，最近忙吗？有个事想跟你聊聊。"
         else:
-            # Create contact on the fly
-            cid = contact_name.lower().replace(" ", "_")
-            engine.add_contact(cid, contact_name, nature=engine.NATURE_LEVERAGE)
-            engine.add_timeline(cid, summary)
-            return f"✓ 记下了\n\n  新联系人：{contact_name}\n  摘要：{summary[:60]}\n\n  下次可以告诉我更多关于他/她的事 🌱"
-    else:
-        # No contact identified, just record
-        return f"✓ 记下了：{summary[:60]}\n\n  你可以告诉我跟谁聊的，我帮你关联起来。"
+            result = f"{req.name}，好久不见！最近怎么样？"
 
-def _handle_ask(user_id):
-    leverage = engine.advise_leverage(top=5)
-    nurture = engine.advise_nurture(days_ahead=14)
+    return DraftResponse(result=result)
+
+@app.post("/ai/extract", response_model=ExtractResponse)
+async def extract(req: ExtractRequest):
+    """Extract todos and key points from interaction text.
+
+    Receives ONLY: the interaction text and optionally a contact name.
+    Does NOT receive: contact record, timeline history, any other data.
+    """
+    prompt = f"Interaction: {req.interaction_text}\nContact: {req.contact_name or 'unknown'}"
+    result = _call_llm(prompt, EXTRACT_SYSTEM)
+
+    if result:
+        import json
+        try:
+            start = result.find("{")
+            end = result.rfind("}") + 1
+            if start >= 0 and end > start:
+                parsed = json.loads(result[start:end])
+                return ExtractResponse(result=parsed)
+        except Exception:
+            pass
+
+    # Fallback: simple heuristic
+    pending = ""
+    text = req.interaction_text.lower()
+    if any(kw in text for kw in ["下周", "跟进", "follow up", "remind", "待办"]):
+        pending = "Follow up on this interaction"
+    return ExtractResponse(result={"pending": pending, "key_points": []})
+
+@app.post("/ai/advise", response_model=AdviseResponse)
+async def advise(req: AdviseRequest):
+    """Format advise suggestions from pre-scored candidates.
+
+    Receives ONLY: candidate names, days_since, nature, last interaction snippet.
+    Does NOT receive: full contact records, all timeline data, scoring algorithms.
+    Scoring is done on the edge; cloud only formats the output.
+    """
     parts = []
-    if leverage:
-        parts.append(ai.format_advise_leverage(leverage))
-    if nurture:
-        if parts:
-            parts.append("")
-        parts.append(ai.format_advise_nurture(nurture))
+    if req.leverage:
+        parts.append(f"💡 这周值得联系的人（{len(req.leverage)}位）\n")
+        for c in req.leverage:
+            days = c.get("days_since", 0)
+            icon = "🔴" if days >= 21 else "🟡"
+            line = f"{icon} {c['name']} — {days}天没联系了"
+            if c.get("leverage_goals"):
+                line += f"\n   为{','.join(c['leverage_goals'])}联结"
+            if c.get("last_interaction"):
+                line += f"\n   上次：{c['last_interaction'][:60]}"
+            parts.append(line)
+        parts.append("\n📌 好关系是互相搭桥 🤝")
+
+    if req.nurture:
+        parts.append("\n💛 值得记得的事\n")
+        for r in req.nurture:
+            if r.get("type") == "important_date":
+                parts.append(f"  · {r['name']}的{r.get('label', '')}快到了")
+                parts.append(f"    要不要发条消息？")
+            elif r.get("type") == "memory_followup":
+                parts.append(f"  · {r['name']}：你记着「{r.get('content', '')[:40]}」")
+        parts.append("\n（这种关系不算什么分，也不催你——用心就好）")
+
     if not parts:
-        return "这周没有特别需要联系的。\n你可能已经联系过了 👍"
-    return "\n".join(parts)
+        return AdviseResponse(result="这周没有特别需要联系的。")
 
-def _handle_draft(payload, user_id):
-    target = payload.get("target", "")
-    raw = payload.get("raw", "")
-    # Try to extract context from raw
-    context = raw.replace(target, "").replace("拟条消息", "").replace("draft a message to", "").strip()
-    draft = ai.draft_message(target, context=context)
-    return f"📝 帮你拟了一版\n\n{draft}\n\n觉得可以就说「确认」，想改哪里随时跟我说。"
+    # Try LLM for enhanced formatting
+    llm_result = _call_llm("\n".join(parts), ADVISE_SYSTEM)
+    return AdviseResponse(result=llm_result if llm_result else "\n".join(parts))
 
-def _handle_report(user_id):
-    dash = engine.role_dashboard()
-    return ai.format_role_dashboard(dash)
+# ── LLM helper ──
 
-def _handle_check(payload):
-    target = payload.get("target", "")
-    return ai.format_nurture_check(target)
-
-def _fallback(text):
-    return (f"你说的「{text[:30]}」我记下了 😊\n\n"
-            f"你可以试试这些：\n"
-            f"  · \"who to reach out\" — 这周该联系谁\n"
-            f"  · \"note: met with X about Y\" — 记一下\n"
-            f"  · \"draft a message to X\" — 拟条消息\n"
-            f"  · \"how is X doing\" — 看看一段关系\n"
-            f"  · \"monthly review\" — 这个月的你")
-
-def _help_text():
-    return ("你可以跟我说：\n\n"
-            "  · \"note: met with X about Y\" — 帮你记下来\n"
-            "  · \"who to reach out\" — 帮你想清楚\n"
-            "  · \"draft a message to X\" — 帮你拟好话\n"
-            "  · \"how is X doing\" — 帮你回顾一段关系\n"
-            "  · \"monthly review\" — 看看这个月的自己\n\n"
-            "  为目标联结的关系：该联系谁+为什么+聊什么\n"
-            "  值得陪伴的关系：记得他在乎的事+重要时刻在场\n\n"
-            "  试试看 😊")
-
-def _intent_to_feature(intent_type):
-    return {
-        intent.INTENT_RECORD: "ai_record_enhance",
-        intent.INTENT_ASK: "advise_engine",
-        intent.INTENT_DRAFT: "ai_draft",
-        intent.INTENT_REPORT: "role_dashboard",
-    }.get(intent_type, "ai_record_enhance")
-
-# Import date for record handler
-from datetime import date
+def _call_llm(prompt: str, system: str) -> Optional[str]:
+    """Call LLM via the abstraction layer. Returns None on failure."""
+    try:
+        client = get_client()
+        if client:
+            return client.complete(prompt, system=system)
+    except Exception:
+        pass
+    return None

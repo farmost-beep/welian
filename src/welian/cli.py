@@ -1,54 +1,78 @@
-"""Welian CLI — development and admin interface.
+"""Welian CLI — edge mode (local engine) + cloud mode (AI API).
 
 Usage:
+  # Edge mode (default): all data local, AI via cloud if configured
   welian chat "记一下：和张总聊了预算方案"
   welian status
-  welian contacts [--nature leverage|nurture|dual]
   welian advise
   welian dashboard
-  welian serve [--port 8000]
+
+  # Cloud server mode: run AI-only API (no data access)
+  welian serve-cloud [--port 8000]
+
+  # Bot mode: run edge bot (local data + cloud AI)
   welian bot
+
+  # Data management
+  welian export [--password XXX]     # encrypted export
+  welian import <file> [--password XXX]
+  welian balance
 """
 import sys
+import json
 import argparse
 from . import engine, intent, ai, tokens
-from .bot.handler import process_message
+from .edge import EdgeClient
 
 def main():
     parser = argparse.ArgumentParser(prog="welian", description="Welian — AI companion for relationships")
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("status", help="Show overview")
-    sub.add_parser("advise", help="Who to reach out to")
-    sub.add_parser("dashboard", help="Monthly role review")
+    # Edge commands (local data)
+    sub.add_parser("status", help="Show overview (local data)")
+    p_advise = sub.add_parser("advise", help="Who to reach out to (local scoring + cloud AI)")
+    p_advise.add_argument("--cloud", default="", help="Cloud API URL (empty=offline)")
+    sub.add_parser("dashboard", help="Monthly role review (local)")
 
-    p_contacts = sub.add_parser("contacts", help="List contacts")
+    p_contacts = sub.add_parser("contacts", help="List contacts (local)")
     p_contacts.add_argument("--nature", choices=["leverage", "nurture", "dual"])
     p_contacts.add_argument("--role", choices=["friend", "family", "collaborator"])
 
-    p_chat = sub.add_parser("chat", help="Send a message to Welian")
+    p_chat = sub.add_parser("chat", help="Chat with Welian (edge mode)")
     p_chat.add_argument("message", help="Your message")
+    p_chat.add_argument("--cloud", default="", help="Cloud API URL (empty=offline)")
 
-    p_serve = sub.add_parser("serve", help="Run API server")
-    p_serve.add_argument("--port", type=int, default=8000)
-    p_serve.add_argument("--host", default="127.0.0.1")
-
-    sub.add_parser("bot", help="Run WeChat bot bridge")
-
-    p_add = sub.add_parser("add", help="Add a contact")
+    p_add = sub.add_parser("add", help="Add a contact (local)")
     p_add.add_argument("id")
     p_add.add_argument("--name", required=True)
     p_add.add_argument("--relation", default="")
     p_add.add_argument("--nature", choices=["leverage", "nurture", "dual"], default="leverage")
 
-    p_balance = sub.add_parser("balance", help="Check token balance")
+    p_balance = sub.add_parser("balance", help="Check token balance (local)")
     p_balance.add_argument("--user", default="default")
+
+    # Export / Import (edge data management)
+    p_export = sub.add_parser("export", help="Export all data (encrypted if --password)")
+    p_export.add_argument("--password", default="")
+    p_export.add_argument("--output", "-o", default="-", help="Output file (- for stdout)")
+
+    p_import = sub.add_parser("import", help="Import data from file")
+    p_import.add_argument("file", help="Import file path")
+    p_import.add_argument("--password", default="")
+
+    # Server modes
+    p_serve = sub.add_parser("serve-cloud", help="Run cloud AI API (no data access)")
+    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.add_argument("--host", default="0.0.0.0")
+
+    sub.add_parser("bot", help="Run WeChat bot (edge mode: local data + cloud AI)")
 
     args = parser.parse_args()
 
+    # ── Edge commands ──
     if args.command == "status":
         d = engine.get_dashboard()
-        print(f"Welian Status")
+        print(f"Welian Status (edge / local data)")
         print(f"  Contacts: {d['total_contacts']}")
         print(f"  Pending todos: {d['pending_todos']}")
         print(f"  Recent activities (7d): {d['recent_activities']}")
@@ -57,15 +81,12 @@ def main():
         print(f"  Nurture reminders: {d['nurture_reminders']}")
 
     elif args.command == "advise":
-        leverage = engine.advise_leverage(top=5)
-        nurture = engine.advise_nurture(days_ahead=14)
-        if leverage:
-            print(ai.format_advise_leverage(leverage))
-        if nurture:
-            print()
-            print(ai.format_advise_nurture(nurture))
-        if not leverage and not nurture:
-            print("这周没有特别需要联系的。")
+        import os
+        cloud = args.cloud if hasattr(args, 'cloud') and args.cloud else os.environ.get("WELIAN_CLOUD_URL", "")
+        client = EdgeClient(cloud_url=cloud)
+        # Use ask intent
+        reply = client._handle_ask()
+        print(reply)
 
     elif args.command == "dashboard":
         dash = engine.role_dashboard()
@@ -79,7 +100,8 @@ def main():
             print(f"  {c['name']:12s} [{nature:8s}] [{role:12s}] {c.get('relation', '')}")
 
     elif args.command == "chat":
-        reply = process_message("cli", args.message)
+        client = EdgeClient(cloud_url=args.cloud)
+        reply = client.chat(args.message)
         print(reply)
 
     elif args.command == "add":
@@ -94,15 +116,43 @@ def main():
         print(f"  Used this month: {bal['used_this_month']}")
         print(f"  Remaining: {bal['remaining']}")
 
-    elif args.command == "serve":
+    # ── Export / Import ──
+    elif args.command == "export":
+        client = EdgeClient()
+        data = client.export_data(password=args.password)
+        output = json.dumps(data, ensure_ascii=False, indent=2)
+        if args.output == "-":
+            print(output)
+        else:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(output)
+            print(f"Exported to {args.output}")
+            if args.password:
+                print("  (encrypted with password)")
+
+    elif args.command == "import":
+        with open(args.file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        client = EdgeClient()
+        ok = client.import_data(data, password=args.password)
+        if ok:
+            print(f"Imported from {args.file}")
+        else:
+            print(f"Import failed — invalid format or wrong password")
+
+    # ── Server modes ──
+    elif args.command == "serve-cloud":
         import uvicorn
-        print(f"Starting Welian API on {args.host}:{args.port}")
+        print(f"Starting Welian Cloud API (AI-only, no data) on {args.host}:{args.port}")
+        print(f"  Endpoints: /ai/draft /ai/extract /ai/advise /health")
         uvicorn.run("welian.api.server:app", host=args.host, port=args.port, reload=False)
 
     elif args.command == "bot":
         import asyncio
         from .bot.handler import run_hub_bridge
-        print("Starting Welian WeChat bot bridge...")
+        print("Starting Welian WeChat bot (edge mode)...")
+        print(f"  Data: local (edge)")
+        print(f"  AI: cloud if WELIAN_CLOUD_URL set, else offline")
         asyncio.run(run_hub_bridge())
 
     else:
