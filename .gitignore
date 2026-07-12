@@ -8,6 +8,8 @@ __pycache__/
 # 机密文档（仅本地保存，不上传 GitHub）
 docs/SPEC_WELIAN.md
 docs/BUSINESS_MODEL.md
+docs/COMPETITIVE_ANALYSIS.md
+docs/ROADMAP_v5.md
 
 # OS
 .DS_Store
