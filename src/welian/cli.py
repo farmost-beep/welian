@@ -179,6 +179,8 @@ def main():
     sub.add_parser("weekly-uninstall", help="Uninstall weekly report launchd cron")
     sub.add_parser("weekly-status", help="Check weekly report launchd cron status")
 
+    sub.add_parser("doctor", help="Diagnose all system components")
+
     p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
     p_agent.add_argument("--port", type=int, default=9800)
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
@@ -434,8 +436,211 @@ def main():
             asyncio.run(push())
             print(f"\n✓ Pushed to WeChat user: {user_id[:12]}...")
 
+    elif args.command == "doctor":
+        _run_doctor()
+
     else:
         parser.print_help()
+
+def _run_doctor():
+    """Diagnose all system components."""
+    import subprocess, time, json as _json
+
+    checks = []
+    passed = 0
+    failed = 0
+    warnings = 0
+
+    def check(name, status, detail=""):
+        nonlocal passed, failed, warnings
+        icon = "✅" if status == "ok" else "❌" if status == "fail" else "⚠️"
+        if status == "ok":
+            passed += 1
+        elif status == "fail":
+            failed += 1
+        else:
+            warnings += 1
+        line = f"  {icon} {name}"
+        if detail:
+            line += f" — {detail}"
+        checks.append(line)
+
+    print("🔍 Welian Doctor — 系统诊断\n")
+
+    # 1. Python environment
+    py_version = sys.version.split()[0]
+    check("Python", "ok" if py_version >= "3.9" else "warn", f"v{py_version}")
+
+    # 2. WELIAN_HOME
+    home = os.environ.get("WELIAN_HOME", WELIAN_CONFIG_DIR)
+    check("WELIAN_HOME", "ok" if os.path.isdir(home) else "fail", home)
+
+    # 3. Data files
+    data_dir = os.path.join(home, "data")
+    expected_files = ["contacts.json", "timeline.json", "todos.json"]
+    for fname in expected_files:
+        fpath = os.path.join(data_dir, fname)
+        if os.path.exists(fpath):
+            size = os.path.getsize(fpath)
+            check(f"Data: {fname}", "ok", f"{size:,} bytes")
+        else:
+            check(f"Data: {fname}", "fail", "missing")
+
+    # 4. LLM
+    try:
+        from .llm.router import get_client
+        llm = get_client()
+        check("LLM", "ok", f"{llm.model} @ {llm.base_url}")
+    except Exception as e:
+        check("LLM", "fail", str(e)[:60])
+
+    # 5. Bot service (launchd)
+    result = subprocess.run(["launchctl", "list", "com.welian.bot"], capture_output=True)
+    if result.returncode == 0:
+        output = result.stdout.decode()
+        pid = ""
+        for line in output.split("\n"):
+            if "PID" in line:
+                pid = line.strip()
+        check("Bot service", "ok", pid or "loaded")
+    else:
+        check("Bot service", "fail", "not installed (run: welian bot-install)")
+
+    # 6. Agent service (launchd)
+    result = subprocess.run(["launchctl", "list", "com.welian.agent"], capture_output=True)
+    if result.returncode == 0:
+        check("Agent service", "ok", "loaded")
+    else:
+        check("Agent service", "fail", "not installed (run: welian agent-install)")
+
+    # 7. Weekly cron (launchd)
+    result = subprocess.run(["launchctl", "list", "com.welian.weekly"], capture_output=True)
+    if result.returncode == 0:
+        check("Weekly cron", "ok", "Sunday 20:00")
+    else:
+        check("Weekly cron", "warn", "not installed (run: welian weekly-install)")
+
+    # 8. Agent HTTP (localhost)
+    try:
+        import urllib.request
+        resp = urllib.request.urlopen("http://localhost:9800/health", timeout=3)
+        data = _json.loads(resp.read())
+        check("Agent HTTP", "ok", f"port {data.get('port')}, clients={data.get('clients')}")
+    except Exception:
+        check("Agent HTTP", "fail", "not responding on :9800")
+
+    # 9. Cloudflare tunnel
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "5", "https://agent.welian.app/health"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = _json.loads(result.stdout)
+            tunnel = data.get("tunnel", "")
+            check("Tunnel", "ok", tunnel or "connected")
+        else:
+            check("Tunnel", "fail", "no response")
+    except Exception as e:
+        check("Tunnel", "fail", str(e)[:50])
+
+    # 10. cloudflared process
+    result = subprocess.run(["pgrep", "-f", "cloudflared.*welian"], capture_output=True)
+    check("cloudflared", "ok" if result.returncode == 0 else "fail",
+          "running" if result.returncode == 0 else "not running")
+
+    # 11. Bot token
+    token = os.environ.get("WELIAN_BOT_TOKEN", "")
+    if not token:
+        # Check plist
+        plist = os.path.expanduser("~/Library/LaunchAgents/com.welian.bot.plist")
+        if os.path.exists(plist):
+            with open(plist) as f:
+                content = f.read()
+            if "WELIAN_BOT_TOKEN" in content and "im.bot" in content:
+                check("Bot token", "ok", "set in plist")
+            else:
+                check("Bot token", "warn", "plist exists but token may be empty")
+        else:
+            check("Bot token", "warn", "not in env, plist not found")
+    else:
+        check("Bot token", "ok", f"{token[:20]}...")
+
+    # 12. Bot users (for weekly push)
+    users_file = os.path.join(home, "bot_users.json")
+    if os.path.exists(users_file):
+        with open(users_file) as f:
+            users = _json.load(f)
+        check("Bot users", "ok", f"{len(users)} user(s) for weekly push")
+    else:
+        check("Bot users", "warn", "no users saved (send a WeChat message first)")
+
+    # 13. Bot log (recent errors)
+    bot_log = os.path.join(home, "logs", "bot.log")
+    if os.path.exists(bot_log):
+        with open(bot_log) as f:
+            lines = f.readlines()[-50:]
+        errors = [l for l in lines if "ERROR" in l.upper()]
+        if errors:
+            check("Bot log", "warn", f"{len(errors)} recent error(s)")
+        else:
+            check("Bot log", "ok", "no recent errors")
+    else:
+        check("Bot log", "warn", "no log file")
+
+    # 14. Frontend (welian.app)
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "5", "-o", "/dev/null", "-w", "%{http_code}", "https://welian.app"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip() in ("200", "301", "302"):
+            check("Frontend", "ok", f"welian.app (HTTP {result.stdout.strip()})")
+        else:
+            check("Frontend", "warn", "welian.app not reachable (may need proxy in China)")
+    except Exception:
+        check("Frontend", "warn", "welian.app not reachable")
+
+    # 15. Cloudflare Worker
+    try:
+        resp = urllib.request.urlopen("https://welian-ai.farmost.workers.dev/health", timeout=5)
+        check("Cloud Worker", "ok", "workers.dev reachable")
+    except Exception:
+        check("Cloud Worker", "warn", "workers.dev not reachable (may be blocked in China)")
+
+    # Print results
+    for c in checks:
+        print(c)
+
+    # Summary
+    print(f"\n{'='*40}")
+    total = passed + failed + warnings
+    print(f"  ✅ {passed} ok   ⚠️  {warnings} warn   ❌ {failed} fail   (total {total})")
+
+    if failed == 0 and warnings == 0:
+        print("\n  🎉 All checks passed!")
+    elif failed == 0:
+        print(f"\n  👍 No critical issues. {warnings} warning(s) to review.")
+    else:
+        print(f"\n  🔧 {failed} issue(s) need attention.")
+
+    # Suggestions for failures
+    suggestions = []
+    if any("Bot service" in c and "❌" in c for c in checks):
+        suggestions.append("  → Run: welian bot-install")
+    if any("Agent service" in c and "❌" in c for c in checks):
+        suggestions.append("  → Run: welian agent-install")
+    if any("Tunnel" in c and "❌" in c for c in checks):
+        suggestions.append("  → Check: cloudflared tunnel run welian-agent")
+    if any("LLM" in c and "❌" in c for c in checks):
+        suggestions.append("  → Check: ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN")
+    if any("Bot token" in c and "⚠️" in c for c in checks):
+        suggestions.append("  → Set: export WELIAN_BOT_TOKEN=xxx@im.bot:xxx")
+    if suggestions:
+        print("\n  Fix suggestions:")
+        for s in suggestions:
+            print(s)
+
 
 if __name__ == "__main__":
     main()
