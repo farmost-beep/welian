@@ -95,7 +95,8 @@ body{font-family:-apple-system,Inter,sans-serif;background:var(--bg);color:var(-
 
 <script>
 const PAIRING_TOKEN = "__PAIRING_TOKEN__";
-const wsUrl = `ws://${location.host}/ws`;
+const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${wsProto}//${location.host}/ws`;
 let ws = null;
 let isIframe = window.parent !== window;
 let parentOrigin = '*';

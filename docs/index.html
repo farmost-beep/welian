@@ -272,15 +272,9 @@ let clerkUserId = null; // Clerk user ID for device discovery
 window.addEventListener('message', (e) => {
   const msg = e.data;
   if (!msg || msg.source !== 'welian-bridge') return;
-  if (msg.type === 'device-id' && clerkUserId && msg.device_id) {
-    console.log('Linking device', msg.device_id, 'to user', clerkUserId);
-    fetch(`${DISCOVERY_URL}/discover/link`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({user_id: clerkUserId, device_id: msg.device_id}),
-    }).then(r=>r.json()).then(d=>{
-      console.log('Linked device to user:', d);
-    }).catch(e=>console.log('Link failed:', e));
+  if (msg.type === 'device-id' && msg.device_id) {
+    console.log('Bridge device_id:', msg.device_id);
+    // Agent already registered tunnel with user_id via CLI login — no linking needed
   }
 });
 
@@ -619,26 +613,40 @@ function onAgentConnected(port) {
   statusDot.className = 'status-dot online';
   statusText.textContent = 'Connected';
 
-  // Listen for messages from bridge
-  window.addEventListener('message', (e) => {
-    const msg = e.data;
-    if (!msg || msg.source !== 'welian-bridge') return;
-
-    if (msg.type === 'ws-message') {
-      const data = msg.data;
-      removeTyping();
-      if (data.type === 'response' && data.reply) {
-        addMsg('ai', data.reply);
-      } else if (data.type === 'response' && data.data) {
-        addMsg('ai', JSON.stringify(data.data, null, 2));
-      } else if (data.type === 'error') {
-        addMsg('ai', 'Error: ' + data.message);
-      }
-    }
-  });
+  // Listen for messages from bridge (use named function so we can debug)
+  window.addEventListener('message', onBridgeMessage);
 
   clearChat();
   addMsg('ai', 'Connected to your local agent ✅\n\nYour data is on your device. I only see what you tell me.\n\nTry: "who to reach out" or "note: met with X about Y"');
+}
+
+function onBridgeMessage(e) {
+  const msg = e.data;
+  if (!msg || msg.source !== 'welian-bridge') return;
+
+  if (msg.type === 'ws-message') {
+    const data = msg.data;
+    console.log('Bridge ws-message:', data.type);
+    removeTyping();
+    if (data.type === 'response' && data.reply) {
+      addMsg('ai', data.reply);
+    } else if (data.type === 'response' && data.data) {
+      addMsg('ai', JSON.stringify(data.data, null, 2));
+    } else if (data.type === 'error') {
+      addMsg('ai', 'Error: ' + data.message);
+    } else if (data.type === 'auth_ok') {
+      // ignore — already handled
+    }
+  } else if (msg.type === 'ws-close') {
+    console.log('Bridge ws-close');
+    removeTyping();
+    addSystemMsg('Connection lost. Retrying…');
+    isLive = false;
+    modeBadge.textContent = 'Demo';
+    modeBadge.className = 'mode-badge';
+    statusDot.className = 'status-dot offline';
+    statusText.textContent = 'Disconnected';
+  }
 }
 
 // ── Chat ──
