@@ -443,10 +443,33 @@ async function autoConnectAgent() {
   clearChat();
   addSystemMsg('Looking for local agent…');
 
-  const localPorts = [9800, 9801, 9802];
   let connected = false;
 
-  // Phase 1: try localhost (works on desktop)
+  // Phase 1: try tunnel via discovery service (works for both mobile and desktop)
+  if (clerkUserId) {
+    console.log('Looking up tunnel via discovery service…');
+    try {
+      const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
+      const data = await resp.json();
+      if (data.found && data.tunnel_url) {
+        console.log('Found tunnel:', data.tunnel_url);
+        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
+        console.log('Tunnel result:', result);
+        if (result === 'auth_ok') {
+          onAgentConnected('tunnel');
+          connected = true;
+          return;
+        }
+      } else {
+        console.log('No tunnel registered for user', clerkUserId);
+      }
+    } catch(e) {
+      console.log('Discovery lookup failed:', e.message);
+    }
+  }
+
+  // Phase 2: try localhost (fallback, works on desktop if tunnel not registered)
+  const localPorts = [9800, 9801, 9802];
   for (const port of localPorts) {
     console.log(`Trying local port ${port}...`);
     try {
@@ -460,32 +483,6 @@ async function autoConnectAgent() {
     } catch(e) {
       console.log(`Port ${port} exception:`, e.message);
       removeBridge();
-    }
-  }
-
-  console.log('All local ports failed, trying discovery...');
-
-  // Phase 2: lookup tunnel URL via discovery service (for mobile/remote)
-  if (!connected && clerkUserId) {
-    console.log('Looking up tunnel via discovery service…');
-    try {
-      const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
-      const data = await resp.json();
-      if (data.found && data.tunnel_url) {
-        console.log('Found tunnel:', data.tunnel_url);
-        addSystemMsg('Connecting via tunnel…');
-        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
-        console.log('Tunnel result:', result);
-        if (result === 'auth_ok') {
-          onAgentConnected('tunnel');
-          connected = true;
-          return;
-        }
-      } else {
-        console.log('No tunnel registered for user', clerkUserId);
-      }
-    } catch(e) {
-      console.log('Discovery lookup failed:', e.message);
     }
   }
 
