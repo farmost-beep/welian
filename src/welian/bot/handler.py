@@ -172,21 +172,37 @@ class SessionManager:
         self._lock = asyncio.Lock()
 
     def _user_data_dir(self, wechat_user_id: str) -> Path:
-        h = hashlib.sha256(wechat_user_id.encode()).hexdigest()[:16]
-        d = WELIAN_HOME / "users" / h
-        d.mkdir(parents=True, exist_ok=True)
-        return d
+        """Get data directory for a WeChat user.
+
+        For single-user mode (default), uses the main ~/.welian/ directory
+        so existing data is accessible. For multi-user mode, set
+        WELIAN_MULTI_USER=1 to enable per-user isolation.
+        """
+        multi_user = os.environ.get("WELIAN_MULTI_USER", "")
+        if multi_user.lower() in ("1", "true", "yes"):
+            h = hashlib.sha256(wechat_user_id.encode()).hexdigest()[:16]
+            d = WELIAN_HOME / "users" / h
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+        # Single-user mode: use main data directory
+        return WELIAN_HOME
 
     async def get_client(self, wechat_user_id: str) -> EdgeClient:
         async with self._lock:
             if wechat_user_id not in self._clients:
                 data_dir = self._user_data_dir(wechat_user_id)
-                os.environ["WELIAN_HOME"] = str(data_dir)
-                from .. import engine
-                engine._init_paths()
+                if str(data_dir) != str(WELIAN_HOME):
+                    os.environ["WELIAN_HOME"] = str(data_dir)
+                    from .. import engine
+                    engine._init_paths()
+                else:
+                    # Reset to main WELIAN_HOME if it was changed
+                    os.environ["WELIAN_HOME"] = str(WELIAN_HOME)
+                    from .. import engine
+                    engine._init_paths()
                 client = EdgeClient(cloud_url=CLOUD_URL, user_id=wechat_user_id)
                 self._clients[wechat_user_id] = client
-                logger.info(f"New user session: {wechat_user_id[:12]}... → {data_dir}")
+                logger.info(f"User session: {wechat_user_id[:12]}... → {data_dir}")
             return self._clients[wechat_user_id]
 
     def reset(self, wechat_user_id: str):
