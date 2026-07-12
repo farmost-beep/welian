@@ -256,6 +256,10 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
     <h2 data-i18n="auth_title">Welcome to Welian</h2>
     <p data-i18n="auth_sub">Sign in to connect your local agent</p>
     <div id="clerk-container"></div>
+    <div style="margin-top:12px;text-align:center;font-size:.8em;color:var(--dim)">
+      <span data-i18n="no_account">No account?</span>
+      <a href="#" onclick="mountClerkSignUp();return false" style="color:var(--accent);text-decoration:none" data-i18n="sign_up_link">Sign up</a>
+    </div>
     <!-- WeChat and Phone login paused — re-enable when SMS/WeChat credentials are ready
     <div style="margin-top:16px;text-align:center">
       <div style="font-size:.75em;color:var(--dim);margin-bottom:8px" data-i18n="or">or</div>
@@ -287,6 +291,8 @@ const I18N = {
     privacy: 'Your data stays on your device. Cloud sees only what\'s needed.',
     auth_title: 'Welcome to Welian',
     auth_sub: 'Sign in to connect your local agent',
+    no_account: 'No account?',
+    sign_up_link: 'Sign up',
     or: 'or',
     wechat_login: 'WeChat Login',
     phone_login: 'Phone Login',
@@ -325,6 +331,8 @@ const I18N = {
     privacy: '你的数据留在你的设备上。云端只看到必要的部分。',
     auth_title: '欢迎使用 Welian',
     auth_sub: '登录以连接你的本地 agent',
+    no_account: '没有账号？',
+    sign_up_link: '注册',
     or: '或',
     wechat_login: '微信登录',
     phone_login: '手机号登录',
@@ -697,13 +705,24 @@ function toggleAuth() {
 
 function mountClerkSignIn(container) {
   try {
-    // Clear any previous content or error messages
     container.innerHTML = '';
     clerkInstance.mountSignIn(container);
     console.log('mountSignIn called');
   } catch(e) {
     console.error('mountSignIn failed:', e);
     container.innerHTML = '<p style="color:#C65D5D;text-align:center;padding:20px">Failed to load sign-in form.<br><small>' + e.message + '</small></p>';
+  }
+}
+
+function mountClerkSignUp() {
+  const container = document.getElementById('clerk-container');
+  try {
+    container.innerHTML = '';
+    clerkInstance.mountSignUp(container);
+    console.log('mountSignUp called');
+  } catch(e) {
+    console.error('mountSignUp failed:', e);
+    container.innerHTML = '<p style="color:#C65D5D;text-align:center;padding:20px">Failed to load sign-up form.<br><small>' + e.message + '</small></p>';
   }
 }
 
