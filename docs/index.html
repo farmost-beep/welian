@@ -121,14 +121,15 @@ footer .inf{color:var(--accent)}
 footer .privacy{color:var(--dimmer)}
 
 /* Clerk auth container */
-#clerk-auth{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,244,238,.95);display:none;align-items:center;justify-content:center;z-index:100;padding:16px;overflow-y:auto;box-sizing:border-box}
+#clerk-auth{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,244,238,.95);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;overflow-y:auto;box-sizing:border-box}
 #clerk-auth.show{display:flex}
-#clerk-auth .card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:380px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.08);box-sizing:border-box;position:relative;overflow:hidden}
+#clerk-auth .card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.08);box-sizing:border-box;position:relative;overflow:visible}
 #clerk-auth .card h2{font-family:'Newsreader',serif;font-size:1.3em;font-weight:400;margin-bottom:4px;text-align:center}
 #clerk-auth .card p{text-align:center;font-size:.8em;color:var(--dim);margin-bottom:20px}
-#clerk-auth .close{position:absolute;top:16px;right:16px;font-size:1.2em;color:var(--dim);cursor:pointer;background:none;border:none}
-#clerk-auth #clerk-container{overflow-x:hidden;max-width:100%}
-#clerk-auth .cl-internal{max-width:100%!important}
+#clerk-auth .close{position:absolute;top:16px;right:20px;font-size:1.2em;color:var(--dim);cursor:pointer;background:none;border:none;z-index:1}
+#clerk-auth #clerk-container{overflow:visible;max-width:100%}
+#clerk-auth .cl-internal,#clerk-auth .cl-card,#clerk-auth .cl-form{max-width:100%!important;min-width:0!important}
+#clerk-auth .cl-socialButtonsBlockButton{max-width:100%!important}
 
 /* Mobile — fix Clerk component overflow */
 @media(max-width:480px){
