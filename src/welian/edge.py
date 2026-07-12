@@ -26,23 +26,30 @@ from . import engine, intent, ai, tokens
 
 
 class EdgeClient:
-    """Edge-side client. Holds all data locally, calls cloud for AI only."""
+    """Edge-side client. Holds all data locally, calls LLM directly.
 
-    # Default cloud API (Cloudflare Worker, globally accessible)
-    DEFAULT_CLOUD_URL = "https://welian-ai.farmost.workers.dev"
+    Architecture (simplified):
+      Edge (this module) ──sends minimal context──→ LLM API
+      Edge ←──receives AI result────────────────── LLM API
+
+    No cloud middleware needed for single-user phase.
+    Cloud AI API (Cloudflare Worker) is reserved for multi-user commercial phase.
+    """
 
     def __init__(self, cloud_url: str = "", user_id: str = "default"):
-        if not cloud_url:
-            cloud_url = os.environ.get("WELIAN_CLOUD_URL", self.DEFAULT_CLOUD_URL)
-        self.cloud_url = cloud_url.rstrip("/")
+        # cloud_url is now optional — only used if explicitly set
+        # (for future multi-user phase with Cloudflare Worker)
+        self.cloud_url = cloud_url.rstrip("/") if cloud_url else ""
         self.user_id = user_id
         self._http_client = None
+        self._llm_client = None
 
-    def _get_http(self):
-        if self._http_client is None:
-            import httpx
-            self._http_client = httpx.Client(timeout=30)
-        return self._http_client
+    def _get_llm(self):
+        """Get LLM client (direct call, no cloud middleware)."""
+        if self._llm_client is None:
+            from .llm.router import get_client
+            self._llm_client = get_client()
+        return self._llm_client
 
     # ── Main chat entry point ──
 
@@ -101,23 +108,14 @@ class EdgeClient:
         else:
             return f"✓ 记下了：{summary[:60]}\n\n  你可以告诉我跟谁聊的，我帮你关联起来。"
 
-    # ── Ask (问) — scoring local, AI formatting via cloud ──
+    # ── Ask (问) — scoring local, AI formatting via LLM ──
 
     def _handle_ask(self) -> str:
-        # Scoring is done locally (no cloud needed)
+        # Scoring is done locally
         leverage = engine.advise_leverage(top=5)
         nurture = engine.advise_nurture(days_ahead=14)
 
-        # Try cloud for AI-enhanced formatting
-        if self.cloud_url and leverage:
-            cloud_result = self._call_cloud("/ai/advise", {
-                "leverage": self._extract_advise_context(leverage),
-                "nurture": self._extract_nurture_context(nurture),
-            })
-            if cloud_result:
-                return cloud_result
-
-        # Fallback: local formatting
+        # Build local formatting first
         parts = []
         if leverage:
             parts.append(ai.format_advise_leverage(leverage))
@@ -127,7 +125,19 @@ class EdgeClient:
             parts.append(ai.format_advise_nurture(nurture))
         if not parts:
             return "这周没有特别需要联系的。\n你可能已经联系过了 👍"
-        return "\n".join(parts)
+
+        local_text = "\n".join(parts)
+
+        # Try LLM for enhanced formatting
+        try:
+            llm = self._get_llm()
+            enhanced = llm.complete(local_text, system=ADVISE_SYSTEM_PROMPT)
+            if enhanced:
+                return enhanced
+        except Exception:
+            pass
+
+        return local_text
 
     def _extract_advise_context(self, candidates):
         """Extract MINIMAL context for cloud — no full contact data."""
@@ -149,7 +159,7 @@ class EdgeClient:
             "content": r.get("content", "")[:100],
         } for r in reminders]
 
-    # ── Draft (拟) — context extraction local, LLM via cloud ──
+    # ── Draft (拟) — context extraction local, LLM direct ──
 
     def _handle_draft(self, payload) -> str:
         target = payload.get("target", "")
@@ -158,14 +168,17 @@ class EdgeClient:
 
         contact, _ = engine.resolve_contact(target)
 
-        # Extract MINIMAL context locally — never send full contact record
-        minimal_context = self._extract_draft_context(contact, target, context)
+        # Build prompt from minimal context (same privacy: only minimal info to LLM)
+        prompt = self._build_draft_prompt(contact, target, context)
 
-        # Try cloud LLM
-        if self.cloud_url:
-            cloud_draft = self._call_cloud("/ai/draft", minimal_context)
-            if cloud_draft:
-                return f"📝 帮你拟了一版\n\n{cloud_draft}\n\n觉得可以就说「确认」，想改哪里随时跟我说。"
+        # Try LLM directly
+        try:
+            llm = self._get_llm()
+            draft = llm.complete(prompt, system=DRAFT_SYSTEM_PROMPT)
+            if draft:
+                return f"📝 帮你拟了一版\n\n{draft}\n\n觉得可以就说「确认」，想改哪里随时跟我说。"
+        except Exception:
+            pass
 
         # Fallback: local template
         draft = ai._template_draft(
@@ -175,38 +188,34 @@ class EdgeClient:
         )
         return f"📝 帮你拟了一版\n\n{draft}\n\n觉得可以就说「确认」，想改哪里随时跟我说。"
 
-    def _extract_draft_context(self, contact, target, user_context):
-        """Extract minimal context for cloud drafting.
+    def _build_draft_prompt(self, contact, target, user_context):
+        """Build prompt with MINIMAL context — same privacy as cloud approach.
 
-        Sends only:
-        - Contact name (not ID, not full record)
-        - Nature (leverage/nurture/dual)
-        - Up to 3 memory snippets (truncated to 50 chars each)
-        - Last interaction summary (truncated to 100 chars)
-        - User-provided context
-
-        Does NOT send: full contact record, all memories, platforms, notes, etc.
+        Only includes: name, nature, 3 memory snippets (50 chars each),
+        last interaction (100 chars), user context.
+        Does NOT include: full contact record, all memories, platforms, notes.
         """
-        if not contact:
-            return {
-                "name": target,
-                "nature": None,
-                "memories": [],
-                "last_interaction": "",
-                "user_context": user_context,
-            }
+        parts = [f"Draft a message to {contact['name'] if contact else target}."]
 
-        memories = [m["content"][:50] for m in contact.get("memories", [])[:3]]
-        tls = engine.list_timeline(contact["id"], days=90)
-        last = tls[0]["summary"][:100] if tls else ""
+        if contact:
+            nature = engine.infer_nature(contact)
+            if nature == "nurture":
+                parts.append("This is a lifelong bond — be warm, no agenda.")
+            elif nature == "leverage":
+                parts.append("This is a professional tie — be respectful but purposeful.")
 
-        return {
-            "name": contact["name"],
-            "nature": engine.infer_nature(contact),
-            "memories": memories,
-            "last_interaction": last,
-            "user_context": user_context,
-        }
+            memories = [m["content"][:50] for m in contact.get("memories", [])[:3]]
+            if memories:
+                parts.append(f"What I remember: {'; '.join(memories)}")
+
+            tls = engine.list_timeline(contact["id"], days=90)
+            if tls:
+                parts.append(f"Last interaction: {tls[0]['summary'][:100]}")
+
+        if user_context:
+            parts.append(f"Context: {user_context}")
+
+        return "\n".join(parts)
 
     # ── Report (报) — fully local ──
 
@@ -219,25 +228,6 @@ class EdgeClient:
     def _handle_check(self, payload) -> str:
         target = payload.get("target", "")
         return ai.format_nurture_check(target)
-
-    # ── Cloud communication ──
-
-    def _call_cloud(self, endpoint: str, payload: dict) -> Optional[str]:
-        """Call cloud API with minimal context. Returns None on failure."""
-        if not self.cloud_url:
-            return None
-        try:
-            http = self._get_http()
-            resp = http.post(
-                f"{self.cloud_url}{endpoint}",
-                json=payload,
-                headers={"X-Welian-Client": "edge-sdk/1.0"},
-            )
-            if resp.status_code == 200:
-                return resp.json().get("result")
-        except Exception:
-            pass
-        return None
 
     # ── Encryption / Export ──
 
@@ -332,3 +322,18 @@ class EdgeClient:
                 "  为目标联结的关系：该联系谁+为什么+聊什么\n"
                 "  值得陪伴的关系：记得他在乎的事+重要时刻在场\n\n"
                 "  试试看 😊")
+
+
+# ── LLM system prompts ──
+
+DRAFT_SYSTEM_PROMPT = """You are Welian, an AI companion that helps people be better friends, family members, and collaborators.
+
+Draft a short, natural message. Return ONLY the message text.
+- For nurture relationships: warm, no agenda, just reaching out
+- For leverage relationships: respectful but purposeful
+- Keep it under 80 characters, like a real text message"""
+
+ADVISE_SYSTEM_PROMPT = """You are Welian. Format relationship suggestions in a warm, human way.
+- For leverage ties: who + why + what to talk about
+- For nurture bonds: gentle reminders, no urgency, no scores
+Return formatted text only."""
