@@ -814,24 +814,6 @@ async function autoConnectAgent() {
     }
   }
 
-  // Phase 3: try localhost (fallback, works on desktop if tunnel not registered)
-  const localPorts = [9800, 9801, 9802];
-  for (const port of localPorts) {
-    console.log(`Trying local port ${port}...`);
-    try {
-      const result = await tryBridgeConnect(`http://localhost:${port}/`, `local-${port}`);
-      console.log(`Port ${port} result:`, result);
-      if (result === 'auth_ok') {
-        onAgentConnected(port);
-        connected = true;
-        return;
-      }
-    } catch(e) {
-      console.log(`Port ${port} exception:`, e.message);
-      removeBridge();
-    }
-  }
-
   if (!connected) {
     removeBridge();
     clearChat();
