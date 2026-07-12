@@ -477,6 +477,8 @@ async function initClerk() {
     clerkInstance.addListener((event) => {
       console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
       if (event.user && !isAuthed) {
+        // In CLI callback mode, only fire onAuthed after explicit sign-in
+        // (not from auto-restored session)
         onAuthed(event.user);
       } else if (!event.user && isAuthed) {
         onSignedOut();
@@ -492,8 +494,15 @@ async function initClerk() {
       if (clerkInstance.user) {
         console.log('CLI login: signing out existing session for fresh login');
         await clerkInstance.signOut();
+        // Wait for signOut to fully complete
+        await new Promise(r => setTimeout(r, 1500));
+        // Reload to clear any cached session state
+        clerkInstance = window.Clerk;
+        if (!clerkInstance.loaded) {
+          await clerkInstance.load();
+        }
       }
-      console.log('CLI login: opening auth modal');
+      console.log('CLI login: opening auth modal, user:', !!clerkInstance.user);
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
       mountClerkSignIn(container);
@@ -502,15 +511,18 @@ async function initClerk() {
     }
 
     // Also poll for user as fallback (addListener might not fire on first sign-in)
-    let pollCount = 0;
-    const userPoll = setInterval(() => {
-      if (clerkInstance.user && !isAuthed) {
-        console.log('Poll detected user:', clerkInstance.user.id);
-        onAuthed(clerkInstance.user);
-        clearInterval(userPoll);
-      }
-      if (pollCount++ > 60) clearInterval(userPoll); // 30s timeout
-    }, 500);
+    // Skip polling in CLI callback mode — user must manually sign in
+    if (!cliCallback) {
+      let pollCount = 0;
+      const userPoll = setInterval(() => {
+        if (clerkInstance.user && !isAuthed) {
+          console.log('Poll detected user:', clerkInstance.user.id);
+          onAuthed(clerkInstance.user);
+          clearInterval(userPoll);
+        }
+        if (pollCount++ > 60) clearInterval(userPoll); // 30s timeout
+      }, 500);
+    }
   } catch(e) {
     console.error('Clerk init failed:', e);
     clerkReady = false;
