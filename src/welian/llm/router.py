@@ -38,26 +38,27 @@ def _find_project_root() -> Optional[Path]:
     """查找项目根目录（含 config/ 目录）
 
     优先级：
-    1. 环境变量 SOCIAL_AGENT_HOME
-    2. 包内目录（从 src/llm/router.py 向上两层）
-    3. ~/.social-agent/
+    1. 环境变量 WELIAN_HOME
+    2. 包内目录（从 llm/router.py 向上三层到项目根）
+    3. ~/.welian/
     4. 当前工作目录
     """
     # 1. 环境变量
-    env = os.environ.get("SOCIAL_AGENT_HOME")
+    env = os.environ.get("WELIAN_HOME")
     if env and (Path(env) / "config").is_dir():
         return Path(env)
 
-    # 2. 包内目录（开发模式：src/llm/ → src/ → 项目根；PyPI：src/llm/ → src/）
-    pkg_root = Path(__file__).resolve().parent.parent.parent
+    # 2. 包内目录（src/welian/llm/router.py → src/welian/ → src/ → 项目根）
+    pkg_root = Path(__file__).resolve().parent.parent.parent.parent
     if (pkg_root / "config").is_dir():
         return pkg_root
-    pkg_src = Path(__file__).resolve().parent.parent
+    # PyPI 安装：src/welian/llm/router.py → src/welian/ → src/
+    pkg_src = Path(__file__).resolve().parent.parent.parent
     if (pkg_src / "config").is_dir():
         return pkg_src
 
-    # 3. PyPI 用户目录
-    user_dir = Path.home() / ".social-agent"
+    # 3. 用户目录
+    user_dir = Path.home() / ".welian"
     if user_dir.is_dir() and (user_dir / "config").is_dir():
         return user_dir
 
@@ -69,13 +70,14 @@ def _find_project_root() -> Optional[Path]:
 
 
 def _load_llm_config() -> dict:
-    """从 config.yaml / config.local.yaml 读取 ai 段"""
+    """从 welian.yaml / config.local.yaml 读取 ai 段"""
     root = _find_project_root()
     if root is None:
         return {}
 
     config_paths = [
         root / "config" / "config.local.yaml",
+        root / "config" / "welian.yaml",
         root / "config" / "config.yaml",
     ]
 
