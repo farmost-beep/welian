@@ -164,13 +164,12 @@ window.addEventListener('message',(e)=>{
   if(msg.type==='send'&&ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(msg.payload))}
 });
 
-// Auto-connect on load (token is injected by agent)
-connect();
-
-// Notify parent if in iframe
+// Notify parent if in iframe, then auto-connect
 if(isIframe){
   parent.postMessage({source:'welian-bridge',type:'ready'},'*');
 }
+// Auto-connect on load (token is injected by agent)
+connect();
 </script>
 </body>
 </html>"""
@@ -179,15 +178,67 @@ if(isIframe){
 class LocalAgent:
     """HTTP + WebSocket server that bridges browser ↔ local data ↔ cloud AI."""
 
-    def __init__(self, port: int = 9800, cloud_url: str = "", token: str = ""):
+    DISCOVERY_URL = "https://welian-ai.farmost.workers.dev"
+
+    def __init__(self, port: int = 9800, cloud_url: str = "", token: str = "", tunnel: bool = False):
         self.port = port
         self.cloud_url = cloud_url
         self.pairing_token = token or self._generate_token()
         self.edge = EdgeClient(cloud_url=cloud_url)
         self.connected_clients = set()
+        self.tunnel = tunnel
+        self.tunnel_url = ""
+        self.device_id = self._get_device_id()
 
     def _generate_token(self) -> str:
         return secrets.token_urlsafe(16)
+
+    def _get_device_id(self) -> str:
+        """Generate a stable device ID from machine info."""
+        import hashlib, platform
+        raw = f"{platform.node()}-{platform.machine()}-{os.getuid() if hasattr(os, 'getuid') else 0}"
+        return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+    async def _start_tunnel(self):
+        """Start cloudflared tunnel and register with discovery service."""
+        import subprocess, re
+
+        try:
+            proc = subprocess.Popen(
+                ["cloudflared", "tunnel", "--url", f"http://localhost:{self.port}"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                env={**os.environ, "NO_AUTO_UPDATE": "true"},
+            )
+            # Wait for tunnel URL in output
+            tunnel_url = ""
+            for _ in range(30):
+                line = proc.stdout.readline().decode("utf-8", errors="replace")
+                if "trycloudflare.com" in line:
+                    m = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', line)
+                    if m:
+                        tunnel_url = m.group(0)
+                        break
+                import time; time.sleep(1)
+
+            if tunnel_url:
+                self.tunnel_url = tunnel_url
+                print(f"  Tunnel: {tunnel_url}")
+                # Register with discovery service
+                import urllib.request
+                req = urllib.request.Request(
+                    f"{self.DISCOVERY_URL}/discover/register",
+                    data=json.dumps({"device_id": self.device_id, "tunnel_url": tunnel_url}).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=10)
+                print(f"  Registered device: {self.device_id}")
+            else:
+                print("  ⚠ Tunnel failed to start")
+        except FileNotFoundError:
+            print("  ⚠ cloudflared not installed — tunnel disabled")
+        except Exception as e:
+            print(f"  ⚠ Tunnel error: {e}")
 
     async def process_command(self, msg: dict) -> dict:
         """Process a command from the browser and return a response."""
@@ -319,10 +370,17 @@ class LocalAgent:
         print(f"  Port: {self.port}")
         print(f"  Cloud: {self.cloud_url or '(offline mode)'}")
         print(f"  Pairing token: {self.pairing_token}")
+        print(f"  Device ID: {self.device_id}")
         print(f"  Data: {os.environ.get('WELIAN_HOME', '~/.welian')}")
         print()
-        print(f"  Desktop: https://welian.app → enter token to connect")
-        print(f"  Mobile:  http://{lan_ip}:{self.port} → enter token")
+        if self.tunnel:
+            print(f"  Starting tunnel for remote access…")
+            await self._start_tunnel()
+            print()
+        print(f"  Desktop: https://welian.app → auto-connect")
+        print(f"  Mobile:  https://welian.app → auto-connect via tunnel")
+        if lan_ip != "localhost":
+            print(f"  LAN:     http://{lan_ip}:{self.port}")
         print()
 
         async def index_handler(request):
@@ -336,6 +394,8 @@ class LocalAgent:
                 "status": "ok",
                 "port": self.port,
                 "clients": len(self.connected_clients),
+                "device_id": self.device_id,
+                "tunnel": self.tunnel_url or None,
             })
 
         async def ws_handler(request):

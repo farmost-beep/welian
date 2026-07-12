@@ -72,6 +72,7 @@ def main():
     p_agent.add_argument("--port", type=int, default=9800)
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
     p_agent.add_argument("--token", default="", help="Pairing token (auto-generated if empty)")
+    p_agent.add_argument("--tunnel", action="store_true", help="Start Cloudflare tunnel for remote/mobile access")
 
     args = parser.parse_args()
 
@@ -164,7 +165,7 @@ def main():
         import asyncio
         from .agent import LocalAgent
         cloud = args.cloud or os.environ.get("WELIAN_CLOUD_URL", "")
-        agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token)
+        agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token, tunnel=args.tunnel)
         asyncio.run(agent.start())
 
     else:

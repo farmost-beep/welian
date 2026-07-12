@@ -265,6 +265,53 @@ export default {
         return jsonResponse(result);
       }
 
+      // ── Device discovery (tunnel registry) ──
+
+      if (path === '/discover/register' && method === 'POST') {
+        const body = await request.json();
+        const deviceId = body.device_id;
+        const tunnelUrl = body.tunnel_url;
+        if (!deviceId || !tunnelUrl) {
+          return jsonResponse({ error: 'device_id and tunnel_url required' }, 400);
+        }
+        // Store tunnel URL keyed by device_id, TTL 24h
+        await env.DEVICES.put(`dev:${deviceId}`, JSON.stringify({
+          tunnel_url: tunnelUrl,
+          updated: Date.now(),
+        }), { expirationTtl: 86400 });
+        return jsonResponse({ ok: true });
+      }
+
+      if (path === '/discover/link' && method === 'POST') {
+        // Link Clerk user_id to device_id (called from browser after local connect)
+        const body = await request.json();
+        const userId = body.user_id;
+        const deviceId = body.device_id;
+        if (!userId || !deviceId) {
+          return jsonResponse({ error: 'user_id and device_id required' }, 400);
+        }
+        await env.DEVICES.put(`user:${userId}`, deviceId, { expirationTtl: 86400 * 30 });
+        return jsonResponse({ ok: true });
+      }
+
+      if (path === '/discover/lookup' && method === 'GET') {
+        // Lookup tunnel URL by Clerk user_id
+        const userId = url.searchParams.get('user_id');
+        if (!userId) {
+          return jsonResponse({ error: 'user_id required' }, 400);
+        }
+        const deviceId = await env.DEVICES.get(`user:${userId}`);
+        if (!deviceId) {
+          return jsonResponse({ found: false });
+        }
+        const devData = await env.DEVICES.get(`dev:${deviceId}`);
+        if (!devData) {
+          return jsonResponse({ found: false });
+        }
+        const parsed = JSON.parse(devData);
+        return jsonResponse({ found: true, tunnel_url: parsed.tunnel_url });
+      }
+
       // 404
       return jsonResponse({ error: 'Not found', path }, 404);
     } catch (e) {

@@ -239,12 +239,13 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
 <script>
 // ── Config ──
 const CLERK_PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
-const CLOUD_API_URL = ''; // Set cloud API URL when deployed
+const DISCOVERY_URL = 'https://welian-ai.farmost.workers.dev';
 
 // ── State ──
 let isAuthed = false;   // Clerk auth state
 let isLive = false;     // Connected to local agent
 let clerkInstance = null;
+let clerkUserId = null; // Clerk user ID for device discovery
 
 const body = document.getElementById('chatBody');
 const input = document.getElementById('input');
@@ -365,6 +366,7 @@ function mountClerkSignIn(container) {
 
 function onAuthed(user) {
   isAuthed = true;
+  clerkUserId = user.id || null;
   authBtn.textContent = user.firstName || user.username || 'Account';
   navStatus.style.display = 'inline-flex';
   // Close auth modal if open
@@ -404,24 +406,55 @@ async function autoConnectAgent() {
   clearChat();
   addSystemMsg('Looking for local agent…');
 
-  const ports = [9800, 9801, 9802];
+  const localPorts = [9800, 9801, 9802];
   let connected = false;
 
-  for (const port of ports) {
-    console.log(`Trying iframe bridge on port ${port}...`);
+  // Phase 1: try localhost (works on desktop)
+  for (const port of localPorts) {
+    console.log(`Trying local port ${port}...`);
     try {
-      const result = await tryBridgeConnect(port);
+      const result = await tryBridgeConnect(`http://localhost:${port}/`, `local-${port}`);
       if (result === 'auth_ok') {
+        // Get device_id from health endpoint and link to Clerk user
+        try {
+          const hresp = await fetch(`http://localhost:${port}/health`);
+          const hdata = await hresp.json();
+          if (hdata.device_id && clerkUserId) {
+            fetch(`${DISCOVERY_URL}/discover/link`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({user_id: clerkUserId, device_id: hdata.device_id}),
+            }).catch(() => {});
+            console.log('Linked device', hdata.device_id, 'to user', clerkUserId);
+          }
+        } catch(e) {}
         onAgentConnected(port);
         connected = true;
         return;
-      } else if (result === 'no_bridge') {
-        continue;
       }
     } catch(e) {
-      console.log(`Port ${port} failed:`, e.message);
       removeBridge();
-      continue;
+    }
+  }
+
+  // Phase 2: lookup tunnel URL via discovery service (for mobile/remote)
+  if (!connected && clerkUserId) {
+    console.log('Looking up tunnel via discovery service…');
+    try {
+      const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
+      const data = await resp.json();
+      if (data.found && data.tunnel_url) {
+        console.log('Found tunnel:', data.tunnel_url);
+        addSystemMsg('Connecting via tunnel…');
+        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
+        if (result === 'auth_ok') {
+          onAgentConnected('tunnel');
+          connected = true;
+          return;
+        }
+      }
+    } catch(e) {
+      console.log('Discovery lookup failed:', e.message);
     }
   }
 
@@ -433,9 +466,10 @@ async function autoConnectAgent() {
     panel.innerHTML = `<div class="bubble system">
       <div class="connect-panel">
         <h3>Local agent not found</h3>
-        <p>Your relationship data stays on your device. Start the local agent to connect.</p>
-        <div class="step"><b>Step 1.</b> Install Welian CLI:<br><code>pip install welian</code></div>
-        <div class="step"><b>Step 2.</b> Start the agent:<br><code>welian agent</code></div>
+        <p>Your relationship data stays on your computer. Start the agent there to connect.</p>
+        <div class="step"><b>Step 1.</b> On your computer, install Welian CLI:<br><code>pip install welian</code></div>
+        <div class="step"><b>Step 2.</b> Start the agent with tunnel:<br><code>welian agent --tunnel</code></div>
+        <p><small>Then retry — your phone will find it automatically.</small></p>
         <button onclick="autoConnectAgent()">Retry</button>
       </div>
     </div>`;
@@ -443,24 +477,35 @@ async function autoConnectAgent() {
   }
 }
 
-function tryBridgeConnect(port) {
+function tryBridgeConnect(url, label) {
   return new Promise((resolve) => {
     let resolved = false;
+    let iframeLoaded = false;
     const timeout = setTimeout(() => {
-      if (!resolved) { resolved = true; resolve('no_bridge'); }
-    }, 3000);
+      if (!resolved) {
+        resolved = true;
+        console.log(`${label}: timeout. iframeLoaded=${iframeLoaded}`);
+        resolve('no_bridge');
+      }
+    }, 4000);
 
     // Create hidden iframe — agent injects token into the page
     bridgeFrame = document.createElement('iframe');
     bridgeFrame.style.display = 'none';
-    bridgeFrame.src = `http://localhost:${port}/`;
+    bridgeFrame.src = url;
+
+    // Detect iframe load
+    bridgeFrame.onload = () => { iframeLoaded = true; console.log(`${label}: iframe loaded`); };
 
     const handler = (e) => {
       const msg = e.data;
       if (!msg || msg.source !== 'welian-bridge') return;
 
-      if (msg.type === 'ws-message' && !resolved) {
+      if (msg.type === 'ready') {
+        console.log(`${label}: bridge ready`);
+      } else if (msg.type === 'ws-message' && !resolved) {
         const data = msg.data;
+        console.log(`${label}: ws-message`, data.type);
         if (data.type === 'auth_ok') {
           resolved = true;
           clearTimeout(timeout);
@@ -474,10 +519,13 @@ function tryBridgeConnect(port) {
           resolve('no_bridge');
         }
       } else if (msg.type === 'ws-error' && !resolved) {
+        console.log(`${label}: ws-error`);
         resolved = true;
         clearTimeout(timeout);
         window.removeEventListener('message', handler);
         resolve('no_bridge');
+      } else if (msg.type === 'log' && !resolved) {
+        console.log(`${label}: [bridge]`, msg.message);
       }
     };
     window.addEventListener('message', handler);
