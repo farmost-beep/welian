@@ -472,10 +472,15 @@ async function initClerk() {
 
     clerkReady = true;
 
-    // Record existing session to ignore it (no auto-login)
-    // Don't signOut — that causes a reload loop after manual login
+    // Check if user initiated login in this browser session (survives page reload)
+    const loginInitiated = sessionStorage.getItem('welian_login_initiated') === '1';
+    if (loginInitiated) {
+      console.log('Login was initiated this session — accepting session');
+    }
+
+    // Record existing session to ignore it (no auto-login) unless login was initiated
     existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
-    if (existingUserId) {
+    if (existingUserId && !loginInitiated) {
       console.log('Existing Clerk session found, will ignore (no auto-login):', existingUserId);
     }
 
@@ -499,12 +504,12 @@ async function initClerk() {
     }
 
     // Listen for auth state changes
-    // Ignore the initial cached session; accept all events after user clicks Sign in
+    // Ignore the initial cached session unless login was initiated (user clicked Sign in)
     clerkInstance.addListener((event) => {
-      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed, 'userInitiatedLogin:', userInitiatedLogin);
+      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
       if (event.user && !isAuthed) {
         // Ignore pre-existing session unless user manually initiated login
-        if (event.user.id === existingUserId && !userInitiatedLogin && !wechatToken && !cliCallback) {
+        if (event.user.id === existingUserId && !userInitiatedLogin && !loginInitiated && !wechatToken && !cliCallback) {
           console.log('Ignoring pre-existing session (no auto-login):', event.user.id);
           return;
         }
@@ -514,8 +519,10 @@ async function initClerk() {
         }
         isCliLogin = false;
         userInitiatedLogin = false;
+        sessionStorage.removeItem('welian_login_initiated');
         onAuthed(event.user);
       } else if (!event.user && isAuthed) {
+        sessionStorage.removeItem('welian_login_initiated');
         onSignedOut();
       }
     });
@@ -674,6 +681,7 @@ function toggleAuth() {
   } else {
     // User manually initiated login — accept the next auth event
     userInitiatedLogin = true;
+    sessionStorage.setItem('welian_login_initiated', '1');
     // Show auth modal
     document.getElementById('clerk-auth').classList.add('show');
     const container = document.getElementById('clerk-container');
