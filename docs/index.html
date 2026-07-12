@@ -702,7 +702,14 @@ function toggleAuth() {
 function mountClerkSignIn(container) {
   try {
     container.innerHTML = '';
-    clerkInstance.mountSignIn(container);
+    clerkInstance.mountSignIn(container, {
+      appearance: {
+        elements: {
+          alternativeMethods: { display: 'none' },
+          socialButtonsBlock: { display: 'none' },
+        }
+      }
+    });
     console.log('mountSignIn called');
   } catch(e) {
     console.error('mountSignIn failed:', e);
