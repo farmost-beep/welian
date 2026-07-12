@@ -497,11 +497,16 @@ async function initClerk() {
 
     clerkReady = true;
 
-    // Set CLI login mode BEFORE registering listener or checking user
-    // so listener ignores the auto-restored session
+    // Record any existing session so we can ignore it (no auto-login)
+    const existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
+    if (existingUserId) {
+      console.log('Existing Clerk session found, ignoring (no auto-login):', existingUserId);
+    }
+
+    // Set CLI login mode BEFORE registering listener
     if (cliCallback) {
       isCliLogin = true;
-      cliLoginInitialUserId = clerkInstance.user ? clerkInstance.user.id : null;
+      cliLoginInitialUserId = existingUserId;
       console.log('CLI login: pre-set isCliLogin=true, initial user:', cliLoginInitialUserId);
     }
 
@@ -518,16 +523,20 @@ async function initClerk() {
       }
     }
 
-    // Listen for auth state changes (only fires on manual sign in/out)
+    // Listen for auth state changes
+    // Ignore the initial session (no auto-login) — only accept NEW sign-ins
     clerkInstance.addListener((event) => {
-      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed, 'isCliLogin:', isCliLogin);
+      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
       if (event.user && !isAuthed) {
+        // Ignore if this is the pre-existing session (unless WeChat OAuth or CLI new login)
+        if (event.user.id === existingUserId && !wechatToken && !cliCallback) {
+          console.log('Ignoring pre-existing session (no auto-login):', event.user.id);
+          return;
+        }
         if (isCliLogin && event.user.id === cliLoginInitialUserId) {
-          // CLI login mode: ignore the existing session, only accept a NEW user
           console.log('CLI login: ignoring existing session for', event.user.id);
           return;
         }
-        // Either not in CLI mode, or user signed in with a different account
         isCliLogin = false;
         onAuthed(event.user);
       } else if (!event.user && isAuthed) {
@@ -687,6 +696,10 @@ function toggleAuth() {
     if (clerkInstance) clerkInstance.signOut();
     onSignedOut();
   } else {
+    // Clear any pre-existing session so Clerk shows a fresh login form
+    if (clerkInstance && clerkInstance.session) {
+      clerkInstance.signOut();
+    }
     // Show auth modal
     document.getElementById('clerk-auth').classList.add('show');
     const container = document.getElementById('clerk-container');
