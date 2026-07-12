@@ -408,6 +408,7 @@ let clerkUserId = null; // Clerk user ID for device discovery
 let isCliLogin = false; // CLI login mode — wait for explicit sign-in
 let cliLoginInitialUserId = null; // existing user ID to ignore
 let existingUserId = null; // pre-existing session to ignore (no auto-login)
+let userInitiatedLogin = false; // set true when user clicks Sign in
 
 // Global listener for device-id from bridge (survives after tryBridgeConnect handler is removed)
 window.addEventListener('message', (e) => {
@@ -471,17 +472,17 @@ async function initClerk() {
 
     clerkReady = true;
 
-    // No auto-login: if there's a cached Clerk session, clear it on page load
-    // (CLI login and WeChat OAuth flows are handled separately below)
-    if (!cliCallback && !wechatToken && clerkInstance.session) {
-      console.log('Clearing cached Clerk session (no auto-login)');
-      await clerkInstance.signOut();
+    // Record existing session to ignore it (no auto-login)
+    // Don't signOut — that causes a reload loop after manual login
+    existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
+    if (existingUserId) {
+      console.log('Existing Clerk session found, will ignore (no auto-login):', existingUserId);
     }
 
     // Set CLI login mode
     if (cliCallback) {
       isCliLogin = true;
-      cliLoginInitialUserId = clerkInstance.user ? clerkInstance.user.id : null;
+      cliLoginInitialUserId = existingUserId;
       console.log('CLI login: initial user:', cliLoginInitialUserId);
     }
 
@@ -497,15 +498,22 @@ async function initClerk() {
       }
     }
 
-    // Listen for auth state changes — all events are from manual sign in/out
+    // Listen for auth state changes
+    // Ignore the initial cached session; accept all events after user clicks Sign in
     clerkInstance.addListener((event) => {
-      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
+      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed, 'userInitiatedLogin:', userInitiatedLogin);
       if (event.user && !isAuthed) {
+        // Ignore pre-existing session unless user manually initiated login
+        if (event.user.id === existingUserId && !userInitiatedLogin && !wechatToken && !cliCallback) {
+          console.log('Ignoring pre-existing session (no auto-login):', event.user.id);
+          return;
+        }
         if (isCliLogin && event.user.id === cliLoginInitialUserId) {
           console.log('CLI login: ignoring existing session for', event.user.id);
           return;
         }
         isCliLogin = false;
+        userInitiatedLogin = false;
         onAuthed(event.user);
       } else if (!event.user && isAuthed) {
         onSignedOut();
@@ -664,6 +672,8 @@ function toggleAuth() {
     if (clerkInstance) clerkInstance.signOut();
     onSignedOut();
   } else {
+    // User manually initiated login — accept the next auth event
+    userInitiatedLogin = true;
     // Show auth modal
     document.getElementById('clerk-auth').classList.add('show');
     const container = document.getElementById('clerk-container');
