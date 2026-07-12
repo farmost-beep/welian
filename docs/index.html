@@ -462,6 +462,14 @@ async function initClerk() {
 
     clerkReady = true;
 
+    // Set CLI login mode BEFORE registering listener or checking user
+    // so listener ignores the auto-restored session
+    if (cliCallback) {
+      isCliLogin = true;
+      cliLoginInitialUserId = clerkInstance.user ? clerkInstance.user.id : null;
+      console.log('CLI login: pre-set isCliLogin=true, initial user:', cliLoginInitialUserId);
+    }
+
     // Handle WeChat OAuth return: set session from token
     if (wechatToken) {
       try {
@@ -497,19 +505,16 @@ async function initClerk() {
 
     if (cliCallback) {
       // CLI login flow: show sign-in form, only accept NEW sign-in
-      // Record the existing user ID (if any) — we'll only accept a DIFFERENT user
-      const existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
-      console.log('CLI login: existing user:', existingUserId);
+      // isCliLogin and cliLoginInitialUserId already set above
+      console.log('CLI login: showing form, initial user:', cliLoginInitialUserId);
 
       // Show sign-in form regardless of existing session
-      isCliLogin = true;
-      cliLoginInitialUserId = existingUserId;
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
 
       // If already logged in, show a "switch account" notice above the form
-      if (existingUserId) {
-        container.innerHTML = '<div style="text-align:center;padding:8px 0 12px;font-size:.8em;color:var(--dim)">当前账号: ' + existingUserId.slice(-8) + '<br>请用其他账号登录，或关闭此页保持当前账号</div>';
+      if (cliLoginInitialUserId) {
+        container.innerHTML = '<div style="text-align:center;padding:8px 0 12px;font-size:.8em;color:var(--dim)">当前账号: ' + cliLoginInitialUserId.slice(-8) + '<br>请用其他账号登录，或关闭此页保持当前账号</div>';
         const formDiv = document.createElement('div');
         container.appendChild(formDiv);
         clerkInstance.mountSignIn(formDiv);
