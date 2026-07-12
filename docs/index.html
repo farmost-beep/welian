@@ -247,6 +247,22 @@ let isLive = false;     // Connected to local agent
 let clerkInstance = null;
 let clerkUserId = null; // Clerk user ID for device discovery
 
+// Global listener for device-id from bridge (survives after tryBridgeConnect handler is removed)
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.source !== 'welian-bridge') return;
+  if (msg.type === 'device-id' && clerkUserId && msg.device_id) {
+    console.log('Linking device', msg.device_id, 'to user', clerkUserId);
+    fetch(`${DISCOVERY_URL}/discover/link`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: clerkUserId, device_id: msg.device_id}),
+    }).then(r=>r.json()).then(d=>{
+      console.log('Linked device to user:', d);
+    }).catch(e=>console.log('Link failed:', e));
+  }
+});
+
 const body = document.getElementById('chatBody');
 const input = document.getElementById('input');
 const modeBadge = document.getElementById('modeBadge');
@@ -403,6 +419,7 @@ function removeBridge() {
 }
 
 async function autoConnectAgent() {
+  console.log('autoConnectAgent called, clerkUserId:', clerkUserId);
   clearChat();
   addSystemMsg('Looking for local agent…');
 
@@ -414,28 +431,19 @@ async function autoConnectAgent() {
     console.log(`Trying local port ${port}...`);
     try {
       const result = await tryBridgeConnect(`http://localhost:${port}/`, `local-${port}`);
+      console.log(`Port ${port} result:`, result);
       if (result === 'auth_ok') {
-        // Get device_id from health endpoint and link to Clerk user
-        try {
-          const hresp = await fetch(`http://localhost:${port}/health`);
-          const hdata = await hresp.json();
-          if (hdata.device_id && clerkUserId) {
-            fetch(`${DISCOVERY_URL}/discover/link`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({user_id: clerkUserId, device_id: hdata.device_id}),
-            }).catch(() => {});
-            console.log('Linked device', hdata.device_id, 'to user', clerkUserId);
-          }
-        } catch(e) {}
         onAgentConnected(port);
         connected = true;
         return;
       }
     } catch(e) {
+      console.log(`Port ${port} exception:`, e.message);
       removeBridge();
     }
   }
+
+  console.log('All local ports failed, trying discovery...');
 
   // Phase 2: lookup tunnel URL via discovery service (for mobile/remote)
   if (!connected && clerkUserId) {
@@ -503,6 +511,18 @@ function tryBridgeConnect(url, label) {
 
       if (msg.type === 'ready') {
         console.log(`${label}: bridge ready`);
+      } else if (msg.type === 'device-id') {
+        // Bridge sent us the device_id — link it to Clerk user for discovery
+        console.log(`${label}: device_id=${msg.device_id}`);
+        if (clerkUserId && msg.device_id) {
+          fetch(`${DISCOVERY_URL}/discover/link`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user_id: clerkUserId, device_id: msg.device_id}),
+          }).then(r=>r.json()).then(d=>{
+            console.log('Linked device to user:', d);
+          }).catch(e=>console.log('Link failed:', e));
+        }
       } else if (msg.type === 'ws-message' && !resolved) {
         const data = msg.data;
         console.log(`${label}: ws-message`, data.type);

@@ -125,10 +125,11 @@ function connect(){
   ws.onmessage=(e)=>{
     const data=JSON.parse(e.data);
     notifyParent('ws-message',data);
-    if(!isIframe){
+    if(data.type==='auth_ok'){
+      onConnected();
+    } else if(!isIframe){
       rmTyping();
-      if(data.type==='auth_ok'){onConnected()}
-      else if(data.type==='error'){$('badge').textContent='Error';addMsg('ai','Error: '+data.message)}
+      if(data.type==='error'){$('badge').textContent='Error';addMsg('ai','Error: '+data.message)}
       else if(data.type==='response'&&data.reply){addMsg('ai',data.reply)}
       else if(data.type==='response'&&data.data){addMsg('ai',JSON.stringify(data.data,null,2))}
     }
@@ -144,6 +145,14 @@ function onConnected(){
   $('badge').className='badge live';
   if(!isIframe){
     addMsg('ai','Connected to your local agent ✅\\n\\nYour data is on your device.\\n\\nTry: "who to reach out" or "note: met with X about Y"');
+  }
+  // Send device_id to parent for discovery linking
+  if(isIframe){
+    fetch('/health').then(r=>r.json()).then(d=>{
+      if(d.device_id){
+        parent.postMessage({source:'welian-bridge',type:'device-id',device_id:d.device_id},parentOrigin);
+      }
+    }).catch(()=>{});
   }
 }
 
