@@ -54,39 +54,283 @@ class EdgeClient:
     # ── Main chat entry point ──
 
     def chat(self, text: str) -> str:
-        """Process user message locally, call cloud only for AI features."""
+        """Process user message: LLM is the primary processor.
+
+        Flow:
+        1. LLM identifies intent + extracts entities
+        2. Local data operations (save record, gather context)
+        3. LLM generates final response with data context
+
+        All responses go through LLM for natural language.
+        """
         text = text.strip()
         if not text:
             return "跟我说点什么吧 😊"
 
+        # Step 1: LLM intent detection
         intent_type, payload = intent.parse(text)
 
-        if intent_type == intent.INTENT_HELP:
-            return ai._help_text() if hasattr(ai, '_help_text') else self._help_text()
+        # Step 2: Local side effects + gather data context
+        data_context = self._gather_context(intent_type, payload, text)
 
+        # Step 3: LLM generates response with data context
+        try:
+            return self._llm_respond(text, intent_type, payload, data_context)
+        except Exception:
+            # Fallback to template responses if LLM fails
+            return self._template_respond(intent_type, payload, text)
+
+    def _gather_context(self, intent_type, payload, text) -> str:
+        """Gather relevant local data based on intent. Side effects for record."""
+        from datetime import date
+
+        if intent_type == intent.INTENT_RECORD:
+            return self._gather_record(payload)
+
+        if intent_type == intent.INTENT_TODO:
+            return self._gather_todo()
+
+        if intent_type == intent.INTENT_ASK:
+            return self._gather_ask()
+
+        if intent_type == intent.INTENT_QUERY:
+            return self._gather_query()
+
+        if intent_type == intent.INTENT_CHECK:
+            return self._gather_check(payload)
+
+        if intent_type == intent.INTENT_DRAFT:
+            return self._gather_draft(payload)
+
+        if intent_type == intent.INTENT_REPORT:
+            return self._gather_report()
+
+        # chat / help / unknown — minimal context
+        return self._gather_overview()
+
+    def _llm_respond(self, text, intent_type, payload, data_context) -> str:
+        """LLM generates the final response with data context."""
+        llm = self._get_llm()
+
+        system = """你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+
+你的风格：
+- 简洁友好，像朋友在聊天
+- 中文回复，适当用 emoji
+- 回复不要太长，重点突出
+- 如果用户在记录事情，确认记下了并简要复述
+- 如果用户在查待办，清晰列出，按紧急程度分组
+- 如果用户在闲聊，自然回应，可以引导到关系管理话题
+
+你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。"""
+
+        prompt = f"""用户消息：{text}
+
+相关数据：
+{data_context}
+
+请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。"""
+
+        return llm.complete(prompt, system=system)
+
+    def _template_respond(self, intent_type, payload, text) -> str:
+        """Fallback template responses when LLM is unavailable."""
+        if intent_type == intent.INTENT_HELP:
+            return self._help_text()
         elif intent_type == intent.INTENT_RECORD:
             return self._handle_record(payload)
-
         elif intent_type == intent.INTENT_ASK:
             return self._handle_ask()
-
         elif intent_type == intent.INTENT_DRAFT:
             return self._handle_draft(payload)
-
         elif intent_type == intent.INTENT_REPORT:
             return self._handle_report()
-
         elif intent_type == intent.INTENT_CHECK:
             return self._handle_check(payload)
-
         elif intent_type == intent.INTENT_QUERY:
             return self._handle_query()
-
         elif intent_type == intent.INTENT_TODO:
             return self._handle_todo()
-
         else:
             return self._fallback(text)
+
+    # ── Data gatherers (local, no LLM) ──
+
+    def _gather_overview(self) -> str:
+        """Minimal overview for chat/help."""
+        d = engine.get_dashboard()
+        return (f"联系人：{d['total_contacts']}人，"
+                f"待办：{d['pending_todos']}条，"
+                f"近期活动：{d['recent_activities']}条")
+
+    def _gather_record(self, payload) -> str:
+        """Save record to local storage, return context for LLM confirmation."""
+        contact_name = payload.get("contact")
+        summary = payload.get("summary", payload.get("raw", ""))
+
+        if contact_name:
+            contact, _ = engine.resolve_contact(contact_name)
+            if contact:
+                engine.add_timeline(contact["id"], summary)
+                # Check for related todos
+                todos = [t for t in engine.list_todos()
+                         if t.get("contact") == contact["id"] and t.get("status") == "pending"]
+                todo_info = ""
+                if todos:
+                    todo_info = f"\n相关待办：{todos[0]['task'][:60]}"
+                return (f"已记录到联系人「{contact['name']}」的时间线。\n"
+                        f"摘要：{summary}\n{todo_info}\n"
+                        f"记录已保存。")
+            else:
+                cid = contact_name.lower().replace(" ", "_")
+                engine.add_contact(cid, contact_name, nature=engine.NATURE_LEVERAGE)
+                engine.add_timeline(cid, summary)
+                return (f"新建联系人「{contact_name}」并记录。\n"
+                        f"摘要：{summary}\n"
+                        f"记录已保存。")
+        else:
+            return f"记录内容：{summary}\n（未关联到具体联系人）\n记录已保存。"
+
+    def _gather_todo(self) -> str:
+        """Gather todo list for LLM formatting."""
+        todos = [t for t in engine.list_todos() if t.get("status") == "pending"]
+        if not todos:
+            return "当前没有待办事项。"
+
+        today = date.today()
+        sections = {"overdue": [], "today": [], "this_week": [], "later": []}
+
+        for t in todos:
+            due = t.get("due", "")
+            task = t.get("task", t.get("content", ""))
+            contact = t.get("contact", "")
+            if not due:
+                sections["later"].append(f"  · [{contact}] {task}")
+                continue
+            try:
+                due_date = date.fromisoformat(due[:10])
+                delta = (due_date - today).days
+                entry = f"  · [{contact}] {task}（{due[:10]}）"
+                if delta < 0:
+                    sections["overdue"].append(f"  · [{contact}] {task}（超期{-delta}天）")
+                elif delta == 0:
+                    sections["today"].append(f"  · [{contact}] {task}")
+                elif delta <= 7:
+                    sections["this_week"].append(f"  · [{contact}] {task}（{delta}天后）")
+                else:
+                    sections["later"].append(entry)
+            except (ValueError, TypeError):
+                sections["later"].append(f"  · [{contact}] {task}")
+
+        parts = [f"共 {len(todos)} 条待办"]
+        if sections["overdue"]:
+            parts.append("已超期：\n" + "\n".join(sections["overdue"]))
+        if sections["today"]:
+            parts.append("今天：\n" + "\n".join(sections["today"]))
+        if sections["this_week"]:
+            parts.append("本周内：\n" + "\n".join(sections["this_week"]))
+        if sections["later"]:
+            parts.append("之后：\n" + "\n".join(sections["later"][:10]))
+        return "\n\n".join(parts)
+
+    def _gather_ask(self) -> str:
+        """Gather contact suggestions for LLM formatting."""
+        leverage = engine.advise_leverage(top=5)
+        nurture = engine.advise_nurture(days_ahead=14)
+
+        parts = []
+        if leverage:
+            lines = ["建议联系（目标联结）："]
+            for c in leverage:
+                name = c["contact"]["name"]
+                days = c["days_since"]
+                nature = engine.infer_nature(c["contact"])
+                last = c.get("last_interaction", "")[:60]
+                lines.append(f"  · {name}（{days}天未联系）上次：{last}")
+            parts.append("\n".join(lines))
+
+        if nurture:
+            lines = ["陪伴提醒（值得陪伴）："]
+            for r in nurture:
+                name = r["contact"]["name"]
+                rtype = r["type"]
+                label = r.get("label", "")
+                content = r.get("content", "")[:60]
+                lines.append(f"  · {name} — {rtype}：{label} {content}")
+            parts.append("\n".join(lines))
+
+        if not parts:
+            return "本周没有特别需要联系的。"
+        return "\n\n".join(parts)
+
+    def _gather_query(self) -> str:
+        """Gather dashboard data for LLM formatting."""
+        d = engine.get_dashboard()
+        contacts = engine.list_contacts()
+        contact_list = "\n".join(
+            f"  · {c['name']} [{engine.infer_nature(c)}] [{engine.contact_role(c)}]"
+            for c in contacts[:15]
+        )
+        return (f"联系人：{d['total_contacts']}人\n"
+                f"待办：{d['pending_todos']}条\n"
+                f"近期活动：{d['recent_activities']}条\n"
+                f"即将生日：{len(d['upcoming_birthdays'])}人\n"
+                f"联系人列表：\n{contact_list}")
+
+    def _gather_check(self, payload) -> str:
+        """Gather contact relationship info for LLM formatting."""
+        target = payload.get("target", "")
+        contact, _ = engine.resolve_contact(target)
+        if not contact:
+            return f"未找到联系人「{target}」。"
+
+        nature = engine.infer_nature(contact)
+        role = engine.contact_role(contact)
+        memories = [m["content"][:60] for m in contact.get("memories", [])[:5]]
+        tls = engine.list_timeline(contact["id"], days=180)
+        todos = [t for t in engine.list_todos()
+                 if t.get("contact") == contact["id"] and t.get("status") == "pending"]
+
+        parts = [f"联系人：{contact['name']}"]
+        parts.append(f"关系类型：{nature}（角色：{role}）")
+        if memories:
+            parts.append(f"记忆：\n" + "\n".join(f"  · {m}" for m in memories))
+        if tls:
+            parts.append(f"近期互动：\n" + "\n".join(f"  · {t['summary'][:60]}" for t in tls[:5]))
+        if todos:
+            parts.append(f"相关待办：\n" + "\n".join(f"  · {t['task'][:60]}" for t in todos[:3]))
+        return "\n".join(parts)
+
+    def _gather_draft(self, payload) -> str:
+        """Gather context for drafting a message."""
+        target = payload.get("target", "")
+        raw = payload.get("raw", "")
+        context = raw.replace(target, "").replace("拟条消息", "").replace("draft a message to", "").strip()
+        contact, _ = engine.resolve_contact(target)
+
+        if contact:
+            nature = engine.infer_nature(contact)
+            memories = [m["content"][:50] for m in contact.get("memories", [])[:3]]
+            tls = engine.list_timeline(contact["id"], days=90)
+            last = tls[0]["summary"][:100] if tls else "无"
+            return (f"收件人：{contact['name']}\n"
+                    f"关系类型：{nature}\n"
+                    f"记忆：{'; '.join(memories) if memories else '无'}\n"
+                    f"上次互动：{last}\n"
+                    f"用户补充背景：{context}")
+        else:
+            return f"收件人：{target}（未在联系人中）\n背景：{context}"
+
+    def _gather_report(self) -> str:
+        """Gather dashboard report data for LLM formatting."""
+        dash = engine.role_dashboard()
+        parts = ["角色仪表盘："]
+        for role, data in dash.items():
+            parts.append(f"  {role}: {data.get('count', 0)}人")
+            if data.get('highlights'):
+                for h in data['highlights'][:3]:
+                    parts.append(f"    · {h}")
+        return "\n".join(parts)
 
     # ── Record (记) — fully local ──
 
