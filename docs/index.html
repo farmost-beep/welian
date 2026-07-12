@@ -271,6 +271,7 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
 // ── Config ──
 const CLERK_PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 const DISCOVERY_URL = 'https://welian-ai.farmost.workers.dev';
+const AGENT_TUNNEL_URL = 'https://agent.welian.app';  // Direct tunnel (no discovery needed)
 
 // ── i18n ──
 const I18N = {
@@ -775,16 +776,31 @@ async function autoConnectAgent() {
 
   let connected = false;
 
-  // Phase 1: try tunnel via discovery service (works for both mobile and desktop)
+  // Phase 1: try direct tunnel URL (works without discovery service)
+  console.log('Trying direct tunnel:', AGENT_TUNNEL_URL);
+  try {
+    const result = await tryBridgeConnect(AGENT_TUNNEL_URL, 'tunnel');
+    console.log('Direct tunnel result:', result);
+    if (result === 'auth_ok') {
+      onAgentConnected('tunnel');
+      connected = true;
+      return;
+    }
+  } catch(e) {
+    console.log('Direct tunnel failed:', e.message);
+    removeBridge();
+  }
+
+  // Phase 2: try discovery service (fallback if tunnel URL changes)
   if (clerkUserId) {
     console.log('Looking up tunnel via discovery service…');
     try {
       const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
       const data = await resp.json();
-      if (data.found && data.tunnel_url) {
+      if (data.found && data.tunnel_url && data.tunnel_url !== AGENT_TUNNEL_URL) {
         console.log('Found tunnel:', data.tunnel_url);
-        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
-        console.log('Tunnel result:', result);
+        const result = await tryBridgeConnect(data.tunnel_url, 'discovery');
+        console.log('Discovery tunnel result:', result);
         if (result === 'auth_ok') {
           onAgentConnected('tunnel');
           connected = true;
@@ -798,7 +814,7 @@ async function autoConnectAgent() {
     }
   }
 
-  // Phase 2: try localhost (fallback, works on desktop if tunnel not registered)
+  // Phase 3: try localhost (fallback, works on desktop if tunnel not registered)
   const localPorts = [9800, 9801, 9802];
   for (const port of localPorts) {
     console.log(`Trying local port ${port}...`);
