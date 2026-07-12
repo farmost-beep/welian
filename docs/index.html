@@ -518,7 +518,7 @@ async function initClerk() {
       }
     }
 
-    // Listen for auth state changes
+    // Listen for auth state changes (only fires on manual sign in/out)
     clerkInstance.addListener((event) => {
       console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed, 'isCliLogin:', isCliLogin);
       if (event.user && !isAuthed) {
@@ -535,19 +535,12 @@ async function initClerk() {
       }
     });
 
-    // Check if already signed in
-    console.log('Initial user check:', !!clerkInstance.user);
-
+    // CLI login flow: show sign-in form immediately
     if (cliCallback) {
-      // CLI login flow: show sign-in form, only accept NEW sign-in
-      // isCliLogin and cliLoginInitialUserId already set above
       console.log('CLI login: showing form, initial user:', cliLoginInitialUserId);
-
-      // Show sign-in form regardless of existing session
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
 
-      // If already logged in, show a "switch account" notice above the form
       if (cliLoginInitialUserId) {
         container.innerHTML = '<div style="text-align:center;padding:8px 0 12px;font-size:.8em;color:var(--dim)">当前账号: ' + cliLoginInitialUserId.slice(-8) + '<br>请用其他账号登录，或关闭此页保持当前账号</div>';
         const formDiv = document.createElement('div');
@@ -557,24 +550,8 @@ async function initClerk() {
         mountClerkSignIn(container);
       }
       console.log('CLI login: sign-in form shown, waiting for new login');
-    } else if (clerkInstance.user) {
-      // Delay slightly so welcome state is visible before connecting
-      setTimeout(() => onAuthed(clerkInstance.user), 600);
     }
-
-    // Also poll for user as fallback (addListener might not fire on first sign-in)
-    // Skip polling in CLI callback mode — user must manually sign in
-    if (!cliCallback) {
-      let pollCount = 0;
-      const userPoll = setInterval(() => {
-        if (clerkInstance.user && !isAuthed) {
-          console.log('Poll detected user:', clerkInstance.user.id);
-          setTimeout(() => onAuthed(clerkInstance.user), 600);
-          clearInterval(userPoll);
-        }
-        if (pollCount++ > 60) clearInterval(userPoll); // 30s timeout
-      }, 500);
-    }
+    // No auto-login: user must click "Sign in" manually
   } catch(e) {
     console.error('Clerk init failed:', e);
     clerkReady = false;
