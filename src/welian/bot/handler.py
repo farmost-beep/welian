@@ -302,12 +302,32 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
     return True
 
 
+def _save_user_id(user_id: str):
+    """Save WeChat user ID for weekly report push."""
+    import json
+    path = WELIAN_HOME / "bot_users.json"
+    users = []
+    if path.exists():
+        try:
+            with open(path) as f:
+                users = json.load(f)
+        except Exception:
+            users = []
+    if user_id not in users:
+        users.append(user_id)
+        with open(path, "w") as f:
+            json.dump(users, f, ensure_ascii=False)
+
+
 async def process_message(user_id: str, text: str, api: IlinkApi, context_token: str = ""):
     """Process a user message."""
     if await handle_command(text, user_id, api, context_token):
         return
 
     logger.info(f"Message from {user_id[:12]}...: {text[:60]}...")
+
+    # Save user ID for weekly report push
+    _save_user_id(user_id)
 
     # Processing indicator for non-trivial messages
     if len(text) > 10:

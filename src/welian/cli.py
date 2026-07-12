@@ -32,6 +32,7 @@ from .edge import EdgeClient
 # ── Login / Logout ──
 
 WELIAN_CONFIG_DIR = os.path.expanduser("~/.welian")
+WELIAN_HOME = os.environ.get("WELIAN_HOME", WELIAN_CONFIG_DIR)
 WELIAN_AUTH_FILE = os.path.join(WELIAN_CONFIG_DIR, "auth.json")
 LOGIN_CALLBACK_PORT = 9876
 
@@ -174,6 +175,10 @@ def main():
     sub.add_parser("agent-uninstall", help="Uninstall agent launchd service")
     sub.add_parser("agent-status", help="Check agent launchd service status")
 
+    sub.add_parser("weekly-install", help="Install weekly report as launchd cron (Sunday 8pm)")
+    sub.add_parser("weekly-uninstall", help="Uninstall weekly report launchd cron")
+    sub.add_parser("weekly-status", help="Check weekly report launchd cron status")
+
     p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
     p_agent.add_argument("--port", type=int, default=9800)
     p_agent.add_argument("--cloud", default="", help="Cloud API URL")
@@ -182,6 +187,11 @@ def main():
 
     sub.add_parser("login", help="Link CLI to your Clerk account (for tunnel discovery)")
     sub.add_parser("logout", help="Unlink CLI from Clerk account")
+
+    # Weekly report
+    p_weekly = sub.add_parser("weekly", help="Generate and optionally push weekly report")
+    p_weekly.add_argument("--push", action="store_true", help="Push to WeChat via bot")
+    p_weekly.add_argument("--user", default="", help="WeChat user ID to push to (default: all bot users)")
 
     args = parser.parse_args()
 
@@ -338,6 +348,41 @@ def main():
             print("✗ Agent service is not running")
             print("  Install with: welian agent-install")
 
+    elif args.command == "weekly-install":
+        import subprocess
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.weekly.plist")
+        result = subprocess.run(["launchctl", "list", "com.welian.weekly"], capture_output=True)
+        if result.returncode == 0:
+            print("Weekly report cron already installed. Run 'welian weekly-uninstall' first.")
+            return
+        subprocess.run(["launchctl", "load", plist_path], check=True)
+        print("✓ Weekly report installed as launchd cron")
+        print(f"  Plist: {plist_path}")
+        print("  Schedule: Every Sunday at 20:00")
+        print("  Auto-generates report and pushes to WeChat")
+        print("  Logs: ~/.welian/logs/weekly-stdout.log")
+        print("  Manual: welian weekly --push")
+
+    elif args.command == "weekly-uninstall":
+        import subprocess
+        plist_path = os.path.expanduser("~/Library/LaunchAgents/com.welian.weekly.plist")
+        subprocess.run(["launchctl", "unload", plist_path], capture_output=True)
+        print("✓ Weekly report cron uninstalled")
+
+    elif args.command == "weekly-status":
+        import subprocess
+        result = subprocess.run(["launchctl", "list", "com.welian.weekly"], capture_output=True)
+        if result.returncode == 0:
+            print("✓ Weekly report cron is installed")
+            output = result.stdout.decode()
+            for line in output.strip().split("\n"):
+                if any(k in line for k in ["PID", "Status", "LastExit"]):
+                    print(f"  {line.strip()}")
+            print("  Schedule: Every Sunday at 20:00")
+        else:
+            print("✗ Weekly report cron is not installed")
+            print("  Install with: welian weekly-install")
+
     elif args.command == "agent":
         import asyncio
         from .agent import LocalAgent
@@ -350,6 +395,44 @@ def main():
 
     elif args.command == "logout":
         _do_logout()
+
+    elif args.command == "weekly":
+        from .weekly import generate_weekly_report
+        report = generate_weekly_report()
+        print(report)
+
+        if args.push:
+            # Push via WeChat bot's ilink API
+            import json as _json
+            token = os.environ.get("WELIAN_BOT_TOKEN", "")
+            if not token:
+                print("\n⚠ WELIAN_BOT_TOKEN not set. Export it or run via launchd.")
+                return
+
+            from .bot.handler import IlinkApi, send_long_message
+            api = IlinkApi(token=token)
+
+            # Determine target user
+            user_id = args.user
+            if not user_id:
+                # Use stored WeChat user ID from bot sessions
+                users_file = os.path.join(WELIAN_HOME, "bot_users.json")
+                if os.path.exists(users_file):
+                    with open(users_file) as f:
+                        users = _json.load(f)
+                    if users:
+                        user_id = users[0] if isinstance(users, list) else list(users.keys())[0]
+
+            if not user_id:
+                print("\n⚠ No WeChat user ID found. Use --user to specify.")
+                return
+
+            # Send report
+            import asyncio
+            async def push():
+                await send_long_message(api, user_id, report)
+            asyncio.run(push())
+            print(f"\n✓ Pushed to WeChat user: {user_id[:12]}...")
 
     else:
         parser.print_help()
