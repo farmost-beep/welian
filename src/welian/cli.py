@@ -44,10 +44,16 @@ def _do_login():
 
     if os.path.exists(WELIAN_AUTH_FILE):
         with open(WELIAN_AUTH_FILE) as f:
-            auth = json.load(f)
-        print(f"Already logged in as: {auth.get('user_id')}")
-        print(f"  Run 'welian logout' to unlink.")
-        return
+            old_auth = json.load(f)
+        old_user = old_auth.get("user_id", "?")
+        print(f"Currently logged in as: {old_user}")
+        print()
+        resp = input("Log in with a different account? [y/N] ").strip().lower()
+        if resp != "y":
+            print("Keeping current login.")
+            return
+        os.remove(WELIAN_AUTH_FILE)
+        print("Logged out. Starting fresh login...")
 
     result = {"user_id": None}
 
@@ -77,7 +83,7 @@ def _do_login():
     print()
     webbrowser.open(login_url)
 
-    thread.join(timeout=60)
+    thread.join(timeout=120)
     server.server_close()
 
     if result["user_id"]:
