@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Welian — 关系的质量，决定人生的质量</title>
+<meta name="description" content="Welian 维联 · 社交垂直应用。撬动型关系联结目标，维系型关系维系情感——帮你成为更好的朋友、更好的家人、更好的合作者。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F5F4EE">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F5F4EE;--surface:#EDEBE3;--surface2:#E4E1D6;--border:#D9D5C7;
+  --text:#1A1915;--text2:#3D3B36;--dim:#6B6860;--dimmer:#9A968C;
+  --accent:#C96442;--accent-bg:#F2E8E0;--green:#4A7C59;--radius:6px;
+}
+
+/* ===== Base (mobile-first) ===== */
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',-apple-system,"PingFang SC",sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+a{color:var(--accent);text-decoration:none}
+code{font-family:'SF Mono',monospace;font-size:.88em}
+
+/* Nav */
+nav{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg);z-index:10;
+}
+nav .brand{display:flex;align-items:center;gap:6px}
+nav .brand .name{font-family:'Newsreader',serif;font-size:1.2em;font-weight:500;color:var(--text)}
+nav .brand .inf{font-size:1.15em;color:var(--accent);font-weight:400;line-height:1}
+nav .links{display:flex;gap:16px;align-items:center}
+nav .links a{font-size:.82em;color:var(--dim)}
+nav .links .cta{
+  background:var(--text);color:var(--bg);
+  padding:7px 14px;border-radius:var(--radius);font-size:.82em;font-weight:500;
+}
+nav .links .desktop-only{display:none}
+
+/* Hero */
+.hero{padding:40px 20px 32px;text-align:center}
+.eyebrow{font-size:.72em;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+h1{
+  font-family:'Newsreader',serif;font-size:2em;font-weight:400;
+  letter-spacing:-.02em;line-height:1.15;margin-bottom:16px;
+}
+h1 em{font-style:italic;color:var(--accent)}
+.slogan{
+  font-family:'Newsreader',serif;font-size:1.15em;font-style:italic;
+  color:var(--text2);margin-bottom:12px;
+}
+.lead{font-size:1.02em;color:var(--text2);margin-bottom:28px;line-height:1.6}
+
+/* Pillars (角色成长) */
+.pillars{display:flex;gap:0;border-top:1px solid var(--border);margin-bottom:28px}
+.pillar{
+  flex:1;padding:16px 10px;border-right:1px solid var(--border);
+  cursor:pointer;transition:.25s;text-align:center;
+}
+.pillar:last-child{border-right:none}
+.pillar:active{background:var(--surface)}
+.pillar .icon{font-size:1.3em;margin-bottom:6px}
+.pillar h3{font-family:'Newsreader',serif;font-size:.92em;font-weight:500;margin-bottom:2px}
+.pillar p{font-size:.7em;color:var(--dim);line-height:1.4}
+
+/* Dual model section */
+.dual{padding:0 20px 32px}
+.dual-card{
+  border:1px solid var(--border);border-radius:10px;padding:20px 18px;margin-bottom:12px;
+  cursor:pointer;transition:.25s;background:var(--surface);
+}
+.dual-card:active{border-color:var(--accent)}
+.dual-card .tag{
+  display:inline-block;font-size:.68em;font-weight:500;letter-spacing:.05em;
+  text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-bottom:8px;
+}
+.dual-card.leverage .tag{background:var(--accent-bg);color:var(--accent)}
+.dual-card.nurture .tag{background:#E8EEDF;color:var(--green)}
+.dual-card h3{font-family:'Newsreader',serif;font-size:1.05em;font-weight:500;margin-bottom:4px}
+.dual-card p{font-size:.82em;color:var(--dim);line-height:1.5}
+.dual-card .metaphor{font-size:.76em;color:var(--dimmer);margin-top:6px;font-style:italic}
+
+/* CTA */
+.cta-block{padding:0 20px 32px;text-align:center}
+.cta-wechat{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--green);color:#fff;
+  padding:12px 28px;border-radius:var(--radius);
+  font-size:.92em;font-weight:500;cursor:pointer;transition:.25s;
+  margin-bottom:12px;
+}
+.cta-wechat:active{transform:scale(.97)}
+.cta-wechat .wx-icon{font-size:1.1em}
+.cta-note{font-size:.76em;color:var(--dim);margin-bottom:16px}
+.cta-opensource{
+  font-size:.78em;color:var(--dim);
+}
+.cta-opensource a{color:var(--accent)}
+.cta-opensource .install-cmd{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:8px 14px;margin-top:6px;
+  cursor:pointer;transition:.25s;
+}
+.cta-opensource .install-cmd:active{border-color:var(--accent);background:var(--accent-bg)}
+.cta-opensource .install-cmd .p{color:var(--dimmer);font-family:monospace}
+.cta-opensource .install-cmd code{color:var(--text);font-size:.85em}
+.cta-opensource .install-cmd .copy{font-size:.7em;color:var(--dimmer);margin-left:4px}
+.cta-opensource .install-cmd.copied .copy{color:var(--green)}
+
+/* Chat */
+.chat-section{padding:0 20px 40px}
+.chat-frame{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.03),0 8px 24px rgba(0,0,0,.04);
+}
+.chat-head{
+  display:flex;align-items:center;gap:6px;
+  padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);
+}
+.chat-head .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.chat-head .dot.r{background:#D65D5D}.chat-head .dot.y{background:#D9A441}.chat-head .dot.g{background:#5B9462}
+.chat-head .title{font-size:.78em;color:var(--dim);margin-left:8px;font-weight:500}
+.chat-head .inf{margin-left:auto;color:var(--accent);font-size:1em}
+.chat-body{
+  height:50vh;min-height:260px;max-height:400px;
+  overflow-y:auto;padding:18px 16px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.chat-body::-webkit-scrollbar{width:3px}
+.chat-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.msg{margin-bottom:16px;animation:fadein .5s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg .who{font-size:.68em;font-weight:500;margin-bottom:4px;letter-spacing:.03em}
+.msg .who.you{color:var(--accent)}
+.msg .who.ai{color:var(--green)}
+.msg .bubble{
+  padding:12px 16px;border-radius:8px;font-size:.85em;
+  white-space:pre-wrap;line-height:1.6;word-break:break-word;
+}
+.msg .bubble.you{background:var(--accent-bg);border:1px solid #E8D5C8}
+.msg .bubble.ai{background:var(--bg);border:1px solid var(--border)}
+.msg .typing{display:inline-block;width:6px;height:14px;background:var(--green);border-radius:1px;animation:blink 1s infinite;vertical-align:text-bottom}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.chat-input{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;border-top:1px solid var(--border);background:var(--bg);
+}
+.chat-input input{
+  flex:1;background:none;border:none;color:var(--text);
+  font-size:.88em;font-family:inherit;outline:none;min-width:0;
+}
+.chat-input input::placeholder{color:var(--dimmer)}
+.chat-input .send{
+  color:var(--dim);cursor:pointer;font-size:.82em;
+  border:none;background:none;font-family:inherit;transition:.2s;
+  flex-shrink:0;padding:4px 8px;
+}
+.chat-input .send:active{color:var(--accent)}
+.chat-hint{
+  font-size:.72em;color:var(--dimmer);text-align:center;
+  padding:14px 0 0;line-height:2;
+}
+.chat-hint span{
+  color:var(--dim);cursor:pointer;transition:.2s;
+  border-bottom:1px solid transparent;display:inline-block;
+  padding:2px 4px;
+}
+.chat-hint span:active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Footer */
+footer{
+  border-top:1px solid var(--border);padding:20px;
+  text-align:center;font-size:.78em;color:var(--dim);
+}
+footer a{color:var(--dim)}
+footer .sep{margin:0 8px;color:var(--border)}
+footer .inf{color:var(--accent);font-size:1em}
+
+/* ===== Tablet (≥640px) ===== */
+@media(min-width:640px){
+  body{font-size:16px}
+  .hero{padding:56px 32px 40px}
+  h1{font-size:2.6em}
+  .slogan{font-size:1.3em}
+  .lead{font-size:1.1em;max-width:520px;margin-left:auto;margin-right:auto}
+  .pillars{margin-bottom:32px}
+  .pillar{padding:20px 16px}
+  .pillar h3{font-size:1.02em}.pillar p{font-size:.76em}
+  .dual{padding:0 32px 40px}
+  .dual-card{padding:24px 22px}
+  .cta-block{padding:0 32px 40px}
+  .chat-section{padding:0 32px 48px}
+  .chat-frame{max-width:560px;margin:0 auto}
+  .chat-hint{font-size:.76em}
+  footer{padding:24px 32px}
+}
+
+/* ===== Desktop (≥880px) ===== */
+@media(min-width:880px){
+  body{font-size:16px}
+  nav{padding:20px 48px}
+  nav .links{gap:28px}
+  nav .links a{font-size:.88em}
+  nav .links .desktop-only{display:inline}
+  nav .links .cta{padding:8px 18px;font-size:.85em}
+
+  .page{min-height:100vh;display:flex;flex-direction:column}
+  main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:calc(100vh - 62px)}
+
+  /* Left: editorial */
+  .hero{
+    padding:0;grid-column:1;text-align:left;
+    display:flex;flex-direction:column;justify-content:center;
+    max-width:640px;padding:60px 64px 32px;
+  }
+  .eyebrow{margin-bottom:20px}
+  h1{font-size:3em;margin-bottom:16px}
+  .slogan{font-size:1.35em;margin-bottom:12px}
+  .lead{margin:0 0 32px;max-width:480px}
+  .pillars{margin-bottom:32px}
+  .pillar{text-align:left;padding:18px 16px 18px 0}
+  .pillar:hover{background:var(--surface);padding-left:12px;padding-right:8px}
+  .pillar .icon{font-size:1.4em}
+  .pillar h3{font-size:1.02em}
+  .pillar p{font-size:.76em}
+
+  .dual{padding:0 64px 32px;max-width:640px}
+  .dual-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.04)}
+  .dual-card h3{font-size:1.1em}
+
+  .cta-block{text-align:left;padding:0 64px 60px;max-width:640px}
+  .cta-wechat:hover{transform:scale(1.02)}
+  .cta-opensource .install-cmd:hover{border-color:var(--accent);background:var(--accent-bg)}
+  .cta-opensource .install-cmd .copy:hover{color:var(--accent)}
+
+  /* Right: chat */
+  .chat-section{
+    padding:60px 64px 60px 32px;
+    display:flex;flex-direction:column;justify-content:center;
+  }
+  .chat-frame{max-width:none;margin:0}
+  .chat-body{height:380px;max-height:none}
+  .chat-hint{font-size:.76em}
+  .chat-hint span:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .chat-input .send:hover{color:var(--accent)}
+
+  footer{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:24px 48px;text-align:left;
+  }
+  footer .sep{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<nav>
+  <div class="brand">
+    <span class="name">Welian</span>
+    <span class="inf">∞</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/farmost-beep/social-agent" class="desktop-only">GitHub</a>
+    <a href="https://github.com/farmost-beep/social-agent/blob/main/docs/SPEC_WELIAN.md" class="desktop-only">产品规约</a>
+    <a href="#chat" class="cta">和小维聊聊</a>
+  </div>
+</nav>
+
+<main>
+  <!-- Hero / Editorial -->
+  <div class="hero">
+    <div class="eyebrow">社交垂直应用 · 每段关系都值得用心</div>
+    <h1>更好的朋友，更好的家人，<br>更好的合作者——<em>成为更好的自己</em>。</h1>
+    <div class="slogan">关系的质量，决定人生的质量。</div>
+    <p class="lead">Welian 帮你用心对待两类关系：为目标联结的合作网络，和值得陪伴的情感纽带。不是提醒你打电话的工具，是帮你把心意落到实处的伙伴。</p>
+
+    <div class="pillars">
+      <div class="pillar" onclick="quickSend('本月角色回顾')">
+        <div class="icon">🌱</div>
+        <h3>更好的朋友</h3>
+        <p>重要时刻在场<br>记得对方在乎的事</p>
+      </div>
+      <div class="pillar" onclick="quickSend('下周三结婚纪念日')">
+        <div class="icon">🏡</div>
+        <h3>更好的家人</h3>
+        <p>多一点陪伴<br>每一个日子都不错过</p>
+      </div>
+      <div class="pillar" onclick="quickSend('本周该联系谁')">
+        <div class="icon">🤝</div>
+        <h3>更好的合作者</h3>
+        <p>说到做到<br>该出手时帮一把</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dual relationship model -->
+  <div class="dual">
+    <div class="dual-card leverage" onclick="quickSend('本周该联系谁')">
+      <span class="tag">撬动型</span>
+      <h3>为目标联结的关系</h3>
+      <p>同行、合作方、引荐人、客户——你们因共同的目标而联结，值得认真对待、持续投入。</p>
+      <div class="metaphor">像打理一片果园——用心栽培，定期照料，静候收获</div>
+    </div>
+    <div class="dual-card nurture" onclick="quickSend('老周最近咋样')">
+      <span class="tag">维系型</span>
+      <h3>值得陪伴的关系</h3>
+      <p>家人、挚友、恩师——关系本身就是意义。记得他在乎的事，重要时刻不缺席。</p>
+      <div class="metaphor">像浇一盆花——不需要理由，在场就是全部</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-block">
+    <div class="cta-wechat" onclick="alert('微信搜索「Welian小维」即可开始使用')">
+      <span class="wx-icon">💬</span>
+      <span>在微信里找到小维</span>
+    </div>
+    <p class="cta-note">微信搜索「Welian小维」· 记录永久免费</p>
+    <div class="cta-opensource">
+      <div>更喜欢自己跑？开源版也在，数据完全归你</div>
+      <div class="install-cmd" onclick="copyInstall(event)">
+        <span class="p">$</span>
+        <code>pip install social-agent</code>
+        <span class="copy" id="copyLabel">复制</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-section" id="chat">
+    <div class="chat-frame">
+      <div class="chat-head">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">小维 · 微信对话</span>
+        <span class="inf">∞</span>
+      </div>
+      <div class="chat-body" id="chatBody">
+        <div class="msg">
+          <div class="who ai">小维</div>
+          <div class="bubble ai">嗨，我是小维 😊\n\n你跟我说一句，我帮你记下来、想清楚、拟好话。\n那些你惦记着但总忘了做的事，交给我。\n\n试试下面的快捷词，或直接跟我说。</div>
+        </div>
+      </div>
+      <div class="chat-input">
+        <input id="input" type="text" placeholder="跟小维说点什么…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
+        <button class="send" onclick="send()">发送 →</button>
+      </div>
+    </div>
+    <div class="chat-hint">
+      <span onclick="quickSend('本周该联系谁')">该联系谁</span>
+      <span onclick="quickSend('记一下：和张总聊了预算方案')">记一下</span>
+      <span onclick="quickSend('给三年没联系的老同学拟条问候')">拟条消息</span>
+      <span onclick="quickSend('老周最近咋样')">老周最近咋样</span>
+      <span onclick="quickSend('本月角色回顾')">这个月的我</span>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>© 2026 Welian 维联 <span class="inf">∞</span> · 关系的质量，决定人生的质量</span>
+  <span><a href="https://github.com/farmost-beep/social-agent">GitHub</a><span class="sep"> · </span><a href="https://github.com/farmost-beep/social-agent/blob/main/docs/SPEC_WELIAN.md">产品规约</a><span class="sep"> · </span><a href="https://welian.app">welian.app</a></span>
+</footer>
+
+</div>
+
+<script>
+function copyInstall(e){
+  const el=e.currentTarget,label=el.querySelector('#copyLabel')||document.getElementById('copyLabel');
+  navigator.clipboard?.writeText('pip install social-agent');
+  el.classList.add('copied');
+  if(label){label.textContent='✓';}
+  setTimeout(()=>{el.classList.remove('copied');if(label)label.textContent='复制'},1500);
+}
+
+const body=document.getElementById('chatBody'),input=document.getElementById('input');
+
+const replies={
+'联系':['💡 这周值得联系的人（3位）\n\n🔴 张总 — 21天没联系了 · 为事业联结\n   可以聊：新季度预算方案要不要调整\n🟡 李总 — 18天没联系 · 为事业联结\n   可以聊：上次说的技术方案出了，同步一下\n🟡 赵总 — 16天没联系 · 为投资联结\n   可以聊：Q3合作框架可以推进了\n\n📌 上周你帮别人牵了1次线——\n   好关系是互相搭桥 🤝','该联系','谁','建议','联系','本周'],
+'记':['✓ 记下了\n\n  联系人：张总 · 为事业联结\n  时间：'+new Date().toLocaleDateString('zh-CN')+'\n  摘要：聊了预算方案，他下周给答复\n  帮你记了条待办：\n    🔴 下周三跟进张总的预算答复\n\n  这是你这周第 4 条记录，\n  多记一点，我就能多帮你想到一点 🌱','记一下','记录','互动','聊了','记',
+],
+'拟':['📝 帮你拟了一版（语气：亲切 · 不突兀）\n\n  老同学，好久不见！\n  最近翻到张江的老照片，想起当年\n  一起赶论文的日子。最近怎么样？\n\n  觉得可以就说"确认"，\n  想改哪里随时跟我说。','拟','消息','草稿','问候','draft','老同学','没联系',
+],
+'维系':['📌 老周 · 值得陪伴的关系\n\n  你们的关系：十五年老友\n\n  我替你记着的：\n    · 儿子小宇今年中考\n    · 不喝白酒只喝红酒\n    · 父亲去年住院时你来陪了床\n\n  最近来往：\n    07-11 一起看了球赛\n    06-20 他生日你发了祝福 ✓\n\n  💡 下周三小宇出中考成绩\n     要不要发条消息问问？\n\n  （这种关系不算什么分，也不催你——\n   你心里有他，就够了）','老周','维系','咋样','怎么样','查','最近','状态',
+],
+'角色':['📊 七月的你\n\n🌱 作为朋友\n  · 3 次走心的交流（老周、小林、阿May）\n  · 老周父亲手术那天你发了消息——在场 ✓\n  · 重新联系了大学室友阿强（隔了2年）\n\n🏡 作为家人\n  · 给爸妈打了 4 个电话（上月 2 个 ↑）\n  · 儿子家长会：出席了 ✓\n  · ⚠️ 下周三结婚纪念日，别忘了\n\n🤝 作为合作者\n  · 答应的事做到了 5 件，做到率 83%\n  · 你帮别人牵了 2 次线（好关系是互相搭桥）\n  · 张总项目验收如期完成 → 已记下\n\n—— 这个月过得怎么样，你自己说了算 :)','角色','回顾','本月','月度','仪表盘','报告','这个月','的我',
+],
+'帮助':['你可以跟我说：\n\n  · "记一下：和XX聊了YY" — 帮你记下来\n  · "本周该联系谁" — 帮你想清楚\n  · "给XX拟条消息" — 帮你拟好话\n  · "老周最近咋样" — 帮你回顾一段关系\n  · "本月角色回顾" — 看看这个月的自己\n\n  为目标联结的关系：该联系谁+为什么+聊什么\n  值得陪伴的关系：记得他在乎的事+重要时刻在场\n\n  试试看 😊','帮助','help','能做什么','怎么用','试试',
+],
+};
+
+function matchReply(text){
+  const t=text.toLowerCase();
+  for(const[key,data]of Object.entries(replies)){
+    if(data.slice(1).some(k=>t.includes(k.toLowerCase())))return data[0];
+  }
+  return '你说的「'+text+'」我记下了 😊\n\n  你可以试试这些：\n  · "本周该联系谁"\n  · "记一下：和XX聊了YY"\n  · "给XX拟条消息"\n  · "老周最近咋样"\n  · "本月角色回顾"';
+}
+
+function addMsg(who,text){
+  const d=document.createElement('div');d.className='msg';
+  const label=who==='ai'?'小维':'你';
+  d.innerHTML='<div class="who '+who+'">'+label+'</div><div class="bubble '+who+'">'+text.replace(/\\n/g,'\n')+'</div>';
+  body.appendChild(d);body.scrollTop=body.scrollHeight;
+}
+
+function addTyping(){
+  const d=document.createElement('div');d.className='msg';d.id='typing';
+  d.innerHTML='<div class="who ai">小维</div><div class="bubble ai"><span class="typing"></span></div>';
+  body.appendChild(d);body.scrollTop=body.scrollHeight;
+}
+function removeTyping(){document.getElementById('typing')?.remove()}
+
+function send(){
+  const text=input.value.trim();if(!text)return;input.value='';
+  addMsg('you',text);addTyping();
+  setTimeout(()=>{removeTyping();addMsg('ai',matchReply(text))},700+Math.random()*400);
+}
+
+function quickSend(text){
+  input.value=text;send();
+  if(window.innerWidth<880){
+    document.getElementById('chat').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+</script>
+</body>
+</html>
