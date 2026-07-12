@@ -485,14 +485,20 @@ async function initClerk() {
 
     // Check if already signed in
     console.log('Initial user check:', !!clerkInstance.user);
-    if (clerkInstance.user) {
-      onAuthed(clerkInstance.user);
-    } else if (cliCallback) {
-      // CLI login flow: auto-open auth modal if not logged in
+
+    if (cliCallback) {
+      // CLI login flow: always force fresh sign-in
+      // Sign out existing session first, then show sign-in form
+      if (clerkInstance.user) {
+        console.log('CLI login: signing out existing session for fresh login');
+        await clerkInstance.signOut();
+      }
       console.log('CLI login: opening auth modal');
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
       mountClerkSignIn(container);
+    } else if (clerkInstance.user) {
+      onAuthed(clerkInstance.user);
     }
 
     // Also poll for user as fallback (addListener might not fire on first sign-in)
