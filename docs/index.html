@@ -443,26 +443,26 @@ async function autoConnectAgent() {
     }
   }
 
-  console.log('All local ports failed, trying discovery...');
+  console.log('All local ports failed, trying tunnel...');
 
-  // Phase 2: lookup tunnel URL via discovery service (for mobile/remote)
-  if (!connected && clerkUserId) {
-    console.log('Looking up tunnel via discovery service…');
+  // Phase 2: try permanent tunnel URL (for mobile/remote)
+  // Single-user phase: one tunnel at agent.welian.app
+  // Multi-user phase: will need discovery service to map user_id → tunnel URL
+  if (!connected) {
+    const tunnelUrl = 'https://agent.welian.app';
+    console.log('Trying tunnel:', tunnelUrl);
+    addSystemMsg('Connecting via tunnel…');
     try {
-      const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
-      const data = await resp.json();
-      if (data.found && data.tunnel_url) {
-        console.log('Found tunnel:', data.tunnel_url);
-        addSystemMsg('Connecting via tunnel…');
-        const result = await tryBridgeConnect(data.tunnel_url, 'tunnel');
-        if (result === 'auth_ok') {
-          onAgentConnected('tunnel');
-          connected = true;
-          return;
-        }
+      const result = await tryBridgeConnect(tunnelUrl, 'tunnel');
+      console.log('Tunnel result:', result);
+      if (result === 'auth_ok') {
+        onAgentConnected('tunnel');
+        connected = true;
+        return;
       }
     } catch(e) {
-      console.log('Discovery lookup failed:', e.message);
+      console.log('Tunnel exception:', e.message);
+      removeBridge();
     }
   }
 
