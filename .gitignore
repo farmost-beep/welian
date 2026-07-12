@@ -5,6 +5,10 @@ __pycache__/
 .env
 .env.local
 
+# 机密文档（仅本地保存，不上传 GitHub）
+docs/SPEC_WELIAN.md
+docs/BUSINESS_MODEL.md
+
 # OS
 .DS_Store
 Thumbs.db
