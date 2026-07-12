@@ -19,6 +19,7 @@ Usage:
   welian balance
 """
 import sys
+import os
 import json
 import argparse
 from . import engine, intent, ai, tokens
@@ -67,6 +68,11 @@ def main():
 
     sub.add_parser("bot", help="Run WeChat bot (edge mode: local data + cloud AI)")
 
+    p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
+    p_agent.add_argument("--port", type=int, default=9800)
+    p_agent.add_argument("--cloud", default="", help="Cloud API URL")
+    p_agent.add_argument("--token", default="", help="Pairing token (auto-generated if empty)")
+
     args = parser.parse_args()
 
     # ── Edge commands ──
@@ -81,7 +87,6 @@ def main():
         print(f"  Nurture reminders: {d['nurture_reminders']}")
 
     elif args.command == "advise":
-        import os
         cloud = args.cloud if hasattr(args, 'cloud') and args.cloud else os.environ.get("WELIAN_CLOUD_URL", "")
         client = EdgeClient(cloud_url=cloud)
         # Use ask intent
@@ -154,6 +159,13 @@ def main():
         print(f"  Data: local (edge)")
         print(f"  AI: cloud if WELIAN_CLOUD_URL set, else offline")
         asyncio.run(run_hub_bridge())
+
+    elif args.command == "agent":
+        import asyncio
+        from .agent import LocalAgent
+        cloud = args.cloud or os.environ.get("WELIAN_CLOUD_URL", "")
+        agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token)
+        asyncio.run(agent.start())
 
     else:
         parser.print_help()
