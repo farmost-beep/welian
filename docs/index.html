@@ -9,7 +9,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <!-- Clerk — authentication (Passkey / Google / Apple / WeChat) -->
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/clerk.browser.js" type="text/javascript"></script>
+<!-- Must load from Clerk's own Frontend API domain, not jsdelivr -->
+<script defer crossorigin="anonymous"
+  src="https://fancy-kingfish-81.clerk.accounts.dev/npm/@clerk/clerk-js@4/dist/clerk.browser.js"
+  data-clerk-publishable-key="pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA"
+  type="text/javascript"></script>
+<script>
+// Load Clerk UI bundle (required for mountSignIn/mountSignUp)
+async function loadClerkUI(publishableKey) {
+  try {
+    const clerkDomain = atob(publishableKey.split('_')[2]).slice(0, -1);
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://${clerkDomain}/npm/@clerk/ui@1/dist/ui.browser.js`;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Failed to load Clerk UI'));
+      document.head.appendChild(script);
+    });
+    return true;
+  } catch(e) {
+    console.log('Clerk UI load failed:', e.message);
+    return false;
+  }
+}
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -213,11 +238,10 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
 
 <script>
 // ── Config ──
-const CLERK_PUBLISHABLE_KEY = ''; // Set your Clerk publishable key here
+const CLERK_PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 const CLOUD_API_URL = ''; // Set cloud API URL when deployed
 
 // ── State ──
-let ws = null;          // WebSocket to local agent
 let isAuthed = false;   // Clerk auth state
 let isLive = false;     // Connected to local agent
 let clerkInstance = null;
@@ -231,18 +255,72 @@ const statusText = document.getElementById('statusText');
 const authBtn = document.getElementById('authBtn');
 
 // ── Clerk init ──
+let clerkReady = false;
+
 async function initClerk() {
   if (!CLERK_PUBLISHABLE_KEY) {
     console.log('Clerk not configured — running in demo mode');
     return;
   }
+
   try {
-    clerkInstance = await Clerk.load({ publishableKey: CLERK_PUBLISHABLE_KEY });
+    // Wait for Clerk CDN script to load and auto-init
+    // The CDN script with data-clerk-publishable-key auto-initializes window.Clerk
+    let attempts = 0;
+    while (typeof window.Clerk === 'undefined' && attempts < 50) {
+      await new Promise(r => setTimeout(r, 100));
+      attempts++;
+    }
+
+    if (typeof window.Clerk === 'undefined') {
+      console.error('Clerk CDN script failed to load');
+      return;
+    }
+
+    console.log('Clerk global available, waiting for load...');
+    clerkInstance = window.Clerk;
+
+    // Wait for Clerk to be loaded
+    if (!clerkInstance.loaded) {
+      await clerkInstance.load();
+    }
+    console.log('Clerk loaded, status:', clerkInstance.status);
+
+    // Load UI bundle for mountSignIn
+    await loadClerkUI(CLERK_PUBLISHABLE_KEY);
+    console.log('UI bundle loaded, ClerkUICtor:', typeof window.__internal_ClerkUICtor);
+
+    clerkReady = true;
+
+    // Listen for auth state changes
+    clerkInstance.addListener((event) => {
+      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
+      if (event.user && !isAuthed) {
+        onAuthed(event.user);
+      } else if (!event.user && isAuthed) {
+        onSignedOut();
+      }
+    });
+
+    // Check if already signed in
+    console.log('Initial user check:', !!clerkInstance.user);
     if (clerkInstance.user) {
       onAuthed(clerkInstance.user);
     }
+
+    // Also poll for user as fallback (addListener might not fire on first sign-in)
+    let pollCount = 0;
+    const userPoll = setInterval(() => {
+      if (clerkInstance.user && !isAuthed) {
+        console.log('Poll detected user:', clerkInstance.user.id);
+        onAuthed(clerkInstance.user);
+        clearInterval(userPoll);
+      }
+      if (pollCount++ > 60) clearInterval(userPoll); // 30s timeout
+    }, 500);
   } catch(e) {
-    console.log('Clerk init failed:', e.message);
+    console.error('Clerk init failed:', e);
+    clerkReady = false;
   }
 }
 
@@ -254,17 +332,34 @@ function toggleAuth() {
   } else {
     // Show auth modal
     document.getElementById('clerk-auth').classList.add('show');
-    if (clerkInstance && !document.getElementById('clerk-container').children.length) {
-      clerkInstance.mountSignIn(document.getElementById('clerk-container'));
-      // Poll for auth success
-      const poll = setInterval(() => {
-        if (clerkInstance.user) {
-          clearInterval(poll);
-          document.getElementById('clerk-auth').classList.remove('show');
-          onAuthed(clerkInstance.user);
+    const container = document.getElementById('clerk-container');
+
+    if (!clerkReady || !clerkInstance) {
+      container.innerHTML = '<p style="text-align:center;color:var(--dim);padding:20px">Loading Clerk...<br><small>If this persists, check console for errors.</small></p>';
+      // Wait for clerk to be ready
+      const wait = setInterval(() => {
+        if (clerkReady && clerkInstance) {
+          clearInterval(wait);
+          mountClerkSignIn(container);
         }
       }, 500);
+      setTimeout(() => clearInterval(wait), 10000);
+      return;
     }
+
+    mountClerkSignIn(container);
+  }
+}
+
+function mountClerkSignIn(container) {
+  try {
+    // Clear any previous content or error messages
+    container.innerHTML = '';
+    clerkInstance.mountSignIn(container);
+    console.log('mountSignIn called');
+  } catch(e) {
+    console.error('mountSignIn failed:', e);
+    container.innerHTML = '<p style="color:#C65D5D;text-align:center;padding:20px">Failed to load sign-in form.<br><small>' + e.message + '</small></p>';
   }
 }
 
@@ -272,13 +367,15 @@ function onAuthed(user) {
   isAuthed = true;
   authBtn.textContent = user.firstName || user.username || 'Account';
   navStatus.style.display = 'inline-flex';
+  // Close auth modal if open
+  document.getElementById('clerk-auth').classList.remove('show');
   showConnectPanel();
 }
 
 function onSignedOut() {
   isAuthed = false;
   isLive = false;
-  if (ws) { ws.close(); ws = null; }
+  removeBridge();
   authBtn.textContent = 'Sign in';
   navStatus.style.display = 'none';
   modeBadge.textContent = 'Demo';
@@ -314,38 +411,107 @@ async function connectAgent() {
 
   errEl.textContent = 'Connecting...';
 
-  // Try localhost first (agent runs on user's device)
+  // Use iframe bridge: embed http://localhost:PORT/ which connects to ws://localhost:PORT/ws
+  // This avoids mixed-content blocking (https:// → ws://)
   const ports = [9800, 9801, 9802];
+  let connected = false;
+
   for (const port of ports) {
+    console.log(`Trying iframe bridge on port ${port}...`);
     try {
-      ws = new WebSocket(`ws://localhost:${port}`);
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('timeout')), 2000);
-        ws.onopen = () => { clearTimeout(timeout); resolve(); };
-        ws.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
-      });
-
-      // Auth
-      ws.send(JSON.stringify({ type: 'auth', token: token }));
-      const authResp = await new Promise((resolve) => {
-        ws.onmessage = (e) => resolve(JSON.parse(e.data));
-        setTimeout(() => resolve(null), 3000);
-      });
-
-      if (authResp && authResp.type === 'auth_ok') {
+      const result = await tryBridgeConnect(port, token);
+      if (result === 'auth_ok') {
         onAgentConnected(port);
+        connected = true;
         return;
-      } else {
+      } else if (result === 'auth_fail') {
         errEl.textContent = 'Invalid token';
-        ws.close(); ws = null;
+        removeBridge();
         return;
+      } else if (result === 'no_bridge') {
+        continue; // try next port
       }
     } catch(e) {
-      // Try next port
+      console.log(`Port ${port} failed:`, e.message);
+      removeBridge();
       continue;
     }
   }
-  errEl.textContent = 'Cannot find local agent. Make sure `welian agent` is running.';
+
+  if (!connected) {
+    removeBridge();
+    errEl.innerHTML = 'Cannot find local agent.<br><small>Make sure <code>welian agent</code> is running.</small>';
+  }
+}
+
+let bridgeFrame = null;
+let bridgePort = null;
+let bridgeReady = false;
+let pendingBridgeMessages = [];
+
+function removeBridge() {
+  if (bridgeFrame) {
+    bridgeFrame.remove();
+    bridgeFrame = null;
+    bridgeReady = false;
+  }
+}
+
+function tryBridgeConnect(port, token) {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const timeout = setTimeout(() => {
+      if (!resolved) { resolved = true; resolve('no_bridge'); }
+    }, 3000);
+
+    // Create hidden iframe
+    bridgeFrame = document.createElement('iframe');
+    bridgeFrame.style.display = 'none';
+    bridgeFrame.src = `http://localhost:${port}/`;
+    bridgePort = port;
+
+    // Listen for postMessage from bridge
+    const handler = (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'welian-bridge') return;
+
+      if (msg.type === 'ready') {
+        console.log('Bridge ready, sending connect command');
+        bridgeReady = true;
+        bridgeFrame.contentWindow.postMessage({
+          source: 'welian-parent',
+          type: 'connect',
+          token: token
+        }, '*');
+      } else if (msg.type === 'ws-message' && !resolved) {
+        const data = msg.data;
+        if (data.type === 'auth_ok') {
+          resolved = true;
+          clearTimeout(timeout);
+          window.removeEventListener('message', handler);
+          resolve('auth_ok');
+        } else if (data.type === 'error') {
+          resolved = true;
+          clearTimeout(timeout);
+          window.removeEventListener('message', handler);
+          resolve('auth_fail');
+        }
+      } else if (msg.type === 'ws-error' && !resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        window.removeEventListener('message', handler);
+        resolve('no_bridge');
+      }
+    };
+    window.addEventListener('message', handler);
+
+    // If iframe fails to load (no agent on this port)
+    bridgeFrame.onerror = () => {
+      if (!resolved) { resolved = true; clearTimeout(timeout); resolve('no_bridge'); }
+    };
+
+    document.body.appendChild(bridgeFrame);
+  });
 }
 
 function onAgentConnected(port) {
@@ -355,18 +521,23 @@ function onAgentConnected(port) {
   statusDot.className = 'status-dot online';
   statusText.textContent = 'Connected';
 
-  // Set up message handler
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    removeTyping();
-    if (msg.type === 'response' && msg.reply) {
-      addMsg('ai', msg.reply);
-    } else if (msg.type === 'response' && msg.data) {
-      addMsg('ai', JSON.stringify(msg.data, null, 2));
-    } else if (msg.type === 'error') {
-      addMsg('ai', 'Error: ' + msg.message);
+  // Listen for messages from bridge
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.source !== 'welian-bridge') return;
+
+    if (msg.type === 'ws-message') {
+      const data = msg.data;
+      removeTyping();
+      if (data.type === 'response' && data.reply) {
+        addMsg('ai', data.reply);
+      } else if (data.type === 'response' && data.data) {
+        addMsg('ai', JSON.stringify(data.data, null, 2));
+      } else if (data.type === 'error') {
+        addMsg('ai', 'Error: ' + data.message);
+      }
     }
-  };
+  });
 
   clearChat();
   addMsg('ai', 'Connected to your local agent ✅\n\nYour data is on your device. I only see what you tell me.\n\nTry: "who to reach out" or "note: met with X about Y"');
@@ -421,10 +592,14 @@ async function send() {
   addMsg('you', text);
   addTyping();
 
-  if (isLive && ws && ws.readyState === WebSocket.OPEN) {
-    // Live mode: send to local agent
+  if (isLive && bridgeFrame && bridgeReady) {
+    // Live mode: send via iframe bridge → WebSocket
     const reqId = Date.now().toString();
-    ws.send(JSON.stringify({ cmd: 'chat', id: reqId, text: text }));
+    bridgeFrame.contentWindow.postMessage({
+      source: 'welian-parent',
+      type: 'send',
+      payload: { cmd: 'chat', id: reqId, text: text }
+    }, '*');
   } else {
     // Demo mode: mock reply
     setTimeout(() => {

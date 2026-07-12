@@ -1,0 +1,9 @@
+name = "welian-ai"
+main = "src/worker.js"
+compatibility_date = "2024-09-01"
+
+[vars]
+LLM_MODEL = "MiniMax-M3"
+LLM_BASE_URL = "https://api.minimaxi.com/anthropic"
+
+# Set LLM_API_KEY via: wrangler secret put LLM_API_KEY

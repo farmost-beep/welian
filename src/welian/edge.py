@@ -28,7 +28,12 @@ from . import engine, intent, ai, tokens
 class EdgeClient:
     """Edge-side client. Holds all data locally, calls cloud for AI only."""
 
+    # Default cloud API (Cloudflare Worker, globally accessible)
+    DEFAULT_CLOUD_URL = "https://welian-ai.farmost.workers.dev"
+
     def __init__(self, cloud_url: str = "", user_id: str = "default"):
+        if not cloud_url:
+            cloud_url = os.environ.get("WELIAN_CLOUD_URL", self.DEFAULT_CLOUD_URL)
         self.cloud_url = cloud_url.rstrip("/")
         self.user_id = user_id
         self._http_client = None
