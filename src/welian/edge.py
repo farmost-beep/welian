@@ -82,6 +82,9 @@ class EdgeClient:
         elif intent_type == intent.INTENT_QUERY:
             return self._handle_query()
 
+        elif intent_type == intent.INTENT_TODO:
+            return self._handle_todo()
+
         else:
             return self._fallback(text)
 
@@ -139,6 +142,85 @@ class EdgeClient:
                 lines.append(f"    …还有 {len(contacts) - 10} 人")
 
         lines.append(f"\n  试试 \"who to reach out\" 看看该联系谁 🌱")
+        return "\n".join(lines)
+
+    # ── Todo (待办) — fully local ──
+
+    def _handle_todo(self) -> str:
+        """List upcoming pending todos, sorted by due date."""
+        todos = [t for t in engine.list_todos() if t.get("status") == "pending"]
+        if not todos:
+            return "目前没有待办事项 👍\n\n试试 \"该联系谁\" 看看有什么安排"
+
+        # Sort by due date (empty due goes last)
+        def sort_key(t):
+            due = t.get("due", "")
+            return (due is None or due == "", due or "")
+        todos.sort(key=sort_key)
+
+        today = date.today()
+        lines = [f"📋 近期待办（{len(todos)} 条）\n"]
+
+        # Group by urgency
+        overdue = []
+        today_items = []
+        this_week = []
+        later = []
+
+        for t in todos:
+            due = t.get("due", "")
+            if not due:
+                later.append(t)
+                continue
+            try:
+                due_date = date.fromisoformat(due[:10])
+                delta = (due_date - today).days
+                if delta < 0:
+                    overdue.append((t, delta))
+                elif delta == 0:
+                    today_items.append(t)
+                elif delta <= 7:
+                    this_week.append((t, delta))
+                else:
+                    later.append(t)
+            except (ValueError, TypeError):
+                later.append(t)
+
+        if overdue:
+            lines.append("🔴 已超期")
+            for t, delta in overdue:
+                contact = t.get("contact", "")
+                task = t.get("task", t.get("content", ""))
+                lines.append(f"  · [{contact}] {task[:50]}（超期{-delta}天）")
+            lines.append("")
+
+        if today_items:
+            lines.append("📌 今天")
+            for t in today_items:
+                contact = t.get("contact", "")
+                task = t.get("task", t.get("content", ""))
+                lines.append(f"  · [{contact}] {task[:50]}")
+            lines.append("")
+
+        if this_week:
+            lines.append("📅 本周内")
+            for t, delta in this_week:
+                contact = t.get("contact", "")
+                task = t.get("task", t.get("content", ""))
+                lines.append(f"  · [{contact}] {task[:50]}（{delta}天后）")
+            lines.append("")
+
+        if later:
+            lines.append("📋 之后")
+            for t in later[:10]:
+                contact = t.get("contact", "")
+                task = t.get("task", t.get("content", ""))
+                due = t.get("due", "")
+                due_str = f"（{due[:10]}）" if due else ""
+                lines.append(f"  · [{contact}] {task[:50]}{due_str}")
+            if len(later) > 10:
+                lines.append(f"  …还有 {len(later) - 10} 条")
+
         return "\n".join(lines)
 
     # ── Ask (问) — scoring local, AI formatting via LLM ──

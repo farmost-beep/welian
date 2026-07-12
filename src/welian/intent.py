@@ -21,6 +21,7 @@ INTENT_DRAFT = "draft"
 INTENT_REPORT = "report"
 INTENT_CHECK = "check"        # check a specific bond
 INTENT_QUERY = "query"        # query contacts/stats
+INTENT_TODO = "todo"          # list upcoming todos/tasks
 INTENT_HELP = "help"
 INTENT_UNKNOWN = "unknown"
 
@@ -71,6 +72,15 @@ HELP_PATTERNS = [
     r"^帮助$", r"^help$", r"^怎么用", r"^what can you",
 ]
 
+TODO_PATTERNS = [
+    r"近期.*做", r"最近.*做", r"这周.*做", r"本周.*做",
+    r"下周.*做", r"近.*待办", r"待办", r"todo", r"to.?do",
+    r"有什么.*事", r"要做什么", r"要做啥", r"干啥",
+    r"近期.*安排", r"最近.*安排", r"这周.*安排",
+    r"日程", r"schedule", r"agenda",
+    r"忙不忙", r"有事吗",
+]
+
 def parse(text):
     """Parse user text into (intent, payload) tuple."""
     t = text.strip()
@@ -99,6 +109,11 @@ def parse(text):
     for pat in QUERY_PATTERNS:
         if re.search(pat, t, re.IGNORECASE):
             return INTENT_QUERY, {}
+
+    # Todo (upcoming tasks)
+    for pat in TODO_PATTERNS:
+        if re.search(pat, t, re.IGNORECASE):
+            return INTENT_TODO, {}
 
     # Report
     for pat in REPORT_PATTERNS:
