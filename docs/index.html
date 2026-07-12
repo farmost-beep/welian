@@ -233,6 +233,13 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
     <h2>Welcome to Welian</h2>
     <p>Sign in to connect your local agent</p>
     <div id="clerk-container"></div>
+    <div style="margin-top:16px;text-align:center">
+      <div style="font-size:.75em;color:var(--dim);margin-bottom:8px">or</div>
+      <button id="wechat-login-btn" onclick="wechatLogin()" style="width:100%;padding:10px 16px;background:#07C160;color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 4C4.36 4 1 6.69 1 10c0 1.89 1.08 3.56 2.78 4.66L3 17l2.5-1.32c.95.26 1.96.4 3 .4.2 0 .39-.01.58-.02C8.86 15.5 9 14.93 9 14.34c0-3.04 2.91-5.51 6.5-5.51.2 0 .39.01.58.03C15.34 6.09 12.2 4 8.5 4zm-2.7 3.5c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9zm5.4 0c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9zM15.5 10C12.46 10 10 12.01 10 14.5c0 1.4.78 2.66 2 3.5l-.5 1.5 2-1c.62.15 1.29.25 2 .25 3.04 0 5.5-2.01 5.5-4.5S18.54 10 15.5 10zm-2 2.25c.41 0 .75.34.75.75s-.34.75-.75.75-.75-.34-.75-.75.34-.75.75-.75zm4 0c.41 0 .75.34.75.75s-.34.75-.75.75-.75-.34-.75-.75.34-.75.75-.75z"/></svg>
+        微信登录
+      </button>
+    </div>
   </div>
 </div>
 
@@ -245,6 +252,13 @@ const DISCOVERY_URL = 'https://welian-ai.farmost.workers.dev';
 // If cli_callback param is present, redirect user_id back to CLI after Clerk auth
 // Don't replace body — let normal sign-in UI show, onAuthed handles redirect
 const cliCallback = new URLSearchParams(location.search).get('cli_callback');
+
+// ── WeChat session token detection (return from WeChat OAuth) ──
+const wechatToken = new URLSearchParams(location.search).get('clerk_session_token');
+if (wechatToken) {
+  // Clean URL and set session
+  history.replaceState(null, '', location.pathname);
+}
 
 // ── Main app (below) ──
 
@@ -316,6 +330,19 @@ async function initClerk() {
 
     clerkReady = true;
 
+    // Handle WeChat OAuth return: set session from token
+    if (wechatToken) {
+      try {
+        console.log('Setting WeChat session token…');
+        await clerkInstance.setActive({ session: wechatToken });
+        console.log('WeChat session set, reloading…');
+        // Clerk will fire listener with the new user
+      } catch(e) {
+        console.error('WeChat session set failed:', e);
+        addSystemMsg('微信登录失败：' + e.message);
+      }
+    }
+
     // Listen for auth state changes
     clerkInstance.addListener((event) => {
       console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
@@ -352,6 +379,13 @@ async function initClerk() {
     console.error('Clerk init failed:', e);
     clerkReady = false;
   }
+}
+
+function wechatLogin() {
+  // Redirect to Worker's WeChat OAuth endpoint
+  // Worker will redirect to WeChat, then back with session token
+  const redirect = encodeURIComponent(location.origin + location.pathname);
+  window.location.href = `${DISCOVERY_URL}/auth/wechat?redirect=${redirect}`;
 }
 
 function toggleAuth() {

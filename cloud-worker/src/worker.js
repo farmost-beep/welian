@@ -11,6 +11,10 @@
  * - POST /ai/draft     — draft a message from minimal context
  * - POST /ai/extract   — extract todos/key_points from interaction text
  * - POST /ai/advise    — format advise from candidate list
+ * - GET  /auth/wechat          — redirect to WeChat OAuth
+ * - GET  /auth/wechat/callback — handle WeChat OAuth callback
+ * - GET  /discover/register    — register tunnel URL
+ * - GET  /discover/lookup      — lookup tunnel URL by user_id
  * - GET  /health       — health check
  * - GET  /             — API info
  */
@@ -263,6 +267,117 @@ export default {
       if (path === '/ai/advise' && method === 'POST') {
         const result = await handleAdvise(request, env);
         return jsonResponse(result);
+      }
+
+      // ── WeChat OAuth ──
+
+      if (path === '/auth/wechat' && method === 'GET') {
+        // Redirect to WeChat OAuth
+        const appId = env.WECHAT_APP_ID;
+        if (!appId) {
+          return jsonResponse({ error: 'WeChat App ID not configured' }, 500);
+        }
+        const redirectUri = encodeURIComponent(`${url.origin}/auth/wechat/callback`);
+        const state = url.searchParams.get('redirect') || '';
+        const wechatUrl = `https://open.weixin.qq.com/connect/qrconnect?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_login&state=${encodeURIComponent(state)}#wechat_redirect`;
+        return Response.redirect(wechatUrl, 302);
+      }
+
+      if (path === '/auth/wechat/callback' && method === 'GET') {
+        const code = url.searchParams.get('code');
+        const state = url.searchParams.get('state') || ''; // original redirect URL
+        if (!code) {
+          return jsonResponse({ error: 'Missing code parameter' }, 400);
+        }
+
+        const appId = env.WECHAT_APP_ID;
+        const appSecret = env.WECHAT_APP_SECRET;
+        const clerkSecretKey = env.CLERK_SECRET_KEY;
+        if (!appId || !appSecret || !clerkSecretKey) {
+          return jsonResponse({ error: 'WeChat or Clerk not configured' }, 500);
+        }
+
+        // Step 1: Exchange code for access_token + openid
+        const tokenResp = await fetch(
+          `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${appId}&secret=${appSecret}&code=${code}&grant_type=authorization_code`
+        );
+        const tokenData = await tokenResp.json();
+        if (tokenData.errcode) {
+          return jsonResponse({ error: 'WeChat token error', detail: tokenData }, 500);
+        }
+        const { access_token, openid } = tokenData;
+
+        // Step 2: Get user info (nickname, avatar)
+        const userInfoResp = await fetch(
+          `https://api.weixin.qq.com/sns/userinfo?access_token=${access_token}&openid=${openid}`
+        );
+        const userInfo = await userInfoResp.json();
+        const nickname = userInfo.nickname || '微信用户';
+
+        // Step 3: Find or create Clerk user by WeChat openid
+        // Search for existing user with external_id = wechat_openid
+        const searchResp = await fetch(
+          `https://api.clerk.com/v1/users?external_id=wechat_${openid}`,
+          { headers: { 'Authorization': `Bearer ${clerkSecretKey}` } }
+        );
+        const searchResult = await searchResp.json();
+        let clerkUserId;
+
+        if (searchResult.response && searchResult.response.length > 0) {
+          // User exists
+          clerkUserId = searchResult.response[0].id;
+        } else {
+          // Create new user
+          const createResp = await fetch('https://api.clerk.com/v1/users', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${clerkSecretKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              external_id: `wechat_${openid}`,
+              first_name: nickname,
+              unsafe_metadata: { wechat_openid: openid, wechat_avatar: userInfo.headimgurl },
+            }),
+          });
+          const created = await createResp.json();
+          if (created.errors) {
+            return jsonResponse({ error: 'Clerk user creation failed', detail: created.errors }, 500);
+          }
+          clerkUserId = created.id;
+        }
+
+        // Step 4: Create a session for this user
+        const sessionResp = await fetch('https://api.clerk.com/v1/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${clerkSecretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ user_id: clerkUserId }),
+        });
+        const session = await sessionResp.json();
+        if (session.errors) {
+          return jsonResponse({ error: 'Session creation failed', detail: session.errors }, 500);
+        }
+
+        // Step 5: Generate a session token
+        const tokenResp2 = await fetch(`https://api.clerk.com/v1/sessions/${session.id}/tokens`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${clerkSecretKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const tokenData2 = await tokenResp2.json();
+        if (tokenData2.errors) {
+          return jsonResponse({ error: 'Token creation failed', detail: tokenData2.errors }, 500);
+        }
+
+        // Redirect back to frontend with session token
+        const frontendUrl = state || 'https://welian.app';
+        const redirectUrl = `${frontendUrl}${frontendUrl.includes('?') ? '&' : '?'}clerk_session_token=${encodeURIComponent(tokenData2.jwt)}`;
+        return Response.redirect(redirectUrl, 302);
       }
 
       // ── Device discovery (tunnel registry) ──
