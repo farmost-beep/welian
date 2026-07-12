@@ -221,28 +221,10 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 </nav>
 
 <main>
-  <!-- Welcome state: tagline + suggestion cards (overlay, shown when chat is empty) -->
+  <!-- Welcome state: tagline only (overlay, shown when chat is empty) -->
   <div class="welcome-state" id="welcomeState">
     <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
     <div class="tagline-sub" data-i18n="tagline_sub">你的关系管家，记住重要的事，建议该联系谁</div>
-    <div class="suggestions" id="suggestions">
-      <div class="suggestion-card" onclick="quickSend('该联系谁')">
-        <div class="title" data-i18n="hint_reach">该联系谁</div>
-        <div class="desc" data-i18n="hint_reach_desc">看看谁值得主动联系</div>
-      </div>
-      <div class="suggestion-card" onclick="quickSend('有多少联系人')">
-        <div class="title" data-i18n="hint_overview">联系人概览</div>
-        <div class="desc" data-i18n="hint_overview_desc">了解你的关系网络</div>
-      </div>
-      <div class="suggestion-card" onclick="quickNote()">
-        <div class="title" data-i18n="hint_note">记一笔</div>
-        <div class="desc" data-i18n="hint_note_desc">记录一次互动或会面</div>
-      </div>
-      <div class="suggestion-card" onclick="quickDraft()">
-        <div class="title" data-i18n="hint_draft">拟条消息</div>
-        <div class="desc" data-i18n="hint_draft_desc">帮你写一条合适的话</div>
-      </div>
-    </div>
   </div>
 
   <div class="chat-body" id="chatBody">
@@ -398,15 +380,6 @@ function applyLang(lang) {
   });
   document.getElementById('langBtn').textContent = lang === 'en' ? '中文' : 'EN';
   document.getElementById('authBtn').textContent = dict.sign_in;
-  // Update suggestion card onclick targets
-  const cards = document.getElementById('suggestions').children;
-  if (lang === 'zh') {
-    cards[0].onclick = () => quickSend('该联系谁');
-    cards[1].onclick = () => quickSend('有多少联系人');
-  } else {
-    cards[0].onclick = () => quickSend('who to reach out');
-    cards[1].onclick = () => quickSend('how many contacts');
-  }
 }
 
 function toggleLang() {
@@ -434,6 +407,7 @@ let clerkInstance = null;
 let clerkUserId = null; // Clerk user ID for device discovery
 let isCliLogin = false; // CLI login mode — wait for explicit sign-in
 let cliLoginInitialUserId = null; // existing user ID to ignore
+let existingUserId = null; // pre-existing session to ignore (no auto-login)
 
 // Global listener for device-id from bridge (survives after tryBridgeConnect handler is removed)
 window.addEventListener('message', (e) => {
@@ -498,7 +472,7 @@ async function initClerk() {
     clerkReady = true;
 
     // Record any existing session so we can ignore it (no auto-login)
-    const existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
+    existingUserId = clerkInstance.user ? clerkInstance.user.id : null;
     if (existingUserId) {
       console.log('Existing Clerk session found, ignoring (no auto-login):', existingUserId);
     }
@@ -699,6 +673,7 @@ function toggleAuth() {
     // Clear any pre-existing session so Clerk shows a fresh login form
     if (clerkInstance && clerkInstance.session) {
       clerkInstance.signOut();
+      existingUserId = null; // allow next login to be accepted
     }
     // Show auth modal
     document.getElementById('clerk-auth').classList.add('show');
