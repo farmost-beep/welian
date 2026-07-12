@@ -236,9 +236,13 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
     <div id="clerk-container"></div>
     <div style="margin-top:16px;text-align:center">
       <div style="font-size:.75em;color:var(--dim);margin-bottom:8px" data-i18n="or">or</div>
-      <button id="wechat-login-btn" onclick="wechatLogin()" style="width:100%;padding:10px 16px;background:#07C160;color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      <button id="wechat-login-btn" onclick="wechatLogin()" style="width:100%;padding:10px 16px;background:#07C160;color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 4C4.36 4 1 6.69 1 10c0 1.89 1.08 3.56 2.78 4.66L3 17l2.5-1.32c.95.26 1.96.4 3 .4.2 0 .39-.01.58-.02C8.86 15.5 9 14.93 9 14.34c0-3.04 2.91-5.51 6.5-5.51.2 0 .39.01.58.03C15.34 6.09 12.2 4 8.5 4zm-2.7 3.5c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9zm5.4 0c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9zM15.5 10C12.46 10 10 12.01 10 14.5c0 1.4.78 2.66 2 3.5l-.5 1.5 2-1c.62.15 1.29.25 2 .25 3.04 0 5.5-2.01 5.5-4.5S18.54 10 15.5 10zm-2 2.25c.41 0 .75.34.75.75s-.34.75-.75.75-.75-.34-.75-.75.34-.75.75-.75zm4 0c.41 0 .75.34.75.75s-.34.75-.75.75-.75-.34-.75-.75.34-.75.75-.75z"/></svg>
         <span data-i18n="wechat_login">微信登录</span>
+      </button>
+      <button id="phone-login-btn" onclick="showPhoneLogin()" style="width:100%;padding:10px 16px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17 19h5v-1c0-1.657-2.686-3-6-3s-6 1.343-6 3v1h6zm6 2H1v-2h22v2zM6.5 9c.828 0 1.5.67 1.5 1.5S7.328 12 6.5 12 5 11.33 5 10.5 5.672 9 6.5 9zM12 7c.828 0 1.5.67 1.5 1.5S12.828 10 12 10s-1.5-.67-1.5-1.5S11.172 7 12 7zm5.5 2c.828 0 1.5.67 1.5 1.5s-.672 1.5-1.5 1.5-1.5-.67-1.5-1.5.672-1.5 1.5-1.5zM12 2C6.477 2 2 6.038 2 11c0 1.555.443 3.014 1.218 4.282C4.41 15.85 6.02 16 8 16h11c1.98 0 3.59-.15 4.782-.718C24.557 14.014 25 12.555 25 11c0-4.962-4.477-9-10-9z"/></svg>
+        <span data-i18n="phone_login">手机号登录</span>
       </button>
     </div>
   </div>
@@ -267,7 +271,21 @@ const I18N = {
     auth_sub: 'Sign in to connect your local agent',
     or: 'or',
     wechat_login: 'WeChat Login',
+    phone_login: 'Phone Login',
     sign_in: 'Sign in',
+    phone_title: 'Phone Login',
+    phone_ph: 'Enter phone number',
+    phone_send: 'Send code',
+    phone_sending: 'Sending…',
+    phone_code_ph: 'Enter verification code',
+    phone_verify: 'Verify & sign in',
+    phone_verifying: 'Verifying…',
+    phone_sent: 'Code sent',
+    phone_err: 'Send failed: ',
+    phone_err_code: 'Invalid or expired code',
+    phone_err_phone: 'Please enter a valid phone number',
+    phone_back: 'Back',
+    phone_countdown: 's to resend',
     looking: 'Looking for local agent…',
     connecting: 'Connecting via tunnel…',
     connected: 'Connected to your local agent ✅\\n\\nYour data is on your device. I only see what you tell me.\\n\\nTry: "who to reach out" or "note: met with X about Y"',
@@ -291,7 +309,21 @@ const I18N = {
     auth_sub: '登录以连接你的本地 agent',
     or: '或',
     wechat_login: '微信登录',
+    phone_login: '手机号登录',
     sign_in: '登录',
+    phone_title: '手机号登录',
+    phone_ph: '请输入手机号',
+    phone_send: '发送验证码',
+    phone_sending: '发送中…',
+    phone_code_ph: '请输入验证码',
+    phone_verify: '验证并登录',
+    phone_verifying: '验证中…',
+    phone_sent: '验证码已发送',
+    phone_err: '发送失败：',
+    phone_err_code: '验证码错误或已过期',
+    phone_err_phone: '请输入正确的手机号',
+    phone_back: '返回',
+    phone_countdown: 's 后重发',
     looking: '正在寻找本地 agent…',
     connecting: '通过隧道连接中…',
     connected: '已连接到本地 agent ✅\\n\\n你的数据在你的设备上。我只看到你告诉我的。\\n\\n试试："该联系谁" 或 "note: 和X聊了Y"',
@@ -466,6 +498,122 @@ function wechatLogin() {
   // Worker will redirect to WeChat, then back with session token
   const redirect = encodeURIComponent(location.origin + location.pathname);
   window.location.href = `${DISCOVERY_URL}/auth/wechat?redirect=${redirect}`;
+}
+
+// ── Phone SMS login ──
+
+function showPhoneLogin() {
+  const d = I18N[currentLang];
+  // Replace auth card content with phone login form
+  const card = document.querySelector('#clerk-auth .card');
+  card.innerHTML = `
+    <button class="close" onclick="toggleAuth()">×</button>
+    <h2>${d.phone_title}</h2>
+    <div id="phone-login-form" style="margin-top:16px">
+      <input id="phone-input" type="tel" placeholder="${d.phone_ph}" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.95em;margin-bottom:10px;box-sizing:border-box" autocomplete="off">
+      <button id="phone-send-btn" onclick="sendSMS()" style="width:100%;padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer">${d.phone_send}</button>
+      <div id="phone-msg" style="font-size:.8em;margin-top:8px;min-height:1em"></div>
+    </div>
+    <div id="phone-verify-form" style="display:none;margin-top:16px">
+      <input id="phone-code-input" type="text" placeholder="${d.phone_code_ph}" maxlength="6" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:1.1em;letter-spacing:4px;margin-bottom:10px;box-sizing:border-box;text-align:center" autocomplete="off">
+      <button id="phone-verify-btn" onclick="verifySMS()" style="width:100%;padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;margin-bottom:8px">${d.phone_verify}</button>
+      <button onclick="showPhoneLogin()" style="width:100%;padding:8px;background:none;border:none;color:var(--dim);font-size:.85em;cursor:pointer">${d.phone_back}</button>
+    </div>
+  `;
+}
+
+let smsPhone = '';
+
+async function sendSMS() {
+  const d = I18N[currentLang];
+  const phone = document.getElementById('phone-input').value.trim();
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    document.getElementById('phone-msg').textContent = d.phone_err_phone;
+    document.getElementById('phone-msg').style.color = '#C65D5D';
+    return;
+  }
+  smsPhone = phone;
+  const btn = document.getElementById('phone-send-btn');
+  btn.disabled = true;
+  btn.textContent = d.phone_sending;
+
+  try {
+    const resp = await fetch(`${DISCOVERY_URL}/auth/sms/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      document.getElementById('phone-msg').textContent = d.phone_sent;
+      document.getElementById('phone-msg').style.color = '#4a9';
+      // Show verify form
+      document.getElementById('phone-login-form').style.display = 'none';
+      document.getElementById('phone-verify-form').style.display = 'block';
+      document.getElementById('phone-code-input').focus();
+      // Countdown
+      let count = 60;
+      btn.textContent = count + d.phone_countdown;
+      const timer = setInterval(() => {
+        count--;
+        if (count <= 0) {
+          clearInterval(timer);
+          btn.disabled = false;
+          btn.textContent = d.phone_send;
+        } else {
+          btn.textContent = count + d.phone_countdown;
+        }
+      }, 1000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = d.phone_send;
+      document.getElementById('phone-msg').textContent = d.phone_err + (data.error || '');
+      document.getElementById('phone-msg').style.color = '#C65D5D';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = d.phone_send;
+    document.getElementById('phone-msg').textContent = d.phone_err + e.message;
+    document.getElementById('phone-msg').style.color = '#C65D5D';
+  }
+}
+
+async function verifySMS() {
+  const d = I18N[currentLang];
+  const code = document.getElementById('phone-code-input').value.trim();
+  if (!code || code.length !== 6) {
+    return;
+  }
+  const btn = document.getElementById('phone-verify-btn');
+  btn.disabled = true;
+  btn.textContent = d.phone_verifying;
+
+  try {
+    const resp = await fetch(`${DISCOVERY_URL}/auth/sms/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: smsPhone, code }),
+    });
+    const data = await resp.json();
+    if (data.ok && data.jwt) {
+      // Set Clerk session
+      if (clerkInstance) {
+        await clerkInstance.setActive({ session: data.jwt });
+      }
+      // Close modal — onAuthed will fire from Clerk listener
+      document.getElementById('clerk-auth').classList.remove('show');
+    } else {
+      btn.disabled = false;
+      btn.textContent = d.phone_verify;
+      const msg = document.createElement('div');
+      msg.style.cssText = 'font-size:.8em;color:#C65D5D;margin-top:8px';
+      msg.textContent = data.error || d.phone_err_code;
+      document.getElementById('phone-verify-form').appendChild(msg);
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = d.phone_verify;
+  }
 }
 
 function toggleAuth() {

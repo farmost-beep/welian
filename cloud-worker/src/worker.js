@@ -13,6 +13,8 @@
  * - POST /ai/advise    — format advise from candidate list
  * - GET  /auth/wechat          — redirect to WeChat OAuth
  * - GET  /auth/wechat/callback — handle WeChat OAuth callback
+ * - POST /auth/sms/send        — send SMS OTP via Aliyun
+ * - POST /auth/sms/verify      — verify SMS OTP, return Clerk session
  * - GET  /discover/register    — register tunnel URL
  * - GET  /discover/lookup      — lookup tunnel URL by user_id
  * - GET  /health       — health check
@@ -380,6 +382,121 @@ export default {
         return Response.redirect(redirectUrl, 302);
       }
 
+      // ── SMS OTP (phone login via Aliyun SMS) ──
+
+      if (path === '/auth/sms/send' && method === 'POST') {
+        const { phone } = await request.json();
+        if (!phone || !/^1[3-9]\d{9}$/.test(phone.replace(/\s|-/g, ''))) {
+          return jsonResponse({ error: 'Invalid phone number' }, 400);
+        }
+
+        const cleanPhone = phone.replace(/\s|-/g, '');
+        const accessKeyId = env.ALIYUN_SMS_KEY;
+        const accessKeySecret = env.ALIYUN_SMS_SECRET;
+        const signName = env.ALIYUN_SMS_SIGN;
+        const templateCode = env.ALIYUN_SMS_TEMPLATE;
+
+        if (!accessKeyId || !accessKeySecret || !signName || !templateCode) {
+          return jsonResponse({ error: 'SMS service not configured' }, 500);
+        }
+
+        // Generate 6-digit code
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+
+        // Store code in KV with 5-min TTL
+        await env.DEVICES.put(`sms:${cleanPhone}`, code, { expirationTtl: 300 });
+
+        // Call Aliyun SMS API
+        const smsResult = await sendAliyunSMS(accessKeyId, accessKeySecret, signName, templateCode, cleanPhone, { code });
+
+        if (smsResult.Code && smsResult.Code !== 'OK') {
+          return jsonResponse({ error: 'SMS send failed', detail: smsResult }, 500);
+        }
+
+        return jsonResponse({ ok: true, message: 'Code sent' });
+      }
+
+      if (path === '/auth/sms/verify' && method === 'POST') {
+        const { phone, code, redirect } = await request.json();
+        if (!phone || !code) {
+          return jsonResponse({ error: 'Missing phone or code' }, 400);
+        }
+
+        const cleanPhone = phone.replace(/\s|-/g, '');
+        const storedCode = await env.DEVICES.get(`sms:${cleanPhone}`);
+        if (!storedCode || storedCode !== code) {
+          return jsonResponse({ error: 'Invalid or expired code' }, 400);
+        }
+
+        // Delete used code
+        await env.DEVICES.delete(`sms:${cleanPhone}`);
+
+        const clerkSecretKey = env.CLERK_SECRET_KEY;
+        if (!clerkSecretKey) {
+          return jsonResponse({ error: 'Clerk not configured' }, 500);
+        }
+
+        // Find or create Clerk user by phone number
+        const externalId = `phone_${cleanPhone}`;
+        const searchResp = await fetch(
+          `https://api.clerk.com/v1/users?external_id=${externalId}`,
+          { headers: { 'Authorization': `Bearer ${clerkSecretKey}` } }
+        );
+        const searchResult = await searchResp.json();
+        let clerkUserId;
+
+        if (searchResult.response && searchResult.response.length > 0) {
+          clerkUserId = searchResult.response[0].id;
+        } else {
+          // Create new user with phone number
+          const createResp = await fetch('https://api.clerk.com/v1/users', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${clerkSecretKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              external_id: externalId,
+              phone_number: `+86${cleanPhone}`,
+              unsafe_metadata: { login_method: 'sms' },
+            }),
+          });
+          const created = await createResp.json();
+          if (created.errors) {
+            return jsonResponse({ error: 'Clerk user creation failed', detail: created.errors }, 500);
+          }
+          clerkUserId = created.id;
+        }
+
+        // Create session + token
+        const sessionResp = await fetch('https://api.clerk.com/v1/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${clerkSecretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ user_id: clerkUserId }),
+        });
+        const session = await sessionResp.json();
+        if (session.errors) {
+          return jsonResponse({ error: 'Session creation failed', detail: session.errors }, 500);
+        }
+
+        const tokenResp = await fetch(`https://api.clerk.com/v1/sessions/${session.id}/tokens`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${clerkSecretKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const tokenData = await tokenResp.json();
+        if (tokenData.errors) {
+          return jsonResponse({ error: 'Token creation failed', detail: tokenData.errors }, 500);
+        }
+
+        return jsonResponse({ ok: true, jwt: tokenData.jwt, user_id: clerkUserId });
+      }
+
       // ── Device discovery (tunnel registry) ──
 
       if (path === '/discover/register' && method === 'POST') {
@@ -438,4 +555,55 @@ function jsonResponse(data, status = 200) {
       ...CORS_HEADERS,
     },
   });
+}
+
+// ── Aliyun SMS helper ──
+
+async function sendAliyunSMS(accessKeyId, accessKeySecret, signName, templateCode, phone, templateParam) {
+  // Build Aliyun SMS API request (dysmsapi.aliyuncs.com)
+  const params = {
+    AccessKeyId: accessKeyId,
+    Action: 'SendSms',
+    Format: 'JSON',
+    PhoneNumbers: phone,
+    RegionId: 'cn-hangzhou',
+    SignName: signName,
+    SignatureMethod: 'HMAC-SHA1',
+    SignatureNonce: crypto.randomUUID(),
+    SignatureVersion: '1.0',
+    TemplateCode: templateCode,
+    TemplateParam: JSON.stringify(templateParam),
+    Timestamp: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
+    Version: '2017-05-25',
+  };
+
+  // Sort keys and build canonical query string
+  const sortedKeys = Object.keys(params).sort();
+  const canonicalQuery = sortedKeys
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+    .join('&');
+
+  // Build string to sign
+  const stringToSign = `GET&${encodeURIComponent('/')}&${encodeURIComponent(canonicalQuery)}`;
+
+  // Sign with HMAC-SHA1
+  const key = accessKeySecret + '&';
+  const signature = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+  const sigBuf = await crypto.subtle.sign('HMAC', signature, new TextEncoder().encode(stringToSign));
+  const sigBase64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
+  params.Signature = sigBase64;
+
+  // Build final URL
+  const finalQuery = Object.keys(params)
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+    .join('&');
+
+  const resp = await fetch(`https://dysmsapi.aliyuncs.com/?${finalQuery}`);
+  return resp.json();
 }
