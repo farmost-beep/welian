@@ -27,6 +27,7 @@ INTENT_REPORT = "report"
 INTENT_CHECK = "check"        # check a specific bond
 INTENT_QUERY = "query"        # query contacts/stats
 INTENT_TODO = "todo"          # list upcoming todos/tasks
+INTENT_ALIAS = "alias"        # set alias: "X就是Y" / "X也叫Y"
 INTENT_HELP = "help"
 INTENT_UNKNOWN = "unknown"
 
@@ -120,9 +121,10 @@ def _llm_parse(text):
 - ask: 询问该联系谁/社交建议（如"该联系谁"、"who to reach out"）
 - draft: 请求拟写消息（如"给X拟条消息"、"draft a message"）
 - report: 请求报告/回顾（如"月度回顾"、"周报"、"monthly review"）
-- check: 查看某人的关系状态（如"X最近咋样"、"how is X doing"）
+- check: 查看某人的关系状态（如"X最近咋样"、"X是谁"、"how is X doing"）
 - query: 查询联系人/统计（如"有多少联系人"、"联系人列表"）
 - todo: 查看待办事项/日程（如"近期要做什么"、"待办"、"这周安排"）
+- alias: 设置别名/关联（如"X就是Y"、"X也叫Y"、"X是Y的别名"）
 - help: 请求帮助（如"帮助"、"help"、"怎么用"）
 - chat: 闲聊或无法归类的其他话题
 
@@ -131,12 +133,15 @@ def _llm_parse(text):
 {"intent": "draft", "target": "张总"}
 {"intent": "check", "target": "老周"}
 {"intent": "todo"}
+{"intent": "alias", "alias": "姜少", "contact": "姜知清"}
 {"intent": "chat"}
 
 注意：
 - record 时尽量提取 contact（联系人名）和 summary（摘要）
 - draft/check 时提取 target（目标人名）
-- 其他意图只需 intent 字段
+- alias 时提取 alias（别名）和 contact（真实联系人名）
+- "X是谁"判断为 check，target=X
+- "X就是Y"/"X也叫Y"判断为 alias，alias=X，contact=Y
 - 如果消息很短或模糊，倾向判断为 chat"""
 
     prompt = f"用户消息：{text}"
@@ -162,6 +167,7 @@ def _llm_parse(text):
         "check": INTENT_CHECK,
         "query": INTENT_QUERY,
         "todo": INTENT_TODO,
+        "alias": INTENT_ALIAS,
         "help": INTENT_HELP,
         "chat": INTENT_UNKNOWN,
     }
@@ -179,6 +185,9 @@ def _llm_parse(text):
         payload["raw"] = text
     elif mapped == INTENT_CHECK:
         payload["target"] = data.get("target", "")
+    elif mapped == INTENT_ALIAS:
+        payload["alias"] = data.get("alias", "")
+        payload["contact"] = data.get("contact", "")
     elif mapped == INTENT_UNKNOWN:
         payload["raw"] = text
 

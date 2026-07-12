@@ -102,6 +102,9 @@ class EdgeClient:
         if intent_type == intent.INTENT_DRAFT:
             return self._gather_draft(payload)
 
+        if intent_type == intent.INTENT_ALIAS:
+            return self._gather_alias(payload)
+
         if intent_type == intent.INTENT_REPORT:
             return self._gather_report()
 
@@ -151,6 +154,8 @@ class EdgeClient:
             return self._handle_query()
         elif intent_type == intent.INTENT_TODO:
             return self._handle_todo()
+        elif intent_type == intent.INTENT_ALIAS:
+            return self._gather_alias(payload)
         else:
             return self._fallback(text)
 
@@ -331,6 +336,59 @@ class EdgeClient:
                 for h in data['highlights'][:3]:
                     parts.append(f"    · {h}")
         return "\n".join(parts)
+
+    def _gather_alias(self, payload) -> str:
+        """Set alias for a contact. Side effect: saves alias, merges duplicate contact."""
+        alias_name = payload.get("alias", "")
+        contact_name = payload.get("contact", "")
+
+        if not alias_name or not contact_name:
+            return "设置别名失败：缺少别名或联系人名。"
+
+        # Resolve the real contact
+        contact, match_type = engine.resolve_contact(contact_name)
+        if not contact:
+            return f"未找到联系人「{contact_name}」。请先确认联系人名。"
+
+        # Add alias to contact
+        existing_aliases = contact.get("alias", []) or []
+        if alias_name not in existing_aliases:
+            existing_aliases.append(alias_name)
+            engine.update_contact(contact["id"], {"alias": existing_aliases})
+
+        # Check if alias_name is itself a separate contact — if so, merge it
+        alias_contact, alias_match = engine.resolve_contact(alias_name)
+        merge_info = ""
+        if alias_contact and alias_contact["id"] != contact["id"]:
+            # Merge: copy timeline/memories/todos from alias contact to real contact
+            from . import engine as eng
+            # Copy timeline
+            alias_timeline = eng.list_timeline(alias_contact["id"], days=99999)
+            for tl in alias_timeline:
+                eng.add_timeline(contact["id"], tl["summary"])
+            # Copy memories
+            alias_memories = alias_contact.get("memories", []) or []
+            real_memories = contact.get("memories", []) or []
+            for m in alias_memories:
+                if m not in real_memories:
+                    real_memories.append(m)
+            if alias_memories:
+                eng.update_contact(contact["id"], {"memories": real_memories})
+            # Copy todos
+            all_todos = eng.list_todos()
+            for t in all_todos:
+                if t.get("contact") == alias_contact["id"]:
+                    t["contact"] = contact["id"]
+            eng._save(eng.TODOS_FILE, all_todos)
+            # Delete the duplicate contact
+            contacts = eng._load(eng.CONTACTS_FILE)
+            contacts = [c for c in contacts if c["id"] != alias_contact["id"]]
+            eng._save(eng.CONTACTS_FILE, contacts)
+            merge_info = f"\n已将「{alias_contact['name']}」的数据合并到「{contact['name']}」并删除重复联系人。"
+
+        return (f"已为联系人「{contact['name']}」添加别名「{alias_name}」。\n"
+                f"以后说「{alias_name}」就能找到「{contact['name']}」了。{merge_info}\n"
+                f"别名已保存。")
 
     # ── Record (记) — fully local ──
 
