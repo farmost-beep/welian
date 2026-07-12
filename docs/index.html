@@ -403,6 +403,7 @@ let isAuthed = false;   // Clerk auth state
 let isLive = false;     // Connected to local agent
 let clerkInstance = null;
 let clerkUserId = null; // Clerk user ID for device discovery
+let isCliLogin = false; // CLI login mode — wait for explicit sign-in
 
 // Global listener for device-id from bridge (survives after tryBridgeConnect handler is removed)
 window.addEventListener('message', (e) => {
@@ -475,10 +476,14 @@ async function initClerk() {
 
     // Listen for auth state changes
     clerkInstance.addListener((event) => {
-      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed);
+      console.log('Clerk event:', Object.keys(event), 'user:', !!event.user, 'isAuthed:', isAuthed, 'isCliLogin:', isCliLogin);
       if (event.user && !isAuthed) {
-        // In CLI callback mode, only fire onAuthed after explicit sign-in
-        // (not from auto-restored session)
+        if (isCliLogin) {
+          // In CLI login mode: only accept sign-in AFTER form is shown
+          // and a small delay to skip auto-restored sessions
+          console.log('CLI login: ignoring session restore, waiting for explicit sign-in');
+          return;
+        }
         onAuthed(event.user);
       } else if (!event.user && isAuthed) {
         onSignedOut();
@@ -490,22 +495,42 @@ async function initClerk() {
 
     if (cliCallback) {
       // CLI login flow: always force fresh sign-in
-      // Sign out existing session first, then show sign-in form
-      if (clerkInstance.user) {
-        console.log('CLI login: signing out existing session for fresh login');
+      const freshLogin = new URLSearchParams(location.search).get('fresh');
+      if (clerkInstance.user && !freshLogin) {
+        // Sign out and reload page to clear all session state
+        console.log('CLI login: signing out and reloading for fresh login');
         await clerkInstance.signOut();
-        // Wait for signOut to fully complete
-        await new Promise(r => setTimeout(r, 1500));
-        // Reload to clear any cached session state
-        clerkInstance = window.Clerk;
-        if (!clerkInstance.loaded) {
-          await clerkInstance.load();
-        }
+        // Reload with fresh=1 to skip signOut on next load
+        const freshUrl = location.origin + location.pathname + '?cli_callback=' + encodeURIComponent(cliCallback) + '&fresh=1';
+        window.location.href = freshUrl;
+        return; // Page will reload
       }
-      console.log('CLI login: opening auth modal, user:', !!clerkInstance.user);
+      // After reload (or no existing session): show sign-in form
+      console.log('CLI login: showing sign-in form, user:', !!clerkInstance.user);
+      // Mark that we're waiting for explicit sign-in
+      isCliLogin = true;
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
       mountClerkSignIn(container);
+
+      // Poll for explicit sign-in completion (user fills form + verifies)
+      // When user completes sign-in, isAuthed will be false but clerkInstance.user will exist
+      // We then set isCliLogin=false and call onAuthed
+      let cliPollCount = 0;
+      const cliPoll = setInterval(() => {
+        if (clerkInstance.user && !isAuthed && isCliLogin) {
+          // User signed in through the form — check if enough time passed
+          // for it to be a real sign-in (not auto-restore from page load)
+          cliPollCount++;
+          if (cliPollCount > 4) { // ~2 seconds after form shown
+            console.log('CLI login: explicit sign-in detected');
+            isCliLogin = false;
+            clearInterval(cliPoll);
+            onAuthed(clerkInstance.user);
+          }
+        }
+        if (cliPollCount++ > 120) clearInterval(cliPoll); // 60s timeout
+      }, 500);
     } else if (clerkInstance.user) {
       onAuthed(clerkInstance.user);
     }
