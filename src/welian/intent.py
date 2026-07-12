@@ -10,8 +10,13 @@ Also supports:
 - "X最近咋样" / "how is X doing" → nurture check
 - "X是X" → set alias
 - "帮助" / "help" → help text
+- "近期要做什么" / "待办" → todo list
+
+Intent detection uses LLM first (natural language understanding),
+falls back to regex patterns if LLM is unavailable.
 """
 import re
+import json
 from . import engine
 
 # Intent types
@@ -82,10 +87,107 @@ TODO_PATTERNS = [
 ]
 
 def parse(text):
-    """Parse user text into (intent, payload) tuple."""
+    """Parse user text into (intent, payload) tuple.
+
+    Tries LLM-based intent detection first, falls back to regex.
+    """
     t = text.strip()
     if not t:
         return INTENT_UNKNOWN, {}
+
+    # Try LLM-based intent detection first
+    try:
+        result = _llm_parse(t)
+        if result:
+            return result
+    except Exception:
+        pass
+
+    # Fallback to regex
+    return _regex_parse(t)
+
+
+def _llm_parse(text):
+    """Use LLM to detect intent. Returns (intent, payload) or None."""
+    from .llm.router import get_client
+
+    llm = get_client()
+
+    system = """你是 Welian 意图识别器。判断用户消息的意图，返回 JSON。
+
+可选意图：
+- record: 记录事件/互动（如"记一下"、"和张总聊了"、"note:"）
+- ask: 询问该联系谁/社交建议（如"该联系谁"、"who to reach out"）
+- draft: 请求拟写消息（如"给X拟条消息"、"draft a message"）
+- report: 请求报告/回顾（如"月度回顾"、"周报"、"monthly review"）
+- check: 查看某人的关系状态（如"X最近咋样"、"how is X doing"）
+- query: 查询联系人/统计（如"有多少联系人"、"联系人列表"）
+- todo: 查看待办事项/日程（如"近期要做什么"、"待办"、"这周安排"）
+- help: 请求帮助（如"帮助"、"help"、"怎么用"）
+- chat: 闲聊或无法归类的其他话题
+
+返回格式（仅JSON，不要其他文字）：
+{"intent": "record", "contact": "张总", "summary": "聊了预算方案"}
+{"intent": "draft", "target": "张总"}
+{"intent": "check", "target": "老周"}
+{"intent": "todo"}
+{"intent": "chat"}
+
+注意：
+- record 时尽量提取 contact（联系人名）和 summary（摘要）
+- draft/check 时提取 target（目标人名）
+- 其他意图只需 intent 字段
+- 如果消息很短或模糊，倾向判断为 chat"""
+
+    prompt = f"用户消息：{text}"
+
+    resp = llm.complete(prompt, system=system, max_tokens=200, temperature=0)
+
+    # Parse JSON from response
+    resp = resp.strip()
+    # Remove markdown code blocks if present
+    if resp.startswith("```"):
+        resp = re.sub(r"^```(?:json)?\s*", "", resp)
+        resp = re.sub(r"\s*```$", "", resp)
+
+    data = json.loads(resp)
+    intent = data.get("intent", "chat")
+
+    # Map to our intent constants
+    intent_map = {
+        "record": INTENT_RECORD,
+        "ask": INTENT_ASK,
+        "draft": INTENT_DRAFT,
+        "report": INTENT_REPORT,
+        "check": INTENT_CHECK,
+        "query": INTENT_QUERY,
+        "todo": INTENT_TODO,
+        "help": INTENT_HELP,
+        "chat": INTENT_UNKNOWN,
+    }
+
+    mapped = intent_map.get(intent, INTENT_UNKNOWN)
+
+    # Build payload
+    payload = {}
+    if mapped == INTENT_RECORD:
+        payload["contact"] = data.get("contact")
+        payload["summary"] = data.get("summary", text)
+        payload["raw"] = text
+    elif mapped == INTENT_DRAFT:
+        payload["target"] = data.get("target", "")
+        payload["raw"] = text
+    elif mapped == INTENT_CHECK:
+        payload["target"] = data.get("target", "")
+    elif mapped == INTENT_UNKNOWN:
+        payload["raw"] = text
+
+    return mapped, payload
+
+
+def _regex_parse(t):
+    """Regex-based intent parsing (fallback)."""
+
 
     # Help
     for pat in HELP_PATTERNS:
