@@ -44,77 +44,85 @@ async function loadClerkUI(publishableKey) {
   --shadow-sm:0 1px 2px rgba(26,25,21,.04),0 2px 8px rgba(26,25,21,.04);
   --shadow-md:0 2px 8px rgba(26,25,21,.06),0 8px 24px rgba(26,25,21,.06);
   --shadow-lg:0 4px 16px rgba(26,25,21,.08),0 16px 48px rgba(26,25,21,.08);
+  --chat-max:768px;
 }
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 
-/* ── Nav ── */
-nav{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;position:sticky;top:0;background:rgba(245,244,238,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid transparent;transition:border-color .3s}
+/* ── Nav (minimal, floating) ── */
+nav{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;position:sticky;top:0;background:rgba(245,244,238,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid transparent;transition:border-color .3s}
 nav.scrolled{border-bottom-color:var(--border)}
 nav .brand{display:flex;align-items:center;gap:3px}
-nav .brand .name{font-family:'Newsreader',serif;font-size:1.2em;font-weight:500;letter-spacing:-.01em}
-nav .brand .inf{color:var(--accent);font-size:1.1em}
+nav .brand .name{font-family:'Newsreader',serif;font-size:1.15em;font-weight:500;letter-spacing:-.01em}
+nav .brand .inf{color:var(--accent);font-size:1.05em}
 nav .links{display:flex;gap:10px;align-items:center}
 nav .links a{font-size:.8em;color:var(--dim);text-decoration:none;transition:color .2s}
-nav .links .cta{background:var(--text);color:var(--bg);padding:7px 18px;border-radius:8px;font-size:.8em;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:transform .15s,box-shadow .2s}
+nav .links .cta{background:var(--text);color:var(--bg);padding:6px 16px;border-radius:8px;font-size:.8em;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:transform .15s}
 nav .links .cta:active{transform:scale(.96)}
 nav .links .desktop-only{display:none}
-nav #langBtn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.8em;cursor:pointer;color:var(--dim);font-family:inherit;transition:border-color .2s,color .2s}
+nav #langBtn{background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.8em;cursor:pointer;color:var(--dim);font-family:inherit;transition:border-color .2s,color .2s}
 nav #langBtn:active{border-color:var(--accent);color:var(--accent)}
 nav .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
 nav .status-dot.offline{background:var(--dimmer)}
 nav .status-dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(74,124,89,.15)}
 nav .status-text{font-size:.72em;color:var(--dim)}
+nav .mode-badge{font-size:.62em;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;transition:all .3s}
+nav .mode-badge.demo{background:var(--dimmer);color:var(--bg)}
+nav .mode-badge.live{background:var(--green);color:#fff;box-shadow:0 0 0 3px rgba(74,124,89,.18)}
 
-/* ── Layout: single centered column ── */
+/* ── Page layout: chat fills the screen ── */
 .page{min-height:100vh;display:flex;flex-direction:column}
-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 16px}
 
-/* ── Tagline (compact, elegant) ── */
-.tagline{font-family:'Newsreader',serif;font-size:1.5em;font-weight:400;letter-spacing:-.01em;text-align:center;margin-bottom:20px;color:var(--text);line-height:1.3}
-.tagline em{font-style:italic;color:var(--accent);font-weight:500}
+/* ── Chat area (ChatGPT-style: centered column, scrollable) ── */
+main{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden}
 
-/* ── Chat (the star) ── */
-.chat-section{width:100%;max-width:620px;display:flex;flex-direction:column;gap:14px}
-.chat-frame{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-md)}
-.chat-head{display:flex;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
-.chat-head .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.chat-head .dot.r{background:#D65D5D}.chat-head .dot.y{background:#D9A441}.chat-head .dot.g{background:#5B9462}
-.chat-head .title{font-size:.78em;color:var(--dim);margin-left:8px;font-weight:500}
-.chat-head .inf{margin-left:auto;color:var(--accent);font-size:1em}
-.chat-head .mode-badge{font-size:.68em;padding:3px 10px;border-radius:20px;font-weight:600;margin-left:8px;letter-spacing:.04em;text-transform:uppercase;transition:all .3s}
-.chat-head .mode-badge.demo{background:var(--dimmer);color:var(--bg)}
-.chat-head .mode-badge.live{background:var(--green);color:#fff;box-shadow:0 0 0 3px rgba(74,124,89,.18)}
-.chat-body{height:56vh;min-height:300px;max-height:560px;overflow-y:auto;padding:18px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+/* Chat body — scrollable message stream */
+.chat-body{flex:1;overflow-y:auto;width:100%;max-width:var(--chat-max);margin:0 auto;padding:24px 20px 140px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .chat-body::-webkit-scrollbar{width:4px}
 .chat-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.msg{margin-bottom:16px;animation:fadein .4s ease}
+
+/* Messages — no bubbles, clean text blocks (ChatGPT style) */
+.msg{margin-bottom:24px;animation:fadein .4s ease}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.msg .who{font-size:.66em;font-weight:600;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase}
+.msg .who{font-size:.75em;font-weight:600;margin-bottom:6px;letter-spacing:.02em}
 .msg .who.you{color:var(--accent)}
 .msg .who.ai{color:var(--green)}
-.msg .bubble{padding:12px 16px;border-radius:12px;font-size:.88em;white-space:pre-wrap;line-height:1.6;word-break:break-word}
-.msg .bubble.you{background:var(--accent-bg);border:1px solid #E8D5C8;border-bottom-right-radius:4px}
-.msg .bubble.ai{background:var(--bg);border:1px solid var(--border);border-bottom-left-radius:4px}
-.msg .bubble.system{background:var(--surface2);border:1px solid var(--border);color:var(--dim);font-size:.82em;border-radius:10px}
-.msg .typing{display:inline-block;width:7px;height:14px;background:var(--green);border-radius:1px;animation:blink 1s infinite;vertical-align:text-bottom}
+.msg .bubble{font-size:.95em;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.msg .bubble.you{color:var(--text)}
+.msg .bubble.ai{color:var(--text)}
+.msg .bubble.system{color:var(--dim);font-size:.85em;padding:12px 16px;background:var(--surface);border-radius:10px;border:1px solid var(--border)}
+.msg .typing{display:inline-block;width:7px;height:15px;background:var(--green);border-radius:1px;animation:blink 1s infinite;vertical-align:text-bottom}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 
-/* ── Input area ── */
-.chat-input{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg)}
-.chat-input input{flex:1;background:none;border:none;color:var(--text);font-size:.95em;font-family:inherit;outline:none;min-width:0;padding:4px 0}
-.chat-input input::placeholder{color:var(--dimmer)}
-.chat-input input:disabled{color:var(--dimmer)}
-.chat-input .send{color:var(--accent);cursor:pointer;font-size:1em;border:1.5px solid var(--accent);background:var(--accent-bg);font-family:inherit;flex-shrink:0;padding:8px 14px;border-radius:10px;transition:.2s;font-weight:500;line-height:1}
-.chat-input .send:active{background:var(--accent);color:#fff;transform:scale(.95)}
+/* Welcome / empty state — centered tagline + suggestions */
+.welcome-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:20px}
+.welcome-state .tagline{font-family:'Newsreader',serif;font-size:1.8em;font-weight:400;letter-spacing:-.01em;line-height:1.3;margin-bottom:10px;color:var(--text)}
+.welcome-state .tagline em{font-style:italic;color:var(--accent);font-weight:500}
+.welcome-state .tagline-sub{font-size:.82em;color:var(--dim);margin-bottom:28px}
 
-/* ── Quick action hints ── */
-.chat-hint{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:4px 4px 0}
-.chat-hint span{font-size:.78em;color:var(--dim);cursor:pointer;transition:.2s;padding:8px 16px;border-radius:24px;border:1px solid var(--border);background:var(--surface);white-space:nowrap;user-select:none;-webkit-user-select:none}
-.chat-hint span:active{color:var(--accent);border-color:var(--accent);background:var(--accent-bg);transform:scale(.96)}
+/* Suggestion cards (ChatGPT-style) */
+.suggestions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:520px}
+.suggestion-card{padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;transition:.2s;text-align:left;display:flex;flex-direction:column;gap:4px}
+.suggestion-card:active{border-color:var(--accent);background:var(--accent-bg);transform:scale(.97)}
+.suggestion-card .title{font-size:.85em;font-weight:500;color:var(--text)}
+.suggestion-card .desc{font-size:.72em;color:var(--dimmer);line-height:1.4}
 
-/* ── Connect panel ── */
-.connect-panel{padding:24px 16px;text-align:center}
+/* ── Input dock (bottom, ChatGPT-style rounded box) ── */
+.input-dock{position:fixed;bottom:0;left:0;right:0;padding:12px 20px 20px;background:linear-gradient(to top,var(--bg) 60%,rgba(245,244,238,0));z-index:20;display:flex;justify-content:center;pointer-events:none}
+.input-box{width:100%;max-width:var(--chat-max);background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:8px 8px 8px 20px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-md);pointer-events:auto;transition:border-color .2s}
+.input-box:focus-within{border-color:var(--dim)}
+.input-box input{flex:1;background:none;border:none;color:var(--text);font-size:.95em;font-family:inherit;outline:none;min-width:0;padding:8px 0}
+.input-box input::placeholder{color:var(--dimmer)}
+.input-box input:disabled{color:var(--dimmer)}
+.input-box .send{width:36px;height:36px;border-radius:50%;background:var(--text);color:var(--bg);border:none;cursor:pointer;font-size:1.1em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s;font-family:inherit;line-height:1}
+.input-box .send:active{transform:scale(.9);background:var(--accent)}
+.input-box .send:disabled{background:var(--dimmer);cursor:default}
+
+/* Input hint below dock */
+.input-hint{text-align:center;font-size:.68em;color:var(--dimmer);padding:4px 0 0}
+
+/* ── Connect panel (inside chat body) ── */
+.connect-panel{padding:20px 0;text-align:center}
 .connect-panel h3{font-family:'Newsreader',serif;font-size:1.15em;font-weight:400;margin-bottom:12px}
 .connect-panel p{font-size:.82em;color:var(--dim);margin-bottom:16px;line-height:1.7}
 .connect-panel code{background:var(--surface2);padding:3px 10px;border-radius:6px;font-size:.85em;font-family:'SF Mono',Consolas,monospace;color:var(--accent)}
@@ -126,8 +134,8 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
 .connect-panel button:active{transform:scale(.96);opacity:.9}
 .connect-panel .err{color:#C65D5D;font-size:.75em;margin-top:8px}
 
-/* ── Footer ── */
-footer{border-top:1px solid var(--border);padding:14px 20px;text-align:center;font-size:.72em;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
+/* ── Footer (minimal) ── */
+footer{border-top:1px solid var(--border);padding:12px 20px;text-align:center;font-size:.7em;color:var(--dim);display:flex;flex-direction:column;gap:4px;align-items:center}
 footer a{color:var(--dim);text-decoration:none}
 footer .sep{display:none}
 footer .inf{color:var(--accent)}
@@ -151,47 +159,48 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   #clerk-auth #clerk-container{overflow-x:hidden;max-width:100%}
   #clerk-auth .cl-card,.cl-card-socialButtonsBlock,.cl-form{max-width:100%!important;min-width:0!important}
   #clerk-auth .cl-socialButtonsBlockButton{width:100%!important}
-  nav{padding:10px 16px}
+  nav{padding:8px 14px}
   nav .links{gap:8px}
   nav .links .desktop-only{display:none}
-  main{padding:16px 14px 12px}
-  .tagline{font-size:1.3em;margin-bottom:16px}
-  .chat-body{height:52vh;min-height:280px}
-  .chat-hint span{font-size:.76em;padding:9px 14px}
-  footer{padding:12px 16px}
+  .chat-body{padding:16px 14px 130px}
+  .welcome-state .tagline{font-size:1.5em}
+  .suggestions{grid-template-columns:1fr;gap:8px}
+  .input-dock{padding:8px 14px 16px}
+  footer{padding:10px 14px}
 }
 
 /* ── Tablet ── */
 @media(min-width:481px) and (max-width:879px){
-  .tagline{font-size:1.7em;margin-bottom:22px}
-  .chat-section{max-width:560px}
-  .chat-body{height:58vh;max-height:580px}
+  .welcome-state .tagline{font-size:1.7em}
 }
 
 /* ── Desktop ── */
 @media(min-width:880px){
   body{font-size:16px}
-  nav{padding:16px 48px}
+  nav{padding:12px 48px}
   nav .links{gap:20px}
   nav .links a{font-size:.85em}
   nav .links .desktop-only{display:inline}
-  nav .links .cta{padding:8px 18px;font-size:.82em}
-  main{padding:32px 24px 24px}
-  .tagline{font-size:2em;margin-bottom:28px}
-  .chat-section{max-width:640px}
-  .chat-body{height:60vh;max-height:620px;min-height:380px}
-  .chat-hint span:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
-  .chat-input .send:hover{background:var(--accent);color:#fff}
-  footer{flex-direction:row;justify-content:space-between;align-items:center;padding:16px 48px;text-align:left;max-width:900px;margin:0 auto;width:100%}
+  nav .links .cta{padding:7px 18px;font-size:.82em}
+  .welcome-state .tagline{font-size:2em}
+  .welcome-state .tagline-sub{font-size:.88em}
+  .suggestions{max-width:600px;gap:12px}
+  .suggestion-card{padding:16px 18px}
+  .suggestion-card .title{font-size:.9em}
+  .suggestion-card .desc{font-size:.76em}
+  .input-dock{padding:12px 24px 20px}
+  .input-box{padding:10px 10px 10px 22px}
+  .input-box .send{width:38px;height:38px}
+  .suggestion-card:hover{border-color:var(--accent);background:var(--accent-bg)}
+  footer{flex-direction:row;justify-content:space-between;align-items:center;padding:14px 48px;text-align:left;max-width:var(--chat-max);margin:0 auto;width:100%}
   footer .sep{display:inline}
   footer .privacy{max-width:none}
 }
 
 /* ── Large desktop ── */
 @media(min-width:1200px){
-  .tagline{font-size:2.2em}
-  .chat-section{max-width:680px}
-  .chat-body{height:62vh}
+  :root{--chat-max:820px}
+  .welcome-state .tagline{font-size:2.2em}
 }
 </style>
 </head>
@@ -205,42 +214,46 @@ footer .privacy{color:var(--dimmer);max-width:400px}
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
     <button id="langBtn" onclick="toggleLang()">中文</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Demo</span></span>
+    <span class="mode-badge demo" id="modeBadge" data-i18n="demo">Demo</span>
     <button class="cta" id="authBtn" onclick="toggleAuth()">Sign in</button>
   </div>
 </nav>
 
 <main>
-  <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
-
-  <div class="chat-section" id="chat">
-    <div class="chat-frame">
-      <div class="chat-head">
-        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="title">Welian</span>
-        <span class="mode-badge demo" id="modeBadge" data-i18n="demo">Demo</span>
-        <span class="inf">∞</span>
-      </div>
-      <div class="chat-body" id="chatBody">
-        <div class="msg">
-          <div class="who ai">Welian</div>
-          <div class="bubble ai" data-i18n="welcome">Hi, I'm Welian 😊
-
-I remember what matters, suggest who to reach out to, and help you find the right words.
-
-This is a demo. Sign in and connect your local agent to use your real data.</div>
+  <div class="chat-body" id="chatBody">
+    <!-- Welcome state: tagline + suggestion cards (shown when chat is empty) -->
+    <div class="welcome-state" id="welcomeState">
+      <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
+      <div class="tagline-sub" data-i18n="tagline_sub">你的关系管家，记住重要的事，建议该联系谁</div>
+      <div class="suggestions" id="suggestions">
+        <div class="suggestion-card" onclick="quickSend('该联系谁')">
+          <div class="title" data-i18n="hint_reach">该联系谁</div>
+          <div class="desc" data-i18n="hint_reach_desc">看看谁值得主动联系</div>
+        </div>
+        <div class="suggestion-card" onclick="quickSend('有多少联系人')">
+          <div class="title" data-i18n="hint_overview">联系人概览</div>
+          <div class="desc" data-i18n="hint_overview_desc">了解你的关系网络</div>
+        </div>
+        <div class="suggestion-card" onclick="quickNote()">
+          <div class="title" data-i18n="hint_note">记一笔</div>
+          <div class="desc" data-i18n="hint_note_desc">记录一次互动或会面</div>
+        </div>
+        <div class="suggestion-card" onclick="quickDraft()">
+          <div class="title" data-i18n="hint_draft">拟条消息</div>
+          <div class="desc" data-i18n="hint_draft_desc">帮你写一条合适的话</div>
         </div>
       </div>
-      <div class="chat-input">
-        <input id="input" type="text" data-i18n-ph="input_ph" placeholder="Talk to Welian…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- Input dock (fixed at bottom, ChatGPT-style) -->
+  <div class="input-dock">
+    <div style="width:100%;max-width:var(--chat-max)">
+      <div class="input-box">
+        <input id="input" type="text" data-i18n-ph="input_ph" placeholder="跟 Welian 聊聊…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
         <button class="send" onclick="send()">→</button>
       </div>
-    </div>
-    <div class="chat-hint" id="chatHint">
-      <span onclick="quickSend('该联系谁')" data-i18n="hint_reach">该联系谁</span>
-      <span onclick="quickSend('有多少联系人')" data-i18n="hint_overview">联系人概览</span>
-      <span onclick="quickNote()" data-i18n="hint_note">记一笔</span>
-      <span onclick="quickDraft()" data-i18n="hint_draft">拟条消息</span>
-      <span onclick="quickSend('monthly review')" data-i18n="hint_review">月度回顾</span>
+      <div class="input-hint" data-i18n="privacy">你的数据留在你的设备上。云端只看到必要的部分。</div>
     </div>
   </div>
 </main>
@@ -248,7 +261,6 @@ This is a demo. Sign in and connect your local agent to use your real data.</div
 <footer>
   <span>© 2026 Welian <span class="inf">∞</span></span>
   <span><a href="https://github.com/farmost-beep/welian">GitHub</a><span class="sep"> · </span><a href="https://welian.app">welian.app</a></span>
-  <span class="sep"> · </span><span class="privacy" data-i18n="privacy">Your data stays on your device. Cloud sees only what's needed.</span>
 </footer>
 
 </div>
@@ -280,15 +292,20 @@ const AGENT_TUNNEL_URL = 'https://agent.welian.app';  // Direct tunnel (no disco
 const I18N = {
   en: {
     tagline: 'Every relationship deserves <em>care</em>',
+    tagline_sub: 'Your relationship companion — remembers what matters, suggests who to reach',
     demo: 'Demo',
-    welcome: 'Hi, I\'m Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nThis is a demo. Sign in and connect your local agent to use your real data.',
-    input_ph: 'Talk to Welian…',
+    welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nThis is a demo. Sign in and connect your local agent to use your real data.",
+    input_ph: 'Message Welian…',
     hint_reach: 'Who to reach out',
+    hint_reach_desc: 'See who deserves a check-in',
     hint_overview: 'Contacts overview',
+    hint_overview_desc: 'Understand your network',
     hint_note: 'Quick note',
+    hint_note_desc: 'Log an interaction or meeting',
     hint_draft: 'Draft a message',
+    hint_draft_desc: 'Write the right words for someone',
     hint_review: 'Monthly review',
-    privacy: 'Your data stays on your device. Cloud sees only what\'s needed.',
+    privacy: 'Your data stays on your device.',
     auth_title: 'Welcome to Welian',
     auth_sub: 'Sign in to connect your local agent',
     no_account: 'No account?',
@@ -319,15 +336,20 @@ const I18N = {
   },
   zh: {
     tagline: '每段关系都值得<em>用心</em>',
+    tagline_sub: '你的关系管家，记住重要的事，建议该联系谁',
     demo: '演示',
     welcome: '你好，我是 Welian 😊\n\n我帮你记住重要的事，建议该联系谁，帮你找到合适的话。\n\n这是演示模式。登录并连接本地 agent 来使用你的真实数据。',
     input_ph: '跟 Welian 聊聊…',
     hint_reach: '该联系谁',
+    hint_reach_desc: '看看谁值得主动联系',
     hint_overview: '联系人概览',
+    hint_overview_desc: '了解你的关系网络',
     hint_note: '记一笔',
+    hint_note_desc: '记录一次互动或会面',
     hint_draft: '拟条消息',
+    hint_draft_desc: '帮你写一条合适的话',
     hint_review: '月度回顾',
-    privacy: '你的数据留在你的设备上。云端只看到必要的部分。',
+    privacy: '你的数据留在你的设备上。',
     auth_title: '欢迎使用 Welian',
     auth_sub: '登录以连接你的本地 agent',
     no_account: '没有账号？',
@@ -374,16 +396,14 @@ function applyLang(lang) {
   });
   document.getElementById('langBtn').textContent = lang === 'en' ? '中文' : 'EN';
   document.getElementById('authBtn').textContent = dict.sign_in;
-  // Update quick hint onclick targets
-  const hints = document.getElementById('chatHint').children;
+  // Update suggestion card onclick targets
+  const cards = document.getElementById('suggestions').children;
   if (lang === 'zh') {
-    hints[0].onclick = () => quickSend('该联系谁');
-    hints[1].onclick = () => quickSend('有多少联系人');
-    hints[4].onclick = () => quickSend('monthly review');
+    cards[0].onclick = () => quickSend('该联系谁');
+    cards[1].onclick = () => quickSend('有多少联系人');
   } else {
-    hints[0].onclick = () => quickSend('who to reach out');
-    hints[1].onclick = () => quickSend('how many contacts');
-    hints[4].onclick = () => quickSend('monthly review');
+    cards[0].onclick = () => quickSend('who to reach out');
+    cards[1].onclick = () => quickSend('how many contacts');
   }
 }
 
@@ -430,6 +450,7 @@ const navStatus = document.getElementById('navStatus');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const authBtn = document.getElementById('authBtn');
+const welcomeState = document.getElementById('welcomeState');
 
 // ── Nav scroll effect ──
 window.addEventListener('scroll', () => {
@@ -958,7 +979,15 @@ function onBridgeMessage(e) {
 
 // ── Chat ──
 
+function hideWelcome() {
+  if (welcomeState && welcomeState.parentNode) {
+    welcomeState.parentNode.removeChild(welcomeState);
+    welcomeState = null;
+  }
+}
+
 function addMsg(who, text) {
+  hideWelcome();
   const d = document.createElement('div');
   d.className = 'msg';
   const label = who === 'ai' ? 'Welian' : 'You';
@@ -968,6 +997,7 @@ function addMsg(who, text) {
 }
 
 function addSystemMsg(text) {
+  hideWelcome();
   const d = document.createElement('div');
   d.className = 'msg';
   d.innerHTML = '<div class="bubble system">' + escapeHtml(text) + '</div>';
@@ -976,6 +1006,7 @@ function addSystemMsg(text) {
 }
 
 function addTyping() {
+  hideWelcome();
   const d = document.createElement('div');
   d.className = 'msg';
   d.id = 'typing';
@@ -990,6 +1021,11 @@ function removeTyping() {
 
 function clearChat() {
   body.innerHTML = '';
+  // Re-show welcome state if it was removed
+  if (!document.getElementById('welcomeState')) {
+    // Don't re-create — clearChat is called before connecting or on sign out
+    // Welcome state will be shown by not adding any messages
+  }
 }
 
 function escapeHtml(text) {
@@ -1025,28 +1061,21 @@ async function send() {
 function quickSend(text) {
   input.value = text;
   send();
-  if (window.innerWidth < 880) {
-    document.getElementById('chat').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 function quickNote() {
+  hideWelcome();
   input.value = 'note: ';
   input.focus();
   input.setSelectionRange(6, 6);
-  if (window.innerWidth < 880) {
-    document.getElementById('chat').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 function quickDraft() {
+  hideWelcome();
   input.value = 'draft a message to ';
   input.focus();
   const len = input.value.length;
   input.setSelectionRange(len, len);
-  if (window.innerWidth < 880) {
-    document.getElementById('chat').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 // ── Mock replies (demo mode) ──
