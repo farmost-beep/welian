@@ -495,34 +495,40 @@ async function initClerk() {
 
     if (cliCallback) {
       // CLI login flow: always force fresh sign-in
-      const freshLogin = new URLSearchParams(location.search).get('fresh');
-      if (clerkInstance.user && !freshLogin) {
-        // Sign out and reload page to clear all session state
-        console.log('CLI login: signing out and reloading for fresh login');
+      if (clerkInstance.user) {
+        // Sign out, clear all Clerk cookies, then reload
+        console.log('CLI login: signing out and clearing cookies');
         await clerkInstance.signOut();
-        // Reload with fresh=1 to skip signOut on next load
+        // Manually clear all Clerk-related cookies
+        document.cookie.split(';').forEach(c => {
+          const name = c.trim().split('=')[0];
+          if (name.startsWith('__clerk') || name.startsWith('__client')) {
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + location.hostname;
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+          }
+        });
+        // Also clear localStorage/sessionStorage
+        try { localStorage.removeItem('clerk-db-jwt'); } catch(e) {}
+        try { localStorage.removeItem('__clerk_db_jwt'); } catch(e) {}
+        try { sessionStorage.clear(); } catch(e) {}
+        // Reload page fresh — Clerk will have no session to restore
         const freshUrl = location.origin + location.pathname + '?cli_callback=' + encodeURIComponent(cliCallback) + '&fresh=1';
         window.location.href = freshUrl;
         return; // Page will reload
       }
-      // After reload (or no existing session): show sign-in form
+      // After reload (no existing session): show sign-in form
       console.log('CLI login: showing sign-in form, user:', !!clerkInstance.user);
-      // Mark that we're waiting for explicit sign-in
       isCliLogin = true;
       document.getElementById('clerk-auth').classList.add('show');
       const container = document.getElementById('clerk-container');
       mountClerkSignIn(container);
 
-      // Poll for explicit sign-in completion (user fills form + verifies)
-      // When user completes sign-in, isAuthed will be false but clerkInstance.user will exist
-      // We then set isCliLogin=false and call onAuthed
+      // Poll for explicit sign-in via form
       let cliPollCount = 0;
       const cliPoll = setInterval(() => {
         if (clerkInstance.user && !isAuthed && isCliLogin) {
-          // User signed in through the form — check if enough time passed
-          // for it to be a real sign-in (not auto-restore from page load)
           cliPollCount++;
-          if (cliPollCount > 4) { // ~2 seconds after form shown
+          if (cliPollCount > 4) { // ~2s after form shown
             console.log('CLI login: explicit sign-in detected');
             isCliLogin = false;
             clearInterval(cliPoll);
