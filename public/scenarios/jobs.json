@@ -1,0 +1,340 @@
+{
+  "id": "jobs",
+  "name": "Steve Jobs",
+  "title": "Apple 联合创始人 / CEO",
+  "avatar": "🍎",
+  "tagline": "从车库到改变世界，维护每一段关键关系",
+  "intro": "你是 Steve Jobs。从 1976 年在车库创办 Apple，到被自己请来的 CEO 赶出公司，再到王者归来打造 iPhone。每一段历程中，关键关系决定了你的命运。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1976 · 与 Wozniak 确认合伙关系",
+      "description": "Steve Wozniak 是你的天才搭档。在车库创办 Apple 前，你需要和他确认分工——他负责工程，你负责商业。记录一次关于合作的对话。",
+      "type": "record_interaction",
+      "contact_names": ["Wozniak", "Woz", "Steve Wozniak"],
+      "keywords": ["合伙", "合作", "分工", "partner", "股份", "股权"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1984 · Macintosh 发布前给团队打气",
+      "description": "Macintosh 即将发布，团队连续加班数月。拟写一条消息鼓舞士气，让团队相信他们在改变世界。",
+      "type": "draft_message",
+      "keywords": ["mac", "macintosh", "团队", "改变世界", "士气", "伟大", "team", "great"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1985 · 被 Sculley 赶出 Apple 后的反思",
+      "description": "John Sculley 联合董事会剥夺了你的管理权。记录这次冲突——无论是愤怒、失望还是反思。",
+      "type": "record_interaction",
+      "contact_names": ["Sculley", "John Sculley", "董事会", "board"],
+      "keywords": ["离开", "赶走", "出局", "ouster", " betrayed", "冲突", "权力", "剥夺"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1986 · 收购 Pixar，与 Catmull 建立信任",
+      "description": "你刚买下 Lucasfilm 的电脑动画部门，Ed Catmull 和 John Lasseter 是核心人才。记录一次与他们的沟通，建立信任。",
+      "type": "record_interaction",
+      "contact_names": ["Catmull", "Ed Catmull", "Lasseter", "John Lasseter", "Pixar"],
+      "keywords": ["pixar", "动画", "信任", "创作", "动画片", "信任", "creative"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "1997 · 王者归来，给 Apple 员工写一封信",
+      "description": "Apple 收购 NeXT，你重返公司。公司濒临破产，士气低落。拟写一封给全体员工的信，宣告回归和方向。",
+      "type": "draft_message",
+      "keywords": ["回归", "apple", "回来", "return", "员工", "信", "方向", "未来", "think different"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2001 · iPod 时代，与 Jony Ive 碰撞设计灵感",
+      "description": "Jony Ive 是你的设计灵魂伴侣。iPod 的设计正在推进。记录一次关于产品设计理念的交流。",
+      "type": "record_interaction",
+      "contact_names": ["Jony", "Ive", "Jony Ive", "Jonathan Ive"],
+      "keywords": ["设计", "ipod", "极简", "design", "灵感", "简约", "白色"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2007 · iPhone 发布前，联系 AT&T 确认合作",
+      "description": "iPhone 即将问世，与运营商的合作是关键。拟写一条消息给 AT&T CEO，确认独家合作细节。",
+      "type": "draft_message",
+      "contact_names": ["AT&T", "Stephenson", "Randall", "运营商"],
+      "keywords": ["iphone", "att", "合作", "独家", "运营商", "exclusive", "deal"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2005 · 与女儿 Lisa 和解",
+      "description": "你曾否认 Lisa 是你的女儿，后来关系修复。现在她长大了。记录一次与 Lisa 的真诚对话。",
+      "type": "record_interaction",
+      "contact_names": ["Lisa", "Lisa Brennan", "女儿", "daughter"],
+      "keywords": ["对不起", "抱歉", "sorry", "父亲", "女儿", "和解", "道歉", "family"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2011 · 最后的告别，给 Laurene 写一封情书",
+      "description": "你深知时间不多了。Laurene 是你一生的挚爱。拟写一封给她的信，表达感谢与爱。",
+      "type": "draft_message",
+      "contact_names": ["Laurene", "Laurene Powell", "妻子", "wife"],
+      "keywords": ["爱", "感谢", "love", "thank", "妻子", "家人", "一生", "永远"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_woz",
+      "name": "Steve Wozniak",
+      "relation": "合伙人",
+      "role": "Apple 联合创始人",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你的天才搭档。他负责工程，你负责商业。他性格温和，不在乎钱，但你曾亏待过他的股份分配。",
+      "platforms": {"email": "woz@apple.com"},
+      "important_dates": [{"label": "生日", "date": "08-11"}],
+      "leverage": {"goals": "确认合伙分工，稳定早期团队", "how": "面对面谈清楚分工和股权"},
+      "created": "1976-04-01T00:00:00Z",
+      "updated": "1976-04-01T00:00:00Z"
+    },
+    {
+      "id": "c_sculley",
+      "name": "John Sculley",
+      "relation": "同事",
+      "role": "Apple CEO（你请来的）",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "前百事可乐总裁，你用'你想一辈子卖糖水还是改变世界'说服他加入。但他最终联合董事会把你赶走了。",
+      "platforms": {"email": "sculley@apple.com"},
+      "leverage": {"goals": "理解冲突根源", "how": "坦诚对话"},
+      "created": "1983-01-01T00:00:00Z",
+      "updated": "1985-05-01T00:00:00Z"
+    },
+    {
+      "id": "c_catmull",
+      "name": "Ed Catmull",
+      "relation": "商业伙伴",
+      "role": "Pixar 联合创始人",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "计算机图形学先驱。你收购 Lucasfilm 电脑部门后，他是核心。需要给他创作自由和资金支持。",
+      "platforms": {"email": "ed@pixar.com"},
+      "leverage": {"goals": "建立信任，让 Pixar 做出伟大作品", "how": "给钱给自由，不干涉创作"},
+      "created": "1986-01-01T00:00:00Z",
+      "updated": "1986-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_lasseter",
+      "name": "John Lasseter",
+      "relation": "商业伙伴",
+      "role": "Pixar 导演",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "天才动画导演，正在做《玩具总动员》。需要你的支持和信任。",
+      "platforms": {"email": "john@pixar.com"},
+      "created": "1986-01-01T00:00:00Z",
+      "updated": "1986-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_ive",
+      "name": "Jony Ive",
+      "relation": "同事",
+      "role": "Apple 设计总监",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你的设计灵魂伴侣。从 iMac 到 iPhone，每一个产品都凝聚了你们的碰撞。他懂你的极简哲学。",
+      "platforms": {"email": "jony@apple.com"},
+      "important_dates": [{"label": "入职纪念日", "date": "1996-09-01"}],
+      "leverage": {"goals": "共同打造改变世界的产品", "how": "每天在设计工作室碰头"},
+      "created": "1996-09-01T00:00:00Z",
+      "updated": "2001-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_laurene",
+      "name": "Laurene Powell",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "1991 年在斯坦福演讲时相识。她是你一生的支柱，但你常常因为工作忽略家庭。",
+      "platforms": {"email": "laurene@emersoncollective.com"},
+      "important_dates": [{"label": "结婚纪念日", "date": "1991-03-18"}],
+      "created": "1991-03-18T00:00:00Z",
+      "updated": "2011-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_lisa",
+      "name": "Lisa Brennan",
+      "relation": "家人",
+      "role": "女儿",
+      "nature": "nurture",
+      "strength": 3,
+      "notes": "你曾否认她是你的女儿，甚至在 Apple Lisa 电脑命名时否认关联。后来承认并修复关系，但伤痕仍在。",
+      "platforms": {"email": "lisa@brennan-jobs.com"},
+      "important_dates": [{"label": "生日", "date": "1978-05-17"}],
+      "created": "1978-05-17T00:00:00Z",
+      "updated": "2005-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_billgates",
+      "name": "Bill Gates",
+      "relation": "竞争对手",
+      "role": "Microsoft 创始人",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "亦敌亦友。他抄了你的图形界面，你骂他没品味。但 1997 年你回来时，他投了 Apple 一票——1.5 亿美元投资。",
+      "platforms": {"email": "bill@microsoft.com"},
+      "created": "1983-01-01T00:00:00Z",
+      "updated": "1997-08-01T00:00:00Z"
+    },
+    {
+      "id": "c_att",
+      "name": "Randall Stephenson",
+      "relation": "商业伙伴",
+      "role": "AT&T CEO",
+      "nature": "leverage",
+      "strength": 3,
+      "notes": "iPhone 的独家运营商合作伙伴。谈判已进入最后阶段，需要确认合作细节。",
+      "platforms": {"email": "rs@att.com"},
+      "leverage": {"goals": "确认 iPhone 独家合作", "how": "直接通话敲定细节"},
+      "created": "2006-01-01T00:00:00Z",
+      "updated": "2007-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_woz",
+      "task": "和 Wozniak 谈清楚分工和股权",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1976-04-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_sculley",
+      "task": "面对 Sculley 的权力斗争",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1985-05-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_catmull",
+      "task": "给 Catmull 和 Lasseter 明确创作自由",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1986-01-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_ive",
+      "task": "和 Jony 碰撞 iPod 设计方向",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2001-01-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_lisa",
+      "task": "和 Lisa 真诚对话，弥补过去的伤害",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2005-01-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_laurene",
+      "task": "给 Laurene 写一封信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2011-01-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_woz",
+      "date": "1976-04-01",
+      "summary": "在 Jobs 家车库和 Wozniak 创办 Apple。Woz 负责 Apple I 的设计，你负责找零件和买家。",
+      "sentiment": "positive",
+      "created": "1976-04-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_sculley",
+      "date": "1983-04-08",
+      "summary": "说服 Sculley 离开百事加入 Apple：'你想一辈子卖糖水，还是想改变世界？'",
+      "sentiment": "positive",
+      "created": "1983-04-08T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_sculley",
+      "date": "1985-05-24",
+      "summary": "Sculley 联合董事会剥夺了你的管理权。你被迫离开 Apple，创立 NeXT。",
+      "sentiment": "negative",
+      "created": "1985-05-24T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_catmull",
+      "date": "1986-01-30",
+      "summary": "以 1000 万美元从 Lucasfilm 收购电脑动画部门，成立 Pixar。Catmull 负责技术，Lasseter 负责创作。",
+      "sentiment": "positive",
+      "created": "1986-01-30T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_billgates",
+      "date": "1997-08-06",
+      "summary": "Macworld 大会上宣布微软投资 Apple 1.5 亿美元，并继续开发 Mac 版 Office。Gates 出现在大屏幕上。",
+      "sentiment": "neutral",
+      "created": "1997-08-06T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_ive",
+      "date": "2001-10-23",
+      "summary": "iPod 发布。Jony Ive 设计的白色极简外观成为经典。'1000 songs in your pocket.'",
+      "sentiment": "positive",
+      "created": "2001-10-23T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_lisa",
+      "date": "2000-06-01",
+      "summary": "Lisa 从哈佛毕业。你出席了她的毕业典礼，但你们的对话还是很疏远。",
+      "sentiment": "neutral",
+      "created": "2000-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_laurene",
+      "date": "2011-06-06",
+      "summary": "最后一次在 WWDC 公开露面，介绍 iCloud。Laurene 在台下。你知道时间不多了。",
+      "sentiment": "neutral",
+      "created": "2011-06-06T00:00:00Z"
+    }
+  ]
+}
