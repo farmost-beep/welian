@@ -964,12 +964,10 @@ function showWelcome() {
 }
 
 function scrollToBottom() {
-  // Double rAF: first frame lays out the new element, second frame scrolls
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
-    });
-  });
+  // Instant scroll (smooth gets interrupted by rapid message updates)
+  body.scrollTop = body.scrollHeight;
+  // Fallback: scroll again after layout settles
+  requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
 }
 
 function addMsg(who, text) {
@@ -1003,6 +1001,7 @@ function addTyping() {
 
 function removeTyping() {
   document.getElementById('typing')?.remove();
+  scrollToBottom();
 }
 
 function clearChat() {
