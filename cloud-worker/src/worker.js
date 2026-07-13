@@ -762,6 +762,223 @@ async function handleDataContext(req, env) {
   return { status: 200, data: { data_context: dataContext } };
 }
 
+// ── Cloud-native CRUD: direct data management in cloud KV ──
+
+// Helper: load a dataset from KV
+async function loadDataset(env, userId, name) {
+  const raw = await env.USER_DATA.get(`${name}:${userId}`);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+// Helper: save a dataset to KV
+async function saveDataset(env, userId, name, data) {
+  await env.USER_DATA.put(`${name}:${userId}`, JSON.stringify(data), { expirationTtl: 604800 });
+}
+
+// POST /data/contacts — add or update a contact
+// GET  /data/contacts — list all contacts (minimal)
+// DELETE /data/contacts?id=xxx — delete a contact
+async function handleContactsCRUD(req, env, method) {
+  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  if (method === 'GET') {
+    const contacts = await loadDataset(env, userId, 'contacts');
+    // Return minimal list (id, name, relation, nature)
+    const minimal = contacts.map(c => ({
+      id: c.id, name: c.name, relation: c.relation || '',
+      nature: c.nature || 'leverage', role: c.role || c.relation || '',
+    }));
+    return { status: 200, data: { contacts: minimal, total: contacts.length } };
+  }
+
+  if (method === 'POST') {
+    const body = await req.json();
+    const contacts = await loadDataset(env, userId, 'contacts');
+
+    const name = (body.name || '').trim();
+    if (!name) {
+      return { status: 400, data: { error: 'name required' } };
+    }
+
+    // Check if updating existing (by id)
+    const existingId = body.id;
+    if (existingId) {
+      const idx = contacts.findIndex(c => c.id === existingId);
+      if (idx >= 0) {
+        // Update existing contact
+        contacts[idx] = { ...contacts[idx], ...body, id: existingId, updated: new Date().toISOString() };
+        await saveDataset(env, userId, 'contacts', contacts);
+        return { status: 200, data: { ok: true, contact: contacts[idx] } };
+      }
+    }
+
+    // Create new contact
+    const id = body.id || `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const contact = {
+      id,
+      name,
+      relation: body.relation || '',
+      sub_relation: body.sub_relation || '',
+      role: body.relation || '',
+      nature: body.nature || 'leverage',
+      strength: body.strength || 3,
+      tags: body.tags || [],
+      platforms: body.platforms || {},
+      notes: body.notes || '',
+      memories: [],
+      important_dates: body.important_dates || [],
+      leverage: body.leverage || {},
+      nurture: body.nurture || {},
+      aliases: body.aliases || [],
+      alias: body.alias || [],
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    };
+    contacts.push(contact);
+    await saveDataset(env, userId, 'contacts', contacts);
+    return { status: 200, data: { ok: true, contact } };
+  }
+
+  if (method === 'DELETE') {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    if (!id) {
+      return { status: 400, data: { error: 'id required' } };
+    }
+    let contacts = await loadDataset(env, userId, 'contacts');
+    contacts = contacts.filter(c => c.id !== id);
+    await saveDataset(env, userId, 'contacts', contacts);
+    // Also remove related timeline + todos
+    let todos = await loadDataset(env, userId, 'todos');
+    todos = todos.filter(t => t.contact !== id);
+    await saveDataset(env, userId, 'todos', todos);
+    return { status: 200, data: { ok: true } };
+  }
+
+  return { status: 405, data: { error: 'Method not allowed' } };
+}
+
+// POST /data/timeline — add a timeline entry
+// GET  /data/timeline?contact_id=xxx — list timeline (optionally filtered)
+async function handleTimelineCRUD(req, env, method) {
+  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  if (method === 'GET') {
+    const url = new URL(req.url);
+    const contactId = url.searchParams.get('contact_id');
+    let timeline = await loadDataset(env, userId, 'timeline');
+    if (contactId) {
+      timeline = timeline.filter(t => t.contact === contactId);
+    }
+    timeline.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return { status: 200, data: { timeline: timeline.slice(0, 50) } };
+  }
+
+  if (method === 'POST') {
+    const body = await req.json();
+    const summary = (body.summary || '').trim();
+    const contactId = body.contact_id || body.contact || '';
+    if (!summary) {
+      return { status: 400, data: { error: 'summary required' } };
+    }
+
+    const timeline = await loadDataset(env, userId, 'timeline');
+    const entry = {
+      id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      contact: contactId,
+      date: body.date || new Date().toISOString().slice(0, 10),
+      summary,
+      sentiment: body.sentiment || '',
+      created: new Date().toISOString(),
+    };
+    timeline.push(entry);
+    await saveDataset(env, userId, 'timeline', timeline);
+    return { status: 200, data: { ok: true, entry } };
+  }
+
+  if (method === 'DELETE') {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    let timeline = await loadDataset(env, userId, 'timeline');
+    timeline = timeline.filter(t => t.id !== id);
+    await saveDataset(env, userId, 'timeline', timeline);
+    return { status: 200, data: { ok: true } };
+  }
+
+  return { status: 405, data: { error: 'Method not allowed' } };
+}
+
+// POST /data/todos — add a todo
+// GET  /data/todos — list pending todos
+// POST /data/todos/done — mark todo as done
+async function handleTodosCRUD(req, env, method, path) {
+  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  if (method === 'GET') {
+    const todos = await loadDataset(env, userId, 'todos');
+    const pending = todos.filter(t => t.status === 'pending' || !t.status);
+    pending.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+    return { status: 200, data: { todos: pending } };
+  }
+
+  if (method === 'POST' && path === '/data/todos/done') {
+    const body = await req.json();
+    const todoId = body.id;
+    const todos = await loadDataset(env, userId, 'todos');
+    const idx = todos.findIndex(t => t.id === todoId);
+    if (idx < 0) {
+      return { status: 404, data: { error: 'todo not found' } };
+    }
+    todos[idx].status = 'done';
+    todos[idx].completed_at = new Date().toISOString();
+    await saveDataset(env, userId, 'todos', todos);
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (method === 'POST') {
+    const body = await req.json();
+    const task = (body.task || '').trim();
+    if (!task) {
+      return { status: 400, data: { error: 'task required' } };
+    }
+
+    const todos = await loadDataset(env, userId, 'todos');
+    const todo = {
+      id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      contact: body.contact_id || body.contact || '',
+      task,
+      priority: body.priority || 'P1',
+      due: body.due || '',
+      status: 'pending',
+      created: new Date().toISOString(),
+    };
+    todos.push(todo);
+    await saveDataset(env, userId, 'todos', todos);
+    return { status: 200, data: { ok: true, todo } };
+  }
+
+  if (method === 'DELETE') {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    let todos = await loadDataset(env, userId, 'todos');
+    todos = todos.filter(t => t.id !== id);
+    await saveDataset(env, userId, 'todos', todos);
+    return { status: 200, data: { ok: true } };
+  }
+
+  return { status: 405, data: { error: 'Method not allowed' } };
+}
+
 // ── Main worker entry ──
 
 export default {
@@ -855,6 +1072,23 @@ export default {
 
       if (path === '/data/context' && method === 'GET') {
         const r = await handleDataContext(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── Cloud-native CRUD ──
+
+      if (path === '/data/contacts' && (method === 'GET' || method === 'POST' || method === 'DELETE')) {
+        const r = await handleContactsCRUD(request, env, method);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/data/timeline' && (method === 'GET' || method === 'POST' || method === 'DELETE')) {
+        const r = await handleTimelineCRUD(request, env, method);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if ((path === '/data/todos' || path === '/data/todos/done') && (method === 'GET' || method === 'POST' || method === 'DELETE')) {
+        const r = await handleTodosCRUD(request, env, method, path);
         return jsonResponse(r.data, r.status);
       }
 
