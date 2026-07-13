@@ -1863,6 +1863,71 @@ function removeTyping() {
   scrollToBottom();
 }
 
+// Add clickable suggestion chips after AI reply
+function addSuggestions() {
+  let suggestions = [];
+
+  if (simulationMode && simulationData) {
+    // Simulation: suggestions based on current scenario + current goal
+    const currentGoal = simulationGoals.find(g => !g.done);
+    const sid = simulationData.id;
+
+    if (currentGoal) {
+      if (currentGoal.type === 'record_interaction') {
+        const contact = currentGoal.contact_names?.[0] || '';
+        suggestions = [
+          '有什么待办？',
+          `记一下今天和 ${contact} 聊了关于${currentGoal.keywords?.[0] || '工作'}的事`,
+          `帮我给 ${contact} 写条消息`,
+        ];
+      } else if (currentGoal.type === 'draft_message') {
+        const contact = currentGoal.contact_names?.[0] || '';
+        suggestions = [
+          '有什么待办？',
+          `帮我给 ${contact || '团队'} 写一条消息`,
+          '该联系谁？',
+        ];
+      } else {
+        suggestions = ['有什么待办？', '该联系谁？', '帮我拟一条消息'];
+      }
+    } else {
+      // All goals done
+      suggestions = ['有什么待办？', '该联系谁？', '月度回顾'];
+    }
+
+    // Override with scenario-specific suggestions for first goal
+    if (currentGoal && currentGoal.id === 'g1') {
+      if (sid === 'jobs') suggestions = ['有什么待办？', '记一下今天和 Wozniak 谈了合伙分工', '帮我拟一条给 Mac 团队的打气消息'];
+      else if (sid === 'musk') suggestions = ['有什么待办？', '记一下今天和 Kimbal 谈了 Zip2 创业分工', '该联系谁？'];
+      else if (sid === 'zhang') suggestions = ['有什么待办？', '记一下今天和梁汝波谈了创业方向', '该联系谁？'];
+      else if (sid === 'obama') suggestions = ['有什么待办？', '记一下今天和 Cynthia 聊了大学和梦想', '该联系谁？'];
+    }
+  } else {
+    // Normal mode: general suggestions
+    suggestions = ['有什么待办？', '该联系谁？', '帮我拟一条消息', '月度回顾'];
+  }
+
+  const chipsDiv = document.createElement('div');
+  chipsDiv.className = 'suggestion-chips';
+  chipsDiv.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px;padding-left:0;';
+  const label = document.createElement('div');
+  label.style.cssText = 'width:100%;font-size:.75em;color:var(--dim);margin-bottom:2px;';
+  label.textContent = '试试这些：';
+  chipsDiv.appendChild(label);
+  suggestions.forEach(s => {
+    const chip = document.createElement('button');
+    chip.className = 'suggestion-chip';
+    chip.textContent = s;
+    chip.style.cssText = 'padding:6px 14px;border:1px solid var(--border);border-radius:16px;background:transparent;color:var(--text);font-size:.82em;cursor:pointer;transition:all .15s;';
+    chip.onmouseenter = () => { chip.style.borderColor = 'var(--accent)'; chip.style.color = 'var(--accent)'; };
+    chip.onmouseleave = () => { chip.style.borderColor = 'var(--border)'; chip.style.color = 'var(--text)'; };
+    chip.onclick = () => { input.value = s; send(); };
+    chipsDiv.appendChild(chip);
+  });
+  body.appendChild(chipsDiv);
+  scrollToBottom();
+}
+
 function clearChat() {
   body.innerHTML = '';
 }
@@ -1888,6 +1953,7 @@ async function send() {
       const reply = await cloudChat(text);
       removeTyping();
       addMsg('ai', reply);
+      addSuggestions();
     } catch (e) {
       removeTyping();
       addMsg('ai', I18N[currentLang].cloud_error + e.message);
