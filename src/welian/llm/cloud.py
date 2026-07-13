@@ -65,17 +65,23 @@ class CloudLLMClient(LLMClient):
         Returns the LLM response text.
         Stores token usage in self._last_usage for billing.
         """
+        # Build messages array: combine conversation history + current prompt
+        # The cloud worker requires messages to be a non-empty array
+        all_messages = list(messages) if messages else []
+        if prompt:
+            all_messages.append({"role": "user", "content": prompt})
+
+        if not all_messages:
+            raise LLMError("Cloud LLM 调用需要 prompt 或 messages")
+
         # Build request body
         body: dict = {
             "user_token": self.user_token,
             "max_tokens": kwargs.get("max_tokens", 1024),
+            "messages": all_messages,
         }
         if system:
             body["system"] = system
-        if messages:
-            body["messages"] = messages
-        if prompt:
-            body["prompt"] = prompt
         if "temperature" in kwargs:
             body["temperature"] = kwargs["temperature"]
 
