@@ -240,6 +240,16 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .goal-exit{width:100%;margin-top:12px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8em}
 .goal-exit:hover{opacity:.9}
 @media(max-width:768px){.goal-tracker{width:calc(100% - 32px)}}
+/* Quick login */
+.quick-login{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.quick-login-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;font-size:.95em;cursor:pointer;transition:opacity .2s}
+.quick-login-btn:hover{opacity:.9}
+.quick-login-btn.wechat{background:#07C160;color:#fff}
+.quick-login-btn.phone{background:#fff;color:#333;border:1px solid var(--border)}
+.quick-login-icon{font-size:1.1em}
+.auth-divider{text-align:center;margin:16px 0;position:relative}
+.auth-divider::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border)}
+.auth-divider span{position:relative;background:var(--bg);padding:0 12px;font-size:.78em;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -322,20 +332,13 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 
 </div>
 
-<!-- Clerk auth modal -->
+<!-- Auth modal -->
 <div id="clerk-auth">
   <div class="card">
     <button class="close" onclick="toggleAuth()">×</button>
     <h2 data-i18n="auth_title">欢迎使用 Welian</h2>
     <p data-i18n="auth_sub">登录后开始管理你的关系</p>
     <div id="clerk-container"></div>
-    <!-- WeChat and Phone login paused — re-enable when SMS/WeChat credentials are ready
-    <div style="margin-top:16px;text-align:center">
-      <div style="font-size:.75em;color:var(--dim);margin-bottom:8px" data-i18n="or">or</div>
-      <button id="wechat-login-btn" onclick="wechatLogin()" style="...">微信登录</button>
-      <button id="phone-login-btn" onclick="showPhoneLogin()" style="...">手机号登录</button>
-    </div>
-    -->
   </div>
 </div>
 
@@ -783,13 +786,13 @@ function toggleAuth() {
     // User manually initiated login — accept the next auth event
     userInitiatedLogin = true;
     sessionStorage.setItem('welian_login_initiated', '1');
-    // Show auth modal
+    // Show auth modal (WeChat + Phone buttons are immediately visible)
     document.getElementById('clerk-auth').classList.add('show');
-    const container = document.getElementById('clerk-container');
 
+    // Mount Clerk sign-in below the quick login buttons (secondary option)
+    const container = document.getElementById('clerk-container');
     if (!clerkReady || !clerkInstance) {
-      container.innerHTML = '<p style="text-align:center;color:var(--dim);padding:20px">Loading Clerk...<br><small>If this persists, check console for errors.</small></p>';
-      // Wait for clerk to be ready
+      container.innerHTML = '<p style="text-align:center;color:var(--dim);padding:12px;font-size:.8em">加载中…</p>';
       const wait = setInterval(() => {
         if (clerkReady && clerkInstance) {
           clearInterval(wait);
@@ -799,7 +802,6 @@ function toggleAuth() {
       setTimeout(() => clearInterval(wait), 10000);
       return;
     }
-
     mountClerkSignIn(container);
   }
 }
