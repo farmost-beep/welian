@@ -72,43 +72,63 @@ async function callLLM(prompt, system, env, options = {}) {
     body.system = system;
   }
 
-  try {
-    const resp = await fetch(`${baseUrl}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+  // Retry up to 2 times on failure (MiniMax can be flaky)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!resp.ok) {
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.content;
+        if (!content || !Array.isArray(content)) {
+          if (attempt < 2) continue;
+          return null;
+        }
+
+        let text = null;
+        for (const block of content) {
+          if (block.type === 'text' && block.text) {
+            text = block.text;
+            break;
+          }
+        }
+        if (!text) {
+          if (attempt < 2) continue;
+          return null;
+        }
+
+        const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+        return { text, usage };
+      }
+
+      // Non-OK response
       const errText = await resp.text();
-      console.error(`LLM error: ${resp.status} ${errText.substring(0, 500)}`);
+      console.error(`LLM error (attempt ${attempt + 1}): ${resp.status} ${errText.substring(0, 300)}`);
+      if (resp.status >= 500 && attempt < 2) {
+        // Server error — retry after short delay
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      // Client error — don't retry
+      return null;
+    } catch (e) {
+      console.error(`LLM fetch error (attempt ${attempt + 1}): ${e.message}`);
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
       return null;
     }
-
-    const data = await resp.json();
-    const content = data.content;
-    if (!content || !Array.isArray(content)) return null;
-
-    let text = null;
-    for (const block of content) {
-      if (block.type === 'text' && block.text) {
-        text = block.text;
-        break;
-      }
-    }
-    if (!text) return null;
-
-    // Anthropic-compatible API returns usage: { input_tokens, output_tokens }
-    const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
-    return { text, usage };
-  } catch (e) {
-    console.error('LLM call failed:', e.message);
-    return null;
   }
+  return null;
 }
 
 // ── Route handlers ──
