@@ -6,13 +6,11 @@
 <title>Welian — 绑定微信</title>
 <meta name="theme-color" content="#F5F4EE">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
-<!-- Clerk — authentication -->
 <script defer crossorigin="anonymous"
   src="https://fancy-kingfish-81.clerk.accounts.dev/npm/@clerk/clerk-js@4/dist/clerk.browser.js"
   data-clerk-publishable-key="pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA"
   type="text/javascript"></script>
 <script>
-// Load Clerk UI bundle (required for mountSignIn/mountSignUp)
 async function loadClerkUI(publishableKey) {
   try {
     const clerkDomain = atob(publishableKey.split('_')[2]).slice(0, -1);
@@ -47,28 +45,57 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 .status.ok{background:#E8F0E8;color:var(--green);display:block}
 .status.err{background:#F2E8E0;color:var(--accent);display:block}
 .status.loading{background:#E8E8F0;color:#4A5C7C;display:block}
-.wechat-id{font-family:monospace;font-size:13px;color:var(--dim);background:var(--bg);padding:4px 8px;border-radius:4px;display:inline-block;margin:4px 0}
-.user-info{background:var(--bg);border-radius:12px;padding:20px;margin:16px 0}
-.user-info .name{font-size:18px;font-weight:600;margin-bottom:4px}
+.btn{background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;width:100%;margin-top:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.secondary{background:transparent;color:var(--dim);border:1px solid var(--border)}
+.user-info{background:var(--bg);border-radius:12px;padding:20px;margin:16px 0;text-align:left}
+.user-info .row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.user-info .avatar{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;flex-shrink:0}
+.user-info .name{font-size:16px;font-weight:600}
 .user-info .email{font-size:14px;color:var(--dim)}
+.user-info .label{font-size:12px;color:var(--dim);margin-bottom:4px}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔗 绑定微信</h1>
-  <p class="sub">登录后，你的微信就能和小维连通了</p>
+  <p class="sub">将你的 Welian 账号绑定到微信</p>
+
+  <!-- Step 1: Login -->
   <div id="clerk-mount"></div>
-  <div id="manual-bind" style="display:none;margin-bottom:16px">
-    <button class="btn" onclick="bindAttempted=false;doBind()">🔗 立即绑定</button>
+
+  <!-- Step 2: Confirm (shown after login) -->
+  <div id="confirm-section" style="display:none">
+    <div class="user-info">
+      <div class="label">将绑定以下账号：</div>
+      <div class="row">
+        <div class="avatar" id="user-avatar"></div>
+        <div>
+          <div class="name" id="user-name"></div>
+          <div class="email" id="user-email"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn" onclick="doBind()">✅ 确认绑定</button>
+    <button class="btn secondary" onclick="switchAccount()">切换账号</button>
   </div>
-  <div id="status" class="status"></div>
+
+  <!-- Step 3: Success -->
   <div id="bound-section" style="display:none">
     <div class="user-info">
-      <div class="name" id="bound-name"></div>
-      <div class="email" id="bound-email"></div>
+      <div class="row">
+        <div class="avatar" id="bound-avatar"></div>
+        <div>
+          <div class="name" id="bound-name"></div>
+          <div class="email" id="bound-email"></div>
+        </div>
+      </div>
     </div>
-    <p style="color:var(--dim);font-size:13px">现在可以在微信里直接和小维聊天了 ✨</p>
+    <p style="color:var(--green);font-size:15px;margin:16px 0">✅ 绑定成功！</p>
+    <p style="color:var(--dim);font-size:13px">现在可以回到微信，和小维聊天了 ✨</p>
   </div>
+
+  <div id="status" class="status"></div>
 </div>
 
 <script>
@@ -77,7 +104,6 @@ const PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV
 
 const params = new URLSearchParams(location.search);
 const wechatId = params.get('wid') || params.get('wechat_id') || '';
-let bindAttempted = false;
 
 if (!wechatId) {
   showStatus('err', '缺少微信用户 ID。请从微信里的 /login 命令打开此链接。');
@@ -86,7 +112,7 @@ if (!wechatId) {
 }
 
 async function initClerk() {
-  // Wait for Clerk to load
+  // Wait for Clerk
   await new Promise(resolve => {
     if (window.Clerk) return resolve();
     const interval = setInterval(() => {
@@ -94,34 +120,21 @@ async function initClerk() {
     }, 100);
   });
 
-  // Load Clerk UI bundle (required for mountSignIn)
   await loadClerkUI(PUBLISHABLE_KEY);
 
-  try {
-    await window.Clerk.load();
-  } catch(e) {
-    console.log('Clerk load:', e.message);
-  }
+  try { await window.Clerk.load(); } catch(e) { console.log('Clerk load:', e.message); }
 
-  // Check if already logged in
   if (window.Clerk.user) {
-    await doBind();
+    showConfirm();
   } else {
     await mountSignIn();
   }
 
-  // Poll for login completion
-  const pollInterval = setInterval(async () => {
-    if (window.Clerk.user && !bindAttempted) {
-      bindAttempted = true;
-      clearInterval(pollInterval);
-      document.getElementById('clerk-mount').style.display = 'none';
-      document.getElementById('manual-bind').style.display = 'block';
-      await doBind();
-    }
-    // Show manual bind button if logged in but bind hasn't happened
-    if (window.Clerk.user && bindAttempted) {
-      document.getElementById('manual-bind').style.display = 'block';
+  // Poll for login
+  const pollInterval = setInterval(() => {
+    if (window.Clerk.user && document.getElementById('confirm-section').style.display === 'none'
+        && document.getElementById('bound-section').style.display === 'none') {
+      showConfirm();
     }
   }, 500);
   setTimeout(() => clearInterval(pollInterval), 300000);
@@ -129,7 +142,6 @@ async function initClerk() {
 
 async function mountSignIn() {
   const mountEl = document.getElementById('clerk-mount');
-  // Fresh div each time (Clerk can't re-mount on same element)
   mountEl.innerHTML = '<div id="clerk-signin"></div>';
   const signinEl = document.getElementById('clerk-signin');
   try {
@@ -139,13 +151,37 @@ async function mountSignIn() {
   }
 }
 
+function showConfirm() {
+  const user = window.Clerk.user;
+  if (!user) return;
+
+  const name = (user.firstName || '') + ' ' + (user.lastName || '');
+  const displayName = name.trim() || user.username || '';
+  const email = user.primaryEmailAddress?.emailAddress || '';
+
+  document.getElementById('user-name').textContent = displayName || '已登录';
+  document.getElementById('user-email').textContent = email;
+  document.getElementById('user-avatar').textContent = (displayName || email || '?')[0].toUpperCase();
+
+  document.getElementById('clerk-mount').style.display = 'none';
+  document.getElementById('confirm-section').style.display = 'block';
+}
+
+async function switchAccount() {
+  // Sign out and show login again
+  try {
+    await window.Clerk.signOut();
+  } catch(e) { console.log('signOut error:', e); }
+  document.getElementById('confirm-section').style.display = 'none';
+  document.getElementById('clerk-mount').style.display = 'block';
+  document.getElementById('clerk-mount').innerHTML = '<div id="clerk-signin"></div>';
+  await window.Clerk.mountSignIn(document.getElementById('clerk-signin'));
+}
+
 async function doBind() {
-  if (bindAttempted) return;
-  bindAttempted = true;
   showStatus('loading', '正在绑定...');
 
   try {
-    // Wait for session
     let session = window.Clerk.session;
     let retries = 0;
     while (!session && retries < 10) {
@@ -155,12 +191,10 @@ async function doBind() {
     }
     if (!session) {
       showStatus('err', '登录会话未就绪，请刷新页面重试');
-      bindAttempted = false;
       return;
     }
 
     const token = await session.getToken();
-    console.log('Clerk token:', token ? token.substring(0, 30) + '...' : 'null');
 
     const resp = await fetch(`${API}/ai/bind_wechat`, {
       method: 'POST',
@@ -178,18 +212,17 @@ async function doBind() {
       const name = data.name || '';
       const email = data.email || '';
       document.getElementById('bound-name').textContent = name || '已绑定';
-      document.getElementById('bound-email').textContent = email || '';
+      document.getElementById('bound-email').textContent = email;
+      document.getElementById('bound-avatar').textContent = (name || email || '?')[0].toUpperCase();
+      document.getElementById('confirm-section').style.display = 'none';
       document.getElementById('bound-section').style.display = 'block';
-      document.getElementById('clerk-mount').style.display = 'none';
-      showStatus('ok', '✅ 绑定成功！');
+      showStatus('ok', '绑定成功！请回到微信查看。');
     } else {
       showStatus('err', data.error || `绑定失败 (HTTP ${resp.status})`);
-      bindAttempted = false;
     }
   } catch(e) {
     console.error('Bind error:', e);
     showStatus('err', '绑定出错：' + e.message);
-    bindAttempted = false;
   }
 }
 

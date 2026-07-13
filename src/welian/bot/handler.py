@@ -401,6 +401,36 @@ def _unbind(wechat_uid: str) -> dict:
         return None
 
 
+def _check_bind_notify(wechat_uid: str) -> dict:
+    """Check for a bind notification from cloud (set when user binds on web)."""
+    import urllib.request
+    sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+    cloud_url = CLOUD_URL or "https://api.welian.app"
+    try:
+        # Use check_bind endpoint which now also returns notification
+        body = json.dumps({"wechat_user_id": wechat_uid}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{cloud_url}/ai/check_bind",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {wechat_uid}:{sync_secret}",
+                "User-Agent": "WelianBot/1.0",
+                "X-Check-Notify": "1",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            # If just bound (notification exists), return notification data
+            if data.get("bound") and data.get("just_bound"):
+                return data
+            return None
+    except Exception as e:
+        logger.error(f"check_bind_notify error: {e}")
+        return None
+
+
 def _save_user_id(user_id: str):
     """Save WeChat user ID for weekly report push."""
     import json
@@ -427,6 +457,23 @@ async def process_message(user_id: str, text: str, api: IlinkApi, context_token:
 
     # Save user ID for weekly report push
     _save_user_id(user_id)
+
+    # Check for bind notification (user just bound on web)
+    wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+    notify = await asyncio.to_thread(_check_bind_notify, wechat_uid)
+    if notify:
+        name = notify.get("name", "")
+        email = notify.get("email", "")
+        api.send_message(user_id,
+            f"✅ 绑定成功！\n"
+            f"  用户：{name or '未知'}\n"
+            f"  邮箱：{email or '未知'}\n\n"
+            f"现在可以在微信里使用小维了。直接发消息即可对话：\n"
+            f"  · \"记一下：和张总聊了预算\"\n"
+            f"  · \"该联系谁\"\n"
+            f"  · \"月度回顾\"",
+            context_token,
+        )
 
     # Processing indicator for non-trivial messages
     if len(text) > 10:

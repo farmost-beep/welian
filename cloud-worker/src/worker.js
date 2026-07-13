@@ -868,6 +868,11 @@ async function handleBindWechat(req, env) {
 
   // Fetch user info for display
   const userInfo = await getClerkUserInfo(clerkUserId, env);
+  const displayName = userInfo?.name || '';
+  const displayEmail = userInfo?.email || '';
+
+  // Notify WeChat user via ilink bot
+  await sendWechatNotification(env, wechatId, clerkUserId, displayName, displayEmail);
 
   return {
     status: 200,
@@ -875,11 +880,34 @@ async function handleBindWechat(req, env) {
       ok: true,
       wechat_user_id: wechatId,
       clerk_user_id: clerkUserId,
-      name: userInfo?.name || '',
-      email: userInfo?.email || '',
+      name: displayName,
+      email: displayEmail,
       message: '绑定成功！现在可以在微信里使用小维了。',
     },
   };
+}
+
+// Send a message to a WeChat user via ilink bot API
+async function sendWechatNotification(env, wechatHashId, clerkUserId, name, email) {
+  const botToken = env.WELIAN_BOT_TOKEN;
+  if (!botToken) {
+    console.log('WELIAN_BOT_TOKEN not set, skipping notification');
+    return;
+  }
+
+  // Look up the raw WeChat user ID from bot_users stored in KV
+  // The bot stores wechat user IDs in DEVICES namespace or we can reverse-lookup
+  // Actually, we need the raw ilink user_id to send a message.
+  // Store a mapping from wechat_hash → raw_wechat_id when bot calls check_bind
+  // For now, the bot will check for bind notifications on next interaction.
+
+  // Store a notification in KV that the bot will pick up
+  await env.USER_DATA.put(`bind_notify:${wechatHashId}`, JSON.stringify({
+    clerk_user_id: clerkUserId,
+    name,
+    email,
+    timestamp: new Date().toISOString(),
+  }), { expirationTtl: 3600 }); // expires in 1 hour
 }
 
 async function handleCheckBind(req, env) {
@@ -897,6 +925,19 @@ async function handleCheckBind(req, env) {
 
   // Fetch user info for display
   const userInfo = await getClerkUserInfo(bound, env);
+
+  // Check for bind notification (set when user just bound on web)
+  const checkNotify = req.headers.get('X-Check-Notify') === '1';
+  let justBound = false;
+  if (checkNotify) {
+    const notify = await env.USER_DATA.get(`bind_notify:${wechatId}`);
+    if (notify) {
+      justBound = true;
+      // Delete notification so it's only shown once
+      await env.USER_DATA.delete(`bind_notify:${wechatId}`);
+    }
+  }
+
   return {
     status: 200,
     data: {
@@ -904,6 +945,7 @@ async function handleCheckBind(req, env) {
       clerk_user_id: bound,
       name: userInfo?.name || '',
       email: userInfo?.email || '',
+      just_bound: justBound,
     },
   };
 }
