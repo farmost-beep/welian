@@ -271,7 +271,8 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
     if cmd in ("/help", "/h", "/？", "/?"):
         api.send_message(user_id,
             "Welian 命令：\n"
-            "  /login — 绑定你的 Welian 账号\n"
+            "  /login — 绑定 / 查看绑定\n"
+            "  /unbind — 解除绑定\n"
             "  /help — 显示帮助\n"
             "  /status — 查看状态\n"
             "  /who — 该联系谁\n"
@@ -310,6 +311,17 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
                 f"🔗 绑定你的 Welian 账号\n\n"
                 f"点击链接登录后，微信就能和你的数据连通：\n{bind_url}\n\n"
                 f"绑定后，你在网页和微信里看到的是同一份数据。",
+                context_token,
+            )
+    elif cmd in ("/unbind", "/解绑", "/unbind_wechat"):
+        wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+        result = await asyncio.to_thread(_unbind, wechat_uid)
+        if result and result.get("ok"):
+            sessions.reset(user_id)
+            api.send_message(user_id, "✅ 已解绑。发送 /login 可重新绑定。", context_token)
+        else:
+            api.send_message(user_id,
+                f"解绑失败：{result.get('error', '未知错误') if result else '网络错误'}",
                 context_token,
             )
     elif cmd == "/status":
@@ -354,6 +366,37 @@ def _check_bind(wechat_uid: str) -> dict:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
         logger.error(f"check_bind error: {e}")
+        return None
+
+
+def _unbind(wechat_uid: str) -> dict:
+    """Unbind a wechat user from their Clerk account."""
+    import urllib.request
+    sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+    cloud_url = CLOUD_URL or "https://api.welian.app"
+    try:
+        body = json.dumps({"wechat_user_id": wechat_uid}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{cloud_url}/ai/unbind_wechat",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {wechat_uid}:{sync_secret}",
+                "User-Agent": "WelianBot/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err = e.read().decode("utf-8", errors="replace")
+        logger.error(f"unbind error: HTTP {e.code}: {err[:200]}")
+        try:
+            return json.loads(err)
+        except Exception:
+            return {"error": f"HTTP {e.code}"}
+    except Exception as e:
+        logger.error(f"unbind error: {e}")
         return None
 
 

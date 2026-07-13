@@ -908,6 +908,33 @@ async function handleCheckBind(req, env) {
   };
 }
 
+async function handleUnbindWechat(req, env) {
+  // Unbind a wechat user from their Clerk account
+  const body = await req.json();
+  const wechatId = body.wechat_user_id;
+  if (!wechatId || !wechatId.startsWith('wechat_')) {
+    return { status: 400, data: { error: 'wechat_user_id required (must start with wechat_)' } };
+  }
+
+  // Verify caller is the bound user (sync token with wechat_ prefix)
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required — not bound or invalid token' } };
+  }
+
+  // Delete binding
+  await env.USER_DATA.delete(`wechat_bind:${wechatId}`);
+  await env.USER_DATA.delete(`wechat_user:${userId}`);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      message: '已解绑。发送 /login 可重新绑定。',
+    },
+  };
+}
+
 // ── Data sync (full cloud mode) ──
 
 async function handleExtractIntent(req, env) {
@@ -1694,6 +1721,11 @@ export default {
 
       if (path === '/ai/check_bind' && method === 'POST') {
         const r = await handleCheckBind(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/unbind_wechat' && method === 'POST') {
+        const r = await handleUnbindWechat(request, env);
         return jsonResponse(r.data, r.status);
       }
 
