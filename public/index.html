@@ -815,9 +815,12 @@ function toggleAuth() {
 
 function mountClerkSignIn(container) {
   try {
+    // Create a fresh div each time — Clerk can't re-mount on the same element
     container.innerHTML = '';
-    clerkInstance.mountSignIn(container);
-    console.log('mountSignIn called');
+    const freshDiv = document.createElement('div');
+    container.appendChild(freshDiv);
+    clerkInstance.mountSignIn(freshDiv);
+    console.log('mountSignIn called on fresh div');
   } catch(e) {
     console.error('mountSignIn failed:', e);
     container.innerHTML = '<p style="color:#C65D5D;text-align:center;padding:20px">Failed to load sign-in form.<br><small>' + e.message + '</small></p>';
