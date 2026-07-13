@@ -311,9 +311,11 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
                 f"🔗 绑定你的 Welian 账号\n\n"
                 f"在浏览器中打开以下链接登录即可绑定：\n\n"
                 f"{bind_url}\n\n"
-                f"绑定后，你在网页和微信里看到的是同一份数据。",
+                f"绑定完成后会自动通知你。",
                 context_token,
             )
+            # Start background polling for bind completion
+            asyncio.ensure_future(_poll_bind_completion(user_id, wechat_uid, api))
     elif cmd in ("/logout", "/unbind", "/解绑", "/登出", "/退出登录"):
         wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
         result = await asyncio.to_thread(_unbind, wechat_uid)
@@ -429,6 +431,29 @@ def _check_bind_notify(wechat_uid: str) -> dict:
     except Exception as e:
         logger.error(f"check_bind_notify error: {e}")
         return None
+
+
+async def _poll_bind_completion(user_id: str, wechat_uid: str, api: IlinkApi):
+    """Poll cloud for bind completion. When detected, send success message to user."""
+    max_attempts = 100  # 5 minutes at 3s interval
+    for i in range(max_attempts):
+        await asyncio.sleep(3)
+        result = await asyncio.to_thread(_check_bind, wechat_uid)
+        if result and result.get("bound"):
+            name = result.get("name", "")
+            email = result.get("email", "")
+            api.send_message(user_id,
+                f"✅ 绑定成功！\n"
+                f"  用户：{name or '未知'}\n"
+                f"  邮箱：{email or '未知'}\n\n"
+                f"现在可以在微信里使用小维了。直接发消息即可对话：\n"
+                f"  · \"记一下：和张总聊了预算\"\n"
+                f"  · \"该联系谁\"\n"
+                f"  · \"月度回顾\"",
+            )
+            logger.info(f"Bind completion detected for {user_id[:12]}... after {i*3}s")
+            return
+    logger.info(f"Bind polling timed out for {user_id[:12]}... (no bind in 5min)")
 
 
 def _save_user_id(user_id: str):
