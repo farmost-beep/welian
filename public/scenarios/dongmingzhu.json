@@ -1,0 +1,33 @@
+{
+  "id": "dongmingzhu",
+  "name": "董明珠",
+  "title": "格力电器董事长",
+  "avatar": "❄️",
+  "tagline": "从销售员到铁娘子，强势背后的柔软",
+  "intro": "你是董明珠。36岁从销售员做起，靠业绩一步步成为格力掌门人。你以强势著称，但内心也有柔软的一面。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1990 · 加入格力，与朱江洪确认方向","description":"你36岁南下珠海加入格力当销售员。朱江洪是当时的厂长。记录一次关于销售方向的对话。","type":"record_interaction","contact_names":["朱江洪","Zhu","厂长"],"keywords":["格力","销售","空调","加入","start","业务员"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1994 · 临危受命，给经销商写一封信","description":"格力骨干集体跳槽，你留下来稳住局面。拟写一封给经销商的安抚信。","type":"draft_message","keywords":["格力","经销商","稳定","信心","承诺","感谢","未来"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"2005 · 与国美黄光裕的渠道之争","description":"国美降价促销格力空调，你公开对抗黄光裕，撤出国美。记录这次冲突。","type":"record_interaction","contact_names":["黄光裕","国美","Gome"],"keywords":["国美","渠道","降价","冲突","对抗","黄光裕","价格"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2012 · 接任董事长，给员工写一封信","description":"你正式接任格力董事长。拟写一封给全体员工的信。","type":"draft_message","keywords":["格力","董事长","未来","创新","员工","信心","中国制造"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2016 · 收购银隆造车，与魏银仓的冲突","description":"你推动收购银隆新能源，但与创始人魏银仓产生严重分歧。记录这次冲突。","type":"record_interaction","contact_names":["魏银仓","银隆","Yinlong"],"keywords":["银隆","造车","新能源","冲突","收购","分歧","魏银仓"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2023 · 给儿子写一封信","description":"你忙于事业，对儿子陪伴太少。拟写一封给儿子的信，表达歉意和爱。","type":"draft_message","contact_names":["儿子","东东"],"keywords":["儿子","抱歉","母亲","爱","想念","忙","对不起","家"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_zhu","name":"朱江洪","relation":"同事","role":"格力前董事长","nature":"leverage","strength":4,"notes":"格力的技术奠基人，你的老领导。他主内（技术），你主外（销售）。","platforms":{"email":"zhu@gree.com"},"created":"1990-01-01T00:00:00Z","updated":"2012-01-01T00:00:00Z"},
+    {"id":"c_huang","name":"黄光裕","relation":"竞争对手","role":"国美创始人","nature":"dual","strength":2,"notes":"2005年因降价问题与格力公开对抗。后来他入狱了。","created":"2005-01-01T00:00:00Z","updated":"2005-01-01T00:00:00Z"},
+    {"id":"c_wei","name":"魏银仓","relation":"商业伙伴","role":"银隆新能源创始人","nature":"dual","strength":2,"notes":"你收购银隆造车，但与他产生严重分歧，后来对簿公堂。","created":"2016-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"},
+    {"id":"c_son","name":"东东","relation":"家人","role":"儿子","nature":"nurture","strength":5,"notes":"儿子很低调，不靠你的关系自己打拼。你对他有愧疚，陪伴太少了。","created":"1985-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_zhu","task":"和朱江洪确认销售方向","priority":"P0","due":"","status":"pending","created":"1990-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_wei","task":"面对与魏银仓的冲突","priority":"P0","due":"","status":"pending","created":"2016-01-01T00:00:00Z"},
+    {"id":"t3","contact":"c_son","task":"给儿子写一封信","priority":"P1","due":"","status":"pending","created":"2023-01-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_zhu","date":"1990-03-01","summary":"36岁南下珠海加入海利（格力前身）当业务员。朱江洪是厂长。","sentiment":"positive","created":"1990-03-01T00:00:00Z"},
+    {"id":"tl2","contact":"c_huang","date":"2005-03-01","summary":"国美未经格力同意降价促销，你公开对抗黄光裕，撤出国美渠道。","sentiment":"negative","created":"2005-03-01T00:00:00Z"},
+    {"id":"tl3","contact":"c_wei","date":"2017-10-01","summary":"银隆新能源爆出财务问题，你与魏银仓公开互相指责。","sentiment":"negative","created":"2017-10-01T00:00:00Z"}
+  ]
+}

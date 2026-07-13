@@ -1,0 +1,33 @@
+{
+  "id": "leijun",
+  "name": "雷军",
+  "title": "小米创始人",
+  "avatar": "📱",
+  "tagline": "从金山到小米，永远相信美好的事情即将发生",
+  "intro": "你是雷军。从金山程序员到天使投资人，再到40岁创办小米。每一步，身边都有值得维护的关系。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1992 · 加入金山，与求伯君确认合作","description":"求伯君邀请你加入金山。记录一次关于加入金山的对话。","type":"record_interaction","contact_names":["求伯君","Qiu"],"keywords":["金山","加入","kingsoft","程序员","wps","合作"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"2007 · 金山上市，给团队写一封感谢信","description":"金山终于在香港上市。拟写一封给团队的感谢信。","type":"draft_message","keywords":["上市","金山","感谢","ipo","团队","坚持","年"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"2010 · 创办小米，与林斌确认合伙","description":"你决定创办小米，林斌是你最重要的合伙人。记录一次关于创办小米的对话。","type":"record_interaction","contact_names":["林斌","Lin Bin","Bin"],"keywords":["小米","xiaomi","创业","合伙","手机","互联网","start"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2014 · 小米估值450亿，给投资人写一封信","description":"小米完成第六轮融资，估值450亿美元。拟写一封给投资人的信。","type":"draft_message","keywords":["小米","估值","投资","未来","生态","感谢","信心"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2016 · 销量下滑，给黎万强打电话","description":"小米销量下滑，黎万强是你的老搭档，正在休整。记录一次与他的沟通。","type":"record_interaction","contact_names":["黎万强","万强","KK"],"keywords":["销量","下滑","困难","回来","帮忙","低谷","反思"],"need_all_keywords": false,"count":1},
+    {"id":"g6","title":"2024 · 小米造车，给团队写一封出征信","description":"小米SU7即将发布，造车三年终于到了关键时刻。拟写一封给造车团队的信。","type":"draft_message","keywords":["造车","su7","小米","汽车","出征","梦想","未来","团队"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_qiu","name":"求伯君","relation":"同事","role":"金山创始人","nature":"leverage","strength":4,"notes":"中国第一代程序员偶像，WPS之父。邀请你加入金山，是你的伯乐。","platforms":{"email":"qiu@kingsoft.com"},"created":"1992-01-01T00:00:00Z","updated":"2007-01-01T00:00:00Z"},
+    {"id":"c_linbin","name":"林斌","relation":"同事","role":"小米联合创始人","nature":"leverage","strength":5,"notes":"前Google中国工程研究院副院长，小米联合创始人兼总裁。你最核心的搭档。","platforms":{"email":"linbin@xiaomi.com"},"leverage":{"goals":"小米产品+工程","how":"每日沟通"},"created":"2010-04-01T00:00:00Z","updated":"2010-04-01T00:00:00Z"},
+    {"id":"c_kk","name":"黎万强","relation":"同事","role":"小米联合创始人","nature":"nurture","strength":4,"notes":"小米联合创始人，负责营销和MIUI。2016年因个人原因休整，你很需要他回来。","platforms":{"email":"kk@xiaomi.com"},"created":"2010-04-01T00:00:00Z","updated":"2016-01-01T00:00:00Z"},
+    {"id":"c_shen","name":"沈南鹏","relation":"商业伙伴","role":"红杉中国创始人","nature":"leverage","strength":3,"notes":"小米早期投资人，红杉在多轮加注。","platforms":{"wechat":"neil_shen"},"created":"2010-01-01T00:00:00Z","updated":"2014-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_qiu","task":"和求伯君确认加入金山","priority":"P0","due":"","status":"pending","created":"1992-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_linbin","task":"和林斌谈创办小米","priority":"P0","due":"","status":"pending","created":"2010-03-01T00:00:00Z"},
+    {"id":"t3","contact":"c_kk","task":"给黎万强打电话请他回来","priority":"P1","due":"","status":"pending","created":"2016-06-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_qiu","date":"1992-01-15","summary":"求伯君在北京请你吃饭，邀请加入金山。你被他的理想打动。","sentiment":"positive","created":"1992-01-15T00:00:00Z"},
+    {"id":"tl2","contact":"c_linbin","date":"2010-04-06","summary":"在中关村银谷大厦，你和林斌喝了一杯小米粥，正式创办小米。","sentiment":"positive","created":"2010-04-06T00:00:00Z"},
+    {"id":"tl3","contact":"c_kk","date":"2016-05-01","summary":"小米销量首次下滑，黎万强在休整中。你给他打了电话但没接通。","sentiment":"negative","created":"2016-05-01T00:00:00Z"}
+  ]
+}

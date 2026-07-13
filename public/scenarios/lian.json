@@ -1,0 +1,34 @@
+{
+  "id": "lian",
+  "name": "李安",
+  "title": "奥斯卡导演",
+  "avatar": "🎥",
+  "tagline": "从六年失业到两座奥斯卡，温柔的力量",
+  "intro": "你是李安。从纽约大学毕业后失业六年，靠妻子养着写剧本。后来成为两度奥斯卡最佳导演。你的温柔和坚持，是最大的力量。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1985 · 六年失业，与林惠嘉确认坚持","description":"你毕业后六年没有工作，在家带孩子写剧本。妻子林惠嘉养家。记录一次关于坚持的对话。","type":"record_interaction","contact_names":["林惠嘉","惠嘉","妻子","Jane"],"keywords":["失业","坚持","剧本","妻子","梦想","六年","家"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1991 · 推手开拍，给徐立功写一封信","description":"徐立功投资了你的第一部电影《推手》。拟写一封感谢信。","type":"draft_message","contact_names":["徐立功","Li-kong"],"keywords":["推手","感谢","电影","机会","信","开始","导演"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"2000 · 卧虎藏龙，与袁和平碰撞武打设计","description":"《卧虎藏龙》让华语电影首次征服奥斯卡。袁和平是武术指导。记录一次关于武打设计的对话。","type":"record_interaction","contact_names":["袁和平","Yuen Woo-ping","八爷"],"keywords":["卧虎藏龙","武打","动作","竹林","袁和平","设计","crouching"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2001 · 奥斯卡之夜，给妻子写一封信","description":"《卧虎藏龙》获奥斯卡最佳外语片。拟写一封给妻子的感谢信。","type":"draft_message","contact_names":["林惠嘉","惠嘉","妻子"],"keywords":["奥斯卡","感谢","妻子","oscar","信","梦想","年","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2005 · 断背山，与 Heath Ledger 的合作","description":"《断背山》让你获得威尼斯金狮奖。Heath Ledger 的表演震撼人心。记录一次关于表演的对话。","type":"record_interaction","contact_names":["Heath","Heath Ledger","Ledger"],"keywords":["断背山","表演","heath","ledger","brokeback","演员","表演","导演"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2013 · 少年派，给两个孩子写一封信","description":"《少年派的奇幻漂流》让你第二次获得奥斯卡最佳导演。拟写一封给两个孩子的信。","type":"draft_message","contact_names":["儿子","孩子","children","Han","Mason"],"keywords":["少年派","奥斯卡","孩子","感谢","梦想","信","父亲","爱"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_wife","name":"林惠嘉","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"你失业六年她养家，从没让你放弃电影。你最感激的人。","platforms":{"email":"jane@anglee.com"},"important_dates":[{"label":"结婚纪念日","date":"1983-08-19"}],"created":"1983-08-19T00:00:00Z","updated":"2013-01-01T00:00:00Z"},
+    {"id":"c_xu","name":"徐立功","relation":"导师","role":"中影公司总经理","nature":"leverage","strength":5,"notes":"你的伯乐。投资了你的前三部电影（推手、喜宴、饮食男女），开启了你的导演生涯。","platforms":{"email":"likong@taiwanfilm.com"},"leverage":{"goals":"电影投资+制作","how":"直接沟通"},"created":"1991-01-01T00:00:00Z","updated":"1994-01-01T00:00:00Z"},
+    {"id":"c_yuen","name":"袁和平","relation":"同事","role":"武术指导","nature":"leverage","strength":4,"notes":"八爷，《卧虎藏龙》的武术指导。竹林打戏是他的杰作。","platforms":{"email":"yuen@hkfilm.com"},"created":"2000-01-01T00:00:00Z","updated":"2000-01-01T00:00:00Z"},
+    {"id":"c_heath","name":"Heath Ledger","relation":"同事","role":"演员","nature":"nurture","strength":4,"notes":"《断背山》的主演。他的表演深沉内敛，是你合作过的最天才的演员之一。2008年去世。","important_dates":[{"label":"去世","date":"2008-01-22"}],"created":"2004-01-01T00:00:00Z","updated":"2008-01-22T00:00:00Z"},
+    {"id":"c_son","name":"儿子们","relation":"家人","role":"儿子","nature":"nurture","strength":5,"notes":"两个儿子 Han 和 Mason。你常年在片场，对他们的陪伴不够。","created":"1990-01-01T00:00:00Z","updated":"2013-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_wife","task":"和妻子确认坚持电影梦想","priority":"P0","due":"","status":"pending","created":"1985-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_xu","task":"给徐立功写感谢信","priority":"P0","due":"","status":"pending","created":"1991-01-01T00:00:00Z"},
+    {"id":"t3","contact":"c_wife","task":"奥斯卡之夜给妻子写一封信","priority":"P0","due":"","status":"pending","created":"2001-03-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_wife","date":"1985-06-01","summary":"纽约大学毕业后六年没有工作。在家带孩子写剧本，妻子养家。","sentiment":"neutral","created":"1985-06-01T00:00:00Z"},
+    {"id":"tl2","contact":"c_xu","date":"1991-12-01","summary":"徐立功投资《推手》，你的第一部电影开拍。","sentiment":"positive","created":"1991-12-01T00:00:00Z"},
+    {"id":"tl3","contact":"c_wife","date":"2001-03-25","summary":"《卧虎藏龙》获奥斯卡最佳外语片。你在台上说'感谢我的妻子林惠嘉'。","sentiment":"positive","created":"2001-03-25T00:00:00Z"}
+  ]
+}

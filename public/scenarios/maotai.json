@@ -1,0 +1,33 @@
+{
+  "id": "maotai",
+  "name": "马云",
+  "title": "阿里巴巴创始人",
+  "avatar": "🛒",
+  "tagline": "从杭州公寓到全球电商，相信相信的力量",
+  "intro": "你是马云。从杭州师范学院英语老师，到创办阿里巴巴，再到蚂蚁金服和乡村教育。你信奉'因为相信，所以看见'。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1995 · 创办中国黄页，与妻子确认方向","description":"你从美国回来，决定在杭州创办中国黄页。妻子张瑛支持你。记录一次关于创业的对话。","type":"record_interaction","contact_names":["张瑛","妻子","Ying"],"keywords":["黄页","创业","互联网","杭州","start","妻子","方向"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1999 · 湖畔花园，给18位创始人写一封信","description":"在湖畔花园公寓，你和18位创始人创办阿里巴巴。拟写一封给创始团队的信。","type":"draft_message","keywords":["阿里巴巴","alibaba","创始","团队","湖畔","梦想","未来","信"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"2003 · 淘宝对战 eBay，给团队写一封信","description":"eBay 进军中国，你秘密创办淘宝迎战。拟写一封给淘宝团队的信。","type":"draft_message","keywords":["淘宝","ebay","免费","团队","战斗","未来","信","中国"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2014 · 纽交所上市，给蔡崇信写一封信","description":"阿里巴巴在纽交所上市，创全球最大IPO。蔡崇信是你的CFO和最信任的搭档。拟写一封给他的感谢信。","type":"draft_message","contact_names":["蔡崇信","Joe Tsai","Joe"],"keywords":["上市","ipo","蔡崇信","joe","感谢","搭档","年","信"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2019 · 卸任董事长，给全体员工写一封信","description":"你正式卸任阿里巴巴董事长。拟写一封给全体员工的告别信。","type":"draft_message","keywords":["卸任","告别","员工","感谢","未来","阿里巴巴","传承","信"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2021 · 回到乡村，给乡村教师写一封信","description":"你回归乡村教育，每年在三亚办乡村教师颁奖。拟写一封给乡村教师的信。","type":"draft_message","keywords":["乡村","教师","教育","感谢","孩子","未来","信","中国"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_zhangying","name":"张瑛","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"杭州师范学院同学。中国黄页和阿里巴巴的18位创始人之一。后来退居幕后照顾家庭。","important_dates":[{"label":"结婚纪念日","date":"1988-01-01"}],"created":"1988-01-01T00:00:00Z","updated":"2019-01-01T00:00:00Z"},
+    {"id":"c_joe","name":"蔡崇信","relation":"同事","role":"阿里巴巴执行副主席","nature":"leverage","strength":5,"notes":"1999年放弃70万美元年薪加入阿里拿500元月薪。你的CFO和最信任的搭档。","platforms":{"email":"joe@alibaba.com"},"leverage":{"goals":"财务+战略","how":"直接沟通"},"created":"1999-01-01T00:00:00Z","updated":"2019-01-01T00:00:00Z"},
+    {"id":"c_zhangying2","name":"张勇","relation":"同事","role":"阿里巴巴继任CEO","nature":"leverage","strength":4,"notes":"逍遥子，天猫创始人。你卸任后他接任CEO和董事长。","platforms":{"email":"yong@alibaba.com"},"created":"2007-01-01T00:00:00Z","updated":"2019-01-01T00:00:00Z"},
+    {"id":"c_sun","name":"孙正义","relation":"商业伙伴","role":"软银创始人","nature":"leverage","strength":4,"notes":"2000年投了阿里2000万美元，后来价值上千亿。6分钟就决定投资。","platforms":{"email":"masayoshi@softbank.com"},"created":"2000-01-01T00:00:00Z","updated":"2014-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_zhangying","task":"和张瑛确认创办中国黄页","priority":"P0","due":"","status":"pending","created":"1995-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_joe","task":"给蔡崇信写一封感谢信","priority":"P0","due":"","status":"pending","created":"2014-09-01T00:00:00Z"},
+    {"id":"t3","contact":"","task":"给乡村教师写一封信","priority":"P1","due":"","status":"pending","created":"2021-01-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_zhangying","date":"1995-04-01","summary":"从美国回来后在杭州创办中国黄页。妻子张瑛是第一个支持你的人。","sentiment":"positive","created":"1995-04-01T00:00:00Z"},
+    {"id":"tl2","contact":"c_joe","date":"1999-10-01","summary":"在湖畔花园公寓，18位创始人凑了50万创办阿里巴巴。蔡崇信后来加入。","sentiment":"positive","created":"1999-10-01T00:00:00Z"},
+    {"id":"tl3","contact":"","date":"2014-09-19","summary":"阿里巴巴在纽交所上市，创全球最大IPO，融资250亿美元。","sentiment":"positive","created":"2014-09-19T00:00:00Z"}
+  ]
+}

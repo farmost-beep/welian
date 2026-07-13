@@ -1,0 +1,33 @@
+{
+  "id": "renzhengfei",
+  "name": "任正非",
+  "title": "华为创始人",
+  "avatar": "📡",
+  "tagline": "从军人到通信帝国，苦难中维护关键关系",
+  "intro": "你是任正非。从部队转业，43 岁在深圳创办华为，经历破产、离婚、制裁，把华为做成全球通信巨头。每一段至暗时刻，都有关键关系支撑。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1987 · 凑两万块创办华为","description":"你被国企开除、妻子离婚，凑了2.1万元创办华为。记录一次与合伙人谈创业方向的对话。","type":"record_interaction","contact_names":["孙亚芳","合伙人","股东"],"keywords":["创业","华为","代理","交换机","start","凑钱"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1992 · 研发自研交换机，给研发团队打气","description":"代理生意利润薄，你决定自主研发交换机。团队压力巨大。拟写一封给研发团队的信。","type":"draft_message","keywords":["研发","交换机","自研","坚持","未来","技术","团队"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"1998 · 引入 IBM 顾问，与孙亚芳推动变革","description":"请 IBM 来做管理变革，内部阻力很大。孙亚芳是你最信任的搭档。记录一次推动变革的对话。","type":"record_interaction","contact_names":["孙亚芳","Sun","IBM"],"keywords":["ibm","变革","管理","流程","改革","ipd","阻力"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2000 · IT 泡沫破裂，给员工写一封安慰信","description":"华为差点卖掉，你抑郁到想自杀。拟写一封给全体员工的信，告诉大家华为不会倒。","type":"draft_message","keywords":["冬天","困难","坚持","活下去","华为","员工","未来"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2018 · 孟晚舟被拘，给女儿写一封信","description":"女儿孟晚舟在加拿大被拘押。你无法直接帮她。拟写一封给她的信，表达父亲的支持。","type":"draft_message","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["女儿","晚舟","坚强","父亲","信","想念"," proud","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2020 · 与孟晚舟的最后一次通话","description":"晚舟还在加拿大，你们只能通过电话联系。记录一次与女儿的通话。","type":"record_interaction","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["电话","通话","加拿大","想念","坚强","回家","父亲"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_sun","name":"孙亚芳","relation":"同事","role":"华为董事长","nature":"leverage","strength":5,"notes":"你最信任的搭档，1992年加入华为，后任董事长。她负责市场和公共关系。","platforms":{"email":"sun@huawei.com"},"leverage":{"goals":"管理变革+市场体系","how":"直接沟通"},"created":"1992-01-01T00:00:00Z","updated":"1998-01-01T00:00:00Z"},
+    {"id":"c_meng","name":"孟晚舟","relation":"家人","role":"女儿 / 华为CFO","nature":"nurture","strength":5,"notes":"大女儿，华为CFO。2018年在加拿大被拘押，你无法直接帮她。","platforms":{"phone":"私人号码"},"important_dates":[{"label":"生日","date":"1972-02-13"}],"created":"1987-01-01T00:00:00Z","updated":"2020-01-01T00:00:00Z"},
+    {"id":"c_zhufe","name":"朱培尔","relation":"朋友","role":"老战友","nature":"nurture","strength":3,"notes":"部队时期的老战友，转业后各奔东西。","created":"1970-01-01T00:00:00Z","updated":"1987-01-01T00:00:00Z"},
+    {"id":"c_guo","name":"郭平","relation":"同事","role":"华为轮值董事长","nature":"leverage","strength":4,"notes":"1990年代加入华为的核心高管之一，轮值董事长。","platforms":{"email":"guo@huawei.com"},"created":"1990-01-01T00:00:00Z","updated":"2020-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_sun","task":"和孙亚芳谈华为创业方向","priority":"P0","due":"","status":"pending","created":"1987-01-01T00:00:00Z"},
+    {"id":"t2","contact":"","task":"给研发团队写一封鼓舞信","priority":"P0","due":"","status":"pending","created":"1992-06-01T00:00:00Z"},
+    {"id":"t3","contact":"c_meng","task":"给孟晚舟写一封信","priority":"P0","due":"","status":"pending","created":"2018-12-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_sun","date":"1987-09-15","summary":"在深圳南山注册华为，凑了2.1万元，代理香港交换机。","sentiment":"positive","created":"1987-09-15T00:00:00Z"},
+    {"id":"tl2","contact":"","date":"1992-12-01","summary":"决定自主研发C&C08交换机，押上全部身家。","sentiment":"neutral","created":"1992-12-01T00:00:00Z"},
+    {"id":"tl3","contact":"c_meng","date":"2018-12-01","summary":"孟晚舟在温哥华转机时被加拿大拘押，美国要求引渡。","sentiment":"negative","created":"2018-12-01T00:00:00Z"}
+  ]
+}

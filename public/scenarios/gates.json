@@ -1,0 +1,34 @@
+{
+  "id": "gates",
+  "name": "Bill Gates",
+  "title": "Microsoft 创始人 / 慈善家",
+  "avatar": "💻",
+  "tagline": "从车库极客到世界首富，从软件到拯救世界",
+  "intro": "你是 Bill Gates。从哈佛辍学创办 Microsoft，到成为世界首富，再到捐出大部分财产做慈善。你的搭档、对手和家人，定义了你的人生。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1975 · 与 Paul Allen 创办 Microsoft","description":"你和童年好友 Paul Allen 在阿尔伯克基创办了 Microsoft。记录一次关于创业的对话。","type":"record_interaction","contact_names":["Paul Allen","Paul","Allen"],"keywords":["microsoft","创业","软件","basic","altair","start","合伙"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1980 · 与 IBM 签约，给团队写一封信","description":"你与 IBM 签下操作系统授权协议。拟写一封给团队的信。","type":"draft_message","keywords":["ibm","dos","操作系统","签约","未来","microsoft","团队","信"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"1985 · 与 Steve Jobs 的交锋","description":"Windows 1.0 发布，Jobs 指责你抄袭了 Mac 的图形界面。记录这次冲突。","type":"record_interaction","contact_names":["Steve Jobs","Jobs","乔布斯","Apple"],"keywords":["jobs","apple","windows","图形","抄袭","冲突","mac","界面"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"1995 · 与 Melinda 结婚，给朋友写一封信","description":"你与 Melinda French 在夏威夷结婚。拟写一封给朋友的信分享喜悦。","type":"draft_message","contact_names":["Melinda","Melinda French"],"keywords":["结婚","melinda","幸福","婚礼","夏威夷","信","未来","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2000 · 创立盖茨基金会，与 Warren 确认合作","description":"你创立盖茨基金会，Warren Buffett 承诺捐出大部分财产。记录一次与他的对话。","type":"record_interaction","contact_names":["Warren","Buffett","Warren Buffett"],"keywords":["基金会","慈善","buffett","捐","合作","gates","基金会","未来"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2021 · 与 Melinda 离婚，给三个孩子写一封信","description":"27年婚姻结束。拟写一封给三个孩子的信，告诉他们父母依然爱他们。","type":"draft_message","contact_names":["Jennifer","Rory","Phoebe","孩子","children"],"keywords":["离婚","melinda","孩子","爱","family","信","永远","父母"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_allen","name":"Paul Allen","relation":"同事","role":"Microsoft 联合创始人","nature":"nurture","strength":5,"notes":"童年好友，Microsoft 联合创始人。后来因股权分配产生裂痕，2018年去世。","platforms":{"email":"paul@vulcan.com"},"important_dates":[{"label":"去世","date":"2018-10-15"}],"created":"1975-01-01T00:00:00Z","updated":"2018-10-15T00:00:00Z"},
+    {"id":"c_jobs","name":"Steve Jobs","relation":"竞争对手","role":"Apple 联合创始人","nature":"dual","strength":3,"notes":"亦敌亦友。他骂你没品味，你佩服他的产品直觉。1997年你投了 Apple 1.5亿。","created":"1980-01-01T00:00:00Z","updated":"2011-01-01T00:00:00Z"},
+    {"id":"c_melinda","name":"Melinda French Gates","relation":"家人","role":"前妻","nature":"nurture","strength":4,"notes":"1987年在微软活动上相识，1995年结婚。2021年离婚，但继续共同管理基金会。","platforms":{"email":"melinda@gatesfoundation.org"},"important_dates":[{"label":"结婚纪念日","date":"1995-01-01"}],"created":"1987-01-01T00:00:00Z","updated":"2021-01-01T00:00:00Z"},
+    {"id":"c_buffett","name":"Warren Buffett","relation":"朋友","role":"Berkshire CEO","nature":"leverage","strength":5,"notes":"你最好的朋友。他承诺把大部分财产捐给盖茨基金会。","platforms":{"email":"buffett@berkshire.com"},"created":"1991-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"},
+    {"id":"c_ballmer","name":"Steve Ballmer","relation":"同事","role":"Microsoft 前 CEO","nature":"leverage","strength":4,"notes":"哈佛同学，你雇了他做第30号员工。他接任你做 CEO。","platforms":{"email":"ballmer@microsoft.com"},"created":"1980-01-01T00:00:00Z","updated":"2014-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_allen","task":"和 Paul Allen 谈创办 Microsoft","priority":"P0","due":"","status":"pending","created":"1975-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_jobs","task":"面对与 Jobs 的冲突","priority":"P1","due":"","status":"pending","created":"1985-01-01T00:00:00Z"},
+    {"id":"t3","contact":"c_melinda","task":"面对与 Melinda 的离婚","priority":"P0","due":"","status":"pending","created":"2021-05-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_allen","date":"1975-04-04","summary":"在阿尔伯克基和 Paul Allen 创办 Microsoft，为 Altair 开发 BASIC。","sentiment":"positive","created":"1975-04-04T00:00:00Z"},
+    {"id":"tl2","contact":"c_jobs","date":"1985-11-20","summary":"Windows 1.0 发布。Jobs 在 Apple 内部会议上指责你抄袭了 Mac 界面。","sentiment":"negative","created":"1985-11-20T00:00:00Z"},
+    {"id":"tl3","contact":"c_melinda","date":"2021-05-03","summary":"与 Melinda 联合宣布离婚。27年婚姻结束。","sentiment":"negative","created":"2021-05-03T00:00:00Z"}
+  ]
+}

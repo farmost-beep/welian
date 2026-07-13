@@ -1,0 +1,31 @@
+{
+  "id": "caodewang",
+  "name": "曹德旺",
+  "title": "福耀玻璃创始人",
+  "avatar": "🪟",
+  "tagline": "从放牛娃到玻璃大王，诚信是最大的资产",
+  "intro": "你是曹德旺。14岁辍学放牛，卖过烟丝、水果，后来做玻璃做到全球第一。你信佛，捐了上百亿做慈善。每一步都靠诚信和人品。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1976 · 进入玻璃厂，与厂长谈合作","description":"你从倒卖玻璃到进入高山异形玻璃厂当采购员。记录一次与厂长谈合作的对话。","type":"record_interaction","contact_names":["厂长","高山","玻璃厂"],"keywords":["玻璃","采购","合作","高山","工厂","start"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1983 · 承包玻璃厂，给工人写一封信","description":"你承包了高山异形玻璃厂，需要稳定工人信心。拟写一封给工人的信。","type":"draft_message","keywords":["承包","玻璃","工人","未来","信心","工资","工厂"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"1987 · 创办福耀，与合伙人确认方向","description":"合资创办福耀玻璃。记录一次关于汽车玻璃方向的对话。","type":"record_interaction","contact_names":["合伙人","福耀","股东"],"keywords":["福耀","汽车玻璃","合资","方向","fuyao"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2001 · 反倾销胜诉，给团队写一封信","description":"美国对中国玻璃反倾销，你打赢了官司。拟写一封给团队的信。","type":"draft_message","keywords":["反倾销","美国","胜诉","公平","福耀","团队","信心"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2010 · 捐建河仁慈善基金会，与妻子沟通","description":"你决定捐出大部分财产做慈善。妻子陈凤英一直支持你。记录一次与妻子的对话。","type":"record_interaction","contact_names":["陈凤英","妻子","老婆"],"keywords":["捐","慈善","基金会","财产","妻子","支持","河仁"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2020 · 给在美国的中国员工写一封信","description":"福耀美国工厂运营多年，中美员工有文化冲突。拟写一封给中国外派员工的信。","type":"draft_message","keywords":["美国","员工","文化","理解","尊重","福耀","工厂","沟通"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_wife","name":"陈凤英","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"结发妻子，不识几个字，但一直默默支持你。你把大部分财产捐了，她只说'你决定就好'。","important_dates":[{"label":"结婚纪念日","date":"1969-01-01"}],"created":"1969-01-01T00:00:00Z","updated":"2010-01-01T00:00:00Z"},
+    {"id":"c_son","name":"曹晖","relation":"家人","role":"长子","nature":"leverage","strength":4,"notes":"长子，福耀集团总经理。你希望他接班，但他有自己的想法。","platforms":{"email":"hui@fuyao.com"},"created":"1970-01-01T00:00:00Z","updated":"2020-01-01T00:00:00Z"},
+    {"id":"c_daichongwang","name":"戴崇旺","relation":"同事","role":"福耀老员工","nature":"nurture","strength":4,"notes":"跟着你从高山玻璃厂一路走来的老员工。","created":"1983-01-01T00:00:00Z","updated":"2001-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"","task":"和厂长谈进入玻璃厂","priority":"P0","due":"","status":"pending","created":"1976-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_wife","task":"和妻子谈捐财产做慈善","priority":"P0","due":"","status":"pending","created":"2010-01-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"","date":"1976-06-01","summary":"进入高山异形玻璃厂当采购员，开始接触玻璃行业。","sentiment":"positive","created":"1976-06-01T00:00:00Z"},
+    {"id":"tl2","contact":"","date":"1983-04-01","summary":"承包高山异形玻璃厂，第一年就盈利。","sentiment":"positive","created":"1983-04-01T00:00:00Z"},
+    {"id":"tl3","contact":"c_wife","date":"2010-06-01","summary":"宣布捐出大部分财产成立河仁慈善基金会。妻子只说了一句'你决定就好'。","sentiment":"positive","created":"2010-06-01T00:00:00Z"}
+  ]
+}

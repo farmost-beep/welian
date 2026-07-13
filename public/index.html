@@ -1335,7 +1335,7 @@ let simulationPersona = null;
 let simulationData = null;
 let simulationGoals = [];
 
-const SCENARIO_IDS = ['jobs', 'musk', 'zhang', 'obama'];
+const SCENARIO_IDS = ['jobs', 'musk', 'zhang', 'obama', 'renzhengfei', 'leijun', 'wangxing', 'caodewang', 'dongmingzhu', 'buffett', 'bezos', 'gates', 'zhouxingchi', 'lian', 'maotai', 'yanglan', 'maotai2'];
 
 async function showScenarioPicker() {
   const picker = document.getElementById('scenarioPicker');
@@ -1348,15 +1348,23 @@ async function showScenarioPicker() {
     const scenarios = await Promise.all(
       SCENARIO_IDS.map(id => fetch(`/scenarios/${id}.json`).then(r => r.json()))
     );
-    cards.innerHTML = scenarios.map(s => `
+    // Randomly pick 5
+    const shuffled = [...scenarios].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, 5);
+    cards.innerHTML = picked.map(s => `
       <div class="scenario-card" onclick="startSimulation('${s.id}')">
         <div class="scenario-card-avatar">${s.avatar}</div>
         <div class="scenario-card-name">${s.name}</div>
         <div class="scenario-card-title">${s.title}</div>
         <div class="scenario-card-tagline">${s.tagline}</div>
-        <div class="scenario-card-goals">🎯 ${s.goals.length} 个目标需要完成</div>
+        <div class="scenario-card-goals">🎯 ${s.goals.length} 个目标 · 按时间线推进</div>
       </div>
     `).join('');
+    // Add refresh button
+    const refreshDiv = document.createElement('div');
+    refreshDiv.style.cssText = 'text-align:center;margin-top:16px;';
+    refreshDiv.innerHTML = '<button onclick="showScenarioPicker()" style="padding:8px 20px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--dim);font-size:.85em;cursor:pointer;">🔄 换一批</button>';
+    cards.appendChild(refreshDiv);
   } catch (e) {
     cards.innerHTML = '<p style="color:#C65D5D;font-size:.8em">加载失败：' + e.message + '</p>';
   }
@@ -1897,10 +1905,13 @@ function addSuggestions() {
 
     // Override with scenario-specific suggestions for first goal
     if (currentGoal && currentGoal.id === 'g1') {
-      if (sid === 'jobs') suggestions = ['有什么待办？', '记一下今天和 Wozniak 谈了合伙分工', '帮我拟一条给 Mac 团队的打气消息'];
-      else if (sid === 'musk') suggestions = ['有什么待办？', '记一下今天和 Kimbal 谈了 Zip2 创业分工', '该联系谁？'];
-      else if (sid === 'zhang') suggestions = ['有什么待办？', '记一下今天和梁汝波谈了创业方向', '该联系谁？'];
-      else if (sid === 'obama') suggestions = ['有什么待办？', '记一下今天和 Cynthia 聊了大学和梦想', '该联系谁？'];
+      const firstContact = currentGoal.contact_names?.[0] || '';
+      const firstKeyword = currentGoal.keywords?.[0] || '';
+      suggestions = [
+        '有什么待办？',
+        `记一下今天和 ${firstContact} 聊了关于${firstKeyword}的事`,
+        '该联系谁？',
+      ];
     }
   } else {
     // Normal mode: general suggestions

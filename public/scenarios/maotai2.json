@@ -1,0 +1,32 @@
+{
+  "id": "maotai2",
+  "name": "褚时健",
+  "title": "红塔山 / 褚橙创始人",
+  "avatar": "🍊",
+  "tagline": "从烟王到橙王，75岁再创业的传奇",
+  "intro": "你是褚时健。把红塔山做成中国第一品牌，71岁入狱，女儿自杀。74岁保外就医后承包荒山种橙子，75岁再创业。你的人生是永不放弃。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1979 · 接手玉溪卷烟厂，与团队确认方向","description":"你接手濒临倒闭的玉溪卷烟厂。记录一次关于改革方向的对话。","type":"record_interaction","contact_names":["团队","玉溪","烟厂"],"keywords":["玉溪","烟厂","改革","红塔山","方向","start","卷烟"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1990 · 红塔山崛起，给烟农写一封信","description":"红塔山成为全国第一品牌。拟写一封给烟农的感谢信。","type":"draft_message","keywords":["红塔山","烟农","感谢","品质","未来","信","第一"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"1996 · 落马入狱，给妻子写一封信","description":"你因经济问题被调查，女儿在狱中自杀。拟写一封给妻子马静芬的信。","type":"draft_message","contact_names":["马静芬","妻子","静芬"],"keywords":["女儿","妻子","抱歉","信","对不起","想念","坚强","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2002 · 保外就医，与马静芬确认种橙","description":"74岁保外就医，你决定承包荒山种冰糖橙。马静芬陪你一起。记录一次关于再创业的对话。","type":"record_interaction","contact_names":["马静芬","妻子","静芬"],"keywords":["橙子","褚橙","种橙","创业","荒山","新寨","妻子","再创业"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2012 · 褚橙进京，给消费者写一封信","description":"褚橙首次通过电商进入北京市场，一橙难求。拟写一封给消费者的信。","type":"draft_message","keywords":["褚橙","消费者","品质","感谢","信","电商","北京","人生"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2018 · 给马静芬写一封感谢信","description":"你90岁了，马静芬陪你走过了烟王、入狱、橙王的全部人生。拟写一封给她的感谢信。","type":"draft_message","contact_names":["马静芬","妻子","静芬"],"keywords":["马静芬","感谢","妻子","一生","年","陪伴","信","爱"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_wife","name":"马静芬","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"陪你走过烟王、入狱、橙王的全部人生。你入狱时她独自承受，女儿自杀时她没告诉你。","important_dates":[{"label":"结婚纪念日","date":"1955-01-01"}],"created":"1955-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"},
+    {"id":"c_daughter","name":"褚映群","relation":"家人","role":"女儿","nature":"nurture","strength":5,"notes":"你被调查时她也被关押，1996年在狱中自杀。这是你一生最大的痛。","important_dates":[{"label":"去世","date":"1996-12-01"}],"created":"1965-01-01T00:00:00Z","updated":"1996-12-01T00:00:00Z"},
+    {"id":"c_son","name":"褚一斌","relation":"家人","role":"儿子","nature":"leverage","strength":4,"notes":"在国外生活多年，后来回国帮你打理褚橙庄园。","platforms":{"phone":"私人号码"},"created":"1963-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"","task":"和团队确认玉溪烟厂改革方向","priority":"P0","due":"","status":"pending","created":"1979-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_wife","task":"给马静芬写一封信","priority":"P0","due":"","status":"pending","created":"1996-01-01T00:00:00Z"},
+    {"id":"t3","contact":"c_wife","task":"和马静芬确认种橙再创业","priority":"P0","due":"","status":"pending","created":"2002-01-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"","date":"1979-10-01","summary":"接手玉溪卷烟厂，开始大刀阔斧改革。","sentiment":"positive","created":"1979-10-01T00:00:00Z"},
+    {"id":"tl2","contact":"c_daughter","date":"1996-12-05","summary":"女儿褚映群在狱中自杀。你一生最大的痛。","sentiment":"negative","created":"1996-12-05T00:00:00Z"},
+    {"id":"tl3","contact":"c_wife","date":"2002-01-01","summary":"74岁保外就医，与马静芬承包新寨荒山种冰糖橙。","sentiment":"neutral","created":"2002-01-01T00:00:00Z"}
+  ]
+}

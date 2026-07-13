@@ -1,0 +1,34 @@
+{
+  "id": "buffett",
+  "name": "Warren Buffett",
+  "title": "Berkshire Hathaway CEO",
+  "avatar": "📈",
+  "tagline": "从送报纸到股神，价值投资与人生伙伴",
+  "intro": "你是 Warren Buffett。从11岁买第一只股票到成为世界首富，你的投资哲学影响了无数人。但最重要的投资，是身边的关系。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1950 · 拜师 Graham，确认学习方向","description":"你读完 Benjamin Graham 的《聪明的投资者》后，决定去哥伦比亚大学跟他学习。记录一次关于价值投资的对话。","type":"record_interaction","contact_names":["Graham","Benjamin Graham","格雷厄姆"],"keywords":["投资","价值","graham","学习","股票","value","invest"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1959 · 与 Charlie Munger 的第一次见面","description":"你和 Munger 的第一次见面改变了一生。记录这次历史性的相遇。","type":"record_interaction","contact_names":["Munger","Charlie Munger","Charlie"],"keywords":["munger","charlie","见面","投资","合伙","partner","smart","智慧"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"1965 · 收购 Berkshire，给股东写一封信","description":"你收购了濒临破产的纺织厂 Berkshire Hathaway。拟写一封给股东的信。","type":"draft_message","keywords":["berkshire","股东","投资","未来","纺织","转型","berkshire","letter"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2006 · 宣布捐出大部分财产，给孩子们写一封信","description":"你决定把大部分财富捐给盖茨基金会。拟写一封给三个孩子的信，解释这个决定。","type":"draft_message","contact_names":["Susie","Howie","Peter","孩子","children"],"keywords":["捐","慈善","基金会","孩子","财富","gates","未来","信"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2010 · 与 Bill Gates 的友谊","description":"你和 Bill Gates 是最好的朋友，一起打桥牌、做慈善。记录一次与他的对话。","type":"record_interaction","contact_names":["Bill Gates","Gates","比尔"],"keywords":["gates","慈善","桥牌","朋友","友谊","基金会","bill"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2023 · 给 Munger 写一封感谢信","description":"Munger 在2023年去世。你们合作了60多年。拟写一封给他的告别信。","type":"draft_message","contact_names":["Munger","Charlie"],"keywords":["munger","charlie","感谢","友谊","60","年","智慧","搭档","miss"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_graham","name":"Benjamin Graham","relation":"导师","role":"价值投资之父","nature":"leverage","strength":5,"notes":"你的老师和精神导师。他教你'在别人贪婪时恐惧，在别人恐惧时贪婪'。","platforms":{"email":"graham@columbia.edu"},"created":"1950-01-01T00:00:00Z","updated":"1950-01-01T00:00:00Z"},
+    {"id":"c_munger","name":"Charlie Munger","relation":"同事","role":"Berkshire 副主席","nature":"leverage","strength":5,"notes":"你60多年的搭档和挚友。他说'反过来想，总是反过来想'。2023年去世。","platforms":{"email":"munger@berkshire.com"},"important_dates":[{"label":"去世","date":"2023-11-28"}],"leverage":{"goals":"Berkshire投资决策","how":"每日对话"},"created":"1959-01-01T00:00:00Z","updated":"2023-11-28T00:00:00Z"},
+    {"id":"c_gates","name":"Bill Gates","relation":"朋友","role":"Microsoft 创始人","nature":"leverage","strength":5,"notes":"你最好的朋友之一。一起打桥牌，你把大部分财产捐给了他的基金会。","platforms":{"email":"bill@gatesfoundation.org"},"created":"1991-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"},
+    {"id":"c_astrid","name":"Astrid Menks","relation":"家人","role":"妻子","nature":"nurture","strength":4,"notes":"2006年结婚。她生活简朴，和你一样住在奥马哈的老房子里。","created":"2006-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"},
+    {"id":"c_susie","name":"Susie Buffett","relation":"家人","role":"女儿","nature":"nurture","strength":4,"notes":"大女儿，负责 Buffett 基金会。你把大部分财产捐了，她完全支持。","created":"1953-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_graham","task":"和 Graham 确认学习价值投资","priority":"P0","due":"","status":"pending","created":"1950-01-01T00:00:00Z"},
+    {"id":"t2","contact":"c_munger","task":"记录与 Munger 的第一次见面","priority":"P0","due":"","status":"pending","created":"1959-01-01T00:00:00Z"},
+    {"id":"t3","contact":"c_munger","task":"给 Munger 写一封告别信","priority":"P0","due":"","status":"pending","created":"2023-11-28T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_graham","date":"1950-09-01","summary":"在哥伦比亚大学听 Graham 的课，他教你价值投资的根基。","sentiment":"positive","created":"1950-09-01T00:00:00Z"},
+    {"id":"tl2","contact":"c_munger","date":"1959-02-01","summary":"在奥马哈的一次晚宴上认识 Munger。你们一拍即合，聊了几个小时。","sentiment":"positive","created":"1959-02-01T00:00:00Z"},
+    {"id":"tl3","contact":"c_munger","date":"2023-11-28","summary":"Munger 在加州去世，享年99岁。你失去了60多年的搭档。","sentiment":"negative","created":"2023-11-28T00:00:00Z"}
+  ]
+}

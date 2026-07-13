@@ -1,0 +1,33 @@
+{
+  "id": "bezos",
+  "name": "Jeff Bezos",
+  "title": "Amazon / Blue Origin 创始人",
+  "avatar": "📦",
+  "tagline": "从车库电商到太空旅行，Day One 永不结束",
+  "intro": "你是 Jeff Bezos。从华尔街辞职，在车库创办 Amazon，做到全球最大电商，又创立 Blue Origin 追逐太空梦。你的信条是 Day One。",
+  "sequential_goals": true,
+  "goals": [
+    {"id":"g1","title":"1994 · 辞职创业，与 Mackenzie 确认方向","description":"你从华尔街 D.E. Shaw 辞职，和妻子 Mackenzie 开车去西雅图创办 Amazon。记录一次关于创业方向的对话。","type":"record_interaction","contact_names":["Mackenzie","Mackenzie Scott","妻子"],"keywords":["amazon","创业","辞职","车库","书","电商","start","西雅图"],"need_all_keywords":false,"count":1},
+    {"id":"g2","title":"1997 · Amazon 上市，给股东写第一封信","description":"Amazon 在纳斯达克上市。拟写第一封给股东的信，阐述 Day One 理念。","type":"draft_message","keywords":["amazon","股东","day one","上市","ipo","长期","未来","信"],"need_all_keywords":false,"count":1},
+    {"id":"g3","title":"2000 · 创立 Blue Origin，给团队写一封信","description":"你秘密创立了太空公司 Blue Origin。拟写一封给早期团队的信。","type":"draft_message","keywords":["blue origin","太空","火箭","梦想","未来","space","人类","信"],"need_all_keywords":false,"count":1},
+    {"id":"g4","title":"2013 · 收购华盛顿邮报，给读者写一封信","description":"你以2.5亿美元收购了华盛顿邮报。拟写一封给读者的公开信。","type":"draft_message","keywords":["华盛顿邮报","washington post","新闻","自由","读者","信","未来","新闻"],"need_all_keywords":false,"count":1},
+    {"id":"g5","title":"2019 · 与 Mackenzie 离婚，给员工写一封信","description":"你和 Mackenzie 离婚了。拟写一封给 Amazon 员工的信，稳定军心。","type":"draft_message","contact_names":["Mackenzie","Mackenzie Scott"],"keywords":["离婚","mackenzie","感谢","员工","amazing","未来","个人","信"],"need_all_keywords":false,"count":1},
+    {"id":"g6","title":"2021 · 卸任 Amazon CEO，给股东写最后一封信","description":"你卸任 Amazon CEO，专注 Blue Origin。拟写最后一封给股东的信。","type":"draft_message","keywords":["ceo","卸任","day one","感谢","股东","未来","blue origin","太空"],"need_all_keywords":false,"count":1}
+  ],
+  "contacts":[
+    {"id":"c_mackenzie","name":"Mackenzie Scott","relation":"家人","role":"前妻 / 作家","nature":"nurture","strength":4,"notes":"Amazon 的第一位员工，在车库写早期订单。2019年离婚，她分得4%股份并捐出大量财富。","platforms":{"email":"mackenzie@mackenziescott.com"},"important_dates":[{"label":"结婚纪念日","date":"1993-09-04"}],"created":"1993-09-04T00:00:00Z","updated":"2019-01-01T00:00:00Z"},
+    {"id":"c_jassy","name":"Andy Jassy","relation":"同事","role":"Amazon 继任 CEO","nature":"leverage","strength":4,"notes":"AWS 的缔造者，你卸任后他接任 Amazon CEO。","platforms":{"email":"jassy@amazon.com"},"leverage":{"goals":"Amazon CEO 交接","how":"直接沟通"},"created":"2003-01-01T00:00:00Z","updated":"2021-01-01T00:00:00Z"},
+    {"id":"c_bezos_mom","name":"Jackie Bezos","relation":"家人","role":"母亲","nature":"nurture","strength":5,"notes":"你4岁时她带你从古巴裔继父姓 Bezos。她一直支持你的太空梦。","created":"1964-01-01T00:00:00Z","updated":"2021-01-01T00:00:00Z"},
+    {"id":"c_sanchez","name":"Lauren Sanchez","relation":"家人","role":"未婚妻","nature":"nurture","strength":4,"notes":"前电视主持人，现在和你一起做 Blue Origin 和慈善。","created":"2019-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"}
+  ],
+  "todos":[
+    {"id":"t1","contact":"c_mackenzie","task":"和 Mackenzie 确认创业方向","priority":"P0","due":"","status":"pending","created":"1994-06-01T00:00:00Z"},
+    {"id":"t2","contact":"","task":"给股东写第一封 Day One 信","priority":"P0","due":"","status":"pending","created":"1997-05-01T00:00:00Z"},
+    {"id":"t3","contact":"c_mackenzie","task":"面对与 Mackenzie 的离婚","priority":"P0","due":"","status":"pending","created":"2019-01-01T00:00:00Z"}
+  ],
+  "timeline":[
+    {"id":"tl1","contact":"c_mackenzie","date":"1994-07-05","summary":"在贝尔维尤的车库创办 Amazon。Mackenzie 开车送你从纽约到西雅图，路上你写商业计划。","sentiment":"positive","created":"1994-07-05T00:00:00Z"},
+    {"id":"tl2","contact":"","date":"1997-05-15","summary":"Amazon 在纳斯达克上市，发行价18美元。你在第一封股东信中写下 Day One。","sentiment":"positive","created":"1997-05-15T00:00:00Z"},
+    {"id":"tl3","contact":"c_mackenzie","date":"2019-01-09","summary":"与 Mackenzie 联合宣布离婚。25年婚姻结束。","sentiment":"negative","created":"2019-01-09T00:00:00Z"}
+  ]
+}
