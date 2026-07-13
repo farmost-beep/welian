@@ -802,8 +802,12 @@ async function enableCloudMode() {
 
 async function getAgentContext(text) {
   // Ask local agent for edge data context (contacts, todos, activities)
-  // Returns {intent, data_context, conversation} or null if agent unavailable
-  if (!bridgeFrame || !bridgeReady) return null;
+  // Returns {data_context, conversation} or null if agent unavailable
+  if (!bridgeFrame || !bridgeReady) {
+    console.log('[getAgentContext] No bridge available');
+    return null;
+  }
+  console.log('[getAgentContext] Requesting context for:', text.substring(0, 50));
   return new Promise((resolve) => {
     const reqId = 'ctx_' + Date.now();
     let resolved = false;
@@ -814,23 +818,27 @@ async function getAgentContext(text) {
       if (msg.type === 'ws-message' && msg.data && msg.data.id === reqId && !resolved) {
         resolved = true;
         window.removeEventListener('message', handler);
+        console.log('[getAgentContext] Got response:', msg.data.type, 'has data:', !!msg.data.data);
         if (msg.data.type === 'response' && msg.data.data) {
+          console.log('[getAgentContext] data_context length:', (msg.data.data.data_context || '').length);
           resolve(msg.data.data);
         } else {
+          console.log('[getAgentContext] No data in response');
           resolve(null);
         }
       }
     };
     window.addEventListener('message', handler);
 
-    // Timeout: if agent doesn't respond in 3s, give up
+    // Timeout: if agent doesn't respond in 5s, give up
     setTimeout(() => {
       if (!resolved) {
         resolved = true;
         window.removeEventListener('message', handler);
+        console.log('[getAgentContext] TIMEOUT — agent did not respond in 5s');
         resolve(null);
       }
-    }, 3000);
+    }, 5000);
 
     bridgeFrame.contentWindow.postMessage({
       source: 'welian-parent',
@@ -854,11 +862,13 @@ function saveAgentTurn(text, reply) {
 async function cloudChat(text) {
   // Use Clerk user ID as user_token for billing identity
   const userToken = clerkUserId || 'web-anonymous-' + Date.now();
+  console.log('[cloudChat] Start, bridgeReady:', bridgeReady, 'isLive:', isLive);
 
   // Step 1: If agent bridge is available, get edge data context
   let agentContext = null;
   if (bridgeFrame && bridgeReady) {
     agentContext = await getAgentContext(text);
+    console.log('[cloudChat] agentContext:', agentContext ? 'got it' : 'null', 'data_context len:', agentContext ? (agentContext.data_context||'').length : 0);
   }
 
   // Step 2: Build messages for cloud LLM
@@ -882,17 +892,17 @@ async function cloudChat(text) {
   }
 
   // Build messages array: conversation history + current message
+  // Keep history short to avoid LLM timeout on large payloads
   const messages = [];
   if (agentContext && agentContext.conversation && agentContext.conversation.length > 0) {
-    // Use agent's conversation history (has full edge-side context)
-    messages.push(...agentContext.conversation.slice(-10));
+    messages.push(...agentContext.conversation.slice(-4));
   } else if (conversationHistory.length > 0) {
-    // Fallback: browser-side conversation history
-    messages.push(...conversationHistory.slice(-10));
+    messages.push(...conversationHistory.slice(-4));
   }
   messages.push({ role: 'user', content: userContent });
 
   // Step 3: Call cloud LLM
+  console.log('[cloudChat] Calling cloud LLM, messages:', messages.length, 'total content len:', messages.reduce((a,m)=>a+(m.content||'').length,0));
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/chat`, {
       method: 'POST',
@@ -905,12 +915,14 @@ async function cloudChat(text) {
       }),
     });
 
+    console.log('[cloudChat] Cloud response status:', resp.status);
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${resp.status}`);
     }
 
     const data = await resp.json();
+    console.log('[cloudChat] Cloud reply length:', (data.reply||'').length);
 
     // Update conversation history (both browser-side and agent-side)
     conversationHistory.push({ role: 'user', content: text });
@@ -943,41 +955,41 @@ async function autoConnectAgent() {
 
 async function tryUpgradeToLive() {
   // Phase 1: try direct tunnel URL
-  console.log('Background: trying direct tunnel:', AGENT_TUNNEL_URL);
+  console.log('[tryUpgradeToLive] trying direct tunnel:', AGENT_TUNNEL_URL);
   try {
     const result = await tryBridgeConnect(AGENT_TUNNEL_URL, 'tunnel');
-    console.log('Direct tunnel result:', result);
+    console.log('[tryUpgradeToLive] tunnel result:', result);
     if (result === 'auth_ok') {
       upgradeToLive('tunnel');
       return;
     }
   } catch(e) {
-    console.log('Direct tunnel failed:', e.message);
-    removeBridge();
+    console.log('[tryUpgradeToLive] tunnel failed:', e.message);
   }
 
   // Phase 2: try discovery service
   if (clerkUserId) {
-    console.log('Background: looking up tunnel via discovery service…');
+    console.log('[tryUpgradeToLive] looking up tunnel via discovery…');
     try {
       const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
       const data = await resp.json();
       if (data.found && data.tunnel_url && data.tunnel_url !== AGENT_TUNNEL_URL) {
-        console.log('Found tunnel:', data.tunnel_url);
+        console.log('[tryUpgradeToLive] found tunnel:', data.tunnel_url);
         const result = await tryBridgeConnect(data.tunnel_url, 'discovery');
-        console.log('Discovery tunnel result:', result);
+        console.log('[tryUpgradeToLive] discovery result:', result);
         if (result === 'auth_ok') {
           upgradeToLive('discovery');
           return;
         }
       }
     } catch(e) {
-      console.log('Discovery lookup failed:', e.message);
+      console.log('[tryUpgradeToLive] discovery failed:', e.message);
     }
   }
 
   // No local agent found — stay in cloud mode (already enabled)
-  console.log('No local agent found, staying in cloud mode');
+  // Keep bridgeFrame alive — bridge WebSocket might connect later
+  console.log('[tryUpgradeToLive] no agent found yet, staying in cloud mode');
 }
 
 function upgradeToLive(source) {
@@ -1014,10 +1026,25 @@ function tryBridgeConnect(url, label) {
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        console.log(`${label}: timeout. iframeLoaded=${iframeLoaded}`);
+        console.log(`${label}: TIMEOUT after 8s. iframeLoaded=${iframeLoaded}`);
+        // Don't remove iframe — it might connect later
+        // Register late-auth listener for delayed bridge connection
+        if (!bridgeReady) {
+          const lateHandler = (e) => {
+            const msg = e.data;
+            if (!msg || msg.source !== 'welian-bridge') return;
+            if (msg.type === 'ws-message' && msg.data && msg.data.type === 'auth_ok') {
+              console.log(`${label}: LATE auth_ok received!`);
+              bridgeReady = true;
+              window.removeEventListener('message', lateHandler);
+              upgradeToLive('late-' + label);
+            }
+          };
+          window.addEventListener('message', lateHandler);
+        }
         resolve('no_bridge');
       }
-    }, 4000);
+    }, 8000);
 
     // Create hidden iframe — agent injects token into the page
     bridgeFrame = document.createElement('iframe');
@@ -1034,7 +1061,6 @@ function tryBridgeConnect(url, label) {
       if (msg.type === 'ready') {
         console.log(`${label}: bridge ready`);
       } else if (msg.type === 'device-id') {
-        // Bridge sent us the device_id — link it to Clerk user for discovery
         console.log(`${label}: device_id=${msg.device_id}`);
         if (clerkUserId && msg.device_id) {
           fetch(`${DISCOVERY_URL}/discover/link`, {

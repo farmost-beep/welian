@@ -84,7 +84,8 @@ async function callLLM(prompt, system, env, options = {}) {
     });
 
     if (!resp.ok) {
-      console.error(`LLM error: ${resp.status} ${await resp.text()}`);
+      const errText = await resp.text();
+      console.error(`LLM error: ${resp.status} ${errText.substring(0, 500)}`);
       return null;
     }
 
