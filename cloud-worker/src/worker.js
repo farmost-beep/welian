@@ -497,22 +497,35 @@ JSON格式：
   "actions": []
 }
 
-actions 是需要执行的数据操作数组，每个元素：
+actions 是需要执行的数据操作数组。【关键】只有用户明确表达记录/提醒/添加意图时才生成 actions，否则 actions 必须为空数组 []。
+
+actions 元素格式：
 - {"type":"add_timeline","contact_name":"人名","summary":"互动摘要","date":"YYYY-MM-DD"}
 - {"type":"add_contact","name":"人名","relation":"关系","notes":"备注"}
 - {"type":"add_todo","task":"待办内容","contact_name":"关联人名","due":"YYYY-MM-DD","priority":"P0|P1|P2"}
 
-规则：
-- "老许啥情况" → intent=query_contact, contact_name="老许", keywords=["许","老许"], actions=[]
-- "有啥待办" → intent=query_todo, keywords=[], actions=[]
-- "记一下今天和老许聊了Q3预算" → intent=record, contact_name="老许", keywords=["许","老许"], actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"今天日期"}]
+【严格规则 — 必须遵守】：
+1. 生成 actions 的前提是用户消息中包含明确的记录/操作指令词：
+   - 记录类："记一下"、"记录"、"备注"、"补充"
+   - 提醒类："提醒我"、"待办"、"todo"、"别忘了"
+   - 添加类："认识了一个"、"新认识"、"加个联系人"、"存一下"
+2. 如果用户只是在查询、闲聊、或提到某个人但没说要记录 → actions=[]
+   - "老许啥情况" → actions=[]（查询，不是记录）
+   - "昨天和老许吃了饭" → actions=[]（陈述，没说"记一下"）
+   - "老许是做什么的" → actions=[]（查询）
+3. summary 和 task 必须直接来自用户消息的原话，不能改写、扩展或编造
+4. 如果用户没有提供日期，date 用今天日期
+5. 不能凭空创造人名——contact_name 必须在用户消息中明确出现
+
+示例：
+- "老许啥情况" → intent=query_contact, actions=[]
+- "有啥待办" → intent=query_todo, actions=[]
+- "记一下今天和老许聊了Q3预算" → intent=record, actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"今天日期"}]
 - "提醒我下周拜访张三" → intent=record, actions=[{"type":"add_todo","task":"拜访张三","contact_name":"张三","due":"下周五日期","priority":"P1"}]
 - "认识了一个新朋友李四，在腾讯做产品" → intent=record, actions=[{"type":"add_contact","name":"李四","relation":"朋友","notes":"腾讯产品"}]
-- "帮我给老许写个消息" → intent=draft, contact_name="老许", keywords=["许","老许"], actions=[]
-- "你好" → intent=chat, keywords=[], actions=[]
-- 昵称/简称都要提取（如"老许"→keywords包含"许"）
-- 日期用 YYYY-MM-DD 格式，"今天"用实际日期，"下周"用实际日期
-- 只有用户明确要记录/提醒/添加时才生成 actions，查询和闲聊不生成`;
+- "昨天和老许吃了饭" → intent=chat, actions=[]（用户没说"记一下"，不自动记录）
+- "帮我给老许写个消息" → intent=draft, actions=[]
+- "你好" → intent=chat, actions=[]`;
 
   try {
     const llmResp = await callLLM(text, system, env, {
