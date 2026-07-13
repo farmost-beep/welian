@@ -6,10 +6,32 @@
 <title>Welian — 绑定微信</title>
 <meta name="theme-color" content="#F5F4EE">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<!-- Clerk — authentication -->
 <script defer crossorigin="anonymous"
   src="https://fancy-kingfish-81.clerk.accounts.dev/npm/@clerk/clerk-js@4/dist/clerk.browser.js"
   data-clerk-publishable-key="pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA"
   type="text/javascript"></script>
+<script>
+// Load Clerk UI bundle (required for mountSignIn/mountSignUp)
+async function loadClerkUI(publishableKey) {
+  try {
+    const clerkDomain = atob(publishableKey.split('_')[2]).slice(0, -1);
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://${clerkDomain}/npm/@clerk/ui@1/dist/ui.browser.js`;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Failed to load Clerk UI'));
+      document.head.appendChild(script);
+    });
+    return true;
+  } catch(e) {
+    console.log('Clerk UI load failed:', e.message);
+    return false;
+  }
+}
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -25,9 +47,10 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 .status.ok{background:#E8F0E8;color:var(--green);display:block}
 .status.err{background:#F2E8E0;color:var(--accent);display:block}
 .status.loading{background:#E8E8F0;color:#4A5C7C;display:block}
-.btn{background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;width:100%}
-.btn:disabled{opacity:.5;cursor:not-allowed}
 .wechat-id{font-family:monospace;font-size:13px;color:var(--dim);background:var(--bg);padding:4px 8px;border-radius:4px;display:inline-block;margin:4px 0}
+.user-info{background:var(--bg);border-radius:12px;padding:20px;margin:16px 0}
+.user-info .name{font-size:18px;font-weight:600;margin-bottom:4px}
+.user-info .email{font-size:14px;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -37,9 +60,11 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
   <div id="clerk-mount"></div>
   <div id="status" class="status"></div>
   <div id="bound-section" style="display:none">
-    <p style="margin-bottom:12px">已绑定微信账号：</p>
-    <p class="wechat-id" id="bound-wechat"></p>
-    <p style="margin-top:16px;color:var(--dim);font-size:13px">现在可以在微信里直接和小维聊天了 ✨</p>
+    <div class="user-info">
+      <div class="name" id="bound-name"></div>
+      <div class="email" id="bound-email"></div>
+    </div>
+    <p style="color:var(--dim);font-size:13px">现在可以在微信里直接和小维聊天了 ✨</p>
   </div>
 </div>
 
@@ -47,18 +72,15 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 const API = 'https://api.welian.app';
 const PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 
-// Get wechat_user_id from URL params
 const params = new URLSearchParams(location.search);
 const wechatId = params.get('wid') || params.get('wechat_id') || '';
+let bindAttempted = false;
 
 if (!wechatId) {
   showStatus('err', '缺少微信用户 ID。请从微信里的 /login 命令打开此链接。');
 } else {
-  document.getElementById('bound-wechat').textContent = wechatId;
   initClerk();
 }
-
-let bindAttempted = false;
 
 async function initClerk() {
   // Wait for Clerk to load
@@ -68,6 +90,9 @@ async function initClerk() {
       if (window.Clerk) { clearInterval(interval); resolve(); }
     }, 100);
   });
+
+  // Load Clerk UI bundle (required for mountSignIn)
+  await loadClerkUI(PUBLISHABLE_KEY);
 
   try {
     await window.Clerk.load();
@@ -82,7 +107,7 @@ async function initClerk() {
     await mountSignIn();
   }
 
-  // Poll for login completion (fallback for Clerk listener not firing)
+  // Poll for login completion
   const pollInterval = setInterval(async () => {
     if (window.Clerk.user && !bindAttempted) {
       bindAttempted = true;
@@ -91,25 +116,18 @@ async function initClerk() {
       await doBind();
     }
   }, 500);
-
-  // Stop polling after 5 minutes
   setTimeout(() => clearInterval(pollInterval), 300000);
 }
 
 async function mountSignIn() {
   const mountEl = document.getElementById('clerk-mount');
+  // Fresh div each time (Clerk can't re-mount on same element)
   mountEl.innerHTML = '<div id="clerk-signin"></div>';
   const signinEl = document.getElementById('clerk-signin');
-
   try {
     await window.Clerk.mountSignIn(signinEl);
   } catch(e) {
-    // Fallback: try Clerk UI mount
-    try {
-      await window.Clerk.__internal_mountSignIn(signinEl);
-    } catch(e2) {
-      showStatus('err', '登录组件加载失败：' + e.message);
-    }
+    showStatus('err', '登录组件加载失败：' + e.message);
   }
 }
 
@@ -119,7 +137,7 @@ async function doBind() {
   showStatus('loading', '正在绑定...');
 
   try {
-    // Wait for session to be ready
+    // Wait for session
     let session = window.Clerk.session;
     let retries = 0;
     while (!session && retries < 10) {
@@ -127,7 +145,6 @@ async function doBind() {
       session = window.Clerk.session;
       retries++;
     }
-
     if (!session) {
       showStatus('err', '登录会话未就绪，请刷新页面重试');
       bindAttempted = false;
@@ -142,19 +159,20 @@ async function doBind() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        wechat_user_id: wechatId,
-      }),
+      body: JSON.stringify({ wechat_user_id: wechatId }),
     });
 
     const data = await resp.json();
 
     if (resp.ok && data.ok) {
+      // Show user info
       const name = data.name || '';
       const email = data.email || '';
-      showStatus('ok', `✅ 绑定成功！${name ? '账号：' + name : ''} ${email ? '(' + email + ')' : ''}`);
+      document.getElementById('bound-name').textContent = name || '已绑定';
+      document.getElementById('bound-email').textContent = email || '';
       document.getElementById('bound-section').style.display = 'block';
       document.getElementById('clerk-mount').style.display = 'none';
+      showStatus('ok', '✅ 绑定成功！');
     } else {
       showStatus('err', data.error || '绑定失败');
       bindAttempted = false;
