@@ -32,42 +32,126 @@ const CORS_HEADERS = {
 
 // ── Auth: verify Clerk JWT and extract user_id ──
 
+// Clerk JWT is RS256 signed. We verify using JWKS from Clerk's well-known endpoint.
+// JWKS is cached in memory to avoid fetching on every request.
+let _jwksCache = null;
+let _jwksCacheTime = 0;
+
+async function getClerkJwks(clerkDomain) {
+  // Cache JWKS for 1 hour
+  const now = Date.now();
+  if (_jwksCache && (now - _jwksCacheTime) < 3600000) {
+    return _jwksCache;
+  }
+
+  const resp = await fetch(`https://${clerkDomain}/.well-known/jwks.json`);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch JWKS: ${resp.status}`);
+  }
+  _jwksCache = await resp.json();
+  _jwksCacheTime = now;
+  return _jwksCache;
+}
+
+// Convert base64url to ArrayBuffer
+function base64urlToBuffer(base64url) {
+  // Add padding
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// Convert JWK (RSA public key) to CryptoKey for signature verification
+async function jwkToCryptoKey(jwk) {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+}
+
+// Verify a Clerk JWT and extract user_id
 async function verifyClerkToken(token, env) {
-  // Verify a Clerk session JWT via Clerk Backend API
-  // Returns { user_id, valid: true } or { valid: false }
   if (!token || typeof token !== 'string') {
     return { valid: false };
   }
 
-  const clerkKey = env.CLERK_SECRET_KEY;
-  if (!clerkKey) {
-    console.error('CLERK_SECRET_KEY not set');
-    return { valid: false };
-  }
+  // Clerk domain from publishable key (hardcoded for now, or derive from env)
+  const clerkDomain = env.CLERK_FRONTEND_DOMAIN || 'fancy-kingfish-81.clerk.accounts.dev';
 
   try {
-    const resp = await fetch('https://api.clerk.com/v1/sessions/verify', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${clerkKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    });
-
-    if (!resp.ok) {
+    // Split JWT into parts
+    const parts = token.split('.');
+    if (parts.length !== 3) {
       return { valid: false };
     }
 
-    const data = await resp.json();
-    // Clerk returns session with user_id in sub
-    const userId = data.sub || (data.user && data.user.id);
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    // Decode header and payload
+    const header = JSON.parse(new TextDecoder().decode(base64urlToBuffer(headerB64)));
+    const payload = JSON.parse(new TextDecoder().decode(base64urlToBuffer(payloadB64)));
+
+    // Check expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      console.error('JWT expired');
+      return { valid: false };
+    }
+
+    // Check issuer
+    const expectedIss = `https://${clerkDomain}`;
+    if (payload.iss && payload.iss !== expectedIss) {
+      console.error(`JWT issuer mismatch: ${payload.iss} vs ${expectedIss}`);
+      return { valid: false };
+    }
+
+    // Get kid from header, find matching key in JWKS
+    const kid = header.kid;
+    if (!kid) {
+      return { valid: false };
+    }
+
+    const jwks = await getClerkJwks(clerkDomain);
+    const jwk = jwks.keys.find(k => k.kid === kid);
+    if (!jwk) {
+      console.error(`JWKS key not found for kid: ${kid}`);
+      return { valid: false };
+    }
+
+    // Verify signature
+    const cryptoKey = await jwkToCryptoKey(jwk);
+    const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+    const signature = base64urlToBuffer(signatureB64);
+
+    const valid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      signature,
+      data
+    );
+
+    if (!valid) {
+      console.error('JWT signature verification failed');
+      return { valid: false };
+    }
+
+    // Extract user_id from 'sub' claim
+    const userId = payload.sub;
     if (!userId) {
       return { valid: false };
     }
+
     return { valid: true, user_id: userId };
   } catch (e) {
-    console.error('Clerk verify failed:', e.message);
+    console.error('JWT verification error:', e.message);
     return { valid: false };
   }
 }
