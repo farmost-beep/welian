@@ -284,7 +284,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
         <input id="input" type="text" data-i18n-ph="input_ph" placeholder="跟 Welian 聊聊…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
         <button class="send" onclick="send()">→</button>
       </div>
-      <div class="input-hint" data-i18n="privacy">Your data stays on your device.</div>
     </div>
   </div>
 <!-- Scenario picker (modal) -->
@@ -391,14 +390,14 @@ const I18N = {
     phone_countdown: 's to resend',
     looking: 'Connecting…',
     connecting: 'Connecting…',
-    connected: "Connected ✅\n\nYour data stays on your device. I only see what you tell me.\n\nTry \"who to reach out to\" or \"note: met with X about Y\"",
+    connected: "Connected ✅\n\nYour data is in the cloud, I only see what you tell me.\n\nTry \"who to reach out to\" or \"note: met with X about Y\"",
     not_found: 'Local data not found',
     not_found_desc: 'Your data stays on your computer. Start Welian on your computer to connect.',
     retry: 'Retry',
-    cloud_status: 'Online',
+    cloud_status: 'Cloud',
     cloud_welcome: "Hi, I'm Welian 😊\n\nI can help you think through relationships, draft messages, and suggest who to reach out to.\n\nTry these:\n• \"note: met with John about the project\"\n• \"who should I reach out to?\"\n• \"draft a message to Sarah\"\n\nWhat's on your mind?",
     cloud_error: 'Error: ',
-    live_upgraded: 'Connected to your local data ✅ Full features now available.',
+    live_upgraded: 'Local agent connected ✅ Data synced from your device.',
     live_available: '💡 Local data detected! Refresh to enable full features.',
   },
   zh: {
@@ -441,14 +440,14 @@ const I18N = {
     phone_countdown: 's 后重发',
     looking: '正在连接…',
     connecting: '连接中…',
-    connected: "已连接 ✅\n\n你的数据在你的设备上，我只看到你告诉我的。\n\n试试：\"该联系谁\" 或 \"记一下今天和X聊了Y\"",
+    connected: "已连接 ✅\n\n你的数据在云端，我只看到你告诉我的。\n\n试试：\"该联系谁\" 或 \"记一下今天和X聊了Y\"",
     not_found: '未找到本地数据',
     not_found_desc: '你的关系数据留在你的电脑上。请在电脑上启动 Welian 来连接。',
     retry: '重试',
-    cloud_status: '在线',
+    cloud_status: '云端',
     cloud_welcome: "你好！我是小维 😊\n\n我可以帮你梳理关系、拟写消息、建议该联系谁。\n\n试试这些：\n• \"记一下今天和老王吃了饭\"\n• \"该联系谁了？\"\n• \"帮我给张总写条消息\"\n\n今天想聊什么？",
     cloud_error: '出错了：',
-    live_upgraded: '已连接到本地数据 ✅ 完整功能已启用。',
+    live_upgraded: '本地 agent 已连接 ✅ 数据从你的设备同步。',
     live_available: '💡 检测到本地数据！刷新页面可启用完整功能。',
   },
 };
@@ -1017,6 +1016,68 @@ async function cloudSearch(keywords, contactName) {
   }
 }
 
+// ── Cloud-native list helpers (full cloud mode, no agent needed) ──
+
+async function cloudListTodos() {
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
+  if (!token) return '';
+  try {
+    const resp = await fetch(`${CLOUD_URL}/data/todos`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!resp.ok) return '';
+    const data = await resp.json();
+    const todos = data.todos || [];
+    if (todos.length === 0) return '待办：暂无记录';
+    const today = new Date().toISOString().substring(0, 10);
+    const lines = [`【待办】共 ${todos.length} 条`];
+    for (const t of todos) {
+      const due = (t.due || '').substring(0, 10);
+      const task = (t.task || '').substring(0, 80);
+      const contact = t.contact || '';
+      if (due) {
+        const delta = Math.floor((new Date(due) - new Date(today)) / 86400000);
+        if (delta < 0) lines.push(`  · [${contact}] ${task}（超期${-delta}天）`);
+        else if (delta === 0) lines.push(`  · [${contact}] ${task}（今天）`);
+        else lines.push(`  · [${contact}] ${task}（${delta}天后）`);
+      } else {
+        lines.push(`  · [${contact}] ${task}`);
+      }
+    }
+    return lines.join('\n');
+  } catch (e) {
+    console.log('[cloudListTodos] failed:', e.message);
+    return '';
+  }
+}
+
+async function cloudListContacts() {
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
+  if (!token) return '';
+  try {
+    const resp = await fetch(`${CLOUD_URL}/data/contacts`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!resp.ok) return '';
+    const data = await resp.json();
+    const contacts = data.contacts || [];
+    if (contacts.length === 0) return '联系人：暂无记录';
+    const lines = [`【联系人】共 ${data.total || contacts.length} 位`];
+    for (const c of contacts) {
+      const nature = c.nature === 'nurture' ? '维系' : (c.nature === 'dual' ? '双重' : '撬动');
+      lines.push(`  · ${c.name} | ${c.relation || c.role || ''} | ${nature}`);
+    }
+    return lines.join('\n');
+  } catch (e) {
+    console.log('[cloudListContacts] failed:', e.message);
+    return '';
+  }
+}
+
 async function agentSearch(keywords, contactName, intent) {
   // Ask agent to search contacts by keywords (two-step flow step 2)
   // Returns {data_context, matched_count, conversation} or null
@@ -1138,20 +1199,31 @@ async function cloudChat(text) {
       }
     }
   } else {
-    // No specific keywords — get general context
-    if (bridgeFrame && bridgeReady) {
-      const agentContext = await getAgentContext(text);
-      if (agentContext) {
-        dataContext = agentContext.data_context || '';
-        conversationHistoryFromAgent = agentContext.conversation || [];
-        console.log('[cloudChat] agent context, data_context len:', dataContext.length);
+    // No specific keywords — route by intent type
+    // query_todo → list pending todos from cloud KV
+    // query_contact → list all contacts from cloud KV
+    // other → general context (agent or cloud KV summary)
+    if (intent && intent.intent === 'query_todo') {
+      dataContext = await cloudListTodos();
+      if (dataContext) console.log('[cloudChat] cloud todos list, len:', dataContext.length);
+    } else if (intent && intent.intent === 'query_contact') {
+      dataContext = await cloudListContacts();
+      if (dataContext) console.log('[cloudChat] cloud contacts list, len:', dataContext.length);
+    } else {
+      if (bridgeFrame && bridgeReady) {
+        const agentContext = await getAgentContext(text);
+        if (agentContext) {
+          dataContext = agentContext.data_context || '';
+          conversationHistoryFromAgent = agentContext.conversation || [];
+          console.log('[cloudChat] agent context, data_context len:', dataContext.length);
+        }
       }
-    }
 
-    if (!dataContext) {
-      dataContext = await getCloudDataContext();
-      if (dataContext) {
-        console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
+      if (!dataContext) {
+        dataContext = await getCloudDataContext();
+        if (dataContext) {
+          console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
+        }
       }
     }
   }
