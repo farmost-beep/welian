@@ -336,7 +336,7 @@ async def process_message(user_id: str, text: str, api: IlinkApi, context_token:
 
     try:
         client = await sessions.get_client(user_id)
-        reply = await asyncio.to_thread(client.chat, text)
+        reply = await asyncio.to_thread(client.cloud_chat, text)
         if reply:
             await send_long_message(api, user_id, reply, context_token)
         else:

@@ -321,6 +321,208 @@ class EdgeClient:
         if len(self._conversation) > 40:
             self._conversation = self._conversation[-40:]
 
+    def cloud_chat(self, text: str) -> str:
+        """Cloud-based chat flow — same as Web's cloudChat().
+
+        Flow:
+        1. POST /ai/extract_intent → LLM extracts intent + keywords + executes data actions
+        2. POST /data/search (if keywords) or GET /data/context → get data context
+        3. POST /ai/chat → LLM generates reply with AGENTS.md system prompt + data context
+
+        Uses sync token for auth (user_id:sync_secret).
+        """
+        text = text.strip()
+        if not text:
+            return "跟我说点什么吧 😊"
+
+        if not self.cloud_url:
+            return self.chat(text)
+
+        # Build sync token — use WELIAN_USER_TOKEN (Clerk user ID) for cloud auth,
+        # not self.user_id (which may be WeChat user ID for bot)
+        sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+        cloud_user_id = os.environ.get("WELIAN_USER_TOKEN", "") or self.user_token or self.user_id
+        sync_token = f"{cloud_user_id}:{sync_secret}" if sync_secret else self.user_token
+
+        import urllib.request
+        import urllib.error
+
+        def _post(path, body):
+            url = f"{self.cloud_url}{path}"
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {sync_token}",
+                    "User-Agent": "WelianEdge/1.0",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+
+        def _get(path):
+            url = f"{self.cloud_url}{path}"
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Authorization": f"Bearer {sync_token}",
+                    "User-Agent": "WelianEdge/1.0",
+                },
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+
+        try:
+            # Step 1: Extract intent + execute data actions (data flywheel)
+            intent_data = _post("/ai/extract_intent", {
+                "session_token": sync_token,
+                "text": text,
+            })
+
+            keywords = intent_data.get("keywords", [])
+            contact_name = intent_data.get("contact_name", "")
+            action_results = intent_data.get("action_results", [])
+            flywheel_info = ""
+            if action_results:
+                ok_actions = [ar for ar in action_results if ar.get("ok")]
+                if ok_actions:
+                    parts = []
+                    for ar in ok_actions:
+                        if ar["type"] == "add_timeline":
+                            parts.append(f"已记录互动：{ar.get('summary', '')}")
+                        elif ar["type"] == "add_todo":
+                            parts.append(f"已添加待办：{ar.get('task', '')}")
+                        elif ar["type"] == "add_contact":
+                            parts.append(f"已添加联系人：{ar.get('name', '')}")
+                    flywheel_info = "；".join(parts)
+
+            # Step 2: Get data context — route by intent
+            intent_type = intent_data.get("intent", "chat")
+            data_context = ""
+
+            if intent_type == "advise":
+                # Direct advise endpoint — returns formatted suggestions
+                advise_resp = _post("/ai/advise_cloud", {
+                    "session_token": sync_token,
+                })
+                return advise_resp.get("result", "这周没有特别需要联系的。")
+
+            elif intent_type == "report":
+                # Report — gather full context (timeline + todos + overview)
+                ctx_resp = _get("/data/context")
+                data_context = ctx_resp.get("data_context", "")
+                # Also search with empty keywords to get broad data
+                search_resp = _post("/data/search", {
+                    "keywords": [],
+                    "contact_name": "",
+                })
+                extra_ctx = search_resp.get("data_context", "")
+                if extra_ctx:
+                    data_context = (data_context + "\n\n" + extra_ctx).strip() if data_context else extra_ctx
+
+            elif keywords or contact_name:
+                search_resp = _post("/data/search", {
+                    "keywords": keywords,
+                    "contact_name": contact_name,
+                })
+                data_context = search_resp.get("data_context", "")
+            else:
+                ctx_resp = _get("/data/context")
+                data_context = ctx_resp.get("data_context", "")
+
+            # Step 3: Build system prompt (fetch AGENTS.md from cloud)
+            system_prompt = self._get_system_prompt()
+
+            # Build user message with data context
+            user_content = text
+            context_parts = []
+            if data_context:
+                context_parts.append(f"相关数据：\n{data_context}")
+            if flywheel_info:
+                context_parts.append(f"系统已自动执行：{flywheel_info}。请在回复中确认已记录。")
+            if context_parts:
+                user_content = f'用户消息：{text}\n\n{chr(10).join(context_parts)}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。'
+
+            # Build messages: conversation history + current message
+            messages = list(self._conversation[-4:])
+            messages.append({"role": "user", "content": user_content})
+
+            # Step 4: Call cloud LLM
+            chat_resp = _post("/ai/chat", {
+                "session_token": sync_token,
+                "messages": messages,
+                "system": system_prompt,
+                "max_tokens": 1024,
+            })
+
+            reply = chat_resp.get("reply", "")
+            if not reply:
+                return "（没有收到回复，请重试）"
+
+            # Save turn
+            self._conversation.append({"role": "user", "content": text})
+            self._conversation.append({"role": "assistant", "content": reply})
+            if len(self._conversation) > 40:
+                self._conversation = self._conversation[-40:]
+
+            return reply
+
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace")
+            logger_msg = f"Cloud chat error: HTTP {e.code}: {err_body[:200]}"
+            # 402 = billing exhausted
+            if e.code == 402:
+                try:
+                    err_data = json.loads(err_body)
+                    return err_data.get("detail", "联点已用完，请升级 Pro 或购买加油包。")
+                except Exception:
+                    return "联点已用完，请升级 Pro 或购买加油包。"
+            # Fallback to local chat
+            return self.chat(text)
+        except Exception as e:
+            # Fallback to local chat
+            return self.chat(text)
+
+    def _get_system_prompt(self) -> str:
+        """Fetch AGENTS.md from cloud as system prompt (with fallback)."""
+        if not self.cloud_url:
+            return self._fallback_system_prompt()
+
+        import urllib.request
+        try:
+            # AGENTS.md is served from the Pages site
+            url = "https://welian.app/AGENTS.md"
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return resp.read().decode("utf-8")
+        except Exception:
+            return self._fallback_system_prompt()
+
+    def _fallback_system_prompt(self) -> str:
+        return """你是小维（Welian），一个关系管理 AI 助手。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
+
+你的信念：每段关系都值得用心。
+
+## 诚实原则 — 最高优先级
+
+1. 只能引用"相关数据"部分提供的信息。数据中没有的，不能编造。
+2. 如果用户问的人/事在数据中找不到，直接说"我没有找到关于XX的记录"。
+3. 不能编造联系人的职位、公司、关系、互动历史、待办内容等。
+4. 不能编造日期、数字、地点。
+5. 如果不确定，宁可说"不确定"也不要猜。
+
+## 回复风格
+
+- 简洁友好，像朋友在聊天
+- 中文回复，适当用 emoji
+- 回复不要太长，重点突出
+- 如果用户在记录事情，确认记下了并简要复述
+- 如果用户在查待办，只列出数据中有的待办，按紧急程度分组
+- 如果用户在闲聊，自然回应，可以引导到关系管理话题"""
+
     def chat(self, text: str) -> str:
         """Process user message: LLM is the primary processor.
 

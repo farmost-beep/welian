@@ -174,6 +174,14 @@ async function getVerifiedUserId(req, env, body) {
     return token.split(':')[0];
   }
 
+  // Sync token for edge agent / WeChat bot (user_id:sync_secret)
+  if (token && token.includes(':') && !token.startsWith('eyJ')) {
+    const [uid, secret] = token.split(':');
+    if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
+      return uid;
+    }
+  }
+
   const result = await verifyClerkToken(token, env);
   if (!result.valid) {
     return null;
@@ -814,11 +822,21 @@ async function handleExtractIntent(req, env) {
 
 JSON格式：
 {
-  "intent": "query_contact|query_todo|record|draft|chat|help",
+  "intent": "query_contact|query_todo|record|draft|advise|report|chat|help",
   "contact_name": "用户提到的人名或昵称，没有则为空字符串",
   "keywords": ["搜索关键词，用于模糊匹配联系人"],
   "actions": []
 }
+
+intent 说明：
+- query_contact: 查询某人的信息（"老许啥情况"、"查下邵哥"）
+- query_todo: 查看待办（"有啥待办"、"待办事项"）
+- record: 记录互动/添加待办/添加联系人
+- draft: 拟写消息（"给老许写个消息"、"帮我拟条消息"）
+- advise: 建议联系谁（"该联系谁"、"这周联系谁"、"谁该联系了"）
+- report: 回顾/报告（"月度回顾"、"这月怎么样"、"周报"、"总结一下"）
+- chat: 闲聊/其他
+- help: 帮助
 
 actions 是需要执行的数据操作数组。【关键】只有用户明确表达记录/提醒/添加意图时才生成 actions，否则 actions 必须为空数组 []。
 
@@ -843,6 +861,9 @@ actions 元素格式：
 示例：
 - "老许啥情况" → intent=query_contact, actions=[]
 - "有啥待办" → intent=query_todo, actions=[]
+- "该联系谁了" → intent=advise, actions=[]
+- "月度回顾" → intent=report, actions=[]
+- "这周总结" → intent=report, actions=[]
 - "记一下今天和老许聊了Q3预算" → intent=record, actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"今天日期"}]
 - "提醒我下周拜访张三" → intent=record, actions=[{"type":"add_todo","task":"拜访张三","contact_name":"张三","due":"下周五日期","priority":"P1"}]
 - "认识了一个新朋友李四，在腾讯做产品" → intent=record, actions=[{"type":"add_contact","name":"李四","relation":"朋友","notes":"腾讯产品"}]
