@@ -194,10 +194,151 @@ const EXTRACT_SYSTEM = `Extract actionable items from an interaction record.
 Return JSON: {"pending": "follow-up task or empty", "key_points": ["point1", "point2"]}
 Be concise. Only extract real action items.`;
 
-const ADVISE_SYSTEM = `You are Welian. Format relationship suggestions in a warm, human way.
-- For leverage ties: who + why + what to talk about
+const ADVISE_SYSTEM = `You are Welian (小维). Format relationship suggestions in a warm, human way.
+- For leverage ties: who + why + what to talk about (具体聊什么话题)
 - For nurture bonds: gentle reminders, no urgency, no scores
+- Use Chinese, friendly tone, with emoji
+- Max 5 suggestions total
 Return formatted text only.`;
+
+// ── Cloud suggestion engine (queries KV directly, no edge agent needed) ──
+
+async function handleCloudAdvise(req, env) {
+  const userId = await getVerifiedUserId(req, env, await req.json().catch(() => ({})));
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const timeline = await loadDataset(env, userId, 'timeline');
+  const todos = await loadDataset(env, userId, 'todos');
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // ── Leverage suggestions: score + sort ──
+  const leverageCandidates = [];
+  for (const c of contacts) {
+    if (c.nature !== 'leverage' && c.nature !== '双重' && c.nature !== 'dual') continue;
+
+    // Days since last interaction
+    const contactTimeline = timeline
+      .filter(t => t.contact === c.id)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const lastDate = contactTimeline[0]?.date || '';
+    let daysSince = 9999;
+    if (lastDate) {
+      const diff = Math.floor((today - new Date(lastDate)) / 86400000);
+      daysSince = isNaN(diff) ? 9999 : diff;
+    }
+
+    // Score
+    let score = 0;
+    if (daysSince >= 21) score += 30;
+    else if (daysSince >= 14) score += 20;
+    else if (daysSince === 9999) score += 25;
+    if (c.leverage?.confirmed) score += 15;
+    const pendingTodos = todos.filter(t => t.contact === c.id && t.status === 'pending');
+    score += pendingTodos.length * 25;
+    score += (c.strength || 3) * 2;
+
+    if (daysSince >= 14 || daysSince === 9999 || pendingTodos.length > 0) {
+      leverageCandidates.push({
+        contact: c,
+        daysSince,
+        score,
+        lastInteraction: contactTimeline[0]?.summary || '',
+        pendingTodos: pendingTodos.map(t => t.task),
+        leverageGoals: c.leverage?.goals || [],
+        leverageHow: c.leverage?.how || '',
+      });
+    }
+  }
+  leverageCandidates.sort((a, b) => b.score - a.score);
+  const topLeverage = leverageCandidates.slice(0, 5);
+
+  // ── Nurture reminders: important dates + memory follow-up ──
+  const nurtureReminders = [];
+  for (const c of contacts) {
+    if (c.nature !== 'nurture' && c.nature !== '双重' && c.nature !== 'dual') continue;
+
+    // Important dates within 14 days
+    for (const d of (c.important_dates || [])) {
+      if (!d.date) continue;
+      // Handle MM-DD format
+      let dateStr = d.date;
+      if (dateStr.length === 5) { // MM-DD
+        dateStr = `${today.getFullYear()}-${dateStr}`;
+      }
+      const targetDate = new Date(dateStr);
+      if (isNaN(targetDate)) continue;
+      const daysAhead = Math.floor((targetDate - today) / 86400000);
+      if (daysAhead >= 0 && daysAhead <= 14) {
+        nurtureReminders.push({
+          name: c.name,
+          type: 'important_date',
+          label: d.label,
+          date: d.date,
+          daysAhead,
+        });
+      }
+    }
+
+    // Memory follow-up: check memories for event keywords
+    for (const m of (c.memories || [])) {
+      const content = typeof m === 'string' ? m : (m.content || '');
+      if (/考试|手术|出差|面试|搬家|生产|住院|升职|跳槽/.test(content)) {
+        nurtureReminders.push({
+          name: c.name,
+          type: 'memory_followup',
+          content: content.slice(0, 60),
+        });
+      }
+    }
+  }
+
+  // ── Format for LLM ──
+  const parts = [];
+
+  if (topLeverage.length > 0) {
+    parts.push(`💡 这周值得联系的人（${topLeverage.length}位）\n`);
+    for (const c of topLeverage) {
+      const icon = c.daysSince >= 21 ? '🔴' : c.daysSince === 9999 ? '⚪' : '🟡';
+      let line = `${icon} ${c.contact.name} — ${c.daysSince === 9999 ? '从未联系' : c.daysSince + '天没联系了'}`;
+      if (c.leverageGoals && c.leverageGoals.length > 0) {
+        line += `\n   为「${Array.isArray(c.leverageGoals) ? c.leverageGoals.join(', ') : String(c.leverageGoals)}」联结`;
+      }
+      if (c.leverageHow) {
+        line += `\n   联结方式：${c.leverageHow}`;
+      }
+      if (c.lastInteraction) {
+        line += `\n   上次：${c.lastInteraction.slice(0, 60)}`;
+      }
+      if (c.pendingTodos.length > 0) {
+        line += `\n   待办：${c.pendingTodos.join('; ')}`;
+      }
+      parts.push(line);
+    }
+  }
+
+  if (nurtureReminders.length > 0) {
+    parts.push('\n💛 值得记得的事\n');
+    for (const r of nurtureReminders.slice(0, 5)) {
+      if (r.type === 'important_date') {
+        parts.push(`  · ${r.name}的${r.label || ''} ${r.daysAhead === 0 ? '就是今天' : r.daysAhead + '天后'}`);
+      } else if (r.type === 'memory_followup') {
+        parts.push(`  · ${r.name}：你记着「${r.content}」`);
+      }
+    }
+  }
+
+  if (parts.length === 0) {
+    return { status: 200, data: { result: '这周没有特别需要联系的。继续保持用心就好 😊' } };
+  }
+
+  // LLM enhanced formatting with conversation topics
+  const llmResp = await callLLM(parts.join('\n'), ADVISE_SYSTEM, env);
+  const llmResult = llmResp ? llmResp.text : null;
+  return { status: 200, data: { result: llmResult || parts.join('\n'), raw: parts } };
+}
 
 // ── LLM call (Anthropic-compatible API) ──
 
@@ -412,6 +553,54 @@ async function handleAdvise(req, env) {
 
 // ── 方案C：计费网关 ──
 
+// ── Cloud billing system ──
+
+const PRICING = {
+  points_per_1k_input: 1,
+  points_per_1k_output: 2,
+  free_monthly: 100,
+  pro_monthly: 500,
+  pro_price: 29,       // ¥/month
+  pro_price_yearly: 299, // ¥/year
+  credit_pack_100: 9.9,  // ¥ for 100 points
+  credit_pack_500: 39.9, // ¥ for 500 points
+};
+
+async function getBillingData(env, userId) {
+  const raw = await env.USER_DATA.get(`billing:${userId}`);
+  if (raw) return JSON.parse(raw);
+  // Default: free plan
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return {
+    plan: 'free',
+    monthKey,
+    used: 0,
+    purchased: 0,        // purchased credits (don't expire monthly)
+    history: [],          // [{date, action, points, detail}]
+    subscription: null,   // {plan, start, expire, auto_renew}
+  };
+}
+
+async function saveBillingData(env, userId, data) {
+  await env.USER_DATA.put(`billing:${userId}`, JSON.stringify(data));
+}
+
+function calcPoints(usage) {
+  const input = usage.input_tokens || 0;
+  const output = usage.output_tokens || 0;
+  return Math.ceil(input / 1000 * PRICING.points_per_1k_input + output / 1000 * PRICING.points_per_1k_output);
+}
+
+function getMonthlyAllowance(plan) {
+  return plan === 'pro' ? PRICING.pro_monthly : PRICING.free_monthly;
+}
+
+function getRemaining(billing) {
+  const allowance = getMonthlyAllowance(billing.plan);
+  return Math.max(0, allowance + billing.purchased - billing.used);
+}
+
 async function handleChat(req, env) {
   const body = await req.json();
 
@@ -430,6 +619,27 @@ async function handleChat(req, env) {
     return { status: 400, data: { error: 'messages must be a non-empty array' } };
   }
 
+  // ── Billing: check balance before LLM call ──
+  const billing = await getBillingData(env, userId);
+  // Reset monthly quota if new month
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (billing.monthKey !== monthKey) {
+    billing.monthKey = monthKey;
+    billing.used = 0;
+  }
+  const remaining = getRemaining(billing);
+  if (remaining <= 0) {
+    return {
+      status: 402,
+      data: {
+        error: '联点已用完',
+        detail: `本月已用 ${billing.used} 联点，额度 ${getMonthlyAllowance(billing.plan)} 联点。升级 Pro 或购买加油包继续使用。`,
+        billing: { plan: billing.plan, used: billing.used, remaining: 0, allowance: getMonthlyAllowance(billing.plan) },
+      },
+    };
+  }
+
   // Forward to LLM with Welian's wholesale API key
   const llmResp = await callLLM(null, system, env, {
     messages,
@@ -441,7 +651,20 @@ async function handleChat(req, env) {
     return { status: 502, data: { error: 'LLM call failed' } };
   }
 
-  // Return reply + actual token usage (for edge-side billing in tokens.py)
+  // ── Billing: deduct points after LLM call ──
+  const points = calcPoints(llmResp.usage);
+  billing.used += points;
+  billing.history.push({
+    date: now.toISOString(),
+    action: 'chat',
+    points,
+    detail: `input=${llmResp.usage.input_tokens}, output=${llmResp.usage.output_tokens}`,
+  });
+  // Keep history last 100 entries
+  if (billing.history.length > 100) billing.history = billing.history.slice(-100);
+  await saveBillingData(env, userId, billing);
+
+  // Return reply + usage + billing info
   return {
     status: 200,
     data: {
@@ -449,28 +672,123 @@ async function handleChat(req, env) {
       usage: {
         input_tokens: llmResp.usage.input_tokens || 0,
         output_tokens: llmResp.usage.output_tokens || 0,
+        points: points,
+      },
+      billing: {
+        plan: billing.plan,
+        used: billing.used,
+        remaining: getRemaining(billing),
+        allowance: getMonthlyAllowance(billing.plan),
       },
     },
   };
 }
 
 async function handleBilling(req, env) {
-  const body = await req.json();
-  const userToken = body.user_token;
-
-  if (!userToken) {
-    return { status: 400, data: { error: 'user_token required' } };
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
   }
 
-  // Billing data lives on edge (tokens.py). Cloud only forwards LLM calls.
-  // This endpoint returns mock; real balance tracking is done edge-side.
+  const billing = await getBillingData(env, userId);
+  // Reset monthly quota if new month
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (billing.monthKey !== monthKey) {
+    billing.monthKey = monthKey;
+    billing.used = 0;
+    await saveBillingData(env, userId, billing);
+  }
+
   return {
     status: 200,
     data: {
-      plan: 'free',
-      remaining: 100,
-      used_this_month: 0,
-      note: 'mock — real billing is edge-side in tokens.py',
+      plan: billing.plan,
+      used: billing.used,
+      remaining: getRemaining(billing),
+      allowance: getMonthlyAllowance(billing.plan),
+      purchased: billing.purchased,
+      subscription: billing.subscription,
+      recent_history: billing.history.slice(-10),
+    },
+  };
+}
+
+async function handleUpgrade(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  const plan = body.plan; // 'pro_monthly' | 'pro_yearly'
+  if (!plan) return { status: 400, data: { error: 'plan required' } };
+
+  const billing = await getBillingData(env, userId);
+  const now = new Date();
+  let expire = new Date(now);
+  if (plan === 'pro_monthly') {
+    expire.setMonth(expire.getMonth() + 1);
+  } else if (plan === 'pro_yearly') {
+    expire.setFullYear(expire.getFullYear() + 1);
+  } else {
+    return { status: 400, data: { error: 'invalid plan' } };
+  }
+
+  billing.plan = 'pro';
+  billing.subscription = {
+    plan,
+    start: now.toISOString(),
+    expire: expire.toISOString(),
+  };
+  billing.history.push({
+    date: now.toISOString(),
+    action: 'upgrade',
+    points: 0,
+    detail: `upgraded to ${plan}`,
+  });
+  await saveBillingData(env, userId, billing);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      plan: billing.plan,
+      subscription: billing.subscription,
+      remaining: getRemaining(billing),
+      allowance: getMonthlyAllowance(billing.plan),
+    },
+  };
+}
+
+async function handlePurchaseCredits(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  const pack = body.pack; // '100' | '500'
+  const points = pack === '500' ? 500 : 100;
+  if (!pack) return { status: 400, data: { error: 'pack required (100 or 500)' } };
+
+  const billing = await getBillingData(env, userId);
+  billing.purchased += points;
+  billing.history.push({
+    date: new Date().toISOString(),
+    action: 'purchase',
+    points,
+    detail: `purchased ${points} credits`,
+  });
+  await saveBillingData(env, userId, billing);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      purchased: billing.purchased,
+      remaining: getRemaining(billing),
     },
   };
 }
@@ -1212,6 +1530,11 @@ export default {
         return jsonResponse(result);
       }
 
+      if (path === '/ai/advise_cloud' && method === 'POST') {
+        const r = await handleCloudAdvise(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       // ── 方案C：计费网关 ──
 
       if (path === '/ai/chat' && method === 'POST') {
@@ -1224,13 +1547,18 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      if (path === '/ai/upgrade' && method === 'POST') {
+        const r = await handleUpgrade(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/purchase_credits' && method === 'POST') {
+        const r = await handlePurchaseCredits(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/ai/pricing' && method === 'GET') {
-        return jsonResponse({
-          points_per_1k_input: 1,
-          points_per_1k_output: 2,
-          free_monthly: 100,
-          pro_monthly: 500,
-        });
+        return jsonResponse(PRICING);
       }
 
       // ── Data sync (full cloud mode) ──
