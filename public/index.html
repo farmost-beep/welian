@@ -70,7 +70,7 @@ nav .mode-badge{font-size:.62em;padding:2px 8px;border-radius:20px;font-weight:6
 nav .mode-badge.live{background:var(--green);color:#fff;box-shadow:0 0 0 3px rgba(74,124,89,.18)}
 
 /* ── Page layout: chat fills the screen ── */
-.page{min-height:100vh;display:flex;flex-direction:column}
+.page{height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
 /* ── Chat area (ChatGPT-style: centered column, scrollable) ── */
 main{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden}
@@ -964,9 +964,7 @@ function showWelcome() {
 }
 
 function scrollToBottom() {
-  // Instant scroll (smooth gets interrupted by rapid message updates)
   body.scrollTop = body.scrollHeight;
-  // Fallback: scroll again after layout settles
   requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
 }
 
