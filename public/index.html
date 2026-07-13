@@ -269,6 +269,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 const CLERK_PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 const DISCOVERY_URL = 'https://welian-ai.farmost.workers.dev';
 const AGENT_TUNNEL_URL = 'https://agent.welian.app';  // Direct tunnel (no discovery needed)
+const CLOUD_URL = 'https://api.welian.app';  // Cloud AI gateway (方案C)
 
 // ── i18n ──
 const I18N = {
@@ -316,6 +317,9 @@ const I18N = {
     not_found: 'Agent not found',
     not_found_desc: 'Your data stays on your computer. Start the agent there to connect.',
     retry: 'Retry',
+    cloud_status: 'Cloud',
+    cloud_welcome: "You're in Cloud mode ☁️\n\nI can help you think through relationships, draft messages, and suggest who to reach out to.\n\nFor full features (local contacts, todos, activity history), install the CLI on your computer:\n`pip install welian-app` then `welian agent --tunnel`\n\nWhat's on your mind?",
+    cloud_error: 'Cloud error: ',
   },
   zh: {
     tagline: '更<em>用心</em>。',
@@ -361,6 +365,9 @@ const I18N = {
     not_found: '未找到本地 agent',
     not_found_desc: '你的关系数据留在你的电脑上。请在电脑上启动 agent 来连接。',
     retry: '重试',
+    cloud_status: '云端',
+    cloud_welcome: "已进入云端模式 ☁️\n\n我可以帮你梳理关系、拟写消息、建议该联系谁。\n\n如需完整功能（本地联系人、待办、互动历史），在电脑上安装 CLI：\n`pip install welian-app` 然后运行 `welian agent --tunnel`\n\n今天想聊什么？",
+    cloud_error: '云端错误：',
   },
 };
 
@@ -402,7 +409,8 @@ if (wechatToken) {
 
 // ── State ──
 let isAuthed = false;   // Clerk auth state
-let isLive = false;     // Connected to local agent
+let isLive = false;     // Connected to local agent (Live mode)
+let isCloud = false;    // Cloud direct mode (no local agent)
 let clerkInstance = null;
 let clerkUserId = null; // Clerk user ID for device discovery
 let isCliLogin = false; // CLI login mode — wait for explicit sign-in
@@ -747,6 +755,8 @@ function onAuthed(user) {
 function onSignedOut() {
   isAuthed = false;
   isLive = false;
+  isCloud = false;
+  conversationHistory = [];
   removeBridge();
   authBtn.textContent = 'Sign in';
   navStatus.style.display = 'none';
@@ -769,6 +779,64 @@ function removeBridge() {
     bridgeReady = false;
   }
 }
+
+// ── Cloud direct mode (方案C) ──
+// When no local agent is found, fall back to cloud AI gateway.
+// User can chat immediately without installing CLI.
+// No local data (contacts/todos) — AI is a generic relationship assistant.
+
+async function enableCloudMode() {
+  isCloud = true;
+  isLive = false;
+  statusDot.className = 'status-dot online';
+  statusText.textContent = I18N[currentLang].cloud_status;
+  if (modeBadge) { modeBadge.textContent = 'Cloud'; modeBadge.className = 'mode-badge live'; }
+
+  clearChat();
+  addMsg('ai', I18N[currentLang].cloud_welcome);
+}
+
+async function cloudChat(text) {
+  // Use Clerk user ID as user_token for billing identity
+  const userToken = clerkUserId || 'web-anonymous-' + Date.now();
+  const messages = [{ role: 'user', content: text }];
+
+  // Include conversation history for multi-turn chat
+  if (conversationHistory.length > 0) {
+    messages.unshift(...conversationHistory.slice(-10));
+  }
+
+  try {
+    const resp = await fetch(`${CLOUD_URL}/ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_token: userToken,
+        messages: messages,
+        max_tokens: 1024,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    // Update conversation history
+    conversationHistory.push({ role: 'user', content: text });
+    conversationHistory.push({ role: 'assistant', content: data.reply });
+    if (conversationHistory.length > 20) {
+      conversationHistory = conversationHistory.slice(-20);
+    }
+    return data.reply;
+  } catch (e) {
+    throw e;
+  }
+}
+
+// Cloud mode conversation history (kept in browser memory)
+let conversationHistory = [];
 
 async function autoConnectAgent() {
   console.log('autoConnectAgent called, clerkUserId:', clerkUserId);
@@ -816,22 +884,10 @@ async function autoConnectAgent() {
   }
 
   if (!connected) {
+    // Agent not found — fall back to cloud mode (方案C)
+    console.log('No local agent found, enabling cloud mode');
     removeBridge();
-    clearChat();
-    const panel = document.createElement('div');
-    const d = I18N[currentLang];
-    panel.className = 'msg';
-    panel.innerHTML = `<div class="bubble system">
-      <div class="connect-panel">
-        <h3>${d.not_found}</h3>
-        <p>${d.not_found_desc}</p>
-        <div class="step"><b>Step 1.</b> ${currentLang === 'zh' ? '在你的电脑上安装 Welian CLI' : 'On your computer, install Welian CLI'}:<br><code>pip install welian</code></div>
-        <div class="step"><b>Step 2.</b> ${currentLang === 'zh' ? '启动 agent 并开启隧道' : 'Start the agent with tunnel'}:<br><code>welian agent --tunnel</code></div>
-        <p><small>${currentLang === 'zh' ? '然后重试——手机会自动找到它。' : 'Then retry — your phone will find it automatically.'}</small></p>
-        <button onclick="autoConnectAgent()">${d.retry}</button>
-      </div>
-    </div>`;
-    body.appendChild(panel);
+    enableCloudMode();
   }
 }
 
@@ -939,13 +995,13 @@ function onBridgeMessage(e) {
       // ignore — already handled
     }
   } else if (msg.type === 'ws-close') {
-    console.log('Bridge ws-close');
+    console.log('Bridge ws-close — falling back to cloud mode');
     removeTyping();
-    addSystemMsg('Connection lost. Retrying…');
     isLive = false;
-    if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
-    statusDot.className = 'status-dot offline';
-    statusText.textContent = 'Disconnected';
+    removeBridge();
+    // Fall back to cloud mode when agent disconnects
+    enableCloudMode();
+    addSystemMsg(I18N[currentLang].cloud_status + ' ← Live');
   }
 }
 
@@ -1020,13 +1076,23 @@ async function send() {
   addTyping();
 
   if (isLive && bridgeFrame && bridgeReady) {
-    // Live mode: send via iframe bridge → WebSocket
+    // Live mode: send via iframe bridge → WebSocket → local agent
     const reqId = Date.now().toString();
     bridgeFrame.contentWindow.postMessage({
       source: 'welian-parent',
       type: 'send',
       payload: { cmd: 'chat', id: reqId, text: text }
     }, '*');
+  } else if (isCloud) {
+    // Cloud mode: direct fetch to cloud AI gateway (方案C)
+    try {
+      const reply = await cloudChat(text);
+      removeTyping();
+      addMsg('ai', reply);
+    } catch (e) {
+      removeTyping();
+      addMsg('ai', I18N[currentLang].cloud_error + e.message);
+    }
   } else {
     // Not connected — prompt to sign in
     removeTyping();
