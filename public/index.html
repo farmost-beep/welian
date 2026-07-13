@@ -755,7 +755,19 @@ function mountClerkSignUp() {
 function onAuthed(user) {
   isAuthed = true;
   clerkUserId = user.id || null;
-  authBtn.textContent = user.firstName || user.username || 'Account';
+
+  // Build display name: prefer firstName, then username, then email, then phone, then user_id
+  const email = user.primaryEmailAddress?.emailAddress || '';
+  const phone = user.primaryPhoneNumber?.phoneNumber || '';
+  const displayName = user.firstName || user.username || email || phone || clerkUserId.slice(-8);
+  authBtn.textContent = displayName;
+  // Tooltip with full identity info
+  const tipParts = [`User ID: ${clerkUserId}`];
+  if (email) tipParts.push(`Email: ${email}`);
+  if (phone) tipParts.push(`Phone: ${phone}`);
+  if (user.firstName) tipParts.push(`Name: ${user.firstName}`);
+  authBtn.title = tipParts.join('\n');
+
   navStatus.style.display = 'inline-flex';
   // Close auth modal if open
   document.getElementById('clerk-auth').classList.remove('show');
