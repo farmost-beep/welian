@@ -43,6 +43,7 @@ class EdgeClient:
         self.user_id = user_id
         self._http_client = None
         self._llm_client = None
+        self._conversation: list = []  # multi-turn chat history
 
     def _get_llm(self):
         """Get LLM client (direct call, no cloud middleware)."""
@@ -59,7 +60,7 @@ class EdgeClient:
         Flow:
         1. LLM identifies intent + extracts entities
         2. Local data operations (save record, gather context)
-        3. LLM generates final response with data context
+        3. LLM generates final response with data context + conversation history
 
         All responses go through LLM for natural language.
         """
@@ -73,9 +74,16 @@ class EdgeClient:
         # Step 2: Local side effects + gather data context
         data_context = self._gather_context(intent_type, payload, text)
 
-        # Step 3: LLM generates response with data context
+        # Step 3: LLM generates response with data context + conversation history
         try:
-            return self._llm_respond(text, intent_type, payload, data_context)
+            reply = self._llm_respond(text, intent_type, payload, data_context)
+            # Save turn to conversation history (after successful response)
+            self._conversation.append({"role": "user", "content": text})
+            self._conversation.append({"role": "assistant", "content": reply})
+            # Keep last 20 turns to avoid token overflow
+            if len(self._conversation) > 40:
+                self._conversation = self._conversation[-40:]
+            return reply
         except Exception:
             # Fallback to template responses if LLM fails
             return self._template_respond(intent_type, payload, text)
@@ -112,7 +120,7 @@ class EdgeClient:
         return self._gather_overview()
 
     def _llm_respond(self, text, intent_type, payload, data_context) -> str:
-        """LLM generates the final response with data context."""
+        """LLM generates the final response with data context + conversation history."""
         llm = self._get_llm()
 
         system = """你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
@@ -125,7 +133,8 @@ class EdgeClient:
 - 如果用户在查待办，清晰列出，按紧急程度分组
 - 如果用户在闲聊，自然回应，可以引导到关系管理话题
 
-你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。"""
+你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。
+对话是连续的，请结合上下文理解用户的意图。"""
 
         prompt = f"""用户消息：{text}
 
@@ -134,7 +143,7 @@ class EdgeClient:
 
 请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。"""
 
-        return llm.complete(prompt, system=system)
+        return llm.complete(prompt, system=system, messages=self._conversation)
 
     def _template_respond(self, intent_type, payload, text) -> str:
         """Fallback template responses when LLM is unavailable."""
@@ -732,7 +741,7 @@ class EdgeClient:
                       f"用户说：{text}\n"
                       f"请用中文简短回复。如果用户在问数据相关问题，直接回答。"
                       f"如果用户在闲聊，自然回应并引导到关系管理话题。")
-            return llm.chat(context, system="你是 Welian，简洁友好地回复。")
+            return llm.complete(context, system="你是 Welian，简洁友好地回复。", messages=self._conversation)
         except Exception:
             pass
         # No LLM available — be honest, don't pretend to record

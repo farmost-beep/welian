@@ -101,6 +101,7 @@ class OpenAIClient(LLMClient):
         self,
         prompt: str,
         system: Optional[str] = None,
+        messages: Optional[list] = None,
         **kwargs: Any,
     ) -> str:
         """调用 /chat/completions 端点
@@ -108,10 +109,14 @@ class OpenAIClient(LLMClient):
         支持完整 OpenAI Chat Completions API
         """
         # 构造 messages
-        messages = []
+        if messages is None:
+            messages = []
+        else:
+            messages = list(messages)  # shallow copy — don't mutate caller's list
         if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+            messages = [{"role": "system", "content": system}] + messages
+        if prompt:
+            messages.append({"role": "user", "content": prompt})
 
         body = {
             "model": kwargs.get("model", self.model),

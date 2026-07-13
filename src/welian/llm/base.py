@@ -53,13 +53,16 @@ class LLMClient(ABC):
         self,
         prompt: str,
         system: Optional[str] = None,
+        messages: Optional[list] = None,
         **kwargs: Any,
     ) -> str:
         """同步调用，返回完整文本响应
 
         Args:
-            prompt: 用户提示词
+            prompt: 用户提示词（单轮模式）
             system: 系统提示词（可选）
+            messages: 多轮对话历史（ [{"role":"user","content":"..."},{"role":"assistant","content":"..."}] ）。
+                      传入时忽略 prompt，使用 messages 作为完整对话。
             **kwargs: provider特定参数（如 temperature, max_tokens）
 
         Returns:
@@ -78,6 +81,7 @@ class LLMClient(ABC):
         self,
         prompt: str,
         system: Optional[str] = None,
+        messages: Optional[list] = None,
         max_retries: int = 2,
         **kwargs: Any,
     ) -> str:
@@ -93,6 +97,7 @@ class LLMClient(ABC):
         Args:
             prompt: 用户提示词
             system: 系统提示词
+            messages: 多轮对话历史（可选）
             max_retries: 最大重试次数（不含首次）
             **kwargs: 透传给complete()
 
@@ -107,7 +112,7 @@ class LLMClient(ABC):
 
         while attempt <= max_retries:
             try:
-                return self.complete(prompt, system, **kwargs)
+                return self.complete(prompt, system, messages=messages, **kwargs)
             except LLMAuthError:
                 raise  # 认证失败不重试
             except retryable as e:

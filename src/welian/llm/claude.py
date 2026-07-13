@@ -78,6 +78,7 @@ class ClaudeClient(LLMClient):
         self,
         prompt: str,
         system: Optional[str] = None,
+        messages: Optional[list] = None,
         **kwargs: Any,
     ) -> str:
         """调用 /v1/messages 端点
@@ -85,10 +86,16 @@ class ClaudeClient(LLMClient):
         文档：https://docs.anthropic.com/en/api/messages
         """
         # 构造请求体
+        if messages is None:
+            messages = []
+        else:
+            messages = list(messages)  # shallow copy
+        if prompt:
+            messages.append({"role": "user", "content": prompt})
         body = {
             "model": kwargs.get("model", self.model),
             "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
         }
         if system:
             body["system"] = system
