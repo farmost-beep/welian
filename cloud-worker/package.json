@@ -1,0 +1,42 @@
+{
+  "name": "welian-cloud",
+  "version": "1.1.0",
+  "description": "Welian cloud worker — AI billing gateway + auth + tunnel discovery (方案C)",
+  "main": "src/worker.js",
+  "bin": {
+    "welian-cloud": "bin/cli.mjs"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "wrangler.toml",
+    "README.md"
+  ],
+  "keywords": [
+    "welian",
+    "cloudflare",
+    "worker",
+    "ai",
+    "billing",
+    "gateway",
+    "llm"
+  ],
+  "author": "Welian",
+  "license": "MIT",
+  "homepage": "https://welian.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/farmost-beep/welian.git",
+    "directory": "cloud-worker"
+  },
+  "dependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
