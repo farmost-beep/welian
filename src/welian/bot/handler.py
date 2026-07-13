@@ -36,6 +36,7 @@ from ..edge import EdgeClient
 ILINK_BASE_URL = os.environ.get("WELIAN_ILINK_URL", "https://ilinkai.weixin.qq.com")
 BOT_TOKEN = os.environ.get("WELIAN_BOT_TOKEN", "")
 CLOUD_URL = os.environ.get("WELIAN_CLOUD_URL", "")
+USER_TOKEN = os.environ.get("WELIAN_USER_TOKEN", "")
 
 MAX_MSG_LEN = 2000
 LONG_POLL_TIMEOUT = 35  # seconds (ilink uses 35s long-poll)
@@ -200,7 +201,7 @@ class SessionManager:
                     os.environ["WELIAN_HOME"] = str(WELIAN_HOME)
                     from .. import engine
                     engine._init_paths()
-                client = EdgeClient(cloud_url=CLOUD_URL, user_id=wechat_user_id)
+                client = EdgeClient(cloud_url=CLOUD_URL, user_id=wechat_user_id, user_token=USER_TOKEN)
                 self._clients[wechat_user_id] = client
                 logger.info(f"User session: {wechat_user_id[:12]}... → {data_dir}")
             return self._clients[wechat_user_id]
