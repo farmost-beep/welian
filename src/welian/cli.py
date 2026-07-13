@@ -140,7 +140,8 @@ def main():
 
     p_chat = sub.add_parser("chat", help="Chat with Welian (edge mode)")
     p_chat.add_argument("message", help="Your message")
-    p_chat.add_argument("--cloud", default="", help="Cloud API URL (empty=offline)")
+    p_chat.add_argument("--cloud", default="", help="Cloud API URL (方案C billing gateway, empty=self-hosted)")
+    p_chat.add_argument("--token", default="", help="User auth token (cloud mode)")
 
     p_add = sub.add_parser("add", help="Add a contact (local)")
     p_add.add_argument("id")
@@ -183,8 +184,9 @@ def main():
 
     p_agent = sub.add_parser("agent", help="Run local agent (WebSocket for browser)")
     p_agent.add_argument("--port", type=int, default=9800)
-    p_agent.add_argument("--cloud", default="", help="Cloud API URL")
+    p_agent.add_argument("--cloud", default="", help="Cloud API URL (方案C billing gateway, empty=self-hosted)")
     p_agent.add_argument("--token", default="", help="Pairing token (auto-generated if empty)")
+    p_agent.add_argument("--user-token", default="", help="User auth token for cloud billing (cloud mode)")
     p_agent.add_argument("--tunnel", action="store_true", help="Start Cloudflare tunnel for remote/mobile access")
 
     sub.add_parser("login", help="Link CLI to your Clerk account (for tunnel discovery)")
@@ -238,7 +240,7 @@ def main():
             print(f"  {c['name']:12s} [{nature:8s}] [{role:12s}] {c.get('relation', '')}")
 
     elif args.command == "chat":
-        client = EdgeClient(cloud_url=args.cloud)
+        client = EdgeClient(cloud_url=args.cloud, user_token=args.token)
         reply = client.chat(args.message)
         print(reply)
 
@@ -407,7 +409,9 @@ def main():
         import asyncio
         from .agent import LocalAgent
         cloud = args.cloud or os.environ.get("WELIAN_CLOUD_URL", "")
-        agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token, tunnel=args.tunnel)
+        user_token = args.user_token or os.environ.get("WELIAN_USER_TOKEN", "")
+        agent = LocalAgent(port=args.port, cloud_url=cloud, token=args.token,
+                          user_token=user_token, tunnel=args.tunnel)
         asyncio.run(agent.start())
 
     elif args.command == "login":

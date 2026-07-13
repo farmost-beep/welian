@@ -36,21 +36,57 @@ class EdgeClient:
     Cloud AI API (Cloudflare Worker) is reserved for multi-user commercial phase.
     """
 
-    def __init__(self, cloud_url: str = "", user_id: str = "default"):
-        # cloud_url is now optional — only used if explicitly set
-        # (for future multi-user phase with Cloudflare Worker)
+    def __init__(self, cloud_url: str = "", user_id: str = "default", user_token: str = ""):
+        # cloud_url non-empty → cloud mode (方案C: 批发赚价差)
+        # cloud_url empty → self-hosted mode (direct LLM, user's own key)
         self.cloud_url = cloud_url.rstrip("/") if cloud_url else ""
         self.user_id = user_id
+        self.user_token = user_token
         self._http_client = None
         self._llm_client = None
         self._conversation: list = []  # multi-turn chat history
 
     def _get_llm(self):
-        """Get LLM client (direct call, no cloud middleware)."""
+        """Get LLM client.
+
+        Cloud mode (方案C): routes through Welian cloud billing gateway.
+        Self-hosted mode: direct LLM provider call (user's own API key).
+        """
         if self._llm_client is None:
             from .llm.router import get_client
-            self._llm_client = get_client()
+            if self.cloud_url:
+                # Cloud mode — set env vars so intent.py and other modules
+                # that call get_client() directly also use cloud routing
+                os.environ["WELIAN_CLOUD_URL"] = self.cloud_url
+                if self.user_token:
+                    os.environ["WELIAN_USER_TOKEN"] = self.user_token
+                self._llm_client = get_client(
+                    cloud_url=self.cloud_url,
+                    user_token=self.user_token,
+                )
+            else:
+                # Self-hosted mode — direct LLM, no billing
+                self._llm_client = get_client()
         return self._llm_client
+
+    def _bill_cloud_usage(self):
+        """Bill based on actual token usage from cloud LLM response (方案C).
+
+        CloudLLMClient stores last_usage after each call.
+        We consume points based on input/output token counts.
+        """
+        try:
+            from .llm.cloud import CloudLLMClient
+            if isinstance(self._llm_client, CloudLLMClient):
+                usage = self._llm_client.last_usage
+                if usage and usage.get("input_tokens") and usage.get("output_tokens"):
+                    tokens.consume_tokens(
+                        self.user_id,
+                        usage["input_tokens"],
+                        usage["output_tokens"],
+                    )
+        except Exception:
+            pass  # Billing failure should not block the response
 
     # ── Main chat entry point ──
 
@@ -77,6 +113,9 @@ class EdgeClient:
         # Step 3: LLM generates response with data context + conversation history
         try:
             reply = self._llm_respond(text, intent_type, payload, data_context)
+            # Cloud mode: bill based on actual token usage (方案C)
+            if self.cloud_url:
+                self._bill_cloud_usage()
             # Save turn to conversation history (after successful response)
             self._conversation.append({"role": "user", "content": text})
             self._conversation.append({"role": "assistant", "content": reply})

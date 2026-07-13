@@ -11,6 +11,9 @@
  * - POST /ai/draft     — draft a message from minimal context
  * - POST /ai/extract   — extract todos/key_points from interaction text
  * - POST /ai/advise    — format advise from candidate list
+ * - POST /ai/chat      — billing gateway: forward chat to LLM, return usage (方案C)
+ * - POST /ai/billing   — query balance (mock; real billing is edge-side tokens.py)
+ * - GET  /ai/pricing   — return points pricing info
  * - GET  /auth/wechat          — redirect to WeChat OAuth
  * - GET  /auth/wechat/callback — handle WeChat OAuth callback
  * - POST /auth/sms/send        — send SMS OTP via Aliyun
@@ -47,7 +50,7 @@ Return formatted text only.`;
 
 // ── LLM call (Anthropic-compatible API) ──
 
-async function callLLM(prompt, system, env) {
+async function callLLM(prompt, system, env, options = {}) {
   const apiKey = env.LLM_API_KEY;
   if (!apiKey) {
     console.error('LLM_API_KEY not set');
@@ -59,9 +62,12 @@ async function callLLM(prompt, system, env) {
 
   const body = {
     model: model,
-    max_tokens: 1024,
-    messages: [{ role: 'user', content: prompt }],
+    max_tokens: options.max_tokens || 1024,
+    messages: options.messages || [{ role: 'user', content: prompt }],
   };
+  if (options.temperature !== undefined) {
+    body.temperature = options.temperature;
+  }
   if (system) {
     body.system = system;
   }
@@ -86,12 +92,18 @@ async function callLLM(prompt, system, env) {
     const content = data.content;
     if (!content || !Array.isArray(content)) return null;
 
+    let text = null;
     for (const block of content) {
       if (block.type === 'text' && block.text) {
-        return block.text;
+        text = block.text;
+        break;
       }
     }
-    return null;
+    if (!text) return null;
+
+    // Anthropic-compatible API returns usage: { input_tokens, output_tokens }
+    const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+    return { text, usage };
   } catch (e) {
     console.error('LLM call failed:', e.message);
     return null;
@@ -129,7 +141,8 @@ async function handleDraft(req, env) {
   parts.push(`Tone: ${tone}`);
 
   const prompt = parts.join('\n');
-  let result = await callLLM(prompt, DRAFT_SYSTEM, env);
+  const llmResp = await callLLM(prompt, DRAFT_SYSTEM, env);
+  let result = llmResp ? llmResp.text : null;
 
   if (!result) {
     // Fallback: template
@@ -152,7 +165,8 @@ async function handleExtract(req, env) {
   const contactName = body.contact_name || '';
 
   const prompt = `Interaction: ${interactionText}\nContact: ${contactName || 'unknown'}`;
-  const result = await callLLM(prompt, EXTRACT_SYSTEM, env);
+  const llmResp = await callLLM(prompt, EXTRACT_SYSTEM, env);
+  const result = llmResp ? llmResp.text : null;
 
   if (result) {
     try {
@@ -219,8 +233,74 @@ async function handleAdvise(req, env) {
   }
 
   // Try LLM for enhanced formatting
-  const llmResult = await callLLM(parts.join('\n'), ADVISE_SYSTEM, env);
+  const llmResp = await callLLM(parts.join('\n'), ADVISE_SYSTEM, env);
+  const llmResult = llmResp ? llmResp.text : null;
   return { result: llmResult || parts.join('\n') };
+}
+
+// ── 方案C：计费网关 ──
+
+async function handleChat(req, env) {
+  const body = await req.json();
+
+  const messages = body.messages;
+  const system = body.system || '';
+  const maxTokens = body.max_tokens || 1024;
+  const temperature = body.temperature !== undefined ? body.temperature : 0.7;
+  const userToken = body.user_token;
+
+  // Validate user_token (simple check for now; Clerk session verification later)
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { status: 400, data: { error: 'messages must be a non-empty array' } };
+  }
+
+  // Forward to LLM with Welian's wholesale API key
+  const llmResp = await callLLM(null, system, env, {
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+  });
+
+  if (!llmResp) {
+    return { status: 502, data: { error: 'LLM call failed' } };
+  }
+
+  // Return reply + actual token usage (for edge-side billing in tokens.py)
+  return {
+    status: 200,
+    data: {
+      reply: llmResp.text,
+      usage: {
+        input_tokens: llmResp.usage.input_tokens || 0,
+        output_tokens: llmResp.usage.output_tokens || 0,
+      },
+    },
+  };
+}
+
+async function handleBilling(req, env) {
+  const body = await req.json();
+  const userToken = body.user_token;
+
+  if (!userToken) {
+    return { status: 400, data: { error: 'user_token required' } };
+  }
+
+  // Billing data lives on edge (tokens.py). Cloud only forwards LLM calls.
+  // This endpoint returns mock; real balance tracking is done edge-side.
+  return {
+    status: 200,
+    data: {
+      plan: 'free',
+      remaining: 100,
+      used_this_month: 0,
+      note: 'mock — real billing is edge-side in tokens.py',
+    },
+  };
 }
 
 // ── Main worker entry ──
@@ -251,7 +331,7 @@ export default {
         return jsonResponse({
           name: 'Welian Cloud AI API',
           version: '2.0.0',
-          endpoints: ['/ai/draft', '/ai/extract', '/ai/advise', '/health'],
+          endpoints: ['/ai/draft', '/ai/extract', '/ai/advise', '/ai/chat', '/ai/billing', '/ai/pricing', '/health'],
           spec: 'SPEC §7.1: 数据归你，智能来云',
         });
       }
@@ -269,6 +349,27 @@ export default {
       if (path === '/ai/advise' && method === 'POST') {
         const result = await handleAdvise(request, env);
         return jsonResponse(result);
+      }
+
+      // ── 方案C：计费网关 ──
+
+      if (path === '/ai/chat' && method === 'POST') {
+        const r = await handleChat(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/billing' && method === 'POST') {
+        const r = await handleBilling(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/pricing' && method === 'GET') {
+        return jsonResponse({
+          points_per_1k_input: 1,
+          points_per_1k_output: 2,
+          free_monthly: 100,
+          pro_monthly: 500,
+        });
       }
 
       // ── WeChat OAuth ──

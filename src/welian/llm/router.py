@@ -16,6 +16,7 @@ import yaml
 from .base import LLMClient, LLMAuthError
 from .claude import ClaudeClient
 from .openai import OpenAIClient
+from .cloud import CloudLLMClient
 
 
 # ── Provider 注册表 ──
@@ -23,6 +24,7 @@ from .openai import OpenAIClient
 _PROVIDERS: Dict[str, Type[LLMClient]] = {
     "claude": ClaudeClient,
     "openai": OpenAIClient,
+    "cloud": CloudLLMClient,  # 方案C: 批发赚价差模式
     # 未来扩展：只需在这里加一行
     # "minimax": MiniMaxClient,
     # "local_ollama": OllamaClient,
@@ -113,16 +115,19 @@ def _load_claude_settings_env() -> dict:
         return {}
 
 
-def get_client(force_new: bool = False) -> LLMClient:
+def get_client(force_new: bool = False, cloud_url: str = "", user_token: str = "") -> LLMClient:
     """获取 LLM Client 单例
 
     优先级：
-    1. ai.engine 指定（"claude"/"openai"）
-    2. 环境变量 LLM_ENGINE
-    3. 默认 "claude"
+    1. cloud_url 非空 → cloud 模式（方案C: 批发赚价差）
+    2. ai.engine 指定（"claude"/"openai"）
+    3. 环境变量 LLM_ENGINE
+    4. 默认 "claude"
 
     Args:
         force_new: 强制创建新实例（用于测试或切换配置）
+        cloud_url: Welian 云端 URL（非空时启用 cloud 模式）
+        user_token: 用户认证 token（cloud 模式用）
 
     Returns:
         LLMClient 实例
@@ -131,6 +136,17 @@ def get_client(force_new: bool = False) -> LLMClient:
         LLMAuthError: 无可用provider或认证失败
     """
     global _client_instance
+
+    # Cloud mode (方案C): route through Welian cloud billing gateway
+    if cloud_url:
+        if _client_instance is not None and not force_new:
+            if isinstance(_client_instance, CloudLLMClient):
+                return _client_instance
+        _client_instance = CloudLLMClient(
+            cloud_url=cloud_url,
+            user_token=user_token or os.environ.get("WELIAN_USER_TOKEN", ""),
+        )
+        return _client_instance
 
     if _client_instance is not None and not force_new:
         return _client_instance

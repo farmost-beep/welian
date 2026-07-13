@@ -190,11 +190,13 @@ class LocalAgent:
 
     DISCOVERY_URL = "https://welian-ai.farmost.workers.dev"
 
-    def __init__(self, port: int = 9800, cloud_url: str = "", token: str = "", tunnel: bool = False):
+    def __init__(self, port: int = 9800, cloud_url: str = "", token: str = "",
+                 user_token: str = "", tunnel: bool = False):
         self.port = port
         self.cloud_url = cloud_url
+        self.user_token = user_token
         self.pairing_token = token or self._generate_token()
-        self.edge = EdgeClient(cloud_url=cloud_url)
+        self.edge = EdgeClient(cloud_url=cloud_url, user_token=user_token)
         self.connected_clients = set()
         self.tunnel = tunnel
         self.tunnel_url = ""

@@ -111,8 +111,12 @@ def parse(text):
 def _llm_parse(text):
     """Use LLM to detect intent. Returns (intent, payload) or None."""
     from .llm.router import get_client
+    import os
 
-    llm = get_client()
+    # Support cloud mode via environment variable (set by EdgeClient)
+    cloud_url = os.environ.get("WELIAN_CLOUD_URL", "")
+    user_token = os.environ.get("WELIAN_USER_TOKEN", "")
+    llm = get_client(cloud_url=cloud_url, user_token=user_token)
 
     system = """你是 Welian 意图识别器。判断用户消息的意图，返回 JSON。
 
