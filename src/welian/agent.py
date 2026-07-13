@@ -292,6 +292,17 @@ class LocalAgent:
                 reply = self.edge.chat(text)
                 return {"type": "response", "id": req_id, "reply": reply}
 
+            elif cmd == "context":
+                # Return edge data context without calling LLM (cloud-first mode)
+                text = msg.get("text", "")
+                ctx = self.edge.get_context(text)
+                return {"type": "response", "id": req_id, "data": ctx}
+
+            elif cmd == "save_turn":
+                # Save conversation turn after web-side LLM generates reply
+                self.edge.save_turn(msg.get("text", ""), msg.get("reply", ""))
+                return {"type": "response", "id": req_id, "ok": True}
+
             elif cmd == "status":
                 d = engine.get_dashboard()
                 return {"type": "response", "id": req_id, "data": d}

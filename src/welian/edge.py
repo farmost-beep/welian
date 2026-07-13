@@ -90,6 +90,34 @@ class EdgeClient:
 
     # ── Main chat entry point ──
 
+    def get_context(self, text: str) -> dict:
+        """Return edge data context for a user message, without calling LLM.
+
+        Used by web cloud-first mode: agent provides data, web calls cloud LLM.
+        Executes side effects (record interaction, add todo, etc).
+
+        Returns:
+            {"intent": str, "data_context": str, "conversation": list}
+        """
+        text = text.strip()
+        if not text:
+            return {"intent": "empty", "data_context": "", "conversation": []}
+
+        intent_type, payload = intent.parse(text)
+        data_context = self._gather_context(intent_type, payload, text)
+        return {
+            "intent": intent_type,
+            "data_context": data_context,
+            "conversation": list(self._conversation),
+        }
+
+    def save_turn(self, user_text: str, reply: str):
+        """Save a conversation turn (called after web-side LLM generates reply)."""
+        self._conversation.append({"role": "user", "content": user_text})
+        self._conversation.append({"role": "assistant", "content": reply})
+        if len(self._conversation) > 40:
+            self._conversation = self._conversation[-40:]
+
     def chat(self, text: str) -> str:
         """Process user message: LLM is the primary processor.
 

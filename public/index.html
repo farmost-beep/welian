@@ -800,16 +800,99 @@ async function enableCloudMode() {
   addMsg('ai', I18N[currentLang].cloud_welcome);
 }
 
+async function getAgentContext(text) {
+  // Ask local agent for edge data context (contacts, todos, activities)
+  // Returns {intent, data_context, conversation} or null if agent unavailable
+  if (!bridgeFrame || !bridgeReady) return null;
+  return new Promise((resolve) => {
+    const reqId = 'ctx_' + Date.now();
+    let resolved = false;
+
+    const handler = (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'welian-bridge') return;
+      if (msg.type === 'ws-message' && msg.data && msg.data.id === reqId && !resolved) {
+        resolved = true;
+        window.removeEventListener('message', handler);
+        if (msg.data.type === 'response' && msg.data.data) {
+          resolve(msg.data.data);
+        } else {
+          resolve(null);
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+
+    // Timeout: if agent doesn't respond in 3s, give up
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        window.removeEventListener('message', handler);
+        resolve(null);
+      }
+    }, 3000);
+
+    bridgeFrame.contentWindow.postMessage({
+      source: 'welian-parent',
+      type: 'send',
+      payload: { cmd: 'context', id: reqId, text: text }
+    }, '*');
+  });
+}
+
+function saveAgentTurn(text, reply) {
+  // Tell agent to save conversation turn (for multi-turn context)
+  if (!bridgeFrame || !bridgeReady) return;
+  const reqId = 'save_' + Date.now();
+  bridgeFrame.contentWindow.postMessage({
+    source: 'welian-parent',
+    type: 'send',
+    payload: { cmd: 'save_turn', id: reqId, text: text, reply: reply }
+  }, '*');
+}
+
 async function cloudChat(text) {
   // Use Clerk user ID as user_token for billing identity
   const userToken = clerkUserId || 'web-anonymous-' + Date.now();
-  const messages = [{ role: 'user', content: text }];
 
-  // Include conversation history for multi-turn chat
-  if (conversationHistory.length > 0) {
-    messages.unshift(...conversationHistory.slice(-10));
+  // Step 1: If agent bridge is available, get edge data context
+  let agentContext = null;
+  if (bridgeFrame && bridgeReady) {
+    agentContext = await getAgentContext(text);
   }
 
+  // Step 2: Build messages for cloud LLM
+  const systemPrompt = `你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+
+你的风格：
+- 简洁友好，像朋友在聊天
+- 中文回复，适当用 emoji
+- 回复不要太长，重点突出
+- 如果用户在记录事情，确认记下了并简要复述
+- 如果用户在查待办，清晰列出，按紧急程度分组
+- 如果用户在闲聊，自然回应，可以引导到关系管理话题
+
+你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。
+对话是连续的，请结合上下文理解用户的意图。`;
+
+  // Build user message: combine text + data context
+  let userContent = text;
+  if (agentContext && agentContext.data_context) {
+    userContent = `用户消息：${text}\n\n相关数据：\n${agentContext.data_context}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。`;
+  }
+
+  // Build messages array: conversation history + current message
+  const messages = [];
+  if (agentContext && agentContext.conversation && agentContext.conversation.length > 0) {
+    // Use agent's conversation history (has full edge-side context)
+    messages.push(...agentContext.conversation.slice(-10));
+  } else if (conversationHistory.length > 0) {
+    // Fallback: browser-side conversation history
+    messages.push(...conversationHistory.slice(-10));
+  }
+  messages.push({ role: 'user', content: userContent });
+
+  // Step 3: Call cloud LLM
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/chat`, {
       method: 'POST',
@@ -817,6 +900,7 @@ async function cloudChat(text) {
       body: JSON.stringify({
         user_token: userToken,
         messages: messages,
+        system: systemPrompt,
         max_tokens: 1024,
       }),
     });
@@ -827,11 +911,16 @@ async function cloudChat(text) {
     }
 
     const data = await resp.json();
-    // Update conversation history
+
+    // Update conversation history (both browser-side and agent-side)
     conversationHistory.push({ role: 'user', content: text });
     conversationHistory.push({ role: 'assistant', content: data.reply });
     if (conversationHistory.length > 20) {
       conversationHistory = conversationHistory.slice(-20);
+    }
+    // Tell agent to save the turn (for edge-side conversation continuity)
+    if (bridgeFrame && bridgeReady) {
+      saveAgentTurn(text, data.reply);
     }
     return data.reply;
   } catch (e) {
@@ -1010,25 +1099,20 @@ function onBridgeMessage(e) {
 
   if (msg.type === 'ws-message') {
     const data = msg.data;
-    console.log('Bridge ws-message:', data.type);
-    removeTyping();
-    if (data.type === 'response' && data.reply) {
-      addMsg('ai', data.reply);
-    } else if (data.type === 'response' && data.data) {
-      addMsg('ai', JSON.stringify(data.data, null, 2));
-    } else if (data.type === 'error') {
-      addMsg('ai', 'Error: ' + data.message);
-    } else if (data.type === 'auth_ok') {
-      // ignore — already handled
-    }
+    // Ignore context/save_turn responses (handled by their own listeners)
+    if (data.id && (data.id.startsWith('ctx_') || data.id.startsWith('save_'))) return;
+    // Ignore auth_ok (handled in tryBridgeConnect)
+    if (data.type === 'auth_ok') return;
+    // No other ws-message types expected in cloud-first mode
+    console.log('Bridge ws-message (unhandled):', data.type, data.id);
   } else if (msg.type === 'ws-close') {
-    console.log('Bridge ws-close — falling back to cloud mode');
-    removeTyping();
+    console.log('Bridge ws-close — falling back to cloud-only mode');
     isLive = false;
+    bridgeReady = false;
     removeBridge();
-    // Fall back to cloud mode when agent disconnects
-    enableCloudMode();
-    addSystemMsg(I18N[currentLang].cloud_status + ' ← Live');
+    if (isCloud) {
+      addSystemMsg(I18N[currentLang].cloud_status + ' (agent offline)');
+    }
   }
 }
 
@@ -1102,16 +1186,10 @@ async function send() {
   addMsg('you', text);
   addTyping();
 
-  if (isLive && bridgeFrame && bridgeReady) {
-    // Live mode: send via iframe bridge → WebSocket → local agent
-    const reqId = Date.now().toString();
-    bridgeFrame.contentWindow.postMessage({
-      source: 'welian-parent',
-      type: 'send',
-      payload: { cmd: 'chat', id: reqId, text: text }
-    }, '*');
-  } else if (isCloud) {
-    // Cloud mode: direct fetch to cloud AI gateway (方案C)
+  if (isCloud || isLive) {
+    // Unified cloud-first flow: cloudChat handles both cases
+    // - If agent bridge is available: gets edge data context, then calls cloud LLM
+    // - If no agent: calls cloud LLM directly (no data context)
     try {
       const reply = await cloudChat(text);
       removeTyping();
