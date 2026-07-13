@@ -113,30 +113,106 @@ class EdgeClient:
     def _gather_full_context(self, text: str) -> str:
         """Gather comprehensive edge data for cloud LLM to reference.
 
-        Includes: overview, leverage suggestions, nurture reminders,
-        pending todos, recent activities. Cloud LLM decides what's relevant.
+        Includes: overview, all pending todos, recent timeline activities,
+        leverage/nurture suggestions, and a broad contact list with details.
+        Cloud LLM decides what's relevant based on user's question.
         """
         lines = []
 
-        # Overview
-        overview = self._gather_overview()
-        if overview:
-            lines.append(overview)
+        # 1. Overview stats
+        d = engine.get_dashboard()
+        lines.append(
+            f"【概览】联系人：{d['total_contacts']}人，"
+            f"待办：{d['pending_todos']}条，"
+            f"近期活动：{d['recent_activities']}条，"
+            f"即将生日：{len(d['upcoming_birthdays'])}人"
+        )
 
-        # Leverage suggestions (who to reach out to)
-        leverage = self._gather_ask()
-        if leverage:
-            lines.append(leverage)
-
-        # Pending todos
-        todos = self._gather_todo()
+        # 2. All pending todos (full list)
+        todos = [t for t in engine.list_todos() if t.get("status") == "pending"]
         if todos:
-            lines.append(todos)
+            today = date.today()
+            todo_lines = [f"【待办】共 {len(todos)} 条"]
+            for t in todos:
+                due = t.get("due", "")
+                task = t.get("task", t.get("content", ""))
+                contact = t.get("contact", "")
+                if due:
+                    try:
+                        delta = (date.fromisoformat(due[:10]) - today).days
+                        if delta < 0:
+                            todo_lines.append(f"  · [{contact}] {task}（超期{-delta}天）")
+                        elif delta == 0:
+                            todo_lines.append(f"  · [{contact}] {task}（今天）")
+                        else:
+                            todo_lines.append(f"  · [{contact}] {task}（{delta}天后）")
+                    except (ValueError, TypeError):
+                        todo_lines.append(f"  · [{contact}] {task}")
+                else:
+                    todo_lines.append(f"  · [{contact}] {task}")
+            lines.append("\n".join(todo_lines))
 
-        # Recent activities
-        recent = self._gather_query()
-        if recent:
-            lines.append(recent)
+        # 3. Recent timeline activities (last 30 days, up to 30 entries)
+        recent_tls = engine.list_timeline(days=30)
+        if recent_tls:
+            tl_lines = ["【近期互动记录】"]
+            for r in recent_tls[:30]:
+                cname = r.get("contact_name", r.get("contact", ""))
+                summary = r.get("summary", r.get("content", ""))[:80]
+                rdate = r.get("date", "")[:10]
+                tl_lines.append(f"  · {rdate} {cname}：{summary}")
+            lines.append("\n".join(tl_lines))
+
+        # 4. Leverage suggestions (top 10)
+        leverage = engine.advise_leverage(top=10)
+        if leverage:
+            lev_lines = ["【建议联系（撬动型）】"]
+            for c in leverage:
+                name = c["contact"]["name"]
+                days = c["days_since"]
+                last = c.get("last_interaction", "")[:80]
+                relation = c["contact"].get("relation", "")
+                lev_lines.append(f"  · {name}（{days}天未联系）关系：{relation} 上次：{last}")
+            lines.append("\n".join(lev_lines))
+
+        # 5. Nurture reminders
+        nurture = engine.advise_nurture(days_ahead=14)
+        if nurture:
+            nur_lines = ["【陪伴提醒（维系型）】"]
+            for r in nurture[:10]:
+                name = r["contact"]["name"]
+                rtype = r["type"]
+                label = r.get("label", "")
+                nur_lines.append(f"  · {name} — {rtype}：{label}")
+            lines.append("\n".join(nur_lines))
+
+        # 6. Broad contact list with details (up to 100, sorted by recent activity)
+        contacts = engine.list_contacts()
+        # Sort by days_since_last (most recent first)
+        contact_summaries = []
+        for c in contacts:
+            name = c["name"]
+            nature = engine.infer_nature(c)
+            role = engine.contact_role(c)
+            relation = c.get("relation", "")
+            notes = (c.get("notes", "") or "")[:60]
+            days = engine._days_since_last(c["id"])
+            contact_summaries.append((days, name, nature, role, relation, notes))
+        contact_summaries.sort(key=lambda x: x[0])
+
+        contact_lines = [f"【联系人列表（按最近互动排序，共{len(contacts)}人，显示前100）】"]
+        for days, name, nature, role, relation, notes in contact_summaries[:100]:
+            detail = f"  · {name} [{nature}] [{role}]"
+            if relation:
+                detail += f" 关系：{relation}"
+            if days < 9999:
+                detail += f"（{days}天前互动）"
+            else:
+                detail += "（无互动记录）"
+            if notes:
+                detail += f" 备注：{notes}"
+            contact_lines.append(detail)
+        lines.append("\n".join(contact_lines))
 
         return "\n\n".join(lines)
 
