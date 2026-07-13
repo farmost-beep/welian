@@ -93,23 +93,55 @@ class EdgeClient:
     def get_context(self, text: str) -> dict:
         """Return edge data context for a user message, without calling LLM.
 
-        Used by web cloud-first mode: agent provides data, web calls cloud LLM.
-        Executes side effects (record interaction, add todo, etc).
+        Used by web cloud-first mode: agent provides data, web calls cloud LLM
+        for intent detection + response generation in one call.
+
+        Returns comprehensive data (contacts, todos, recent activities) so the
+        cloud LLM can determine intent and reference relevant data itself.
 
         Returns:
-            {"intent": str, "data_context": str, "conversation": list}
+            {"data_context": str, "conversation": list}
         """
         text = text.strip()
         if not text:
-            return {"intent": "empty", "data_context": "", "conversation": []}
+            return {"data_context": "", "conversation": []}
 
-        intent_type, payload = intent.parse(text)
-        data_context = self._gather_context(intent_type, payload, text)
+        # Gather comprehensive context (not intent-specific)
+        data_context = self._gather_full_context(text)
         return {
-            "intent": intent_type,
             "data_context": data_context,
             "conversation": list(self._conversation),
         }
+
+    def _gather_full_context(self, text: str) -> str:
+        """Gather comprehensive edge data for cloud LLM to reference.
+
+        Includes: overview, leverage suggestions, nurture reminders,
+        pending todos, recent activities. Cloud LLM decides what's relevant.
+        """
+        lines = []
+
+        # Overview
+        overview = self._gather_overview()
+        if overview:
+            lines.append(overview)
+
+        # Leverage suggestions (who to reach out to)
+        leverage = self._gather_ask()
+        if leverage:
+            lines.append(leverage)
+
+        # Pending todos
+        todos = self._gather_todo()
+        if todos:
+            lines.append(todos)
+
+        # Recent activities
+        recent = self._gather_query()
+        if recent:
+            lines.append(recent)
+
+        return "\n\n".join(lines)
 
     def save_turn(self, user_text: str, reply: str):
         """Save a conversation turn (called after web-side LLM generates reply)."""

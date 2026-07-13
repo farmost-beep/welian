@@ -457,6 +457,9 @@ class LocalAgent:
             # Auth
             try:
                 raw = await asyncio.wait_for(ws_server.receive(), timeout=10)
+                if raw.data is None:
+                    await ws_server.close()
+                    return ws_server
                 msg = json.loads(raw.data)
 
                 if msg.get("type") != "auth" or msg.get("token") != self.pairing_token:
@@ -479,6 +482,8 @@ class LocalAgent:
 
             try:
                 async for raw_msg in ws_server:
+                    if raw_msg.data is None:
+                        continue
                     try:
                         msg = json.loads(raw_msg.data)
                     except json.JSONDecodeError:
