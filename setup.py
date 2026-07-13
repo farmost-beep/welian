@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="welian",
-    version="1.0.0",
+    name="welian-app",
+    version="1.1.0",
     description="Welian — AI companion for relationships. Be a better friend, a better family, a better you.",
     long_description="Welian helps you nurture two types of relationships: goal-driven ties (leverage) and lifelong bonds (nurture).",
     author="Welian",
