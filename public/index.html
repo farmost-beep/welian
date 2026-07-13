@@ -964,8 +964,11 @@ function showWelcome() {
 }
 
 function scrollToBottom() {
+  // Double rAF: first frame lays out the new element, second frame scrolls
   requestAnimationFrame(() => {
-    body.scrollTop = body.scrollHeight;
+    requestAnimationFrame(() => {
+      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    });
   });
 }
 
