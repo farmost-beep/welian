@@ -536,21 +536,28 @@ class LocalAgent:
 
         Syncs: contacts, todos, timeline (complete datasets, not summaries).
         Cloud worker can then search and build data_context without agent.
+
+        Uses sync_token for auth: "<clerk_user_id>:<WELIAN_SYNC_SECRET>"
         """
         import urllib.request
         from .cli import _get_user_id
         from .engine import CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE
 
         cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
-        user_token = _get_user_id() or os.environ.get("WELIAN_USER_TOKEN")
-        if not user_token or len(user_token) < 10:
-            print("  ⚠ Cloud sync skipped — no valid user_token (run 'welian login')")
+        user_id = _get_user_id() or os.environ.get("WELIAN_USER_TOKEN")
+        sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+
+        if not user_id or len(user_id) < 10:
+            print("  ⚠ Cloud sync skipped — no valid user_id (run 'welian login')")
             return
+        if not sync_secret:
+            print("  ⚠ Cloud sync skipped — WELIAN_SYNC_SECRET not set")
+            return
+
+        sync_token = f"{user_id}:{sync_secret}"
 
         def _load_and_sync():
             """Load all data files and sync to cloud. Runs in thread executor."""
-            import gzip, io
-
             # Load all data
             datasets = {}
             for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
@@ -560,9 +567,9 @@ class LocalAgent:
                 except Exception:
                     datasets[name] = []
 
-            # Build sync payload (compressed to fit KV limits)
+            # Build sync payload with sync_token
             payload = json.dumps({
-                "user_token": user_token,
+                "sync_token": sync_token,
                 "contacts": datasets["contacts"],
                 "todos": datasets["todos"],
                 "timeline": datasets["timeline"],
@@ -582,7 +589,7 @@ class LocalAgent:
             # Also sync summary data_context (for quick overview without search)
             ctx = self.edge.get_context("")
             summary = json.dumps({
-                "user_token": user_token,
+                "sync_token": sync_token,
                 "data_context": ctx.get("data_context", ""),
             }).encode()
             req2 = urllib.request.Request(

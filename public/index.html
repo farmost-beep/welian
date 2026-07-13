@@ -417,6 +417,20 @@ let isLive = false;     // Connected to local agent (Live mode)
 let isCloud = false;    // Cloud direct mode (no local agent)
 let clerkInstance = null;
 let clerkUserId = null; // Clerk user ID for device discovery
+let clerkSessionToken = null; // Clerk session JWT for API auth
+
+// Get fresh Clerk session token (JWT expires, so fetch each time)
+async function getClerkToken() {
+  try {
+    if (window.Clerk && window.Clerk.session) {
+      const token = await window.Clerk.session.getToken();
+      return token;
+    }
+  } catch (e) {
+    console.log('[getClerkToken] failed:', e.message);
+  }
+  return null;
+}
 let isCliLogin = false; // CLI login mode — wait for explicit sign-in
 let cliLoginInitialUserId = null; // existing user ID to ignore
 let existingUserId = null; // pre-existing session to ignore (no auto-login)
@@ -859,11 +873,15 @@ function saveAgentTurn(text, reply) {
   }, '*');
 }
 
-async function getCloudDataContext(userToken) {
+async function getCloudDataContext() {
   // Fetch data context from cloud KV (synced by agent)
-  // Returns data_context string or empty string
+  // Uses Clerk session JWT for auth
+  const token = await getClerkToken();
+  if (!token) return '';
   try {
-    const resp = await fetch(`${CLOUD_URL}/data/context?user_token=${encodeURIComponent(userToken)}`);
+    const resp = await fetch(`${CLOUD_URL}/data/context`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
     if (!resp.ok) return '';
     const data = await resp.json();
     return data.data_context || '';
@@ -873,15 +891,17 @@ async function getCloudDataContext(userToken) {
   }
 }
 
-async function cloudSearch(userToken, keywords, contactName) {
+async function cloudSearch(keywords, contactName) {
   // Search contacts in cloud KV (full cloud mode, no agent needed)
-  // Returns {data_context, matched_count} or null
+  // Uses Clerk session JWT for auth
+  const token = await getClerkToken();
+  if (!token) return null;
   try {
     const resp = await fetch(`${CLOUD_URL}/data/search`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
-        user_token: userToken,
+        session_token: token,
         keywords: keywords,
         contact_name: contactName,
       }),
@@ -935,13 +955,15 @@ async function agentSearch(keywords, contactName, intent) {
   });
 }
 
-async function extractIntent(text, userToken) {
+async function extractIntent(text) {
   // Step 1: Cloud LLM extracts intent + keywords from user message
+  const token = await getClerkToken();
+  if (!token) return null;
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/extract_intent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_token: userToken, text: text }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_token: token, text: text }),
     });
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -954,15 +976,20 @@ async function extractIntent(text, userToken) {
 }
 
 async function cloudChat(text) {
-  // Two-step LLM flow:
+  // Two-step LLM flow with Clerk JWT auth:
   // 1. Cloud LLM extracts intent + keywords
   // 2. Agent searches contacts by keywords (or cloud KV fallback)
   // 3. Cloud LLM generates reply with precise data context
-  const userToken = clerkUserId || 'web-anonymous-' + Date.now();
   console.log('[cloudChat] Start, bridgeReady:', bridgeReady, 'isLive:', isLive);
 
+  // Get Clerk session token for API auth
+  const token = await getClerkToken();
+  if (!token) {
+    throw new Error('请先登录');
+  }
+
   // Step 1: Extract intent + keywords
-  const intent = await extractIntent(text, userToken);
+  const intent = await extractIntent(text);
   let dataContext = '';
   let conversationHistoryFromAgent = [];
 
@@ -981,9 +1008,9 @@ async function cloudChat(text) {
       }
     }
 
-    if (!dataContext && clerkUserId) {
+    if (!dataContext) {
       // No agent — search in cloud KV (full cloud mode, same precision as agent)
-      const cloudResult = await cloudSearch(clerkUserId, intent.keywords || [], intent.contact_name || '');
+      const cloudResult = await cloudSearch(intent.keywords || [], intent.contact_name || '');
       if (cloudResult) {
         dataContext = cloudResult.data_context || '';
         console.log('[cloudChat] cloud search, data_context len:', dataContext.length, 'matched:', cloudResult.matched_count);
@@ -1000,8 +1027,8 @@ async function cloudChat(text) {
       }
     }
 
-    if (!dataContext && clerkUserId) {
-      dataContext = await getCloudDataContext(clerkUserId);
+    if (!dataContext) {
+      dataContext = await getCloudDataContext();
       if (dataContext) {
         console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
       }
@@ -1042,9 +1069,9 @@ async function cloudChat(text) {
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
-        user_token: userToken,
+        session_token: token,
         messages: messages,
         system: systemPrompt,
         max_tokens: 1024,

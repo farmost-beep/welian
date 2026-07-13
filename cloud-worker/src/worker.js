@@ -30,6 +30,68 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// ── Auth: verify Clerk JWT and extract user_id ──
+
+async function verifyClerkToken(token, env) {
+  // Verify a Clerk session JWT via Clerk Backend API
+  // Returns { user_id, valid: true } or { valid: false }
+  if (!token || typeof token !== 'string') {
+    return { valid: false };
+  }
+
+  const clerkKey = env.CLERK_SECRET_KEY;
+  if (!clerkKey) {
+    console.error('CLERK_SECRET_KEY not set');
+    return { valid: false };
+  }
+
+  try {
+    const resp = await fetch('https://api.clerk.com/v1/sessions/verify', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${clerkKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!resp.ok) {
+      return { valid: false };
+    }
+
+    const data = await resp.json();
+    // Clerk returns session with user_id in sub
+    const userId = data.sub || (data.user && data.user.id);
+    if (!userId) {
+      return { valid: false };
+    }
+    return { valid: true, user_id: userId };
+  } catch (e) {
+    console.error('Clerk verify failed:', e.message);
+    return { valid: false };
+  }
+}
+
+// Extract + verify token from request (Authorization header or body)
+async function getVerifiedUserId(req, env, body) {
+  // Try Authorization header first
+  const authHeader = req.headers.get('Authorization') || '';
+  let token = '';
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  // Fall back to body field (for endpoints that accept JSON body)
+  if (!token && body && body.session_token) {
+    token = body.session_token;
+  }
+
+  const result = await verifyClerkToken(token, env);
+  if (!result.valid) {
+    return null;
+  }
+  return result.user_id;
+}
+
 // ── System prompts (mirror Python server.py) ──
 
 const DRAFT_SYSTEM = `You are Welian, an AI companion that helps people be better friends, family members, and collaborators.
@@ -268,11 +330,11 @@ async function handleChat(req, env) {
   const system = body.system || '';
   const maxTokens = body.max_tokens || 1024;
   const temperature = body.temperature !== undefined ? body.temperature : 0.7;
-  const userToken = body.user_token;
 
-  // Validate user_token (simple check for now; Clerk session verification later)
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify Clerk session and get user_id
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
   }
 
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -330,11 +392,12 @@ async function handleExtractIntent(req, env) {
   // Step 1 of two-step LLM flow: extract intent + keywords from user message
   // Returns JSON: { intent, contact_name, keywords, todo_related }
   const body = await req.json();
-  const userToken = body.user_token;
   const text = body.text;
 
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify Clerk session
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
   }
   if (!text) {
     return { status: 400, data: { error: 'text required' } };
@@ -388,13 +451,42 @@ JSON格式：
   }
 }
 
+// Verify agent sync token (for data sync endpoints, no Clerk session)
+// Agent uses WELIAN_SYNC_TOKEN env var, which is "<user_id>:<random_secret>"
+async function getAgentSyncUserId(body, env) {
+  const syncToken = body.sync_token;
+  if (!syncToken || typeof syncToken !== 'string') {
+    return null;
+  }
+
+  // sync_token format: "<clerk_user_id>:<secret>"
+  // The secret must match WELIAN_SYNC_SECRET env var
+  const parts = syncToken.split(':');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const [userId, secret] = parts;
+  const expectedSecret = env.WELIAN_SYNC_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) {
+    return null;
+  }
+
+  if (!userId || userId.length < 10) {
+    return null;
+  }
+
+  return userId;
+}
+
 async function handleDataSync(req, env) {
   const body = await req.json();
-  const userToken = body.user_token;
   const dataContext = body.data_context;
 
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify agent sync token
+  const userId = await getAgentSyncUserId(body, env);
+  if (!userId) {
+    return { status: 401, data: { error: 'Invalid sync token' } };
   }
 
   if (!dataContext || typeof dataContext !== 'string' || dataContext.length === 0) {
@@ -402,7 +494,7 @@ async function handleDataSync(req, env) {
   }
 
   // Store in KV with 7-day TTL (agent re-syncs periodically)
-  await env.USER_DATA.put(`ctx:${userToken}`, dataContext, { expirationTtl: 604800 });
+  await env.USER_DATA.put(`ctx:${userId}`, dataContext, { expirationTtl: 604800 });
 
   return { status: 200, data: { ok: true, synced_at: new Date().toISOString() } };
 }
@@ -410,10 +502,11 @@ async function handleDataSync(req, env) {
 async function handleDataSyncFull(req, env) {
   // Sync full edge data (contacts, todos, timeline) to cloud KV
   const body = await req.json();
-  const userToken = body.user_token;
 
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify agent sync token
+  const userId = await getAgentSyncUserId(body, env);
+  if (!userId) {
+    return { status: 401, data: { error: 'Invalid sync token' } };
   }
 
   const contacts = body.contacts || [];
@@ -421,10 +514,9 @@ async function handleDataSyncFull(req, env) {
   const timeline = body.timeline || [];
 
   // Store each dataset separately in KV (7-day TTL)
-  // KV value limit is 25MB, contacts.json is ~2MB so fits easily
-  await env.USER_DATA.put(`contacts:${userToken}`, JSON.stringify(contacts), { expirationTtl: 604800 });
-  await env.USER_DATA.put(`todos:${userToken}`, JSON.stringify(todos), { expirationTtl: 604800 });
-  await env.USER_DATA.put(`timeline:${userToken}`, JSON.stringify(timeline), { expirationTtl: 604800 });
+  await env.USER_DATA.put(`contacts:${userId}`, JSON.stringify(contacts), { expirationTtl: 604800 });
+  await env.USER_DATA.put(`todos:${userId}`, JSON.stringify(todos), { expirationTtl: 604800 });
+  await env.USER_DATA.put(`timeline:${userId}`, JSON.stringify(timeline), { expirationTtl: 604800 });
 
   return {
     status: 200,
@@ -439,24 +531,25 @@ async function handleDataSyncFull(req, env) {
 async function handleDataSearch(req, env) {
   // Search contacts in cloud KV by keywords (full cloud mode, no agent needed)
   const body = await req.json();
-  const userToken = body.user_token;
   const keywords = body.keywords || [];
   const contactName = body.contact_name || '';
 
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify Clerk session
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
   }
 
   // Build search terms
   const searchTerms = [...new Set([...keywords, contactName].filter(t => t))];
   if (searchTerms.length === 0) {
     // No keywords — return overview from data_context KV
-    const dataContext = await env.USER_DATA.get(`ctx:${userToken}`);
+    const dataContext = await env.USER_DATA.get(`ctx:${userId}`);
     return { status: 200, data: { data_context: dataContext || '', matched_count: 0 } };
   }
 
   // Load contacts from KV
-  const contactsRaw = await env.USER_DATA.get(`contacts:${userToken}`);
+  const contactsRaw = await env.USER_DATA.get(`contacts:${userId}`);
   if (!contactsRaw) {
     return { status: 200, data: { data_context: '', matched_count: 0, reason: 'no data synced' } };
   }
@@ -469,8 +562,8 @@ async function handleDataSearch(req, env) {
   }
 
   // Load todos and timeline for enriching results
-  const todosRaw = await env.USER_DATA.get(`todos:${userToken}`);
-  const timelineRaw = await env.USER_DATA.get(`timeline:${userToken}`);
+  const todosRaw = await env.USER_DATA.get(`todos:${userId}`);
+  const timelineRaw = await env.USER_DATA.get(`timeline:${userId}`);
   const todos = todosRaw ? JSON.parse(todosRaw) : [];
   const timeline = timelineRaw ? JSON.parse(timelineRaw) : [];
 
@@ -570,14 +663,13 @@ async function handleDataSearch(req, env) {
 }
 
 async function handleDataContext(req, env) {
-  const url = new URL(req.url);
-  const userToken = url.searchParams.get('user_token');
-
-  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
-    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  // Verify Clerk session (token from Authorization header)
+  const userId = await getVerifiedUserId(req, env, null);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
   }
 
-  const dataContext = await env.USER_DATA.get(`ctx:${userToken}`);
+  const dataContext = await env.USER_DATA.get(`ctx:${userId}`);
 
   if (!dataContext) {
     return { status: 200, data: { data_context: '', synced_at: null } };
