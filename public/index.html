@@ -892,18 +892,25 @@ async function tryUpgradeToLive() {
 }
 
 function upgradeToLive(source) {
-  // Switch from cloud mode to Live mode
-  // Only upgrade if user hasn't started chatting in cloud mode yet
+  // Agent bridge is connected. Keep bridge alive for data-aware chat.
+  // Switch routing: subsequent send() will use bridge (agent has data context).
   const chatMessages = body.querySelectorAll('.msg:not(.system)');
   if (chatMessages.length > 0) {
-    // User already has conversation — don't disrupt, just notify
-    console.log('User is chatting in cloud mode, not upgrading to Live');
-    removeBridge();
-    addSystemMsg(I18N[currentLang].live_available);
+    // User already has conversation — don't clear, just switch routing
+    console.log('Agent online — switching to data-aware mode (bridge kept)');
+    isCloud = false;
+    isLive = true;
+    // Register bridge message listener to receive agent replies
+    window.addEventListener('message', onBridgeMessage);
+    // Update status badge
+    statusDot.className = 'status-dot online';
+    statusText.textContent = 'Live';
+    if (modeBadge) { modeBadge.textContent = 'Live'; modeBadge.className = 'mode-badge live'; }
+    addSystemMsg(I18N[currentLang].live_upgraded);
     return;
   }
+  // No conversation yet — clean upgrade to Live
   isCloud = false;
-  removeBridge();
   onAgentConnected(source);
 }
 
