@@ -3,103 +3,123 @@
   "name": "Elon Musk",
   "title": "特斯拉 / SpaceX / X CEO",
   "avatar": "🚀",
-  "tagline": "在推特收购后，重建核心关系网络",
-  "intro": "你是 Elon Musk。收购 Twitter 后面临广告主流失、投资人质疑、老朋友疏远。你需要通过维护关键关系来扭转局面。",
+  "tagline": "从 PayPal 到火星，每一步都离不开关键关系",
+  "intro": "你是 Elon Musk。从 Zip2 到 PayPal，从特斯拉到 SpaceX，再到收购 Twitter。每一次冒险背后，都有需要维护的关键关系。",
+  "sequential_goals": true,
   "goals": [
     {
       "id": "g1",
-      "title": "修复与 Larry Ellison 的关系",
-      "description": "Oracle 创始人，曾是 Twitter 董事会成员，收购后因分歧离开。重新建立信任。",
+      "title": "1995 · 与弟弟 Kimbal 创办 Zip2",
+      "description": "你和弟弟 Kimbal 一起创办了 Zip2。记录一次关于创业分工的对话。",
       "type": "record_interaction",
-      "contact_names": ["Larry", "Larry Ellison", "Ellison"],
-      "keywords": ["道歉", "和解", "sorry", "apolog"],
+      "contact_names": ["Kimbal", "Kimbal Musk", "弟弟"],
+      "keywords": ["创业", "zip2", "分工", "start", "合作", "兄弟"],
       "need_all_keywords": false,
       "count": 1
     },
     {
       "id": "g2",
-      "title": "联系 3 位流失的广告主",
-      "description": "苹果、IBM、通用汽车已暂停投放。需要至少联系 3 位恢复合作。",
+      "title": "2002 · 创立 SpaceX，说服 Gwynne 加入",
+      "description": "你刚卖掉 PayPal，创立 SpaceX。Gwynne Shotwell 是你需要的运营天才。记录一次说服她加入的对话。",
       "type": "record_interaction",
-      "contact_names": ["Tim Cook", "Arvind", "Krishna", "IBM", "Mary Barra", "GM", "通用", "苹果"],
-      "count": 3
+      "contact_names": ["Gwynne", "Gwynne Shotwell", "Shotwell"],
+      "keywords": ["spacex", "加入", "join", "火箭", "说服", "offer", "运营"],
+      "need_all_keywords": false,
+      "count": 1
     },
     {
       "id": "g3",
-      "title": "给员工发一封鼓舞邮件",
-      "description": "用 Welian 拟写一封给全公司的邮件，提振士气。",
+      "title": "2008 · 特斯拉濒临破产，给员工打气",
+      "description": "金融危机中特斯拉现金即将耗尽，团队士气低落。拟写一封给全体员工的信，鼓舞士气。",
       "type": "draft_message",
-      "keywords": ["邮件", "mail", "员工", "全公司", "士气", "鼓舞"],
+      "keywords": ["特斯拉", "tesla", "员工", "坚持", "信念", "survive", "团队", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2016 · 与 Larry Page 的 AI 分歧",
+      "description": "Larry Page 曾是你的好朋友，但在 AI 安全问题上产生了严重分歧。记录这次冲突。",
+      "type": "record_interaction",
+      "contact_names": ["Larry", "Larry Page", "Page", "Google"],
+      "keywords": ["ai", "分歧", "安全", "冲突", "disagree", "安全", "风险", "朋友"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2022 · 收购 Twitter，给广告主写一封信",
+      "description": "你刚完成 Twitter 收购，广告主纷纷暂停投放。拟写一封公开信安抚广告主。",
+      "type": "draft_message",
+      "keywords": ["twitter", "广告", "advertis", "信任", "自由", "言论", "平台", "brand"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2023 · 修复与母亲 Maye 的关系",
+      "description": "你太忙了，很久没联系母亲 Maye。她有些失落。记录一次与母亲的真诚对话。",
+      "type": "record_interaction",
+      "contact_names": ["Maye", "Maye Musk", "妈妈", "母亲"],
+      "keywords": ["妈妈", "母亲", "抱歉", "sorry", "想念", "忙", "家", "love"],
       "need_all_keywords": false,
       "count": 1
     }
   ],
   "contacts": [
     {
-      "id": "c_larry",
-      "name": "Larry Ellison",
-      "relation": "商业伙伴",
-      "role": "Oracle 创始人",
-      "nature": "leverage",
-      "strength": 4,
-      "notes": "曾是 Twitter 董事会成员，收购后因管理风格分歧离开。之前关系很好，需要修复。",
-      "platforms": {"email": "larry@oracle.com"},
-      "important_dates": [{"label": "生日", "date": "08-17"}],
-      "leverage": {"goals": "恢复董事关系，可能投资 X", "how": "私人晚宴+道歉"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "c_tim_cook",
-      "name": "Tim Cook",
-      "relation": "商业伙伴",
-      "role": "Apple CEO",
-      "nature": "leverage",
-      "strength": 3,
-      "notes": "苹果是 Twitter 最大广告主之一，收购后暂停了投放。需要恢复合作。",
-      "platforms": {"email": "tcook@apple.com"},
-      "leverage": {"goals": "恢复苹果广告投放", "how": "直接通话+公开表态"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "c_ginni",
-      "name": "Arvind Krishna",
-      "relation": "商业伙伴",
-      "role": "IBM CEO",
-      "nature": "leverage",
-      "strength": 2,
-      "notes": "IBM 也暂停了 Twitter 广告投放。之前通过中间人联系，需要建立直接关系。",
-      "platforms": {"email": "arvind@ibm.com"},
-      "leverage": {"goals": "恢复 IBM 广告投放", "how": "行业会议+直接沟通"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "c_mary",
-      "name": "Mary Barra",
-      "relation": "竞争对手",
-      "role": "GM CEO",
-      "nature": "dual",
-      "strength": 2,
-      "notes": "通用汽车因特斯拉竞争关系暂停了 Twitter 广告。关系微妙——既是竞争对手又是广告主。",
-      "platforms": {"email": "mary.barra@gm.com"},
-      "leverage": {"goals": "恢复 GM 广告投放", "how": "找到合作切入点（充电网络）"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "id": "c_kimbal",
+      "name": "Kimbal Musk",
+      "relation": "家人",
+      "role": "弟弟 / Zip2 联合创始人",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你的弟弟，Zip2 一起创办。他负责运营和销售，你负责技术。性格比你温和，是你最信任的家人之一。",
+      "platforms": {"email": "kimbal@kitchenrestaurant.com"},
+      "important_dates": [{"label": "生日", "date": "09-28"}],
+      "leverage": {"goals": "创业分工，稳定早期团队", "how": "面对面谈清楚分工"},
+      "created": "1995-01-01T00:00:00Z",
+      "updated": "1995-01-01T00:00:00Z"
     },
     {
       "id": "c_gwynne",
       "name": "Gwynne Shotwell",
       "relation": "同事",
       "role": "SpaceX COO",
-      "nature": "nurture",
+      "nature": "leverage",
       "strength": 5,
-      "notes": "SpaceX 二把手，最信任的搭档。最近因精力分散到 X 导致她承担更多压力。",
+      "notes": "SpaceX 二把手，2002 年加入。她负责所有商业运营，是你最信任的搭档。没有她 SpaceX 不可能走到今天。",
       "platforms": {"email": "gwynne@spacex.com"},
       "important_dates": [{"label": "入职纪念日", "date": "2002-11-01"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "SpaceX 运营和销售", "how": "每周一对一会"},
+      "created": "2002-11-01T00:00:00Z",
+      "updated": "2002-11-01T00:00:00Z"
+    },
+    {
+      "id": "c_larry",
+      "name": "Larry Page",
+      "relation": "朋友",
+      "role": "Google 联合创始人",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "曾经是好朋友，你在 Google 早期给过他建议。但在 AI 安全问题上严重分歧——你认为 AI 可能毁灭人类，他觉得你在危言耸听。",
+      "platforms": {"email": "larry@google.com"},
+      "leverage": {"goals": "修复友谊，或至少保持尊重", "how": "坦诚对话"},
+      "created": "2002-01-01T00:00:00Z",
+      "updated": "2016-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_maye",
+      "name": "Maye Musk",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "70+ 岁的超模母亲，独自把你和三个孩子养大。你太忙了，经常忘记联系她。她从不抱怨，但你能感觉到她的失落。",
+      "platforms": {"email": "maye@mayemusk.com"},
+      "important_dates": [{"label": "生日", "date": "04-19"}],
+      "created": "1971-06-28T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_vaughn",
@@ -109,8 +129,8 @@
       "nature": "nurture",
       "strength": 3,
       "notes": "老朋友，在 Meta 负责基础设施。可以请教大规模系统运营经验。",
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2020-01-01T00:00:00Z",
+      "updated": "2020-01-01T00:00:00Z"
     },
     {
       "id": "c_jared",
@@ -120,101 +140,97 @@
       "nature": "leverage",
       "strength": 4,
       "notes": "管理 Musk 家族财富和信托。需要定期沟通投资策略。",
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "c_maye",
-      "name": "Maye Musk",
-      "relation": "家人",
-      "role": "母亲",
-      "nature": "nurture",
-      "strength": 5,
-      "notes": "70+ 岁的超模母亲。最近忙于收购没时间联系她，她有些失落。",
-      "important_dates": [{"label": "生日", "date": "04-19"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2016-01-01T00:00:00Z",
+      "updated": "2016-01-01T00:00:00Z"
     }
   ],
   "todos": [
     {
       "id": "t1",
-      "contact": "c_larry",
-      "task": "给 Larry Ellison 打电话道歉",
+      "contact": "c_kimbal",
+      "task": "和 Kimbal 谈 Zip2 的分工",
       "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "1995-01-01T00:00:00Z"
     },
     {
       "id": "t2",
-      "contact": "c_tim_cook",
-      "task": "约 Tim Cook 通话谈广告恢复",
+      "contact": "c_gwynne",
+      "task": "说服 Gwynne 加入 SpaceX",
       "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2002-09-01T00:00:00Z"
     },
     {
       "id": "t3",
+      "contact": "",
+      "task": "给特斯拉员工写一封鼓舞信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2008-12-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_larry",
+      "task": "面对与 Larry Page 的 AI 分歧",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2016-01-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
       "contact": "c_maye",
       "task": "给妈妈打电话",
       "priority": "P1",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "t4",
-      "contact": "c_gwynne",
-      "task": "感谢 Gwynne 最近承担更多 SpaceX 工作",
-      "priority": "P1",
-      "due": "",
-      "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "t5",
-      "contact": "",
-      "task": "拟写全公司邮件提振士气",
-      "priority": "P1",
-      "due": "",
-      "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2023-01-01T00:00:00Z"
     }
   ],
   "timeline": [
     {
       "id": "tl1",
-      "contact": "c_larry",
-      "date": "2026-06-15",
-      "summary": "Larry 在董事会上公开批评收购方案，之后辞去董事职务",
-      "sentiment": "negative",
-      "created": "2026-06-15T00:00:00Z"
+      "contact": "c_kimbal",
+      "date": "1995-09-01",
+      "summary": "和 Kimbal 在 Palo Alto 租了一间小办公室，用一台电脑开始做 Zip2。你写代码，他跑客户。",
+      "sentiment": "positive",
+      "created": "1995-09-01T00:00:00Z"
     },
     {
       "id": "tl2",
-      "contact": "c_tim_cook",
-      "date": "2026-06-20",
-      "summary": "苹果宣布暂停 Twitter 广告投放，理由是内容审核担忧",
-      "sentiment": "negative",
-      "created": "2026-06-20T00:00:00Z"
+      "contact": "c_gwynne",
+      "date": "2002-11-01",
+      "summary": "Gwynne 加入 SpaceX 担任 VP of Business Development。你在面试时说'帮我卖火箭'。",
+      "sentiment": "positive",
+      "created": "2002-11-01T00:00:00Z"
     },
     {
       "id": "tl3",
-      "contact": "c_gwynne",
-      "date": "2026-07-01",
-      "summary": "Gwynne 独自主持了 Starship 项目评审，Musk 未出席",
-      "sentiment": "neutral",
-      "created": "2026-07-01T00:00:00Z"
+      "contact": "",
+      "date": "2008-12-24",
+      "summary": "平安夜，特斯拉现金只够撑几天。你把最后的钱投进去，差点同时破产三家公司。",
+      "sentiment": "negative",
+      "created": "2008-12-24T00:00:00Z"
     },
     {
       "id": "tl4",
-      "contact": "c_maye",
-      "date": "2026-05-10",
-      "summary": "母亲节发了短信但没打电话，Maye 回复'你忙就好'",
+      "contact": "c_larry",
+      "date": "2016-03-01",
+      "summary": "在一次 AI 安全讨论中，Larry 当面对你说'你太戏剧化了，AI 不会毁灭世界'。之后你们很少说话。",
       "sentiment": "negative",
-      "created": "2026-05-10T00:00:00Z"
+      "created": "2016-03-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_maye",
+      "date": "2023-05-14",
+      "summary": "母亲节发了短信但没打电话，Maye 回复'你忙就好，妈妈为你骄傲'。",
+      "sentiment": "negative",
+      "created": "2023-05-14T00:00:00Z"
     }
   ]
 }

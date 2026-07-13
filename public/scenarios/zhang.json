@@ -3,31 +3,68 @@
   "name": "张一鸣",
   "title": "字节跳动创始人",
   "avatar": "📱",
-  "tagline": "卸任 CEO 后，重新连接被忽略的人脉",
-  "intro": "你是张一鸣。卸任字节跳动 CEO 后专注 AI 投资，但发现很多老关系疏远了——前同事、投资伙伴、甚至家人。你需要重建这些关系。",
+  "tagline": "从锦秋家园到全球帝国，每一步都有需要维护的人",
+  "intro": "你是张一鸣。从 2012 年在锦秋家园创办字节跳动，到 TikTok 风靡全球，再到卸任 CEO 专注 AI 投资。每一步关键节点，都离不开身边的人。",
+  "sequential_goals": true,
   "goals": [
     {
       "id": "g1",
-      "title": "联系 3 位前核心团队成员",
-      "description": "梁汝波、陈林、张楠在你卸任后联系变少。重新建立沟通。",
+      "title": "2012 · 锦秋家园，与梁汝波创办字节跳动",
+      "description": "你和大学室友梁汝波在锦秋家园的公寓里创办了字节跳动。记录一次关于创业方向的对话。",
       "type": "record_interaction",
-      "contact_names": ["梁汝波", "汝波", "陈林", "张楠"],
-      "count": 3
+      "contact_names": ["梁汝波", "汝波", "Liang"],
+      "keywords": ["创业", "字节", "bytedance", "方向", "算法", "推荐", "start"],
+      "need_all_keywords": false,
+      "count": 1
     },
     {
       "id": "g2",
-      "title": "给沈南鹏发一条投资合作消息",
-      "description": "红杉中国创始人，之前合作过多轮。探讨 AI 领域新合作。",
-      "type": "draft_message",
-      "contact_names": ["沈南鹏", "南鹏", "红杉"],
+      "title": "2014 · 今日头条爆发，给陈林布置产品方向",
+      "description": "今日头条用户爆发式增长，陈林是核心产品负责人。记录一次关于产品方向的沟通。",
+      "type": "record_interaction",
+      "contact_names": ["陈林", "Chen Lin"],
+      "keywords": ["头条", "产品", "推荐", "用户", "增长", "product", "方向"],
+      "need_all_keywords": false,
       "count": 1
     },
     {
       "id": "g3",
-      "title": "安排一次家庭聚餐",
-      "description": "太久没陪家人了。用 Welian 记录这个待办并拟写邀请消息。",
-      "type": "any_action",
-      "keywords": ["聚餐", "吃饭", "家庭", "家人", "晚餐", "晚饭"],
+      "title": "2018 · 抖音出海，与张楠对齐战略",
+      "description": "抖音国内爆发，TikTok 开始全球化。张楠负责中国区，需要和她对齐战略方向。记录一次战略沟通。",
+      "type": "record_interaction",
+      "contact_names": ["张楠", "Zhang Nan"],
+      "keywords": ["抖音", "tiktok", "战略", "出海", "全球", "海外", "方向"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2020 · 与沈南鹏探讨下一轮融资",
+      "description": "红杉中国是字节早期投资人。新一轮融资在即，拟写一条消息给沈南鹏探讨合作。",
+      "type": "draft_message",
+      "contact_names": ["沈南鹏", "南鹏", "红杉", "Neil"],
+      "keywords": ["融资", "投资", "round", "红杉", "合作", "估值", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2021 · 卸任 CEO，给梁汝波写一封交接信",
+      "description": "你决定卸任 CEO，让梁汝波接任。拟写一封给他的交接信，表达信任和期望。",
+      "type": "draft_message",
+      "contact_names": ["梁汝波", "汝波"],
+      "keywords": ["交接", "信任", "ceo", "未来", "独立", "放手", "字节", "兄弟"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2023 · 回龙岩陪父亲过年",
+      "description": "太久没回福建龙岩老家了。父亲不太懂你做的事，但总是等你电话。记录一次与父亲的真诚对话。",
+      "type": "record_interaction",
+      "contact_names": ["父亲", "爸爸", "老家", "龙岩"],
+      "keywords": ["回家", "过年", "父亲", "爸爸", "龙岩", "想念", "春节", "抱歉"],
+      "need_all_keywords": false,
       "count": 1
     }
   ],
@@ -38,25 +75,26 @@
       "relation": "同事",
       "role": "字节跳动 CEO（继任者）",
       "nature": "leverage",
-      "strength": 4,
-      "notes": "大学室友，共同创办字节跳动。卸任后你刻意保持距离让他独立，但可能过度了。",
+      "strength": 5,
+      "notes": "大学室友，共同创办字节跳动。从锦秋家园到全球帝国，一路同行。你卸任后他接任 CEO。",
       "platforms": {"wechat": "liangryb", "email": "liang@bytedance.com"},
       "important_dates": [{"label": "生日", "date": "1982-04-08"}],
-      "leverage": {"goals": "保持战略沟通，不影响他独立管理", "how": "每月一次非正式聊天"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "创业合伙，CEO 交接", "how": "面对面深度沟通"},
+      "created": "2012-03-01T00:00:00Z",
+      "updated": "2021-01-01T00:00:00Z"
     },
     {
       "id": "c_chenlin",
       "name": "陈林",
       "relation": "同事",
       "role": "字节跳动原产品负责人",
-      "nature": "nurture",
-      "strength": 3,
-      "notes": "今日头条的核心功臣。你卸任后他也调岗了，最近听说他在做内部创新项目。",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "今日头条的核心功臣。产品直觉极强，是你最信任的产品搭档。",
       "platforms": {"wechat": "chenlin_pd"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "产品方向把控", "how": "每周产品评审"},
+      "created": "2014-01-01T00:00:00Z",
+      "updated": "2014-01-01T00:00:00Z"
     },
     {
       "id": "c_zhangnan",
@@ -64,12 +102,12 @@
       "relation": "同事",
       "role": "字节跳动中国区 CEO",
       "nature": "leverage",
-      "strength": 3,
-      "notes": "抖音的缔造者。能力很强，但你卸任后沟通减少。需要重新对齐战略方向。",
+      "strength": 4,
+      "notes": "抖音的缔造者。能力极强，从 0 到 1 做出了抖音。需要和她对齐出海战略。",
       "platforms": {"wechat": "zhangnan_dy"},
-      "leverage": {"goals": "中国区业务战略对齐", "how": "季度战略会+非正式沟通"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "抖音出海战略对齐", "how": "战略会+非正式沟通"},
+      "created": "2018-01-01T00:00:00Z",
+      "updated": "2018-01-01T00:00:00Z"
     },
     {
       "id": "c_shen",
@@ -78,11 +116,11 @@
       "role": "红杉中国创始人",
       "nature": "leverage",
       "strength": 4,
-      "notes": "字节跳动早期投资人。最近他在大力布局 AI，你也在看 AI 投资，有合作空间。",
+      "notes": "字节跳动早期投资人。红杉在多轮融资中持续加注。现在他也在布局 AI，有合作空间。",
       "platforms": {"wechat": "neil_shen"},
-      "leverage": {"goals": "AI 投资合作", "how": "约咖啡聊 AI 赛道"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "融资+AI投资合作", "how": "约咖啡聊赛道"},
+      "created": "2014-01-01T00:00:00Z",
+      "updated": "2020-01-01T00:00:00Z"
     },
     {
       "id": "c_wangxing",
@@ -91,10 +129,10 @@
       "role": "美团创始人",
       "nature": "dual",
       "strength": 3,
-      "notes": "同为中国互联网第一代创业者，私交不错但最近两年没联系。他对 AI 也有兴趣。",
+      "notes": "同为中国互联网第一代创业者，私交不错但竞争关系微妙。他对 AI 也有兴趣。",
       "platforms": {"wechat": "wangxing_meituan"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2016-01-01T00:00:00Z",
+      "updated": "2016-01-01T00:00:00Z"
     },
     {
       "id": "c_wife",
@@ -105,8 +143,8 @@
       "strength": 5,
       "notes": "你创业 12 年她一直支持。卸任后说要补偿她，但最近又忙于看 AI 项目。",
       "important_dates": [{"label": "结婚纪念日", "date": "2014-10-01"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2012-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_father",
@@ -117,80 +155,97 @@
       "strength": 4,
       "notes": "福建龙岩老家。上次见面是春节。他不太懂你做的事，但总是等你电话。",
       "important_dates": [{"label": "生日", "date": "1955-12-20"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2012-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     }
   ],
   "todos": [
     {
       "id": "t1",
       "contact": "c_liang",
-      "task": "约梁汝波喝咖啡，非正式聊聊",
-      "priority": "P1",
-      "due": "",
-      "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "t2",
-      "contact": "c_shen",
-      "task": "给沈南鹏发消息约 AI 投资交流",
+      "task": "和梁汝波谈创业方向",
       "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2012-03-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_chenlin",
+      "task": "给陈林布置今日头条产品方向",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2014-06-01T00:00:00Z"
     },
     {
       "id": "t3",
-      "contact": "c_wife",
-      "task": "安排一次家庭聚餐",
-      "priority": "P1",
+      "contact": "c_zhangnan",
+      "task": "与张楠对齐抖音出海战略",
+      "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2018-08-01T00:00:00Z"
     },
     {
       "id": "t4",
-      "contact": "c_father",
-      "task": "给父亲打电话",
+      "contact": "c_shen",
+      "task": "给沈南鹏发消息探讨融资",
       "priority": "P1",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2020-03-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_father",
+      "task": "回龙岩陪父亲过年",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2023-01-01T00:00:00Z"
     }
   ],
   "timeline": [
     {
       "id": "tl1",
       "contact": "c_liang",
-      "date": "2026-05-01",
-      "summary": "卸任后第一次和梁汝波吃饭，聊了2小时公司战略，之后没再联系",
-      "sentiment": "neutral",
-      "created": "2026-05-01T00:00:00Z"
+      "date": "2012-03-13",
+      "summary": "在锦秋家园的公寓里，你和梁汝波注册了字节跳动。一台电脑，两个人，开始做基于算法的内容推荐。",
+      "sentiment": "positive",
+      "created": "2012-03-13T00:00:00Z"
     },
     {
       "id": "tl2",
-      "contact": "c_shen",
-      "date": "2026-03-15",
-      "summary": "在一个 AI 论坛上偶遇沈南鹏，简单寒暄，说'改天约'但一直没约",
-      "sentiment": "neutral",
-      "created": "2026-03-15T00:00:00Z"
+      "contact": "c_chenlin",
+      "date": "2014-06-01",
+      "summary": "今日头条用户突破 1 亿。陈林主导了核心推荐算法的产品化，你和他在白板前讨论了整整一个下午。",
+      "sentiment": "positive",
+      "created": "2014-06-01T00:00:00Z"
     },
     {
       "id": "tl3",
-      "contact": "c_wife",
-      "date": "2026-06-18",
-      "summary": "妻子说'你卸任了反而更忙了'，你答应周末陪她但临时取消了",
-      "sentiment": "negative",
-      "created": "2026-06-18T00:00:00Z"
+      "contact": "c_zhangnan",
+      "date": "2018-08-01",
+      "summary": "抖音国内 DAU 突破 1.5 亿，TikTok 开始在东南亚爆发。和张楠讨论了出海优先级：先东南亚还是先美国。",
+      "sentiment": "positive",
+      "created": "2018-08-01T00:00:00Z"
     },
     {
       "id": "tl4",
-      "contact": "c_wangxing",
-      "date": "2026-01-10",
-      "summary": "王兴发了一条朋友圈关于 AI，你点了赞但没评论",
+      "contact": "c_shen",
+      "date": "2020-03-15",
+      "summary": "在一个 AI 论坛上偶遇沈南鹏，简单寒暄，说'改天约'但一直没约。",
       "sentiment": "neutral",
-      "created": "2026-01-10T00:00:00Z"
+      "created": "2020-03-15T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_father",
+      "date": "2023-01-22",
+      "summary": "春节回了龙岩一天就走了，父亲说'你忙就好'，但你能看出他的失落。",
+      "sentiment": "negative",
+      "created": "2023-01-22T00:00:00Z"
     }
   ]
 }

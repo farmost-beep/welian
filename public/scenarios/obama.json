@@ -3,31 +3,68 @@
   "name": "Michelle Obama",
   "title": "前美国第一夫人 / 作家 / 演讲家",
   "avatar": "🌟",
-  "tagline": "后白宫时代，平衡公益事业与个人关系",
-  "intro": "你是 Michelle Obama。离开白宫后忙于公益项目和出书，但发现老朋友越来越难见到，Barack 也在忙自己的项目。你需要重新连接生活中重要的人。",
+  "tagline": "从芝加哥南区到白宫，每一段关系定义了你",
+  "intro": "你是 Michelle Obama。从芝加哥南区的工人家庭，到普林斯顿和哈佛法学院，再到白宫第一夫人。每一步，身边的朋友和家人都是你的支柱。",
+  "sequential_goals": true,
   "goals": [
     {
       "id": "g1",
-      "title": "联系 3 位大学闺蜜",
-      "description": "Cynthia、Sandy、Verna 是普林斯顿和哈佛的闺蜜。太久没聚了。",
+      "title": "1985 · 普林斯顿，与 Cynthia 建立友谊",
+      "description": "Cynthia Hale 是你在普林斯顿的室友，也是你最好的朋友。记录一次关于大学生活和梦想的对话。",
       "type": "record_interaction",
-      "contact_names": ["Cynthia", "Sandy", "Verna"],
-      "count": 3
+      "contact_names": ["Cynthia", "Cynthia Hale", "室友"],
+      "keywords": ["大学", "普林斯顿", "princeton", "朋友", "梦想", "室友", "friend"],
+      "need_all_keywords": false,
+      "count": 1
     },
     {
       "id": "g2",
-      "title": "给 Barack 写一张感谢便条",
-      "description": "结婚31年了，最近各自忙碌。用 Welian 拟写一张温馨便条。",
-      "type": "draft_message",
-      "contact_names": ["Barack", "Obama", "丈夫"],
+      "title": "1989 · 芝加哥律所，与 Barack 的第一次约会",
+      "description": "你在 Sidley Austin 律所实习，Barack 是你的导师。记录这次改变你人生的相遇。",
+      "type": "record_interaction",
+      "contact_names": ["Barack", "Obama", " Barack Obama"],
+      "keywords": ["约会", "date", "律所", "实习", "导师", "第一次", "相遇", "芝加哥"],
+      "need_all_keywords": false,
       "count": 1
     },
     {
       "id": "g3",
-      "title": "安排女儿们的家庭晚餐",
-      "description": "Malia 和 Sasha 都已独立生活。安排一次全家晚餐。",
-      "type": "any_action",
-      "keywords": ["晚餐", "晚饭", "聚餐", "吃饭", "家庭", "全家", "Malia", "Sasha", "女儿"],
+      "title": "2008 · 竞选路上，给 Verna 回信",
+      "description": "Verna 是你在芝加哥最老的朋友。竞选太忙，她发来的消息你一直没回。拟写一条真诚的回复。",
+      "type": "draft_message",
+      "contact_names": ["Verna", "Verna Williams"],
+      "keywords": ["抱歉", "sorry", "想念", "朋友", "忙", "回来", "miss", "信"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2009 · 入住白宫，给女儿们写一封信",
+      "description": "刚搬进白宫，Malia 和 Sasha 的生活彻底改变了。拟写一封给女儿们的信，让她们安心。",
+      "type": "draft_message",
+      "contact_names": ["Malia", "Sasha", "女儿"],
+      "keywords": ["白宫", "white house", "女儿", "家", "爱", "勇敢", "爸爸", "妈妈", "love", "safe"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2016 · 与 Valerie 规划后白宫时代",
+      "description": "Valerie Jarrett 是你最信任的顾问。白宫生涯即将结束，需要和她规划未来。记录一次关于未来的对话。",
+      "type": "record_interaction",
+      "contact_names": ["Valerie", "Valerie Jarrett", "Jarrett"],
+      "keywords": ["未来", "计划", "foundation", "基金会", "公益", "下一步", "白宫后", "transition"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2023 · 与 Barack 的结婚纪念日",
+      "description": "结婚 31 年了。各自忙碌，但你需要让他知道他依然重要。拟写一张给 Barack 的温馨便条。",
+      "type": "draft_message",
+      "contact_names": ["Barack", "Obama", "丈夫"],
+      "keywords": ["结婚", "anniversary", "爱", "love", "感谢", "31", "年", "永远", "家"],
+      "need_all_keywords": false,
       "count": 1
     }
   ],
@@ -39,11 +76,11 @@
       "role": "丈夫 / 前总统",
       "nature": "nurture",
       "strength": 5,
-      "notes": "结婚31年。他最近在忙自己的制作公司和演讲，你们各自行程越来越满。",
+      "notes": "1989 年在 Sidley Austin 律所相识，他是你的导师。结婚 31 年，最近各自忙碌但感情深厚。",
       "platforms": {"phone": "私人号码"},
       "important_dates": [{"label": "结婚纪念日", "date": "1992-10-03"}, {"label": "生日", "date": "1961-08-04"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "1989-06-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_malia",
@@ -52,11 +89,11 @@
       "role": "大女儿",
       "nature": "nurture",
       "strength": 5,
-      "notes": "26岁，在洛杉矶做编剧。独立生活后联系频率降低了。",
+      "notes": "26岁，在洛杉矶做编剧。白宫时期她还是小女孩，现在已独立生活。",
       "platforms": {"phone": "私人号码"},
       "important_dates": [{"label": "生日", "date": "1998-07-04"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "1998-07-04T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_sasha",
@@ -68,8 +105,8 @@
       "notes": "23岁，在大学读研究生。比姐姐更独立，有时两周才回一条消息。",
       "platforms": {"phone": "私人号码"},
       "important_dates": [{"label": "生日", "date": "2001-06-10"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2001-06-10T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_cynthia",
@@ -77,12 +114,12 @@
       "relation": "朋友",
       "role": "普林斯顿室友",
       "nature": "nurture",
-      "strength": 4,
-      "notes": "大学最好的朋友，现在在亚特兰大当牧师。上次见面是2年前。",
+      "strength": 5,
+      "notes": "大学最好的朋友，现在在亚特兰大当牧师。普林斯顿时期你们无话不谈。",
       "platforms": {"phone": "私人号码"},
       "important_dates": [{"label": "生日", "date": "1964-05-12"}],
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "1985-09-01T00:00:00Z",
+      "updated": "1985-09-01T00:00:00Z"
     },
     {
       "id": "c_sandy",
@@ -91,10 +128,10 @@
       "role": "哈佛法学院同学",
       "nature": "nurture",
       "strength": 4,
-      "notes": "法学院时的学习伙伴，现在在芝加哥做律师。你们曾每周 brunch，现在一年才见一次。",
+      "notes": "法学院时的学习伙伴，现在在芝加哥做律师。你们曾每周 brunch。",
       "platforms": {"phone": "私人号码"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "1988-09-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_verna",
@@ -105,8 +142,8 @@
       "strength": 5,
       "notes": "在芝加哥认识的最老的朋友。她总是主动联系你，但你最近总是太忙没回。",
       "platforms": {"phone": "私人号码"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "1991-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     },
     {
       "id": "c_valerie",
@@ -115,11 +152,11 @@
       "role": "前白宫高级顾问",
       "nature": "leverage",
       "strength": 5,
-      "notes": "白宫时期最信任的顾问，现在一起做 Obama Foundation。工作关系很紧密但私人交流少了。",
+      "notes": "白宫时期最信任的顾问，现在一起做 Obama Foundation。工作关系紧密但私人交流少了。",
       "platforms": {"phone": "私人号码", "email": "valerie@obamafoundation.org"},
-      "leverage": {"goals": "基金会战略方向", "how": "月度战略会+私人晚餐"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "leverage": {"goals": "基金会战略+个人规划", "how": "月度战略会+私人晚餐"},
+      "created": "1991-01-01T00:00:00Z",
+      "updated": "2016-01-01T00:00:00Z"
     },
     {
       "id": "c_oprah",
@@ -128,92 +165,117 @@
       "role": "媒体人 / 演讲搭档",
       "nature": "leverage",
       "strength": 4,
-      "notes": "多年的朋友和支持者。最近她在做新的播客项目，邀请你做嘉宾但一直没确认。",
+      "notes": "多年的朋友和支持者。最近她在做新的播客项目，邀请你做嘉宾。",
       "platforms": {"phone": "私人号码"},
       "leverage": {"goals": "播客合作+互相推广", "how": "直接通话确认"},
-      "created": "2026-01-01T00:00:00Z",
-      "updated": "2026-01-01T00:00:00Z"
+      "created": "2008-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
     }
   ],
   "todos": [
     {
       "id": "t1",
       "contact": "c_cynthia",
-      "task": "给 Cynthia 打电话约 brunch",
-      "priority": "P1",
+      "task": "和 Cynthia 聊大学和梦想",
+      "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "1985-09-01T00:00:00Z"
     },
     {
       "id": "t2",
       "contact": "c_barack",
-      "task": "给 Barack 写一张感谢便条",
+      "task": "记录与 Barack 的第一次约会",
       "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "1989-06-01T00:00:00Z"
     },
     {
       "id": "t3",
-      "contact": "c_malia",
-      "task": "安排全家晚餐（Malia + Sasha）",
-      "priority": "P1",
-      "due": "",
-      "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
-    },
-    {
-      "id": "t4",
       "contact": "c_verna",
-      "task": "回复 Verna 的最后一条消息",
+      "task": "回复 Verna 的消息",
       "priority": "P0",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2008-10-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_malia",
+      "task": "给女儿们写一封信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2009-01-20T00:00:00Z"
     },
     {
       "id": "t5",
-      "contact": "c_oprah",
-      "task": "确认 Oprah 播客嘉宾邀请",
+      "contact": "c_valerie",
+      "task": "与 Valerie 规划后白宫时代",
       "priority": "P1",
       "due": "",
       "status": "pending",
-      "created": "2026-01-01T00:00:00Z"
+      "created": "2016-06-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_barack",
+      "task": "给 Barack 写结婚纪念日便条",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2023-10-03T00:00:00Z"
     }
   ],
   "timeline": [
     {
       "id": "tl1",
-      "contact": "c_verna",
-      "date": "2026-06-20",
-      "summary": "Verna 发了一条长消息说想你，你读了但只回了'亲爱的我也想你，改天约'——已经3周了",
-      "sentiment": "negative",
-      "created": "2026-06-20T00:00:00Z"
+      "contact": "c_cynthia",
+      "date": "1985-09-01",
+      "summary": "普林斯顿开学第一天，你和 Cynthia 分到同一间宿舍。你们聊了一整晚关于未来和梦想。",
+      "sentiment": "positive",
+      "created": "1985-09-01T00:00:00Z"
     },
     {
       "id": "tl2",
       "contact": "c_barack",
-      "date": "2026-07-04",
-      "summary": "独立日各自在不同城市——他在洛杉矶开会，你在玛莎葡萄园岛写书",
-      "sentiment": "neutral",
-      "created": "2026-07-04T00:00:00Z"
+      "date": "1989-06-20",
+      "summary": "在 Sidley Austin 律所，Barack 被指派为你的导师。第一次见面你就觉得他不一样。",
+      "sentiment": "positive",
+      "created": "1989-06-20T00:00:00Z"
     },
     {
       "id": "tl3",
-      "contact": "c_sandy",
-      "date": "2026-04-15",
-      "summary": "Sandy 来 DC 出差约你吃饭，你因为新书截稿取消了",
+      "contact": "c_verna",
+      "date": "2008-10-15",
+      "summary": "竞选最忙的时候，Verna 发了一条长消息说想你，你读了但只回了'亲爱的我也想你，改天约'——已经好几周了。",
       "sentiment": "negative",
-      "created": "2026-04-15T00:00:00Z"
+      "created": "2008-10-15T00:00:00Z"
     },
     {
       "id": "tl4",
-      "contact": "c_oprah",
-      "date": "2026-05-30",
-      "summary": "Oprah 发消息邀请上播客，说'随时都行'，但还没确认日期",
+      "contact": "c_malia",
+      "date": "2009-01-20",
+      "summary": "就职典礼当天，Malia 和 Sasha 在镜头前挥手。你知道她们的生活从此不一样了。",
       "sentiment": "neutral",
-      "created": "2026-05-30T00:00:00Z"
+      "created": "2009-01-20T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_valerie",
+      "date": "2016-06-01",
+      "summary": "和 Valerie 在白宫地图室聊了两个小时，讨论离开后的计划——基金会、出书、女孩教育。",
+      "sentiment": "positive",
+      "created": "2016-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_barack",
+      "date": "2023-10-03",
+      "summary": "结婚 31 周年。他在洛杉矶开会，你在玛莎葡萄园岛写书。发了短信但没通电话。",
+      "sentiment": "neutral",
+      "created": "2023-10-03T00:00:00Z"
     }
   ]
 }
