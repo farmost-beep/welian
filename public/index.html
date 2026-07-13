@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>Welian — 每段关系都值得用心</title>
-<meta name="description" content="Welian — an AI companion for your relationships.">
+<title>Welian — Care more.</title>
+<meta name="description" content="Welian — an AI companion for your relationships. Care more.">
 <meta name="theme-color" content="#F5F4EE">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -221,7 +221,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 <main>
   <!-- Welcome state: tagline only (overlay, shown when chat is empty) -->
   <div class="welcome-state" id="welcomeState">
-    <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
+    <div class="tagline" data-i18n="tagline">更<em>用心</em>。</div>
     <div class="tagline-sub" data-i18n="tagline_sub">更好的朋友、更好的家人、更好的合作者</div>
   </div>
 
@@ -235,7 +235,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
         <input id="input" type="text" data-i18n-ph="input_ph" placeholder="跟 Welian 聊聊…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
         <button class="send" onclick="send()">→</button>
       </div>
-      <div class="input-hint" data-i18n="privacy">你的数据留在你的设备上。云端只看到必要的部分。</div>
+      <div class="input-hint" data-i18n="privacy">Your data stays on your device.</div>
     </div>
   </div>
 </main>
@@ -273,13 +273,13 @@ const AGENT_TUNNEL_URL = 'https://agent.welian.app';  // Direct tunnel (no disco
 // ── i18n ──
 const I18N = {
   en: {
-    tagline: 'Every relationship deserves <em>care</em>',
-    tagline_sub: 'Better friend, better family, better collaborator',
+    tagline: 'Care <em>more</em>.',
+    tagline_sub: 'Better friend. Better family. Better collaborator.',
     demo: 'Demo',
     welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nSign in and connect your local agent to get started.",
-    signin_prompt: 'Please sign in to connect your local agent first. 🔑',
+    signin_prompt: 'Sign in to connect your agent first. 🔑',
     input_ph: 'Message Welian…',
-    hint_reach: 'Who to reach out',
+    hint_reach: 'Who to reach out to',
     hint_reach_desc: 'See who deserves a check-in',
     hint_overview: 'Contacts overview',
     hint_overview_desc: 'Understand your network',
@@ -290,7 +290,7 @@ const I18N = {
     hint_review: 'Monthly review',
     privacy: 'Your data stays on your device.',
     auth_title: 'Welcome to Welian',
-    auth_sub: 'Sign in to connect your local agent',
+    auth_sub: 'Sign in to connect your agent',
     no_account: 'No account?',
     sign_up_link: 'Sign up',
     or: 'or',
@@ -310,15 +310,15 @@ const I18N = {
     phone_err_phone: 'Please enter a valid phone number',
     phone_back: 'Back',
     phone_countdown: 's to resend',
-    looking: 'Looking for local agent…',
-    connecting: 'Connecting via tunnel…',
-    connected: "Connected to your local agent ✅\n\nYour data is on your device. I only see what you tell me.\n\nTry: \"who to reach out\" or \"note: met with X about Y\"",
-    not_found: 'Local agent not found',
-    not_found_desc: 'Your relationship data stays on your computer. Start the agent there to connect.',
+    looking: 'Looking for your agent…',
+    connecting: 'Connecting…',
+    connected: "Connected ✅\n\nYour data stays on your device. I only see what you tell me.\n\nTry \"who to reach out to\" or \"note: met with X about Y\"",
+    not_found: 'Agent not found',
+    not_found_desc: 'Your data stays on your computer. Start the agent there to connect.',
     retry: 'Retry',
   },
   zh: {
-    tagline: '每段关系都值得<em>用心</em>',
+    tagline: '更<em>用心</em>。',
     tagline_sub: '更好的朋友、更好的家人、更好的合作者',
     demo: '演示',
     welcome: '你好，我是 Welian 😊\n\n我帮你记住每段互动，提醒重要的时刻，帮你找到合适的话。\n\n登录并连接本地 agent 即可开始使用。',
