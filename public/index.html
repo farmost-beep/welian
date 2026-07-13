@@ -963,6 +963,12 @@ function showWelcome() {
   }
 }
 
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    body.scrollTop = body.scrollHeight;
+  });
+}
+
 function addMsg(who, text) {
   hideWelcome();
   const d = document.createElement('div');
@@ -970,7 +976,7 @@ function addMsg(who, text) {
   const label = who === 'ai' ? 'Welian' : 'You';
   d.innerHTML = '<div class="who ' + who + '">' + label + '</div><div class="bubble ' + who + '">' + escapeHtml(text) + '</div>';
   body.appendChild(d);
-  body.scrollTop = body.scrollHeight;
+  scrollToBottom();
 }
 
 function addSystemMsg(text) {
@@ -979,7 +985,7 @@ function addSystemMsg(text) {
   d.className = 'msg';
   d.innerHTML = '<div class="bubble system">' + escapeHtml(text) + '</div>';
   body.appendChild(d);
-  body.scrollTop = body.scrollHeight;
+  scrollToBottom();
 }
 
 function addTyping() {
@@ -989,7 +995,7 @@ function addTyping() {
   d.id = 'typing';
   d.innerHTML = '<div class="who ai">Welian</div><div class="bubble ai"><span class="typing"></span></div>';
   body.appendChild(d);
-  body.scrollTop = body.scrollHeight;
+  scrollToBottom();
 }
 
 function removeTyping() {
