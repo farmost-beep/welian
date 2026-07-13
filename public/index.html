@@ -788,28 +788,29 @@ function toggleAuth() {
     // Sign out
     if (clerkInstance) clerkInstance.signOut();
     onSignedOut();
-  } else {
-    // User manually initiated login — accept the next auth event
-    userInitiatedLogin = true;
-    sessionStorage.setItem('welian_login_initiated', '1');
-    // Show auth modal (WeChat + Phone buttons are immediately visible)
-    document.getElementById('clerk-auth').classList.add('show');
-
-    // Mount Clerk sign-in below the quick login buttons (secondary option)
-    const container = document.getElementById('clerk-container');
-    if (!clerkReady || !clerkInstance) {
-      container.innerHTML = '<p style="text-align:center;color:var(--dim);padding:12px;font-size:.8em">加载中…</p>';
-      const wait = setInterval(() => {
-        if (clerkReady && clerkInstance) {
-          clearInterval(wait);
-          mountClerkSignIn(container);
-        }
-      }, 500);
-      setTimeout(() => clearInterval(wait), 10000);
-      return;
-    }
-    mountClerkSignIn(container);
+    return;
   }
+  // User manually initiated login — accept the next auth event
+  userInitiatedLogin = true;
+  sessionStorage.setItem('welian_login_initiated', '1');
+  // Show auth modal
+  document.getElementById('clerk-auth').classList.add('show');
+
+  // Re-mount Clerk sign-in (clear previous mount first)
+  const container = document.getElementById('clerk-container');
+  container.innerHTML = '';
+  if (!clerkReady || !clerkInstance) {
+    container.innerHTML = '<p style="text-align:center;color:var(--dim);padding:12px;font-size:.8em">加载中…</p>';
+    const wait = setInterval(() => {
+      if (clerkReady && clerkInstance) {
+        clearInterval(wait);
+        mountClerkSignIn(container);
+      }
+    }, 500);
+    setTimeout(() => clearInterval(wait), 10000);
+    return;
+  }
+  mountClerkSignIn(container);
 }
 
 function mountClerkSignIn(container) {
