@@ -289,18 +289,23 @@ class LocalAgent:
         try:
             if cmd == "chat":
                 text = msg.get("text", "")
-                reply = self.edge.chat(text)
+                reply = await asyncio.get_event_loop().run_in_executor(
+                    None, self.edge.chat, text)
                 return {"type": "response", "id": req_id, "reply": reply}
 
             elif cmd == "context":
                 # Return edge data context without calling LLM (cloud-first mode)
                 text = msg.get("text", "")
-                ctx = self.edge.get_context(text)
+                ctx = await asyncio.get_event_loop().run_in_executor(
+                    None, self.edge.get_context, text)
                 return {"type": "response", "id": req_id, "data": ctx}
 
             elif cmd == "save_turn":
                 # Save conversation turn after web-side LLM generates reply
-                self.edge.save_turn(msg.get("text", ""), msg.get("reply", ""))
+                text = msg.get("text", "")
+                reply = msg.get("reply", "")
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self.edge.save_turn, text, reply)
                 return {"type": "response", "id": req_id, "ok": True}
 
             elif cmd == "status":
@@ -451,7 +456,7 @@ class LocalAgent:
             })
 
         async def ws_handler(request):
-            ws_server = web.WebSocketResponse()
+            ws_server = web.WebSocketResponse(heartbeat=30.0)
             await ws_server.prepare(request)
 
             # Auth
