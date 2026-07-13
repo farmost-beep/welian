@@ -54,10 +54,11 @@ const wechatId = params.get('wid') || params.get('wechat_id') || '';
 if (!wechatId) {
   showStatus('err', '缺少微信用户 ID。请从微信里的 /login 命令打开此链接。');
 } else {
-  // Show wechat id
   document.getElementById('bound-wechat').textContent = wechatId;
   initClerk();
 }
+
+let bindAttempted = false;
 
 async function initClerk() {
   // Wait for Clerk to load
@@ -74,44 +75,62 @@ async function initClerk() {
     console.log('Clerk load:', e.message);
   }
 
+  // Check if already logged in
   if (window.Clerk.user) {
-    // Already logged in — try to bind
     await doBind();
   } else {
-    // Not logged in — mount sign in
     await mountSignIn();
   }
+
+  // Poll for login completion (fallback for Clerk listener not firing)
+  const pollInterval = setInterval(async () => {
+    if (window.Clerk.user && !bindAttempted) {
+      bindAttempted = true;
+      clearInterval(pollInterval);
+      document.getElementById('clerk-mount').style.display = 'none';
+      await doBind();
+    }
+  }, 500);
+
+  // Stop polling after 5 minutes
+  setTimeout(() => clearInterval(pollInterval), 300000);
 }
 
 async function mountSignIn() {
   const mountEl = document.getElementById('clerk-mount');
-  // Clear and create fresh div (Clerk can't re-mount on same element)
   mountEl.innerHTML = '<div id="clerk-signin"></div>';
   const signinEl = document.getElementById('clerk-signin');
 
   try {
-    // Listen for sign in completion
-    window.Clerk.addListener(({user}) => {
-      if (user) {
-        mountEl.style.display = 'none';
-        doBind();
-      }
-    });
-
     await window.Clerk.mountSignIn(signinEl);
   } catch(e) {
-    showStatus('err', '登录组件加载失败：' + e.message);
+    // Fallback: try Clerk UI mount
+    try {
+      await window.Clerk.__internal_mountSignIn(signinEl);
+    } catch(e2) {
+      showStatus('err', '登录组件加载失败：' + e.message);
+    }
   }
 }
 
 async function doBind() {
+  if (bindAttempted) return;
+  bindAttempted = true;
   showStatus('loading', '正在绑定...');
 
   try {
-    const session = window.Clerk.session;
+    // Wait for session to be ready
+    let session = window.Clerk.session;
+    let retries = 0;
+    while (!session && retries < 10) {
+      await new Promise(r => setTimeout(r, 300));
+      session = window.Clerk.session;
+      retries++;
+    }
+
     if (!session) {
-      showStatus('err', '未登录，请先登录');
-      mountSignIn();
+      showStatus('err', '登录会话未就绪，请刷新页面重试');
+      bindAttempted = false;
       return;
     }
 
@@ -131,14 +150,18 @@ async function doBind() {
     const data = await resp.json();
 
     if (resp.ok && data.ok) {
-      showStatus('ok', '✅ 绑定成功！');
+      const name = data.name || '';
+      const email = data.email || '';
+      showStatus('ok', `✅ 绑定成功！${name ? '账号：' + name : ''} ${email ? '(' + email + ')' : ''}`);
       document.getElementById('bound-section').style.display = 'block';
       document.getElementById('clerk-mount').style.display = 'none';
     } else {
       showStatus('err', data.error || '绑定失败');
+      bindAttempted = false;
     }
   } catch(e) {
     showStatus('err', '绑定出错：' + e.message);
+    bindAttempted = false;
   }
 }
 

@@ -309,7 +309,8 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
             api.send_message(user_id,
                 f"🔗 绑定你的 Welian 账号\n\n"
-                f"点击链接登录后，微信就能和你的数据连通：\n{bind_url}\n\n"
+                f"在浏览器中打开以下链接登录即可绑定：\n\n"
+                f"{bind_url}\n\n"
                 f"绑定后，你在网页和微信里看到的是同一份数据。",
                 context_token,
             )
