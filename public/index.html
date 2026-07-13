@@ -251,9 +251,9 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="links">
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
     <button id="demoBtn" onclick="showScenarioPicker()" style="font-size:.82em;color:var(--accent);background:none;border:none;cursor:pointer">🎭 模拟体验</button>
-    <button id="langBtn" onclick="toggleLang()">中文</button>
+    <button id="langBtn" onclick="toggleLang()">EN</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
-    <button class="cta" id="authBtn" onclick="toggleAuth()">Sign in</button>
+    <button class="cta" id="authBtn" onclick="toggleAuth()">登录</button>
   </div>
 </nav>
 
@@ -326,8 +326,8 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 <div id="clerk-auth">
   <div class="card">
     <button class="close" onclick="toggleAuth()">×</button>
-    <h2 data-i18n="auth_title">Welcome to Welian</h2>
-    <p data-i18n="auth_sub">Sign in to connect your local agent</p>
+    <h2 data-i18n="auth_title">欢迎使用 Welian</h2>
+    <p data-i18n="auth_sub">登录后开始管理你的关系</p>
     <div id="clerk-container"></div>
     <!-- WeChat and Phone login paused — re-enable when SMS/WeChat credentials are ready
     <div style="margin-top:16px;text-align:center">
@@ -352,8 +352,8 @@ const I18N = {
     tagline: 'Care <em>more</em>.',
     tagline_sub: 'Better friend. Better family. Better collaborator.',
     demo: 'Demo',
-    welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nSign in and connect your local agent to get started.",
-    signin_prompt: 'Sign in to connect your agent first. 🔑',
+    welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nSign in to get started.",
+    signin_prompt: 'Please sign in to start chatting. 🔑',
     input_ph: 'Message Welian…',
     hint_reach: 'Who to reach out to',
     hint_reach_desc: 'See who deserves a check-in',
@@ -366,7 +366,7 @@ const I18N = {
     hint_review: 'Monthly review',
     privacy: 'Your data stays on your device.',
     auth_title: 'Welcome to Welian',
-    auth_sub: 'Sign in to connect your agent',
+    auth_sub: 'Sign in to start managing your relationships',
     no_account: 'No account?',
     sign_up_link: 'Sign up',
     or: 'or',
@@ -386,24 +386,24 @@ const I18N = {
     phone_err_phone: 'Please enter a valid phone number',
     phone_back: 'Back',
     phone_countdown: 's to resend',
-    looking: 'Looking for your agent…',
+    looking: 'Connecting…',
     connecting: 'Connecting…',
     connected: "Connected ✅\n\nYour data stays on your device. I only see what you tell me.\n\nTry \"who to reach out to\" or \"note: met with X about Y\"",
-    not_found: 'Agent not found',
-    not_found_desc: 'Your data stays on your computer. Start the agent there to connect.',
+    not_found: 'Local data not found',
+    not_found_desc: 'Your data stays on your computer. Start Welian on your computer to connect.',
     retry: 'Retry',
-    cloud_status: 'Cloud',
-    cloud_welcome: "You're in Cloud mode ☁️\n\nI can help you think through relationships, draft messages, and suggest who to reach out to.\n\nFor full features (local contacts, todos, activity history), install the CLI on your computer:\n`pip install welian-app` then `welian agent --tunnel`\n\nWhat's on your mind?",
-    cloud_error: 'Cloud error: ',
-    live_upgraded: 'Connected to your local agent ✅ Full features now available.',
-    live_available: '💡 Local agent detected! Refresh to connect with full features (local contacts, todos).',
+    cloud_status: 'Online',
+    cloud_welcome: "Hi, I'm Welian 😊\n\nI can help you think through relationships, draft messages, and suggest who to reach out to.\n\nTry these:\n• \"note: met with John about the project\"\n• \"who should I reach out to?\"\n• \"draft a message to Sarah\"\n\nWhat's on your mind?",
+    cloud_error: 'Error: ',
+    live_upgraded: 'Connected to your local data ✅ Full features now available.',
+    live_available: '💡 Local data detected! Refresh to enable full features.',
   },
   zh: {
     tagline: '每段关系都值得<em>用心</em>',
     tagline_sub: '更好的朋友、更好的家人、更好的合作者',
     demo: '演示',
-    welcome: '你好，我是 Welian 😊\n\n我帮你记住每段互动，提醒重要的时刻，帮你找到合适的话。\n\n登录并连接本地 agent 即可开始使用。',
-    signin_prompt: '请先登录并连接本地 agent。🔑',
+    welcome: '你好，我是小维 😊\n\n我帮你记住每段互动，提醒重要的时刻，帮你找到合适的话。\n\n登录后即可开始使用。',
+    signin_prompt: '请先登录再开始聊天。🔑',
     input_ph: '跟 Welian 聊聊…',
     hint_reach: '该联系谁',
     hint_reach_desc: '看看谁值得主动联系',
@@ -416,7 +416,7 @@ const I18N = {
     hint_review: '月度回顾',
     privacy: '你的数据留在你的设备上。',
     auth_title: '欢迎使用 Welian',
-    auth_sub: '登录以连接你的本地 agent',
+    auth_sub: '登录后开始管理你的关系',
     no_account: '没有账号？',
     sign_up_link: '注册',
     or: '或',
@@ -436,21 +436,21 @@ const I18N = {
     phone_err_phone: '请输入正确的手机号',
     phone_back: '返回',
     phone_countdown: 's 后重发',
-    looking: '正在寻找本地 agent…',
-    connecting: '通过隧道连接中…',
-    connected: "已连接到本地 agent ✅\n\n你的数据在你的设备上。我只看到你告诉我的。\n\n试试：\"该联系谁\" 或 \"note: 和X聊了Y\"",
-    not_found: '未找到本地 agent',
-    not_found_desc: '你的关系数据留在你的电脑上。请在电脑上启动 agent 来连接。',
+    looking: '正在连接…',
+    connecting: '连接中…',
+    connected: "已连接 ✅\n\n你的数据在你的设备上，我只看到你告诉我的。\n\n试试：\"该联系谁\" 或 \"记一下今天和X聊了Y\"",
+    not_found: '未找到本地数据',
+    not_found_desc: '你的关系数据留在你的电脑上。请在电脑上启动 Welian 来连接。',
     retry: '重试',
-    cloud_status: '云端',
-    cloud_welcome: "已进入云端模式 ☁️\n\n我可以帮你梳理关系、拟写消息、建议该联系谁。\n\n如需完整功能（本地联系人、待办、互动历史），在电脑上安装 CLI：\n`pip install welian-app` 然后运行 `welian agent --tunnel`\n\n今天想聊什么？",
-    cloud_error: '云端错误：',
-    live_upgraded: '已连接到本地 agent ✅ 完整功能已启用。',
-    live_available: '💡 检测到本地 agent！刷新页面可连接完整功能（本地联系人、待办）。',
+    cloud_status: '在线',
+    cloud_welcome: "你好！我是小维 😊\n\n我可以帮你梳理关系、拟写消息、建议该联系谁。\n\n试试这些：\n• \"记一下今天和老王吃了饭\"\n• \"该联系谁了？\"\n• \"帮我给张总写条消息\"\n\n今天想聊什么？",
+    cloud_error: '出错了：',
+    live_upgraded: '已连接到本地数据 ✅ 完整功能已启用。',
+    live_available: '💡 检测到本地数据！刷新页面可启用完整功能。',
   },
 };
 
-let currentLang = localStorage.getItem('welian_lang') || 'en';
+let currentLang = localStorage.getItem('welian_lang') || 'zh';
 
 function applyLang(lang) {
   currentLang = lang;
@@ -465,7 +465,7 @@ function applyLang(lang) {
     if (dict[key]) el.placeholder = dict[key];
   });
   document.getElementById('langBtn').textContent = lang === 'en' ? '中文' : 'EN';
-  document.getElementById('authBtn').textContent = dict.sign_in;
+  document.getElementById('authBtn').textContent = isAuthed ? authBtn.textContent : dict.sign_in;
 }
 
 function toggleLang() {
@@ -863,7 +863,7 @@ function onSignedOut() {
   isCloud = false;
   conversationHistory = [];
   removeBridge();
-  authBtn.textContent = 'Sign in';
+  authBtn.textContent = I18N[currentLang].sign_in;
   navStatus.style.display = 'none';
   if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();
