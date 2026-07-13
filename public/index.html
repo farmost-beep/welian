@@ -1373,40 +1373,96 @@ function toggleGoalTracker() {
 
 function checkSimulationGoals(intent, reply) {
   if (!simulationMode) return;
-  const allText = (reply || '').toLowerCase();
-  // Check goals based on action_results and reply
+  const replyLower = (reply || '').toLowerCase();
+  const userText = (intent && intent.contact_name) || '';
+
   for (const goal of simulationGoals) {
     if (goal.done) continue;
-    // Check if timeline actions match goal criteria
-    if (intent && intent.action_results) {
-      for (const ar of intent.action_results) {
-        if (!ar.ok) continue;
-        if (ar.type === 'add_timeline' && goal.check.includes('timeline')) {
-          // Simple heuristic: if we added a timeline entry, mark related goals as progress
-          if (goal.check.includes('3 条') || goal.check.includes('3位')) {
-            // Count timeline entries for this goal
+
+    if (goal.type === 'record_interaction') {
+      // Goal: record interactions with specific contacts
+      // Check action_results for add_timeline matching contact_names
+      if (intent && intent.action_results) {
+        for (const ar of intent.action_results) {
+          if (!ar.ok || ar.type !== 'add_timeline') continue;
+          // Check if this action's contact matches goal's contact_names
+          const arContact = (ar.contact_name || ar.summary || '').toLowerCase();
+          const matched = (goal.contact_names || []).some(name =>
+            arContact.includes(name.toLowerCase())
+          );
+          // If goal has keywords, also check summary
+          let keywordMatch = true;
+          if (goal.keywords && goal.keywords.length > 0) {
+            const summaryLower = (ar.summary || '').toLowerCase();
+            keywordMatch = goal.keywords.some(k => summaryLower.includes(k.toLowerCase()));
+            if (goal.need_all_keywords) {
+              keywordMatch = goal.keywords.every(k => summaryLower.includes(k.toLowerCase()));
+            }
+          }
+          if (matched && keywordMatch) {
             goal._count = (goal._count || 0) + 1;
-            if (goal._count >= 3) goal.done = true;
-          } else {
-            goal.done = true;
+            if (goal._count >= (goal.count || 1)) {
+              goal.done = true;
+            }
           }
         }
-        if (ar.type === 'add_todo' && goal.check.includes('todos')) {
+      }
+    }
+
+    else if (goal.type === 'draft_message') {
+      // Goal: draft a message to specific contact or about specific topic
+      if (intent && intent.intent === 'draft') {
+        // Check contact match
+        let contactMatch = true;
+        if (goal.contact_names && goal.contact_names.length > 0) {
+          const intentContact = (intent.contact_name || '').toLowerCase();
+          const replyText = replyLower;
+          contactMatch = goal.contact_names.some(name =>
+            intentContact.includes(name.toLowerCase()) || replyText.includes(name.toLowerCase())
+          );
+        }
+        // Check keyword match
+        let keywordMatch = true;
+        if (goal.keywords && goal.keywords.length > 0) {
+          keywordMatch = goal.keywords.some(k => replyLower.includes(k.toLowerCase()));
+          if (goal.need_all_keywords) {
+            keywordMatch = goal.keywords.every(k => replyLower.includes(k.toLowerCase()));
+          }
+        }
+        if (contactMatch && keywordMatch) {
           goal.done = true;
         }
       }
     }
-    // Check if reply contains drafted message
-    if (goal.check.includes('拟写') && intent && intent.intent === 'draft') {
-      goal.done = true;
-    }
-    if (goal.check.includes('邮件') && allText.includes('邮件') && intent && intent.intent === 'draft') {
-      goal.done = true;
-    }
-    if (goal.check.includes('消息') && intent && intent.intent === 'draft' && goal.check.includes('contact_name')) {
-      goal.done = true;
+
+    else if (goal.type === 'any_action') {
+      // Goal: any action (timeline/todo/draft) mentioning specific keywords
+      let matched = false;
+      // Check action_results
+      if (intent && intent.action_results) {
+        for (const ar of intent.action_results) {
+          if (!ar.ok) continue;
+          const text = ((ar.summary || '') + ' ' + (ar.task || '') + ' ' + (ar.name || '')).toLowerCase();
+          if (goal.keywords && goal.keywords.some(k => text.includes(k.toLowerCase()))) {
+            matched = true;
+          }
+        }
+      }
+      // Also check if user's message or reply contains keywords + draft intent
+      if (!matched && intent && intent.intent === 'draft') {
+        if (goal.keywords && goal.keywords.some(k => replyLower.includes(k.toLowerCase()))) {
+          matched = true;
+        }
+      }
+      if (matched) {
+        goal._count = (goal._count || 0) + 1;
+        if (goal._count >= (goal.count || 1)) {
+          goal.done = true;
+        }
+      }
     }
   }
+
   updateGoalTracker();
 
   // Check if all goals done

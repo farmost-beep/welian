@@ -623,7 +623,7 @@ actions 元素格式：
           };
           timeline.push(entry);
           await saveDataset(env, userId, 'timeline', timeline);
-          actionResults.push({ type: 'add_timeline', ok: true, summary: action.summary });
+          actionResults.push({ type: 'add_timeline', ok: true, summary: action.summary, contact_name: action.contact_name || '' });
         }
 
         if (action.type === 'add_todo' && action.task) {
@@ -647,7 +647,7 @@ actions 元素格式：
           };
           todos.push(todo);
           await saveDataset(env, userId, 'todos', todos);
-          actionResults.push({ type: 'add_todo', ok: true, task: action.task });
+          actionResults.push({ type: 'add_todo', ok: true, task: action.task, contact_name: action.contact_name || '' });
         }
       } catch (e) {
         actionResults.push({ type: action.type, ok: false, error: e.message });

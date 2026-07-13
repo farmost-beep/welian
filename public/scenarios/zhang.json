@@ -10,19 +10,25 @@
       "id": "g1",
       "title": "联系 3 位前核心团队成员",
       "description": "梁汝波、陈林、张楠在你卸任后联系变少。重新建立沟通。",
-      "check": "timeline 中新增 3 条与前团队成员的互动记录"
+      "type": "record_interaction",
+      "contact_names": ["梁汝波", "汝波", "陈林", "张楠"],
+      "count": 3
     },
     {
       "id": "g2",
       "title": "给沈南鹏发一条投资合作消息",
       "description": "红杉中国创始人，之前合作过多轮。探讨 AI 领域新合作。",
-      "check": "对话中请求拟写消息，且 contact_name 包含'沈南鹏'"
+      "type": "draft_message",
+      "contact_names": ["沈南鹏", "南鹏", "红杉"],
+      "count": 1
     },
     {
       "id": "g3",
       "title": "安排一次家庭聚餐",
       "description": "太久没陪家人了。用 Welian 记录这个待办并拟写邀请消息。",
-      "check": "todos 中新增家庭相关待办，或对话中拟写家庭聚餐消息"
+      "type": "any_action",
+      "keywords": ["聚餐", "吃饭", "家庭", "家人", "晚餐", "晚饭"],
+      "count": 1
     }
   ],
   "contacts": [

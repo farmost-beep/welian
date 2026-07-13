@@ -10,19 +10,28 @@
       "id": "g1",
       "title": "修复与 Larry Ellison 的关系",
       "description": "Oracle 创始人，曾是 Twitter 董事会成员，收购后因分歧离开。重新建立信任。",
-      "check": "timeline 中有与 Larry Ellison 的互动记录，且 summary 包含'道歉'或'和解'"
+      "type": "record_interaction",
+      "contact_names": ["Larry", "Larry Ellison", "Ellison"],
+      "keywords": ["道歉", "和解", "sorry", "apolog"],
+      "need_all_keywords": false,
+      "count": 1
     },
     {
       "id": "g2",
       "title": "联系 3 位流失的广告主",
       "description": "苹果、IBM、通用汽车已暂停投放。需要至少联系 3 位恢复合作。",
-      "check": "timeline 中新增 3 条与广告主的互动记录"
+      "type": "record_interaction",
+      "contact_names": ["Tim Cook", "Arvind", "Krishna", "IBM", "Mary Barra", "GM", "通用", "苹果"],
+      "count": 3
     },
     {
       "id": "g3",
       "title": "给员工发一封鼓舞邮件",
       "description": "用 Welian 拟写一封给全公司的邮件，提振士气。",
-      "check": "对话中请求拟写邮件，且 LLM 生成了邮件内容"
+      "type": "draft_message",
+      "keywords": ["邮件", "mail", "员工", "全公司", "士气", "鼓舞"],
+      "need_all_keywords": false,
+      "count": 1
     }
   ],
   "contacts": [

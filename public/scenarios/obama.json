@@ -10,19 +10,25 @@
       "id": "g1",
       "title": "联系 3 位大学闺蜜",
       "description": "Cynthia、Sandy、Verna 是普林斯顿和哈佛的闺蜜。太久没聚了。",
-      "check": "timeline 中新增 3 条与闺蜜的互动记录"
+      "type": "record_interaction",
+      "contact_names": ["Cynthia", "Sandy", "Verna"],
+      "count": 3
     },
     {
       "id": "g2",
       "title": "给 Barack 写一张感谢便条",
       "description": "结婚31年了，最近各自忙碌。用 Welian 拟写一张温馨便条。",
-      "check": "对话中请求拟写消息，且 contact_name 包含'Barack'"
+      "type": "draft_message",
+      "contact_names": ["Barack", "Obama", "丈夫"],
+      "count": 1
     },
     {
       "id": "g3",
       "title": "安排女儿们的家庭晚餐",
       "description": "Malia 和 Sasha 都已独立生活。安排一次全家晚餐。",
-      "check": "todos 中新增家庭晚餐待办，或对话中拟写邀请消息"
+      "type": "any_action",
+      "keywords": ["晚餐", "晚饭", "聚餐", "吃饭", "家庭", "全家", "Malia", "Sasha", "女儿"],
+      "count": 1
     }
   ],
   "contacts": [
