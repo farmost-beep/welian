@@ -320,6 +320,8 @@ const I18N = {
     cloud_status: 'Cloud',
     cloud_welcome: "You're in Cloud mode ☁️\n\nI can help you think through relationships, draft messages, and suggest who to reach out to.\n\nFor full features (local contacts, todos, activity history), install the CLI on your computer:\n`pip install welian-app` then `welian agent --tunnel`\n\nWhat's on your mind?",
     cloud_error: 'Cloud error: ',
+    live_upgraded: 'Connected to your local agent ✅ Full features now available.',
+    live_available: '💡 Local agent detected! Refresh to connect with full features (local contacts, todos).',
   },
   zh: {
     tagline: '更<em>用心</em>。',
@@ -368,6 +370,8 @@ const I18N = {
     cloud_status: '云端',
     cloud_welcome: "已进入云端模式 ☁️\n\n我可以帮你梳理关系、拟写消息、建议该联系谁。\n\n如需完整功能（本地联系人、待办、互动历史），在电脑上安装 CLI：\n`pip install welian-app` 然后运行 `welian agent --tunnel`\n\n今天想聊什么？",
     cloud_error: '云端错误：',
+    live_upgraded: '已连接到本地 agent ✅ 完整功能已启用。',
+    live_available: '💡 检测到本地 agent！刷新页面可连接完整功能（本地联系人、待办）。',
   },
 };
 
@@ -840,19 +844,22 @@ let conversationHistory = [];
 
 async function autoConnectAgent() {
   console.log('autoConnectAgent called, clerkUserId:', clerkUserId);
-  clearChat();
-  addSystemMsg(I18N[currentLang].looking);
 
-  let connected = false;
+  // Cloud-first: immediately enter cloud mode so user can chat right away
+  enableCloudMode();
 
-  // Phase 1: try direct tunnel URL (works without discovery service)
-  console.log('Trying direct tunnel:', AGENT_TUNNEL_URL);
+  // Background: try to find local agent and upgrade to Live mode
+  tryUpgradeToLive();
+}
+
+async function tryUpgradeToLive() {
+  // Phase 1: try direct tunnel URL
+  console.log('Background: trying direct tunnel:', AGENT_TUNNEL_URL);
   try {
     const result = await tryBridgeConnect(AGENT_TUNNEL_URL, 'tunnel');
     console.log('Direct tunnel result:', result);
     if (result === 'auth_ok') {
-      onAgentConnected('tunnel');
-      connected = true;
+      upgradeToLive('tunnel');
       return;
     }
   } catch(e) {
@@ -860,9 +867,9 @@ async function autoConnectAgent() {
     removeBridge();
   }
 
-  // Phase 2: try discovery service (fallback if tunnel URL changes)
+  // Phase 2: try discovery service
   if (clerkUserId) {
-    console.log('Looking up tunnel via discovery service…');
+    console.log('Background: looking up tunnel via discovery service…');
     try {
       const resp = await fetch(`${DISCOVERY_URL}/discover/lookup?user_id=${clerkUserId}`);
       const data = await resp.json();
@@ -871,24 +878,33 @@ async function autoConnectAgent() {
         const result = await tryBridgeConnect(data.tunnel_url, 'discovery');
         console.log('Discovery tunnel result:', result);
         if (result === 'auth_ok') {
-          onAgentConnected('tunnel');
-          connected = true;
+          upgradeToLive('discovery');
           return;
         }
-      } else {
-        console.log('No tunnel registered for user', clerkUserId);
       }
     } catch(e) {
       console.log('Discovery lookup failed:', e.message);
     }
   }
 
-  if (!connected) {
-    // Agent not found — fall back to cloud mode (方案C)
-    console.log('No local agent found, enabling cloud mode');
+  // No local agent found — stay in cloud mode (already enabled)
+  console.log('No local agent found, staying in cloud mode');
+}
+
+function upgradeToLive(source) {
+  // Switch from cloud mode to Live mode
+  // Only upgrade if user hasn't started chatting in cloud mode yet
+  const chatMessages = body.querySelectorAll('.msg:not(.system)');
+  if (chatMessages.length > 0) {
+    // User already has conversation — don't disrupt, just notify
+    console.log('User is chatting in cloud mode, not upgrading to Live');
     removeBridge();
-    enableCloudMode();
+    addSystemMsg(I18N[currentLang].live_available);
+    return;
   }
+  isCloud = false;
+  removeBridge();
+  onAgentConnected(source);
 }
 
 function tryBridgeConnect(url, label) {
