@@ -210,7 +210,12 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .scenario-picker-content{background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto}
 .scenario-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .scenario-picker-header h3{margin:0;font-size:1.1em;font-weight:600}
-.scenario-intro{color:var(--dim);font-size:.82em;line-height:1.5;margin-bottom:20px}
+.scenario-intro{color:var(--dim);font-size:.82em;line-height:1.5;margin-bottom:12px}
+.scenario-howto{background:var(--surface);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.8em;line-height:1.6}
+.scenario-howto strong{display:block;margin-bottom:6px;color:var(--text)}
+.scenario-howto ol{margin:0;padding-left:20px;color:var(--dim)}
+.scenario-howto li{margin-bottom:4px}
+.scenario-howto code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:.9em;color:var(--accent)}
 .scenario-cards{display:flex;flex-direction:column;gap:12px}
 .scenario-card{padding:16px;border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s}
 .scenario-card:hover{border-color:var(--accent);background:var(--surface)}
@@ -257,7 +262,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="welcome-state" id="welcomeState">
     <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
     <div class="tagline-sub" data-i18n="tagline_sub">更好的朋友、更好的家人、更好的合作者</div>
-    <button class="demo-btn" onclick="showScenarioPicker()">🎭 模拟体验</button>
   </div>
 
   <div class="chat-body" id="chatBody">
@@ -281,6 +285,17 @@ footer .privacy{color:var(--dimmer);max-width:400px}
       <button onclick="closeScenarioPicker()" style="background:none;border:none;font-size:1.2em;cursor:pointer;color:var(--dim)">✕</button>
     </div>
     <p class="scenario-intro">无需登录，立即体验 Welian 如何帮你管理社交关系。选择一个名人角色，在对话中维护他们的关系网络。</p>
+    <div class="scenario-howto">
+      <strong>怎么玩？</strong>
+      <ol>
+        <li>选择一个角色，进入他们的社交网络</li>
+        <li>像和助手聊天一样，用自然语言记录互动、查询待办、拟写消息</li>
+        <li>比如：<code>记一下今天给 Larry 打了电话道歉</code></li>
+        <li>比如：<code>帮我给 Tim Cook 写条消息</code></li>
+        <li>比如：<code>有什么待办？</code></li>
+        <li>完成右上角的目标 → 解锁真实账户注册</li>
+      </ol>
+    </div>
     <div class="scenario-cards" id="scenarioCards"></div>
   </div>
 </div>
@@ -1292,8 +1307,30 @@ async function startSimulation(scenarioId) {
   hideWelcome();
   clearChat();
 
-  // Show intro message
-  addMessage('assistant', `${simulationData.avatar} 你现在是 **${simulationData.name}** — ${simulationData.title}\n\n${simulationData.intro}\n\n🎯 你有 ${simulationGoals.length} 个目标要完成（右上角可查看）。试着和我聊天，比如：\n• "记一下今天给 Larry 打了电话道歉"\n• "帮我给 Tim Cook 写条消息"\n• "有什么待办？"`);
+  // Show intro message with quick-start buttons
+  addMessage('assistant', `${simulationData.avatar} 你现在是 **${simulationData.name}** — ${simulationData.title}\n\n${simulationData.intro}\n\n🎯 右上角有 ${simulationGoals.length} 个目标等你完成。试试这些：`);
+  // Add quick-start suggestion chips
+  setTimeout(() => {
+    const suggestions = simulationData.id === 'musk'
+      ? ['有什么待办？', '记一下今天给 Larry 打了电话道歉', '帮我给 Tim Cook 写条消息']
+      : simulationData.id === 'zhang'
+      ? ['有什么待办？', '记一下今天和梁汝波喝了咖啡', '帮我给沈南鹏写条消息约AI投资']
+      : ['有什么待办？', '记一下今天给 Verna 回了消息', '帮我给 Barack 写一张感谢便条'];
+    const chipsDiv = document.createElement('div');
+    chipsDiv.className = 'suggestion-chips';
+    chipsDiv.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px;';
+    suggestions.forEach(s => {
+      const chip = document.createElement('button');
+      chip.className = 'suggestion-chip';
+      chip.textContent = s;
+      chip.style.cssText = 'padding:6px 14px;border:1px solid var(--border);border-radius:16px;background:transparent;color:var(--text);font-size:.82em;cursor:pointer;';
+      chip.onclick = () => { input.value = s; send(); };
+      chipsDiv.appendChild(chip);
+    });
+    const chatBody = document.getElementById('chatBody');
+    chatBody.appendChild(chipsDiv);
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }, 500);
 }
 
 async function loadSimulationToCloud(data) {
