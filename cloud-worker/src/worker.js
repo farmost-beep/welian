@@ -473,8 +473,8 @@ async function handleBilling(req, env) {
 // ── Data sync (full cloud mode) ──
 
 async function handleExtractIntent(req, env) {
-  // Step 1 of two-step LLM flow: extract intent + keywords from user message
-  // Returns JSON: { intent, contact_name, keywords, todo_related }
+  // Step 1 of two-step LLM flow: extract intent + keywords + data actions
+  // Also executes data write actions (add contact, timeline, todo) directly in KV
   const body = await req.json();
   const text = body.text;
 
@@ -487,27 +487,36 @@ async function handleExtractIntent(req, env) {
     return { status: 400, data: { error: 'text required' } };
   }
 
-  const system = `你是一个意图分析助手。分析用户消息，提取关键信息。只返回JSON，不要其他内容。
+  const system = `你是一个关系管理助手。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
 
 JSON格式：
 {
   "intent": "query_contact|query_todo|record|draft|chat|help",
   "contact_name": "用户提到的人名或昵称，没有则为空字符串",
-  "keywords": ["搜索关键词，用于在联系人数据库中模糊匹配"],
-  "todo_related": true或false
+  "keywords": ["搜索关键词，用于模糊匹配联系人"],
+  "actions": []
 }
 
+actions 是需要执行的数据操作数组，每个元素：
+- {"type":"add_timeline","contact_name":"人名","summary":"互动摘要","date":"YYYY-MM-DD"}
+- {"type":"add_contact","name":"人名","relation":"关系","notes":"备注"}
+- {"type":"add_todo","task":"待办内容","contact_name":"关联人名","due":"YYYY-MM-DD","priority":"P0|P1|P2"}
+
 规则：
-- "老许啥情况" → intent=query_contact, contact_name="老许", keywords=["许","老许"]
-- "有啥待办" → intent=query_todo, keywords=[]
-- "记一下今天和老许聊了Q3预算" → intent=record, contact_name="老许", keywords=["许","老许"]
-- "帮我给老许写个消息" → intent=draft, contact_name="老许", keywords=["许","老许"]
-- "你好" → intent=chat, keywords=[]
-- 昵称/简称都要提取（如"老许"→keywords包含"许"）`;
+- "老许啥情况" → intent=query_contact, contact_name="老许", keywords=["许","老许"], actions=[]
+- "有啥待办" → intent=query_todo, keywords=[], actions=[]
+- "记一下今天和老许聊了Q3预算" → intent=record, contact_name="老许", keywords=["许","老许"], actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"今天日期"}]
+- "提醒我下周拜访张三" → intent=record, actions=[{"type":"add_todo","task":"拜访张三","contact_name":"张三","due":"下周五日期","priority":"P1"}]
+- "认识了一个新朋友李四，在腾讯做产品" → intent=record, actions=[{"type":"add_contact","name":"李四","relation":"朋友","notes":"腾讯产品"}]
+- "帮我给老许写个消息" → intent=draft, contact_name="老许", keywords=["许","老许"], actions=[]
+- "你好" → intent=chat, keywords=[], actions=[]
+- 昵称/简称都要提取（如"老许"→keywords包含"许"）
+- 日期用 YYYY-MM-DD 格式，"今天"用实际日期，"下周"用实际日期
+- 只有用户明确要记录/提醒/添加时才生成 actions，查询和闲聊不生成`;
 
   try {
     const llmResp = await callLLM(text, system, env, {
-      max_tokens: 200,
+      max_tokens: 400,
       temperature: 0,
     });
 
@@ -518,7 +527,6 @@ JSON格式：
     // Parse JSON from LLM response
     let parsed;
     try {
-      // Strip any non-JSON text
       const jsonMatch = llmResp.text.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
     } catch (e) {
@@ -526,9 +534,109 @@ JSON格式：
     }
 
     if (!parsed) {
-      parsed = { intent: 'chat', contact_name: '', keywords: [], todo_related: false };
+      parsed = { intent: 'chat', contact_name: '', keywords: [], actions: [] };
+    }
+    if (!parsed.actions) parsed.actions = [];
+
+    // Execute data actions (data flywheel — write during conversation)
+    const actionResults = [];
+    for (const action of parsed.actions) {
+      try {
+        if (action.type === 'add_contact' && action.name) {
+          const contacts = await loadDataset(env, userId, 'contacts');
+          // Check if contact already exists (by name)
+          let contact = contacts.find(c => c.name === action.name);
+          if (!contact) {
+            contact = {
+              id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name: action.name,
+              relation: action.relation || '',
+              role: action.relation || '',
+              nature: 'leverage',
+              strength: 3,
+              tags: [], platforms: {},
+              notes: action.notes || '',
+              memories: [], important_dates: [],
+              leverage: {}, nurture: {},
+              aliases: [], alias: [],
+              created: new Date().toISOString(),
+              updated: new Date().toISOString(),
+            };
+            contacts.push(contact);
+            await saveDataset(env, userId, 'contacts', contacts);
+            actionResults.push({ type: 'add_contact', ok: true, name: action.name });
+          } else {
+            actionResults.push({ type: 'add_contact', ok: false, reason: 'already exists' });
+          }
+        }
+
+        if (action.type === 'add_timeline' && action.summary) {
+          const timeline = await loadDataset(env, userId, 'timeline');
+          // Find contact by name
+          const contacts = await loadDataset(env, userId, 'contacts');
+          let contactId = '';
+          if (action.contact_name) {
+            const c = contacts.find(c => c.name === action.contact_name ||
+              c.name.includes(action.contact_name) ||
+              (c.aliases && c.aliases.some(a => a.includes(action.contact_name))));
+            if (c) contactId = c.id;
+            // If contact doesn't exist, create it
+            if (!c && action.contact_name) {
+              const newContact = {
+                id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name: action.contact_name,
+                relation: '', role: '', nature: 'leverage', strength: 3,
+                tags: [], platforms: {}, notes: '', memories: [], important_dates: [],
+                leverage: {}, nurture: {}, aliases: [], alias: [],
+                created: new Date().toISOString(), updated: new Date().toISOString(),
+              };
+              contacts.push(newContact);
+              await saveDataset(env, userId, 'contacts', contacts);
+              contactId = newContact.id;
+            }
+          }
+          const entry = {
+            id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            contact: contactId,
+            date: action.date || new Date().toISOString().slice(0, 10),
+            summary: action.summary,
+            sentiment: '',
+            created: new Date().toISOString(),
+          };
+          timeline.push(entry);
+          await saveDataset(env, userId, 'timeline', timeline);
+          actionResults.push({ type: 'add_timeline', ok: true, summary: action.summary });
+        }
+
+        if (action.type === 'add_todo' && action.task) {
+          const todos = await loadDataset(env, userId, 'todos');
+          // Find contact by name
+          let contactId = '';
+          if (action.contact_name) {
+            const contacts = await loadDataset(env, userId, 'contacts');
+            const c = contacts.find(c => c.name === action.contact_name ||
+              c.name.includes(action.contact_name));
+            if (c) contactId = c.id;
+          }
+          const todo = {
+            id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            contact: contactId,
+            task: action.task,
+            priority: action.priority || 'P1',
+            due: action.due || '',
+            status: 'pending',
+            created: new Date().toISOString(),
+          };
+          todos.push(todo);
+          await saveDataset(env, userId, 'todos', todos);
+          actionResults.push({ type: 'add_todo', ok: true, task: action.task });
+        }
+      } catch (e) {
+        actionResults.push({ type: action.type, ok: false, error: e.message });
+      }
     }
 
+    parsed.action_results = actionResults;
     return { status: 200, data: parsed };
   } catch (e) {
     return { status: 500, data: { error: e.message } };

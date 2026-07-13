@@ -202,35 +202,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   :root{--chat-max:820px}
   .welcome-state .tagline{font-size:2.2em}
 }
-/* Data panel */
-.data-panel{position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--bg);border-left:1px solid var(--border);z-index:100;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.08)}
-.data-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
-.data-panel-header h3{font-size:1em;font-weight:600;margin:0}
-.data-panel-tabs{display:flex;gap:0;border-bottom:1px solid var(--border)}
-.dp-tab{flex:1;padding:10px;text-align:center;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:.85em;color:var(--dim)}
-.dp-tab.active{color:var(--text);border-bottom-color:var(--accent);font-weight:500}
-.data-panel-body{flex:1;overflow-y:auto;padding:12px}
-.dp-add{width:100%;padding:10px;background:none;border:1px dashed var(--border);border-radius:8px;cursor:pointer;color:var(--accent);font-size:.85em;margin-bottom:12px}
-.dp-add:hover{background:var(--surface)}
-.dp-item{padding:10px 12px;border-radius:8px;margin-bottom:6px;cursor:pointer}
-.dp-item:hover{background:var(--surface)}
-.dp-item-name{font-weight:500;font-size:.9em}
-.dp-item-meta{font-size:.75em;color:var(--dim);margin-top:2px}
-.dp-item-del{float:right;color:var(--dim);font-size:.8em;opacity:0}
-.dp-item:hover .dp-item-del{opacity:.6}
-.dp-item-del:hover{opacity:1;color:#C65D5D}
-/* Modal */
-.dp-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.3);z-index:200;display:flex;align-items:center;justify-content:center}
-.dp-modal-content{background:var(--bg);border-radius:12px;padding:20px;width:90%;max-width:400px;max-height:80vh;overflow-y:auto}
-.dp-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.dp-modal-header h4{margin:0;font-size:1em;font-weight:600}
-.dp-field{margin-bottom:12px}
-.dp-field label{display:block;font-size:.78em;color:var(--dim);margin-bottom:4px}
-.dp-field input,.dp-field select,.dp-field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:.9em;background:var(--bg);color:var(--text)}
-.dp-field textarea{resize:vertical;min-height:60px}
-.dp-submit{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9em;font-weight:500}
-.dp-submit:hover{opacity:.9}
-@media(max-width:768px){.data-panel{width:100%}}
 </style>
 </head>
 <body>
@@ -241,7 +212,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="brand"><span class="name">Welian</span><span class="inf">∞</span></div>
   <div class="links">
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
-    <button id="dataBtn" onclick="toggleDataPanel()" style="display:none">数据</button>
     <button id="langBtn" onclick="toggleLang()">中文</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
     <button class="cta" id="authBtn" onclick="toggleAuth()">Sign in</button>
@@ -268,42 +238,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
       <div class="input-hint" data-i18n="privacy">Your data stays on your device.</div>
     </div>
   </div>
-<!-- Data management panel (slide-in from right) -->
-<div class="data-panel" id="dataPanel" style="display:none">
-  <div class="data-panel-header">
-    <h3>数据管理</h3>
-    <button onclick="toggleDataPanel()" style="background:none;border:none;font-size:1.2em;cursor:pointer;color:var(--dim)">✕</button>
-  </div>
-  <div class="data-panel-tabs">
-    <button class="dp-tab active" onclick="dpTab('contacts')">联系人</button>
-    <button class="dp-tab" onclick="dpTab('todos')">待办</button>
-    <button class="dp-tab" onclick="dpTab('timeline')">互动记录</button>
-  </div>
-  <div class="data-panel-body" id="dpContacts">
-    <button class="dp-add" onclick="showAddContact()">+ 添加联系人</button>
-    <div id="dpContactList"></div>
-  </div>
-  <div class="data-panel-body" id="dpTodos" style="display:none">
-    <button class="dp-add" onclick="showAddTodo()">+ 添加待办</button>
-    <div id="dpTodoList"></div>
-  </div>
-  <div class="data-panel-body" id="dpTimeline" style="display:none">
-    <button class="dp-add" onclick="showAddTimeline()">+ 记录互动</button>
-    <div id="dpTimelineList"></div>
-  </div>
-</div>
-
-<!-- Modal for add/edit forms -->
-<div class="dp-modal" id="dpModal" style="display:none">
-  <div class="dp-modal-content">
-    <div class="dp-modal-header">
-      <h4 id="dpModalTitle">添加</h4>
-      <button onclick="closeDpModal()" style="background:none;border:none;font-size:1.2em;cursor:pointer;color:var(--dim)">✕</button>
-    </div>
-    <div id="dpModalBody"></div>
-  </div>
-</div>
-
 </main>
 
 <footer>
@@ -835,7 +769,6 @@ function onAuthed(user) {
   authBtn.title = tipParts.join('\n');
 
   navStatus.style.display = 'inline-flex';
-  document.getElementById('dataBtn').style.display = 'inline-block';
   // Close auth modal if open
   document.getElementById('clerk-auth').classList.remove('show');
 
@@ -857,8 +790,6 @@ function onSignedOut() {
   removeBridge();
   authBtn.textContent = 'Sign in';
   navStatus.style.display = 'none';
-  document.getElementById('dataBtn').style.display = 'none';
-  document.getElementById('dataPanel').style.display = 'none';
   if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();
   showWelcome();
@@ -1069,10 +1000,26 @@ async function cloudChat(text) {
     throw new Error('请先登录');
   }
 
-  // Step 1: Extract intent + keywords
+  // Step 1: Extract intent + keywords + execute data actions (data flywheel)
   const intent = await extractIntent(text);
   let dataContext = '';
   let conversationHistoryFromAgent = [];
+  let flywheelInfo = '';
+
+  // Show data flywheel results
+  if (intent && intent.action_results && intent.action_results.length > 0) {
+    const actions = intent.action_results.filter(a => a.ok);
+    if (actions.length > 0) {
+      const parts = actions.map(a => {
+        if (a.type === 'add_contact') return `已添加联系人「${a.name}」`;
+        if (a.type === 'add_timeline') return `已记录互动「${a.summary}」`;
+        if (a.type === 'add_todo') return `已添加待办「${a.task}」`;
+        return '';
+      }).filter(Boolean);
+      flywheelInfo = parts.join('，');
+      console.log('[cloudChat] Data flywheel:', flywheelInfo);
+    }
+  }
 
   // Step 2: Get data context based on intent
   if (intent && (intent.contact_name || (intent.keywords && intent.keywords.length > 0))) {
@@ -1132,10 +1079,13 @@ async function cloudChat(text) {
 你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。
 对话是连续的，请结合上下文理解用户的意图。`;
 
-  // Build user message: combine text + data context
+  // Build user message: combine text + data context + flywheel info
   let userContent = text;
-  if (dataContext) {
-    userContent = `用户消息：${text}\n\n相关数据：\n${dataContext}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。`;
+  const contextParts = [];
+  if (dataContext) contextParts.push(`相关数据：\n${dataContext}`);
+  if (flywheelInfo) contextParts.push(`系统已自动执行：${flywheelInfo}。请在回复中确认已记录。`);
+  if (contextParts.length > 0) {
+    userContent = `用户消息：${text}\n\n${contextParts.join('\n\n')}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。`;
   }
 
   // Build messages array: conversation history + current message
@@ -1187,188 +1137,6 @@ async function cloudChat(text) {
 
 // Cloud mode conversation history (kept in browser memory)
 let conversationHistory = [];
-
-// ── Data management (cloud-native CRUD) ──
-
-function toggleDataPanel() {
-  const panel = document.getElementById('dataPanel');
-  if (panel.style.display === 'none') {
-    panel.style.display = 'flex';
-    dpTab('contacts'); // Load contacts by default
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function dpTab(tab) {
-  document.querySelectorAll('.dp-tab').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('dpContacts').style.display = 'none';
-  document.getElementById('dpTodos').style.display = 'none';
-  document.getElementById('dpTimeline').style.display = 'none';
-  document.getElementById('dp' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
-  if (tab === 'contacts') loadDpContacts();
-  if (tab === 'todos') loadDpTodos();
-  if (tab === 'timeline') loadDpTimeline();
-}
-
-async function dpFetch(path, opts = {}) {
-  const token = await getClerkToken();
-  if (!token) return null;
-  const resp = await fetch(`${CLOUD_URL}${path}`, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers||{}) },
-  });
-  return resp;
-}
-
-async function loadDpContacts() {
-  const resp = await dpFetch('/data/contacts');
-  if (!resp || !resp.ok) return;
-  const data = await resp.json();
-  const list = document.getElementById('dpContactList');
-  if (!data.contacts || data.contacts.length === 0) {
-    list.innerHTML = '<p style="color:var(--dim);font-size:.8em;padding:12px">还没有联系人，点击上方按钮添加</p>';
-    return;
-  }
-  list.innerHTML = data.contacts.map(c =>
-    `<div class="dp-item"><span class="dp-item-del" onclick="event.stopPropagation();deleteContact('${c.id}')">🗑</span><div class="dp-item-name">${c.name}</div><div class="dp-item-meta">${c.relation||''} ${c.nature||''}</div></div>`
-  ).join('');
-}
-
-async function loadDpTodos() {
-  const resp = await dpFetch('/data/todos');
-  if (!resp || !resp.ok) return;
-  const data = await resp.json();
-  const list = document.getElementById('dpTodoList');
-  if (!data.todos || data.todos.length === 0) {
-    list.innerHTML = '<p style="color:var(--dim);font-size:.8em;padding:12px">没有待办</p>';
-    return;
-  }
-  list.innerHTML = data.todos.map(t =>
-    `<div class="dp-item"><span class="dp-item-del" onclick="event.stopPropagation();doneTodo('${t.id}')">✓</span><div class="dp-item-name">${t.task}</div><div class="dp-item-meta">${t.due||'无截止'} ${t.priority||''}</div></div>`
-  ).join('');
-}
-
-async function loadDpTimeline() {
-  const resp = await dpFetch('/data/timeline');
-  if (!resp || !resp.ok) return;
-  const data = await resp.json();
-  const list = document.getElementById('dpTimelineList');
-  if (!data.timeline || data.timeline.length === 0) {
-    list.innerHTML = '<p style="color:var(--dim);font-size:.8em;padding:12px">还没有互动记录</p>';
-    return;
-  }
-  list.innerHTML = data.timeline.map(t =>
-    `<div class="dp-item"><span class="dp-item-del" onclick="event.stopPropagation();deleteTimeline('${t.id}')">🗑</span><div class="dp-item-name">${t.summary}</div><div class="dp-item-meta">${(t.date||'').slice(0,10)}</div></div>`
-  ).join('');
-}
-
-function showAddContact() {
-  document.getElementById('dpModalTitle').textContent = '添加联系人';
-  document.getElementById('dpModalBody').innerHTML = `
-    <div class="dp-field"><label>姓名 *</label><input id="f_name" placeholder="如：张三"></div>
-    <div class="dp-field"><label>关系</label><input id="f_relation" placeholder="如：同事/校友/朋友"></div>
-    <div class="dp-field"><label>类型</label><select id="f_nature"><option value="leverage">撬动型</option><option value="nurture">维系型</option><option value="dual">双重</option></select></div>
-    <div class="dp-field"><label>备注</label><textarea id="f_notes" placeholder="背景、公司、职位等"></textarea></div>
-    <button class="dp-submit" onclick="submitContact()">保存</button>
-  `;
-  document.getElementById('dpModal').style.display = 'flex';
-}
-
-async function submitContact() {
-  const name = document.getElementById('f_name').value.trim();
-  if (!name) { alert('请输入姓名'); return; }
-  const body = {
-    name,
-    relation: document.getElementById('f_relation').value.trim(),
-    nature: document.getElementById('f_nature').value,
-    notes: document.getElementById('f_notes').value.trim(),
-  };
-  const resp = await dpFetch('/data/contacts', { method: 'POST', body: JSON.stringify(body) });
-  if (resp && resp.ok) {
-    closeDpModal();
-    loadDpContacts();
-  } else {
-    alert('保存失败');
-  }
-}
-
-function showAddTodo() {
-  document.getElementById('dpModalTitle').textContent = '添加待办';
-  document.getElementById('dpModalBody').innerHTML = `
-    <div class="dp-field"><label>任务 *</label><input id="f_task" placeholder="如：下周拜访张三"></div>
-    <div class="dp-field"><label>截止日期</label><input id="f_due" type="date"></div>
-    <div class="dp-field"><label>优先级</label><select id="f_priority"><option value="P0">P0 紧急</option><option value="P1" selected>P1 普通</option><option value="P2">P2 低</option></select></div>
-    <button class="dp-submit" onclick="submitTodo()">保存</button>
-  `;
-  document.getElementById('dpModal').style.display = 'flex';
-}
-
-async function submitTodo() {
-  const task = document.getElementById('f_task').value.trim();
-  if (!task) { alert('请输入任务'); return; }
-  const body = {
-    task,
-    due: document.getElementById('f_due').value,
-    priority: document.getElementById('f_priority').value,
-  };
-  const resp = await dpFetch('/data/todos', { method: 'POST', body: JSON.stringify(body) });
-  if (resp && resp.ok) {
-    closeDpModal();
-    loadDpTodos();
-  } else {
-    alert('保存失败');
-  }
-}
-
-function showAddTimeline() {
-  document.getElementById('dpModalTitle').textContent = '记录互动';
-  document.getElementById('dpModalBody').innerHTML = `
-    <div class="dp-field"><label>互动内容 *</label><textarea id="f_summary" placeholder="如：和张三聊了Q3预算"></textarea></div>
-    <div class="dp-field"><label>日期</label><input id="f_date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <button class="dp-submit" onclick="submitTimeline()">保存</button>
-  `;
-  document.getElementById('dpModal').style.display = 'flex';
-}
-
-async function submitTimeline() {
-  const summary = document.getElementById('f_summary').value.trim();
-  if (!summary) { alert('请输入互动内容'); return; }
-  const body = {
-    summary,
-    date: document.getElementById('f_date').value,
-  };
-  const resp = await dpFetch('/data/timeline', { method: 'POST', body: JSON.stringify(body) });
-  if (resp && resp.ok) {
-    closeDpModal();
-    loadDpTimeline();
-  } else {
-    alert('保存失败');
-  }
-}
-
-async function deleteContact(id) {
-  if (!confirm('确认删除？相关互动和待办也会删除。')) return;
-  await dpFetch(`/data/contacts?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-  loadDpContacts();
-}
-
-async function doneTodo(id) {
-  const token = await getClerkToken();
-  await dpFetch('/data/todos/done', { method: 'POST', body: JSON.stringify({ id }) });
-  loadDpTodos();
-}
-
-async function deleteTimeline(id) {
-  if (!confirm('确认删除？')) return;
-  await dpFetch(`/data/timeline?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-  loadDpTimeline();
-}
-
-function closeDpModal() {
-  document.getElementById('dpModal').style.display = 'none';
-}
 
 async function autoConnectAgent() {
   console.log('autoConnectAgent called, clerkUserId:', clerkUserId);
