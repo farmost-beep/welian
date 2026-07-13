@@ -335,7 +335,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 <!-- Auth modal -->
 <div id="clerk-auth">
   <div class="card">
-    <button class="close" onclick="toggleAuth()">×</button>
+    <button class="close" onclick="closeAuth()">×</button>
     <h2 data-i18n="auth_title">欢迎使用 Welian</h2>
     <p data-i18n="auth_sub">登录后开始管理你的关系</p>
     <div id="clerk-container"></div>
@@ -775,6 +775,12 @@ async function verifySMS() {
     btn.disabled = false;
     btn.textContent = d.phone_verify;
   }
+}
+
+function closeAuth() {
+  document.getElementById('clerk-auth').classList.remove('show');
+  userInitiatedLogin = false;
+  sessionStorage.removeItem('welian_login_initiated');
 }
 
 function toggleAuth() {
