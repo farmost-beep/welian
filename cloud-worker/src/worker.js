@@ -809,6 +809,27 @@ async function handlePurchaseCredits(req, env) {
 
 // ── WeChat bot binding ──
 
+async function getClerkUserInfo(userId, env) {
+  // Fetch user info from Clerk Backend API
+  const secretKey = env.CLERK_SECRET_KEY;
+  if (!secretKey) return null;
+  try {
+    const resp = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      headers: { 'Authorization': `Bearer ${secretKey}` },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const email = data.email_addresses?.find(e => e.id === data.primary_email_address_id)?.email_address || '';
+    const firstName = data.first_name || '';
+    const lastName = data.last_name || '';
+    const name = (firstName + ' ' + lastName).trim() || data.username || email.split('@')[0] || '';
+    return { name, email, username: data.username || '' };
+  } catch (e) {
+    console.error('Clerk user fetch error:', e.message);
+    return null;
+  }
+}
+
 async function handleBindWechat(req, env) {
   // Called by Web after Clerk login: binds wechat_user_id → clerk_user_id
   const body = await req.json();
@@ -845,12 +866,17 @@ async function handleBindWechat(req, env) {
   // Also store reverse mapping for lookup
   await env.USER_DATA.put(`wechat_user:${clerkUserId}`, wechatId);
 
+  // Fetch user info for display
+  const userInfo = await getClerkUserInfo(clerkUserId, env);
+
   return {
     status: 200,
     data: {
       ok: true,
       wechat_user_id: wechatId,
       clerk_user_id: clerkUserId,
+      name: userInfo?.name || '',
+      email: userInfo?.email || '',
       message: '绑定成功！现在可以在微信里使用小维了。',
     },
   };
@@ -865,11 +891,19 @@ async function handleCheckBind(req, env) {
   }
 
   const bound = await env.USER_DATA.get(`wechat_bind:${wechatId}`);
+  if (!bound) {
+    return { status: 200, data: { bound: false, clerk_user_id: null } };
+  }
+
+  // Fetch user info for display
+  const userInfo = await getClerkUserInfo(bound, env);
   return {
     status: 200,
     data: {
-      bound: !!bound,
-      clerk_user_id: bound || null,
+      bound: true,
+      clerk_user_id: bound,
+      name: userInfo?.name || '',
+      email: userInfo?.email || '',
     },
   };
 }

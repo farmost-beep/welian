@@ -284,15 +284,34 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             context_token,
         )
     elif cmd in ("/login", "/bind", "/登录", "/绑定"):
-        # Generate bind link with wechat user id
         wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
-        bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
-        api.send_message(user_id,
-            f"🔗 绑定你的 Welian 账号\n\n"
-            f"点击链接登录后，微信就能和你的数据连通：\n{bind_url}\n\n"
-            f"绑定后，你在网页和微信里看到的是同一份数据。",
-            context_token,
-        )
+        # Check if already bound
+        bound_info = await asyncio.to_thread(_check_bind, wechat_uid)
+        if bound_info and bound_info.get("bound"):
+            name = bound_info.get("name", "")
+            email = bound_info.get("email", "")
+            if name or email:
+                api.send_message(user_id,
+                    f"✅ 已绑定账号\n"
+                    f"  用户：{name or '未知'}\n"
+                    f"  邮箱：{email or '未知'}\n\n"
+                    f"你在网页和微信里看到的是同一份数据。",
+                    context_token,
+                )
+            else:
+                api.send_message(user_id,
+                    f"✅ 已绑定账号（{bound_info.get('clerk_user_id', '')[:20]}...）\n\n"
+                    f"你在网页和微信里看到的是同一份数据。",
+                    context_token,
+                )
+        else:
+            bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
+            api.send_message(user_id,
+                f"🔗 绑定你的 Welian 账号\n\n"
+                f"点击链接登录后，微信就能和你的数据连通：\n{bind_url}\n\n"
+                f"绑定后，你在网页和微信里看到的是同一份数据。",
+                context_token,
+            )
     elif cmd == "/status":
         s = sessions.stats()
         api.send_message(user_id,
@@ -312,6 +331,30 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
         api.send_message(user_id, f"未知命令：{cmd}\n输入 /help 查看可用命令", context_token)
 
     return True
+
+
+def _check_bind(wechat_uid: str) -> dict:
+    """Check if a wechat user is bound to a Clerk account."""
+    import urllib.request
+    sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+    cloud_url = CLOUD_URL or "https://api.welian.app"
+    try:
+        body = json.dumps({"wechat_user_id": wechat_uid}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{cloud_url}/ai/check_bind",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {wechat_uid}:{sync_secret}",
+                "User-Agent": "WelianBot/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.error(f"check_bind error: {e}")
+        return None
 
 
 def _save_user_id(user_id: str):
