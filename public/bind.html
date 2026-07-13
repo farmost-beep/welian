@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Welian — 绑定微信</title>
+<meta name="theme-color" content="#F5F4EE">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script defer crossorigin="anonymous"
+  src="https://fancy-kingfish-81.clerk.accounts.dev/npm/@clerk/clerk-js@4/dist/clerk.browser.js"
+  data-clerk-publishable-key="pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA"
+  type="text/javascript"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F5F4EE;--surface:#EDEBE3;--border:#D9D5C7;
+  --text:#1A1915;--dim:#6B6860;--accent:#C96442;--green:#4A7C59;
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:var(--surface);border-radius:16px;padding:40px;max-width:420px;width:90%;text-align:center}
+h1{font-size:24px;margin-bottom:8px;font-weight:600}
+.sub{color:var(--dim);font-size:14px;margin-bottom:24px}
+#clerk-mount{min-height:300px;margin-bottom:16px}
+.status{padding:12px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none}
+.status.ok{background:#E8F0E8;color:var(--green);display:block}
+.status.err{background:#F2E8E0;color:var(--accent);display:block}
+.status.loading{background:#E8E8F0;color:#4A5C7C;display:block}
+.btn{background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.wechat-id{font-family:monospace;font-size:13px;color:var(--dim);background:var(--bg);padding:4px 8px;border-radius:4px;display:inline-block;margin:4px 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔗 绑定微信</h1>
+  <p class="sub">登录后，你的微信就能和小维连通了</p>
+  <div id="clerk-mount"></div>
+  <div id="status" class="status"></div>
+  <div id="bound-section" style="display:none">
+    <p style="margin-bottom:12px">已绑定微信账号：</p>
+    <p class="wechat-id" id="bound-wechat"></p>
+    <p style="margin-top:16px;color:var(--dim);font-size:13px">现在可以在微信里直接和小维聊天了 ✨</p>
+  </div>
+</div>
+
+<script>
+const API = 'https://api.welian.app';
+const PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
+
+// Get wechat_user_id from URL params
+const params = new URLSearchParams(location.search);
+const wechatId = params.get('wid') || params.get('wechat_id') || '';
+
+if (!wechatId) {
+  showStatus('err', '缺少微信用户 ID。请从微信里的 /login 命令打开此链接。');
+} else {
+  // Show wechat id
+  document.getElementById('bound-wechat').textContent = wechatId;
+  initClerk();
+}
+
+async function initClerk() {
+  // Wait for Clerk to load
+  await new Promise(resolve => {
+    if (window.Clerk) return resolve();
+    const interval = setInterval(() => {
+      if (window.Clerk) { clearInterval(interval); resolve(); }
+    }, 100);
+  });
+
+  try {
+    await window.Clerk.load();
+  } catch(e) {
+    console.log('Clerk load:', e.message);
+  }
+
+  if (window.Clerk.user) {
+    // Already logged in — try to bind
+    await doBind();
+  } else {
+    // Not logged in — mount sign in
+    await mountSignIn();
+  }
+}
+
+async function mountSignIn() {
+  const mountEl = document.getElementById('clerk-mount');
+  // Clear and create fresh div (Clerk can't re-mount on same element)
+  mountEl.innerHTML = '<div id="clerk-signin"></div>';
+  const signinEl = document.getElementById('clerk-signin');
+
+  try {
+    // Listen for sign in completion
+    window.Clerk.addListener(({user}) => {
+      if (user) {
+        mountEl.style.display = 'none';
+        doBind();
+      }
+    });
+
+    await window.Clerk.mountSignIn(signinEl);
+  } catch(e) {
+    showStatus('err', '登录组件加载失败：' + e.message);
+  }
+}
+
+async function doBind() {
+  showStatus('loading', '正在绑定...');
+
+  try {
+    const session = window.Clerk.session;
+    if (!session) {
+      showStatus('err', '未登录，请先登录');
+      mountSignIn();
+      return;
+    }
+
+    const token = await session.getToken();
+
+    const resp = await fetch(`${API}/ai/bind_wechat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        wechat_user_id: wechatId,
+      }),
+    });
+
+    const data = await resp.json();
+
+    if (resp.ok && data.ok) {
+      showStatus('ok', '✅ 绑定成功！');
+      document.getElementById('bound-section').style.display = 'block';
+      document.getElementById('clerk-mount').style.display = 'none';
+    } else {
+      showStatus('err', data.error || '绑定失败');
+    }
+  } catch(e) {
+    showStatus('err', '绑定出错：' + e.message);
+  }
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+</script>
+</body>
+</html>

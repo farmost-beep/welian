@@ -178,6 +178,12 @@ async function getVerifiedUserId(req, env, body) {
   if (token && token.includes(':') && !token.startsWith('eyJ')) {
     const [uid, secret] = token.split(':');
     if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
+      // WeChat bot binding: uid starts with "wechat_" → lookup bound Clerk user_id
+      if (uid.startsWith('wechat_')) {
+        const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
+        if (bound) return bound;
+        return null; // not bound yet
+      }
       return uid;
     }
   }
@@ -797,6 +803,73 @@ async function handlePurchaseCredits(req, env) {
       ok: true,
       purchased: billing.purchased,
       remaining: getRemaining(billing),
+    },
+  };
+}
+
+// ── WeChat bot binding ──
+
+async function handleBindWechat(req, env) {
+  // Called by Web after Clerk login: binds wechat_user_id → clerk_user_id
+  const body = await req.json();
+  const wechatId = body.wechat_user_id;
+  if (!wechatId || !wechatId.startsWith('wechat_')) {
+    return { status: 400, data: { error: 'wechat_user_id required (must start with wechat_)' } };
+  }
+
+  // Two auth paths:
+  // 1. Clerk JWT (from web login) — normal user binding
+  // 2. Sync token with clerk_user_id in body — admin/edge agent binding
+  let clerkUserId = await getVerifiedUserId(req, env, body);
+
+  // Allow explicit clerk_user_id in body when using sync token auth
+  if (!clerkUserId && body.clerk_user_id) {
+    // Verify the caller has sync secret (already checked in getVerifiedUserId for non-wechat tokens)
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : (body.session_token || '');
+    if (token && token.includes(':') && !token.startsWith('eyJ') && !token.startsWith('wechat_')) {
+      const [uid, secret] = token.split(':');
+      if (secret === env.WELIAN_SYNC_SECRET) {
+        clerkUserId = body.clerk_user_id;
+      }
+    }
+  }
+
+  if (!clerkUserId) {
+    return { status: 401, data: { error: 'Authentication required — login on web first' } };
+  }
+
+  // Store binding
+  await env.USER_DATA.put(`wechat_bind:${wechatId}`, clerkUserId);
+
+  // Also store reverse mapping for lookup
+  await env.USER_DATA.put(`wechat_user:${clerkUserId}`, wechatId);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      wechat_user_id: wechatId,
+      clerk_user_id: clerkUserId,
+      message: '绑定成功！现在可以在微信里使用小维了。',
+    },
+  };
+}
+
+async function handleCheckBind(req, env) {
+  // Check if a wechat user is bound (called by bot)
+  const body = await req.json();
+  const wechatId = body.wechat_user_id;
+  if (!wechatId) {
+    return { status: 400, data: { error: 'wechat_user_id required' } };
+  }
+
+  const bound = await env.USER_DATA.get(`wechat_bind:${wechatId}`);
+  return {
+    status: 200,
+    data: {
+      bound: !!bound,
+      clerk_user_id: bound || null,
     },
   };
 }
@@ -1575,6 +1648,18 @@ export default {
 
       if (path === '/ai/purchase_credits' && method === 'POST') {
         const r = await handlePurchaseCredits(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── WeChat bot binding ──
+
+      if (path === '/ai/bind_wechat' && method === 'POST') {
+        const r = await handleBindWechat(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/check_bind' && method === 'POST') {
+        const r = await handleCheckBind(request, env);
         return jsonResponse(r.data, r.status);
       }
 

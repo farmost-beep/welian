@@ -271,6 +271,7 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
     if cmd in ("/help", "/h", "/？", "/?"):
         api.send_message(user_id,
             "Welian 命令：\n"
+            "  /login — 绑定你的 Welian 账号\n"
             "  /help — 显示帮助\n"
             "  /status — 查看状态\n"
             "  /who — 该联系谁\n"
@@ -280,6 +281,16 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             "  · \"该联系谁\"\n"
             "  · \"给张总拟条消息\"\n"
             "  · \"月度回顾\"",
+            context_token,
+        )
+    elif cmd in ("/login", "/bind", "/登录", "/绑定"):
+        # Generate bind link with wechat user id
+        wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+        bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
+        api.send_message(user_id,
+            f"🔗 绑定你的 Welian 账号\n\n"
+            f"点击链接登录后，微信就能和你的数据连通：\n{bind_url}\n\n"
+            f"绑定后，你在网页和微信里看到的是同一份数据。",
             context_token,
         )
     elif cmd == "/status":

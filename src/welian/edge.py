@@ -338,11 +338,21 @@ class EdgeClient:
         if not self.cloud_url:
             return self.chat(text)
 
-        # Build sync token — use WELIAN_USER_TOKEN (Clerk user ID) for cloud auth,
-        # not self.user_id (which may be WeChat user ID for bot)
+        # Build sync token for cloud auth.
+        # For WeChat bot: user_id is the raw WeChat ID → hash to wechat_<hash>
+        #   Cloud looks up wechat_bind:wechat_<hash> → clerk_user_id
+        # For edge agent: user_id is already the Clerk user_id
+        # Fallback: WELIAN_USER_TOKEN env var (single-user mode)
         sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
-        cloud_user_id = os.environ.get("WELIAN_USER_TOKEN", "") or self.user_token or self.user_id
-        sync_token = f"{cloud_user_id}:{sync_secret}" if sync_secret else self.user_token
+        if self.user_id and self.user_id != "default":
+            # WeChat bot mode — hash the wechat user id
+            import hashlib
+            wechat_uid = f"wechat_{hashlib.sha256(self.user_id.encode()).hexdigest()[:16]}"
+            sync_token = f"{wechat_uid}:{sync_secret}" if sync_secret else self.user_token
+        else:
+            # Edge agent / single-user mode
+            cloud_user_id = os.environ.get("WELIAN_USER_TOKEN", "") or self.user_token or self.user_id
+            sync_token = f"{cloud_user_id}:{sync_secret}" if sync_secret else self.user_token
 
         import urllib.request
         import urllib.error
@@ -472,7 +482,16 @@ class EdgeClient:
 
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
-            logger_msg = f"Cloud chat error: HTTP {e.code}: {err_body[:200]}"
+            # 401 = not bound (wechat user not linked to Clerk account)
+            if e.code == 401:
+                import hashlib
+                wechat_uid = f"wechat_{hashlib.sha256(self.user_id.encode()).hexdigest()[:16]}"
+                bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
+                return (
+                    f"👋 你好！我是小维，你的关系管理 AI 助手。\n\n"
+                    f"使用前需要先绑定你的 Welian 账号：\n{bind_url}\n\n"
+                    f"绑定后就能在微信里记录互动、查询联系人、拟写消息了。"
+                )
             # 402 = billing exhausted
             if e.code == 402:
                 try:
