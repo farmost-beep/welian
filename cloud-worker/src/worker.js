@@ -407,6 +407,168 @@ async function handleDataSync(req, env) {
   return { status: 200, data: { ok: true, synced_at: new Date().toISOString() } };
 }
 
+async function handleDataSyncFull(req, env) {
+  // Sync full edge data (contacts, todos, timeline) to cloud KV
+  const body = await req.json();
+  const userToken = body.user_token;
+
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+
+  const contacts = body.contacts || [];
+  const todos = body.todos || [];
+  const timeline = body.timeline || [];
+
+  // Store each dataset separately in KV (7-day TTL)
+  // KV value limit is 25MB, contacts.json is ~2MB so fits easily
+  await env.USER_DATA.put(`contacts:${userToken}`, JSON.stringify(contacts), { expirationTtl: 604800 });
+  await env.USER_DATA.put(`todos:${userToken}`, JSON.stringify(todos), { expirationTtl: 604800 });
+  await env.USER_DATA.put(`timeline:${userToken}`, JSON.stringify(timeline), { expirationTtl: 604800 });
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      synced_at: new Date().toISOString(),
+      counts: { contacts: contacts.length, todos: todos.length, timeline: timeline.length },
+    },
+  };
+}
+
+async function handleDataSearch(req, env) {
+  // Search contacts in cloud KV by keywords (full cloud mode, no agent needed)
+  const body = await req.json();
+  const userToken = body.user_token;
+  const keywords = body.keywords || [];
+  const contactName = body.contact_name || '';
+
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+
+  // Build search terms
+  const searchTerms = [...new Set([...keywords, contactName].filter(t => t))];
+  if (searchTerms.length === 0) {
+    // No keywords — return overview from data_context KV
+    const dataContext = await env.USER_DATA.get(`ctx:${userToken}`);
+    return { status: 200, data: { data_context: dataContext || '', matched_count: 0 } };
+  }
+
+  // Load contacts from KV
+  const contactsRaw = await env.USER_DATA.get(`contacts:${userToken}`);
+  if (!contactsRaw) {
+    return { status: 200, data: { data_context: '', matched_count: 0, reason: 'no data synced' } };
+  }
+
+  let contacts;
+  try {
+    contacts = JSON.parse(contactsRaw);
+  } catch (e) {
+    return { status: 500, data: { error: 'Failed to parse contacts data' } };
+  }
+
+  // Load todos and timeline for enriching results
+  const todosRaw = await env.USER_DATA.get(`todos:${userToken}`);
+  const timelineRaw = await env.USER_DATA.get(`timeline:${userToken}`);
+  const todos = todosRaw ? JSON.parse(todosRaw) : [];
+  const timeline = timelineRaw ? JSON.parse(timelineRaw) : [];
+
+  // Fuzzy match contacts
+  const results = [];
+  for (const c of contacts) {
+    const name = c.name || '';
+    const aliases = (c.aliases || []).join(' ');
+    const notes = c.notes || '';
+    const relation = c.relation || '';
+    const subRelation = c.sub_relation || '';
+    const searchable = `${name} ${aliases} ${notes} ${relation} ${subRelation}`;
+
+    const matched = searchTerms.some(term => name.includes(term) || searchable.includes(term));
+    if (matched) results.push(c);
+  }
+
+  // Build detailed context for matched contacts (top 10)
+  const lines = [];
+  for (const c of results.slice(0, 10)) {
+    const name = c.name || '';
+    const nature = c.nature || 'leverage';
+    const role = c.role || c.relation || '';
+    const relation = c.relation || '';
+    const notes = c.notes || '';
+    const strength = c.strength || 3;
+    const leverage = c.leverage || {};
+    const importantDates = c.important_dates || [];
+    const cid = c.id || '';
+
+    const detailLines = [`【${name}】`];
+    detailLines.push(`  类型：${nature} | 角色：${role} | 关系强度：${strength}/5`);
+    if (relation) detailLines.push(`  关系：${relation}`);
+    if (notes) detailLines.push(`  备注：${notes.substring(0, 200)}`);
+    if (leverage && leverage.goals) detailLines.push(`  撬动目标：${String(leverage.goals).substring(0, 100)}`);
+    if (leverage && leverage.how) detailLines.push(`  联结方式：${String(leverage.how).substring(0, 100)}`);
+    for (const d of importantDates.slice(0, 3)) {
+      detailLines.push(`  重要日期：${d.label || ''} ${d.date || ''}`);
+    }
+
+    // Timeline (last 5 interactions for this contact)
+    const contactTl = timeline
+      .filter(t => t.contact === cid)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 5);
+    if (contactTl.length > 0) {
+      detailLines.push('  近期互动：');
+      for (const t of contactTl) {
+        detailLines.push(`    · ${(t.date || '').substring(0, 10)} ${(t.summary || t.content || '').substring(0, 80)}`);
+      }
+    }
+
+    // Related pending todos
+    const contactTodos = todos.filter(t => t.contact === cid && t.status === 'pending').slice(0, 5);
+    if (contactTodos.length > 0) {
+      detailLines.push('  相关待办：');
+      for (const t of contactTodos) {
+        detailLines.push(`    · ${(t.task || t.content || '').substring(0, 80)}`);
+      }
+    }
+
+    lines.push(detailLines.join('\n'));
+  }
+
+  // Build todo overview
+  const pendingTodos = todos.filter(t => t.status === 'pending');
+  let todoCtx = '';
+  if (pendingTodos.length > 0) {
+    const today = new Date().toISOString().substring(0, 10);
+    const todoLines = [`【待办】共 ${pendingTodos.length} 条`];
+    for (const t of pendingTodos) {
+      const due = (t.due || '').substring(0, 10);
+      const task = (t.task || t.content || '').substring(0, 80);
+      const contact = t.contact || '';
+      if (due) {
+        const delta = Math.floor((new Date(due) - new Date(today)) / 86400000);
+        if (delta < 0) todoLines.push(`  · [${contact}] ${task}（超期${-delta}天）`);
+        else if (delta === 0) todoLines.push(`  · [${contact}] ${task}（今天）`);
+        else todoLines.push(`  · [${contact}] ${task}（${delta}天后）`);
+      } else {
+        todoLines.push(`  · [${contact}] ${task}`);
+      }
+    }
+    todoCtx = '\n\n' + todoLines.join('\n');
+  }
+
+  const resultText = `搜索关键词：${searchTerms.join(', ')}\n匹配到 ${results.length} 个联系人\n\n` +
+    lines.join('\n\n') + todoCtx;
+
+  return {
+    status: 200,
+    data: {
+      data_context: resultText,
+      matched_count: results.length,
+    },
+  };
+}
+
 async function handleDataContext(req, env) {
   const url = new URL(req.url);
   const userToken = url.searchParams.get('user_token');
@@ -502,6 +664,16 @@ export default {
 
       if (path === '/data/sync' && method === 'POST') {
         const r = await handleDataSync(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/data/sync_full' && method === 'POST') {
+        const r = await handleDataSyncFull(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/data/search' && method === 'POST') {
+        const r = await handleDataSearch(request, env);
         return jsonResponse(r.data, r.status);
       }
 

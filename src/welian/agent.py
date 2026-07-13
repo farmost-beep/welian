@@ -532,34 +532,75 @@ class LocalAgent:
         await asyncio.Future()  # run forever
 
     async def _sync_loop(self):
-        """Periodically sync data_context to cloud KV for full cloud mode."""
+        """Periodically sync full edge data to cloud KV for full cloud mode.
+
+        Syncs: contacts, todos, timeline (complete datasets, not summaries).
+        Cloud worker can then search and build data_context without agent.
+        """
         import urllib.request
         from .cli import _get_user_id
+        from .engine import CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE
 
         cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
-        # Prefer Clerk user_id from auth.json, fall back to WELIAN_USER_TOKEN env
         user_token = _get_user_id() or os.environ.get("WELIAN_USER_TOKEN")
         if not user_token or len(user_token) < 10:
             print("  ⚠ Cloud sync skipped — no valid user_token (run 'welian login')")
             return
 
+        def _load_and_sync():
+            """Load all data files and sync to cloud. Runs in thread executor."""
+            import gzip, io
+
+            # Load all data
+            datasets = {}
+            for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        datasets[name] = json.load(f)
+                except Exception:
+                    datasets[name] = []
+
+            # Build sync payload (compressed to fit KV limits)
+            payload = json.dumps({
+                "user_token": user_token,
+                "contacts": datasets["contacts"],
+                "todos": datasets["todos"],
+                "timeline": datasets["timeline"],
+            }, ensure_ascii=False)
+
+            # Sync full data to /data/sync_full
+            data = payload.encode("utf-8")
+            req = urllib.request.Request(
+                f"{cloud_url}/data/sync_full",
+                data=data,
+                headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                result = json.loads(resp.read())
+
+            # Also sync summary data_context (for quick overview without search)
+            ctx = self.edge.get_context("")
+            summary = json.dumps({
+                "user_token": user_token,
+                "data_context": ctx.get("data_context", ""),
+            }).encode()
+            req2 = urllib.request.Request(
+                f"{cloud_url}/data/sync",
+                data=summary,
+                headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
+                method="POST",
+            )
+            urllib.request.urlopen(req2, timeout=30)
+
+            return result, len(datasets["contacts"]), len(datasets["todos"]), len(datasets["timeline"])
+
         # Sync immediately on startup, then every 5 minutes
         while True:
             try:
-                ctx = await asyncio.get_event_loop().run_in_executor(
-                    None, self.edge.get_context, "")
-                data = json.dumps({
-                    "user_token": user_token,
-                    "data_context": ctx.get("data_context", ""),
-                }).encode()
-                req = urllib.request.Request(
-                    f"{cloud_url}/data/sync",
-                    data=data,
-                    headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=30)
-                print(f"  ☁ Cloud data synced ({len(ctx.get('data_context', ''))} chars)")
+                result, nc, nt, ntl = await asyncio.get_event_loop().run_in_executor(
+                    None, _load_and_sync)
+                print(f"  ☁ Cloud sync: {nc} contacts, {nt} todos, {ntl} timeline → {result.get('ok')}")
             except Exception as e:
                 print(f"  ⚠ Cloud sync failed: {e}")
             await asyncio.sleep(300)  # 5 minutes

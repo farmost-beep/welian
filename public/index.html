@@ -873,6 +873,29 @@ async function getCloudDataContext(userToken) {
   }
 }
 
+async function cloudSearch(userToken, keywords, contactName) {
+  // Search contacts in cloud KV (full cloud mode, no agent needed)
+  // Returns {data_context, matched_count} or null
+  try {
+    const resp = await fetch(`${CLOUD_URL}/data/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_token: userToken,
+        keywords: keywords,
+        contact_name: contactName,
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    console.log('[cloudSearch] matched:', data.matched_count, 'data_context len:', (data.data_context||'').length);
+    return data;
+  } catch (e) {
+    console.log('[cloudSearch] failed:', e.message);
+    return null;
+  }
+}
+
 async function agentSearch(keywords, contactName, intent) {
   // Ask agent to search contacts by keywords (two-step flow step 2)
   // Returns {data_context, matched_count, conversation} or null
@@ -949,19 +972,22 @@ async function cloudChat(text) {
     console.log('[cloudChat] Searching for:', intent.contact_name, intent.keywords);
 
     if (bridgeFrame && bridgeReady) {
-      // Live agent: search contacts
+      // Live agent: search contacts locally
       const searchResult = await agentSearch(intent.keywords || [], intent.contact_name || '', intent.intent || '');
       if (searchResult) {
         dataContext = searchResult.data_context || '';
         conversationHistoryFromAgent = searchResult.conversation || [];
-        console.log('[cloudChat] agent search result, data_context len:', dataContext.length, 'matched:', searchResult.matched_count);
+        console.log('[cloudChat] agent search, data_context len:', dataContext.length, 'matched:', searchResult.matched_count);
       }
     }
 
     if (!dataContext && clerkUserId) {
-      // No agent — use cloud KV data (less precise but has overview)
-      dataContext = await getCloudDataContext(clerkUserId);
-      console.log('[cloudChat] cloud KV fallback, data_context len:', dataContext.length);
+      // No agent — search in cloud KV (full cloud mode, same precision as agent)
+      const cloudResult = await cloudSearch(clerkUserId, intent.keywords || [], intent.contact_name || '');
+      if (cloudResult) {
+        dataContext = cloudResult.data_context || '';
+        console.log('[cloudChat] cloud search, data_context len:', dataContext.length, 'matched:', cloudResult.matched_count);
+      }
     }
   } else {
     // No specific keywords — get general context
