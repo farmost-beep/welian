@@ -240,6 +240,12 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .goal-exit{width:100%;margin-top:12px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8em}
 .goal-exit:hover{opacity:.9}
 @media(max-width:768px){.goal-tracker{width:calc(100% - 32px)}}
+/* Welcome CTA buttons */
+.welcome-cta{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:28px}
+.cta-primary{padding:12px 40px;background:var(--accent);color:#fff;border:none;border-radius:24px;font-size:1em;font-weight:500;cursor:pointer;transition:all .2s}
+.cta-primary:hover{transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.cta-secondary{padding:8px 24px;background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:20px;font-size:.85em;cursor:pointer;transition:all .2s}
+.cta-secondary:hover{color:var(--accent);border-color:var(--accent)}
 /* Quick login */
 .quick-login{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 .quick-login-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;font-size:.95em;cursor:pointer;transition:opacity .2s}
@@ -260,7 +266,6 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="brand"><span class="name">Welian</span><span class="inf">∞</span></div>
   <div class="links">
     <a href="https://github.com/farmost-beep/welian" class="desktop-only">GitHub</a>
-    <button id="demoBtn" onclick="showScenarioPicker()" style="font-size:.82em;color:var(--accent);background:none;border:none;cursor:pointer">🎭 模拟体验</button>
     <button id="langBtn" onclick="toggleLang()">EN</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
     <button class="cta" id="authBtn" onclick="toggleAuth()">登录</button>
@@ -268,10 +273,14 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 </nav>
 
 <main>
-  <!-- Welcome state: tagline only (overlay, shown when chat is empty) -->
+  <!-- Welcome state: tagline + CTA (overlay, shown when chat is empty) -->
   <div class="welcome-state" id="welcomeState">
     <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
     <div class="tagline-sub" data-i18n="tagline_sub">更好的朋友、更好的家人、更好的合作者</div>
+    <div class="welcome-cta">
+      <button class="cta-primary" onclick="toggleAuth()" data-i18n="start_btn">开始使用</button>
+      <button class="cta-secondary" onclick="showScenarioPicker()" data-i18n="demo_btn">🎭 先体验一下</button>
+    </div>
   </div>
 
   <div class="chat-body" id="chatBody">
@@ -355,6 +364,8 @@ const I18N = {
     tagline: 'Care <em>more</em>.',
     tagline_sub: 'Better friend. Better family. Better collaborator.',
     demo: 'Demo',
+    start_btn: 'Get started',
+    demo_btn: '🎭 Try a demo',
     welcome: "Hi, I'm Welian 😊\n\nI remember what matters, suggest who to reach out to, and help you find the right words.\n\nSign in to get started.",
     signin_prompt: 'Please sign in to start chatting. 🔑',
     input_ph: 'Message Welian…',
@@ -405,6 +416,8 @@ const I18N = {
     tagline: '每段关系都值得<em>用心</em>',
     tagline_sub: '更好的朋友、更好的家人、更好的合作者',
     demo: '演示',
+    start_btn: '开始使用',
+    demo_btn: '🎭 先体验一下',
     welcome: '你好，我是小维 😊\n\n我帮你记住每段互动，提醒重要的时刻，帮你找到合适的话。\n\n登录后即可开始使用。',
     signin_prompt: '请先登录再开始聊天。🔑',
     input_ph: '跟 Welian 聊聊…',
