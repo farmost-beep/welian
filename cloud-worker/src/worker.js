@@ -169,6 +169,11 @@ async function getVerifiedUserId(req, env, body) {
     token = body.session_token;
   }
 
+  // Demo token for simulation mode (demo_<scenario_id>:demo_secret)
+  if (token && token.startsWith('demo_') && token.endsWith(':demo_secret')) {
+    return token.split(':')[0];
+  }
+
   const result = await verifyClerkToken(token, env);
   if (!result.valid) {
     return null;
@@ -662,6 +667,12 @@ async function getAgentSyncUserId(body, env) {
   const syncToken = body.sync_token;
   if (!syncToken || typeof syncToken !== 'string') {
     return null;
+  }
+
+  // Demo token: demo_<scenario_id>:demo_secret (for simulation mode)
+  if (syncToken.startsWith('demo_') && syncToken.endsWith(':demo_secret')) {
+    const userId = syncToken.split(':')[0];
+    return userId;
   }
 
   // sync_token format: "<clerk_user_id>:<secret>"

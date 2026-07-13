@@ -202,6 +202,39 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   :root{--chat-max:820px}
   .welcome-state .tagline{font-size:2.2em}
 }
+/* Demo button on welcome */
+.demo-btn{margin-top:20px;padding:10px 24px;background:transparent;border:1px solid var(--accent);border-radius:24px;color:var(--accent);font-size:.9em;cursor:pointer;transition:all .2s}
+.demo-btn:hover{background:var(--accent);color:#fff}
+/* Scenario picker */
+.scenario-picker{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.scenario-picker-content{background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto}
+.scenario-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.scenario-picker-header h3{margin:0;font-size:1.1em;font-weight:600}
+.scenario-intro{color:var(--dim);font-size:.82em;line-height:1.5;margin-bottom:20px}
+.scenario-cards{display:flex;flex-direction:column;gap:12px}
+.scenario-card{padding:16px;border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s}
+.scenario-card:hover{border-color:var(--accent);background:var(--surface)}
+.scenario-card-avatar{font-size:2em;margin-bottom:8px}
+.scenario-card-name{font-weight:600;font-size:1em}
+.scenario-card-title{font-size:.78em;color:var(--dim);margin-bottom:6px}
+.scenario-card-tagline{font-size:.85em;color:var(--text);margin-bottom:8px}
+.scenario-card-goals{font-size:.75em;color:var(--dim)}
+/* Goal tracker */
+.goal-tracker{position:fixed;top:60px;right:16px;width:280px;background:var(--bg);border:1px solid var(--border);border-radius:12px;z-index:90;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.goal-tracker-header{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;font-size:.85em;font-weight:500}
+.goal-progress{margin-left:auto;color:var(--accent);font-weight:600}
+.goal-tracker-body{padding:0 14px 14px;border-top:1px solid var(--border);display:none}
+.goal-tracker.expanded .goal-tracker-body{display:block}
+.goal-item{padding:8px 0;border-bottom:1px solid var(--border);font-size:.8em}
+.goal-item:last-child{border-bottom:none}
+.goal-item-title{font-weight:500;color:var(--text)}
+.goal-item-desc{color:var(--dim);font-size:.9em;margin-top:2px}
+.goal-item.done .goal-item-title{text-decoration:line-through;color:var(--dim)}
+.goal-item.done .goal-item-title::before{content:'✅ '}
+.goal-item.pending .goal-item-title::before{content:'⬜ '}
+.goal-exit{width:100%;margin-top:12px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8em}
+.goal-exit:hover{opacity:.9}
+@media(max-width:768px){.goal-tracker{width:calc(100% - 32px)}}
 </style>
 </head>
 <body>
@@ -223,6 +256,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="welcome-state" id="welcomeState">
     <div class="tagline" data-i18n="tagline">每段关系都值得<em>用心</em></div>
     <div class="tagline-sub" data-i18n="tagline_sub">更好的朋友、更好的家人、更好的合作者</div>
+    <button class="demo-btn" onclick="showScenarioPicker()">🎭 模拟体验</button>
   </div>
 
   <div class="chat-body" id="chatBody">
@@ -238,6 +272,31 @@ footer .privacy{color:var(--dimmer);max-width:400px}
       <div class="input-hint" data-i18n="privacy">Your data stays on your device.</div>
     </div>
   </div>
+<!-- Scenario picker (modal) -->
+<div class="scenario-picker" id="scenarioPicker" style="display:none">
+  <div class="scenario-picker-content">
+    <div class="scenario-picker-header">
+      <h3>🎭 选择一个角色开始体验</h3>
+      <button onclick="closeScenarioPicker()" style="background:none;border:none;font-size:1.2em;cursor:pointer;color:var(--dim)">✕</button>
+    </div>
+    <p class="scenario-intro">无需登录，立即体验 Welian 如何帮你管理社交关系。选择一个名人角色，在对话中维护他们的关系网络。</p>
+    <div class="scenario-cards" id="scenarioCards"></div>
+  </div>
+</div>
+
+<!-- Goal tracker (shown during simulation) -->
+<div class="goal-tracker" id="goalTracker" style="display:none">
+  <div class="goal-tracker-header" onclick="toggleGoalTracker()">
+    <span id="goalTrackerTitle">🎯 目标</span>
+    <span id="goalProgress" class="goal-progress">0/3</span>
+    <span id="goalToggle">▾</span>
+  </div>
+  <div class="goal-tracker-body" id="goalTrackerBody">
+    <div id="goalList"></div>
+    <button class="goal-exit" onclick="exitSimulation()">退出模拟 → 注册真实账户</button>
+  </div>
+</div>
+
 </main>
 
 <footer>
@@ -887,8 +946,9 @@ function saveAgentTurn(text, reply) {
 
 async function getCloudDataContext() {
   // Fetch data context from cloud KV (synced by agent)
-  // Uses Clerk session JWT for auth
-  const token = await getClerkToken();
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
   if (!token) return '';
   try {
     const resp = await fetch(`${CLOUD_URL}/data/context`, {
@@ -905,8 +965,9 @@ async function getCloudDataContext() {
 
 async function cloudSearch(keywords, contactName) {
   // Search contacts in cloud KV (full cloud mode, no agent needed)
-  // Uses Clerk session JWT for auth
-  const token = await getClerkToken();
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
   if (!token) return null;
   try {
     const resp = await fetch(`${CLOUD_URL}/data/search`, {
@@ -969,7 +1030,9 @@ async function agentSearch(keywords, contactName, intent) {
 
 async function extractIntent(text) {
   // Step 1: Cloud LLM extracts intent + keywords from user message
-  const token = await getClerkToken();
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
   if (!token) return null;
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/extract_intent`, {
@@ -994,8 +1057,10 @@ async function cloudChat(text) {
   // 3. Cloud LLM generates reply with precise data context
   console.log('[cloudChat] Start, bridgeReady:', bridgeReady, 'isLive:', isLive);
 
-  // Get Clerk session token for API auth
-  const token = await getClerkToken();
+  // Get auth token (Clerk JWT or simulation demo token)
+  const token = simulationMode
+    ? `demo_${simulationData.id}:demo_secret`
+    : await getClerkToken();
   if (!token) {
     throw new Error('请先登录');
   }
@@ -1116,6 +1181,12 @@ async function cloudChat(text) {
     if (bridgeFrame && bridgeReady) {
       saveAgentTurn(text, data.reply);
     }
+
+    // Check simulation goals after reply
+    if (simulationMode) {
+      checkSimulationGoals(intent, data.reply);
+    }
+
     return data.reply;
   } catch (e) {
     throw e;
@@ -1155,6 +1226,167 @@ async function getSystemPrompt() {
 你会收到用户的原始消息和相关数据上下文。请严格基于数据回答，不要编造。
 对话是连续的，请结合上下文理解用户的意图。`;
   return cachedSystemPrompt;
+}
+
+// ── Simulation mode (celebrity role-play demo) ──
+
+let simulationMode = false;
+let simulationPersona = null;
+let simulationData = null;
+let simulationGoals = [];
+
+const SCENARIO_IDS = ['musk', 'zhang', 'obama'];
+
+async function showScenarioPicker() {
+  const picker = document.getElementById('scenarioPicker');
+  const cards = document.getElementById('scenarioCards');
+  cards.innerHTML = '<p style="color:var(--dim);font-size:.8em">加载中...</p>';
+  picker.style.display = 'flex';
+
+  // Load all scenarios
+  try {
+    const scenarios = await Promise.all(
+      SCENARIO_IDS.map(id => fetch(`/scenarios/${id}.json`).then(r => r.json()))
+    );
+    cards.innerHTML = scenarios.map(s => `
+      <div class="scenario-card" onclick="startSimulation('${s.id}')">
+        <div class="scenario-card-avatar">${s.avatar}</div>
+        <div class="scenario-card-name">${s.name}</div>
+        <div class="scenario-card-title">${s.title}</div>
+        <div class="scenario-card-tagline">${s.tagline}</div>
+        <div class="scenario-card-goals">🎯 ${s.goals.length} 个目标需要完成</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    cards.innerHTML = '<p style="color:#C65D5D;font-size:.8em">加载失败：' + e.message + '</p>';
+  }
+}
+
+function closeScenarioPicker() {
+  document.getElementById('scenarioPicker').style.display = 'none';
+}
+
+async function startSimulation(scenarioId) {
+  closeScenarioPicker();
+
+  // Load scenario data
+  const resp = await fetch(`/scenarios/${scenarioId}.json`);
+  simulationData = await resp.json();
+  simulationPersona = simulationData.name;
+  simulationGoals = simulationData.goals.map(g => ({ ...g, done: false }));
+  simulationMode = true;
+
+  // Load data into cloud KV under demo namespace
+  await loadSimulationToCloud(simulationData);
+
+  // Show goal tracker
+  document.getElementById('goalTrackerTitle').textContent = `🎯 ${simulationPersona}`;
+  updateGoalTracker();
+  document.getElementById('goalTracker').style.display = 'block';
+  document.getElementById('goalTracker').classList.add('expanded');
+
+  // Enter cloud mode with simulation
+  isCloud = true;
+  isAuthed = false; // simulation doesn't need real auth
+  hideWelcome();
+  clearChat();
+
+  // Show intro message
+  addMessage('assistant', `${simulationData.avatar} 你现在是 **${simulationData.name}** — ${simulationData.title}\n\n${simulationData.intro}\n\n🎯 你有 ${simulationGoals.length} 个目标要完成（右上角可查看）。试着和我聊天，比如：\n• "记一下今天给 Larry 打了电话道歉"\n• "帮我给 Tim Cook 写条消息"\n• "有什么待办？"`);
+}
+
+async function loadSimulationToCloud(data) {
+  // Use a demo sync_token to load data into cloud KV
+  const demoUserId = `demo_${data.id}`;
+  const demoToken = `${demoUserId}:demo_secret`;
+  try {
+    await fetch(`${CLOUD_URL}/data/sync_full`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sync_token: demoToken,
+        contacts: data.contacts || [],
+        todos: data.todos || [],
+        timeline: data.timeline || [],
+      }),
+    });
+    console.log('[simulation] Data loaded to cloud for', demoUserId);
+  } catch (e) {
+    console.error('[simulation] Failed to load data:', e);
+  }
+}
+
+function updateGoalTracker() {
+  const done = simulationGoals.filter(g => g.done).length;
+  const total = simulationGoals.length;
+  document.getElementById('goalProgress').textContent = `${done}/${total}`;
+  const list = document.getElementById('goalList');
+  list.innerHTML = simulationGoals.map(g => `
+    <div class="goal-item ${g.done ? 'done' : 'pending'}">
+      <div class="goal-item-title">${g.title}</div>
+      <div class="goal-item-desc">${g.description}</div>
+    </div>
+  `).join('');
+}
+
+function toggleGoalTracker() {
+  document.getElementById('goalTracker').classList.toggle('expanded');
+}
+
+function checkSimulationGoals(intent, reply) {
+  if (!simulationMode) return;
+  const allText = (reply || '').toLowerCase();
+  // Check goals based on action_results and reply
+  for (const goal of simulationGoals) {
+    if (goal.done) continue;
+    // Check if timeline actions match goal criteria
+    if (intent && intent.action_results) {
+      for (const ar of intent.action_results) {
+        if (!ar.ok) continue;
+        if (ar.type === 'add_timeline' && goal.check.includes('timeline')) {
+          // Simple heuristic: if we added a timeline entry, mark related goals as progress
+          if (goal.check.includes('3 条') || goal.check.includes('3位')) {
+            // Count timeline entries for this goal
+            goal._count = (goal._count || 0) + 1;
+            if (goal._count >= 3) goal.done = true;
+          } else {
+            goal.done = true;
+          }
+        }
+        if (ar.type === 'add_todo' && goal.check.includes('todos')) {
+          goal.done = true;
+        }
+      }
+    }
+    // Check if reply contains drafted message
+    if (goal.check.includes('拟写') && intent && intent.intent === 'draft') {
+      goal.done = true;
+    }
+    if (goal.check.includes('邮件') && allText.includes('邮件') && intent && intent.intent === 'draft') {
+      goal.done = true;
+    }
+    if (goal.check.includes('消息') && intent && intent.intent === 'draft' && goal.check.includes('contact_name')) {
+      goal.done = true;
+    }
+  }
+  updateGoalTracker();
+
+  // Check if all goals done
+  if (simulationGoals.every(g => g.done)) {
+    addMessage('assistant', `🎉 恭喜！你完成了所有目标！\n\n${simulationData.avatar} ${simulationData.name} 的关系网络已经得到改善。\n\n**Welian 可以帮你做同样的事**——管理你的真实社交关系，在对话中自然积累互动记录，提醒你重要的待办。\n\n👉 点击右上角「退出模拟」注册你自己的账户开始使用。`);
+  }
+}
+
+function exitSimulation() {
+  simulationMode = false;
+  simulationPersona = null;
+  simulationData = null;
+  simulationGoals = [];
+  document.getElementById('goalTracker').style.display = 'none';
+  clearChat();
+  showWelcome();
+  // Trigger auth modal
+  toggleAuth();
 }
 
 async function autoConnectAgent() {
@@ -1426,7 +1658,7 @@ async function send() {
   addMsg('you', text);
   addTyping();
 
-  if (isCloud || isLive) {
+  if (isCloud || isLive || simulationMode) {
     // Unified cloud-first flow: cloudChat handles both cases
     // - If agent bridge is available: gets edge data context, then calls cloud LLM
     // - If no agent: calls cloud LLM directly (no data context)

@@ -1,0 +1,190 @@
+{
+  "id": "zhang",
+  "name": "张一鸣",
+  "title": "字节跳动创始人",
+  "avatar": "📱",
+  "tagline": "卸任 CEO 后，重新连接被忽略的人脉",
+  "intro": "你是张一鸣。卸任字节跳动 CEO 后专注 AI 投资，但发现很多老关系疏远了——前同事、投资伙伴、甚至家人。你需要重建这些关系。",
+  "goals": [
+    {
+      "id": "g1",
+      "title": "联系 3 位前核心团队成员",
+      "description": "梁汝波、陈林、张楠在你卸任后联系变少。重新建立沟通。",
+      "check": "timeline 中新增 3 条与前团队成员的互动记录"
+    },
+    {
+      "id": "g2",
+      "title": "给沈南鹏发一条投资合作消息",
+      "description": "红杉中国创始人，之前合作过多轮。探讨 AI 领域新合作。",
+      "check": "对话中请求拟写消息，且 contact_name 包含'沈南鹏'"
+    },
+    {
+      "id": "g3",
+      "title": "安排一次家庭聚餐",
+      "description": "太久没陪家人了。用 Welian 记录这个待办并拟写邀请消息。",
+      "check": "todos 中新增家庭相关待办，或对话中拟写家庭聚餐消息"
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_liang",
+      "name": "梁汝波",
+      "relation": "同事",
+      "role": "字节跳动 CEO（继任者）",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "大学室友，共同创办字节跳动。卸任后你刻意保持距离让他独立，但可能过度了。",
+      "platforms": {"wechat": "liangryb", "email": "liang@bytedance.com"},
+      "important_dates": [{"label": "生日", "date": "1982-04-08"}],
+      "leverage": {"goals": "保持战略沟通，不影响他独立管理", "how": "每月一次非正式聊天"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_chenlin",
+      "name": "陈林",
+      "relation": "同事",
+      "role": "字节跳动原产品负责人",
+      "nature": "nurture",
+      "strength": 3,
+      "notes": "今日头条的核心功臣。你卸任后他也调岗了，最近听说他在做内部创新项目。",
+      "platforms": {"wechat": "chenlin_pd"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_zhangnan",
+      "name": "张楠",
+      "relation": "同事",
+      "role": "字节跳动中国区 CEO",
+      "nature": "leverage",
+      "strength": 3,
+      "notes": "抖音的缔造者。能力很强，但你卸任后沟通减少。需要重新对齐战略方向。",
+      "platforms": {"wechat": "zhangnan_dy"},
+      "leverage": {"goals": "中国区业务战略对齐", "how": "季度战略会+非正式沟通"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_shen",
+      "name": "沈南鹏",
+      "relation": "商业伙伴",
+      "role": "红杉中国创始人",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "字节跳动早期投资人。最近他在大力布局 AI，你也在看 AI 投资，有合作空间。",
+      "platforms": {"wechat": "neil_shen"},
+      "leverage": {"goals": "AI 投资合作", "how": "约咖啡聊 AI 赛道"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_wangxing",
+      "name": "王兴",
+      "relation": "朋友",
+      "role": "美团创始人",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "同为中国互联网第一代创业者，私交不错但最近两年没联系。他对 AI 也有兴趣。",
+      "platforms": {"wechat": "wangxing_meituan"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_wife",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你创业 12 年她一直支持。卸任后说要补偿她，但最近又忙于看 AI 项目。",
+      "important_dates": [{"label": "结婚纪念日", "date": "2014-10-01"}],
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_father",
+      "name": "父亲",
+      "relation": "家人",
+      "role": "父亲",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "福建龙岩老家。上次见面是春节。他不太懂你做的事，但总是等你电话。",
+      "important_dates": [{"label": "生日", "date": "1955-12-20"}],
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_liang",
+      "task": "约梁汝波喝咖啡，非正式聊聊",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_shen",
+      "task": "给沈南鹏发消息约 AI 投资交流",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_wife",
+      "task": "安排一次家庭聚餐",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_father",
+      "task": "给父亲打电话",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_liang",
+      "date": "2026-05-01",
+      "summary": "卸任后第一次和梁汝波吃饭，聊了2小时公司战略，之后没再联系",
+      "sentiment": "neutral",
+      "created": "2026-05-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_shen",
+      "date": "2026-03-15",
+      "summary": "在一个 AI 论坛上偶遇沈南鹏，简单寒暄，说'改天约'但一直没约",
+      "sentiment": "neutral",
+      "created": "2026-03-15T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_wife",
+      "date": "2026-06-18",
+      "summary": "妻子说'你卸任了反而更忙了'，你答应周末陪她但临时取消了",
+      "sentiment": "negative",
+      "created": "2026-06-18T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_wangxing",
+      "date": "2026-01-10",
+      "summary": "王兴发了一条朋友圈关于 AI，你点了赞但没评论",
+      "sentiment": "neutral",
+      "created": "2026-01-10T00:00:00Z"
+    }
+  ]
+}

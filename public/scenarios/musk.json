@@ -1,0 +1,211 @@
+{
+  "id": "musk",
+  "name": "Elon Musk",
+  "title": "特斯拉 / SpaceX / X CEO",
+  "avatar": "🚀",
+  "tagline": "在推特收购后，重建核心关系网络",
+  "intro": "你是 Elon Musk。收购 Twitter 后面临广告主流失、投资人质疑、老朋友疏远。你需要通过维护关键关系来扭转局面。",
+  "goals": [
+    {
+      "id": "g1",
+      "title": "修复与 Larry Ellison 的关系",
+      "description": "Oracle 创始人，曾是 Twitter 董事会成员，收购后因分歧离开。重新建立信任。",
+      "check": "timeline 中有与 Larry Ellison 的互动记录，且 summary 包含'道歉'或'和解'"
+    },
+    {
+      "id": "g2",
+      "title": "联系 3 位流失的广告主",
+      "description": "苹果、IBM、通用汽车已暂停投放。需要至少联系 3 位恢复合作。",
+      "check": "timeline 中新增 3 条与广告主的互动记录"
+    },
+    {
+      "id": "g3",
+      "title": "给员工发一封鼓舞邮件",
+      "description": "用 Welian 拟写一封给全公司的邮件，提振士气。",
+      "check": "对话中请求拟写邮件，且 LLM 生成了邮件内容"
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_larry",
+      "name": "Larry Ellison",
+      "relation": "商业伙伴",
+      "role": "Oracle 创始人",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "曾是 Twitter 董事会成员，收购后因管理风格分歧离开。之前关系很好，需要修复。",
+      "platforms": {"email": "larry@oracle.com"},
+      "important_dates": [{"label": "生日", "date": "08-17"}],
+      "leverage": {"goals": "恢复董事关系，可能投资 X", "how": "私人晚宴+道歉"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_tim_cook",
+      "name": "Tim Cook",
+      "relation": "商业伙伴",
+      "role": "Apple CEO",
+      "nature": "leverage",
+      "strength": 3,
+      "notes": "苹果是 Twitter 最大广告主之一，收购后暂停了投放。需要恢复合作。",
+      "platforms": {"email": "tcook@apple.com"},
+      "leverage": {"goals": "恢复苹果广告投放", "how": "直接通话+公开表态"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_ginni",
+      "name": "Arvind Krishna",
+      "relation": "商业伙伴",
+      "role": "IBM CEO",
+      "nature": "leverage",
+      "strength": 2,
+      "notes": "IBM 也暂停了 Twitter 广告投放。之前通过中间人联系，需要建立直接关系。",
+      "platforms": {"email": "arvind@ibm.com"},
+      "leverage": {"goals": "恢复 IBM 广告投放", "how": "行业会议+直接沟通"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_mary",
+      "name": "Mary Barra",
+      "relation": "竞争对手",
+      "role": "GM CEO",
+      "nature": "dual",
+      "strength": 2,
+      "notes": "通用汽车因特斯拉竞争关系暂停了 Twitter 广告。关系微妙——既是竞争对手又是广告主。",
+      "platforms": {"email": "mary.barra@gm.com"},
+      "leverage": {"goals": "恢复 GM 广告投放", "how": "找到合作切入点（充电网络）"},
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_gwynne",
+      "name": "Gwynne Shotwell",
+      "relation": "同事",
+      "role": "SpaceX COO",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "SpaceX 二把手，最信任的搭档。最近因精力分散到 X 导致她承担更多压力。",
+      "platforms": {"email": "gwynne@spacex.com"},
+      "important_dates": [{"label": "入职纪念日", "date": "2002-11-01"}],
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_vaughn",
+      "name": "Vaughn Smith",
+      "relation": "朋友",
+      "role": "Meta VP",
+      "nature": "nurture",
+      "strength": 3,
+      "notes": "老朋友，在 Meta 负责基础设施。可以请教大规模系统运营经验。",
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_jared",
+      "name": "Jared Birchall",
+      "relation": "同事",
+      "role": "家族办公室负责人",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "管理 Musk 家族财富和信托。需要定期沟通投资策略。",
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_maye",
+      "name": "Maye Musk",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "70+ 岁的超模母亲。最近忙于收购没时间联系她，她有些失落。",
+      "important_dates": [{"label": "生日", "date": "04-19"}],
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_larry",
+      "task": "给 Larry Ellison 打电话道歉",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_tim_cook",
+      "task": "约 Tim Cook 通话谈广告恢复",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_maye",
+      "task": "给妈妈打电话",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_gwynne",
+      "task": "感谢 Gwynne 最近承担更多 SpaceX 工作",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "",
+      "task": "拟写全公司邮件提振士气",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_larry",
+      "date": "2026-06-15",
+      "summary": "Larry 在董事会上公开批评收购方案，之后辞去董事职务",
+      "sentiment": "negative",
+      "created": "2026-06-15T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_tim_cook",
+      "date": "2026-06-20",
+      "summary": "苹果宣布暂停 Twitter 广告投放，理由是内容审核担忧",
+      "sentiment": "negative",
+      "created": "2026-06-20T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_gwynne",
+      "date": "2026-07-01",
+      "summary": "Gwynne 独自主持了 Starship 项目评审，Musk 未出席",
+      "sentiment": "neutral",
+      "created": "2026-07-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_maye",
+      "date": "2026-05-10",
+      "summary": "母亲节发了短信但没打电话，Maye 回复'你忙就好'",
+      "sentiment": "negative",
+      "created": "2026-05-10T00:00:00Z"
+    }
+  ]
+}
