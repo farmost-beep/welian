@@ -1,0 +1,34 @@
+<!-- pages/dashboard/dashboard.wxml — 角色仪表盘（SPEC §3.2） -->
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="page-title">📊 {{month}}的你</text>
+    <text class="page-subtitle">更好的朋友、更好的家人、更好的合作者</text>
+  </view>
+
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">正在回顾你本月的故事…</text>
+  </view>
+
+  <!-- 三角色分栏 -->
+  <block wx:for="{{roles}}" wx:key="key">
+    <view class="card role-card">
+      <view class="role-header">
+        <text class="role-icon">{{item.icon}}</text>
+        <text class="role-label">{{item.label}}</text>
+      </view>
+      <view class="role-items">
+        <view wx:for="{{item.items}}" wx:for-item="entry" wx:key="index" class="role-item">
+          <text class="item-dot {{entry.tone}}">·</text>
+          <text class="item-text {{entry.tone === 'warning' ? 'text-accent' : ''}} {{entry.tone === 'positive' ? 'text-green' : ''}}">{{entry.text}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 底部说明 -->
+  <view class="footer-note">
+    <text class="text-dimmer text-xs">Welian 只做行为回顾，不做评分。这个月过得怎么样，由你判断。</text>
+  </view>
+</view>

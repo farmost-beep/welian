@@ -116,30 +116,58 @@ def format_advise_nurture(reminders):
 # ── Report formatting (报) ──
 
 def format_role_dashboard(dash):
-    """Format role dashboard into a readable monthly review (SPEC §3.2)."""
+    """Format role dashboard into a readable monthly review (SPEC §3.2).
+
+    Behavioral facts only, no state judgment, no scores (SPEC §3.3).
+    Each role gets role-specific framing rather than identical bullets.
+    """
     month_label = dash["month"]
-    lines = [f"📊 {month_label} — 你\n"]
+    lines = [f"📊 {month_label} 的你\n"]
 
-    role_labels = {
-        "friend": ("🌱 作为朋友", "friend"),
-        "family": ("🏡 作为家人", "family"),
-        "collaborator": ("🤝 作为合作者", "collaborator"),
-    }
+    # friend: 走心交流 / 在场 / 重新联系
+    f = dash["friend"]
+    lines.append("作为朋友 🌱")
+    if f["meaningful_interactions"] > 0:
+        names = "、".join(f["names"][:3]) if f.get("names") else ""
+        suffix = f"（{names}）" if names else ""
+        lines.append(f"  · {f['meaningful_interactions']} 次走心的交流{suffix}")
+    if f["completed_todos"] > 0:
+        lines.append(f"  · 答应朋友的事做到了 {f['completed_todos']} 件")
+    if f["pending_todos"] > 0:
+        lines.append(f"  · ⚠️ 还有 {f['pending_todos']} 件没做")
+    if f["meaningful_interactions"] == 0 and f["completed_todos"] == 0:
+        lines.append("  · 这个月还没有走心的记录")
+    lines.append("")
 
-    for role_key, (label, key) in role_labels.items():
-        stats = dash[key]
-        lines.append(label)
-        if stats["meaningful_interactions"] > 0:
-            lines.append(f"  · {stats['meaningful_interactions']} 次走心的交流")
-        if stats["completed_todos"] > 0:
-            lines.append(f"  · 答应的事做到了 {stats['completed_todos']} 件")
-        if stats["pending_todos"] > 0:
-            lines.append(f"  · ⚠️ 还有 {stats['pending_todos']} 件没做")
-        if stats["meaningful_interactions"] == 0 and stats["completed_todos"] == 0:
-            lines.append("  · 这个月还没有记录")
-        lines.append("")
+    # family: 陪伴次数 / 重要日子 / 不遗漏
+    fam = dash["family"]
+    lines.append("作为家人 🏡")
+    if fam["meaningful_interactions"] > 0:
+        lines.append(f"  · 陪伴了 {fam['meaningful_interactions']} 次")
+    if fam["completed_todos"] > 0:
+        lines.append(f"  · 答应家人的事做到了 {fam['completed_todos']} 件")
+    if fam["pending_todos"] > 0:
+        lines.append(f"  · ⚠️ 还有 {fam['pending_todos']} 件没做，别遗漏")
+    if fam["meaningful_interactions"] == 0 and fam["completed_todos"] == 0:
+        lines.append("  · 这个月还没有陪伴记录")
+    lines.append("")
 
-    lines.append("—— 这个月过得怎么样，你自己说了算 :)")
+    # collaborator: 说到做到 / 搭桥引荐 / 项目进展
+    col = dash["collaborator"]
+    lines.append("作为合作者 🤝")
+    if col["completed_todos"] > 0:
+        total = col["completed_todos"] + col["pending_todos"]
+        rate = round(col["completed_todos"] / total * 100) if total else 0
+        lines.append(f"  · 答应的事做到了 {col['completed_todos']} 件，做到率 {rate}%")
+    if col["meaningful_interactions"] > 0:
+        lines.append(f"  · {col['meaningful_interactions']} 次实质性沟通")
+    if col["pending_todos"] > 0:
+        lines.append(f"  · ⚠️ 还有 {col['pending_todos']} 件没做")
+    if col["meaningful_interactions"] == 0 and col["completed_todos"] == 0:
+        lines.append("  · 这个月还没有合作往来记录")
+    lines.append("")
+
+    lines.append("—— 以上只是你做了什么，过得怎么样你自己说了算 :)")
     return "\n".join(lines)
 
 # ── Nurture check formatting ──

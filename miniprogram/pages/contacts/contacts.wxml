@@ -1,0 +1,94 @@
+<!-- pages/contacts/contacts.wxml — 关系列表页 -->
+<view class="container">
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <input
+      class="search-input"
+      type="text"
+      placeholder="搜索联系人…"
+      value="{{searchKeyword}}"
+      bindinput="onSearchInput"
+      confirm-type="search"
+    />
+    <text wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">×</text>
+  </view>
+
+  <!-- 搜索结果 -->
+  <block wx:if="{{searchResults}}">
+    <view class="section-title">搜索结果（{{searchResults.length}}）</view>
+    <view wx:if="{{searchResults.length === 0}}" class="empty-state">
+      <text class="text-dimmer">没有找到匹配的联系人</text>
+    </view>
+    <view wx:for="{{searchResults}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
+      <view class="contact-row">
+        <text class="contact-name">{{item.name}}</text>
+        <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+      </view>
+      <text class="contact-sub text-dim text-sm">{{item.how || item.bond}}</text>
+    </view>
+  </block>
+
+  <!-- 非搜索：tab 切换 -->
+  <block wx:else>
+    <!-- Tab 切换 -->
+    <view class="tab-bar">
+      <view class="tab-item {{activeTab === 'leverage' ? 'active' : ''}}" bindtap="switchTab" data-tab="leverage">
+        <text class="tab-icon">🌳</text>
+        <text class="tab-text">撬动型</text>
+        <text class="tab-meta text-dimmer text-xs">果园</text>
+      </view>
+      <view class="tab-item {{activeTab === 'nurture' ? 'active' : ''}}" bindtap="switchTab" data-tab="nurture">
+        <text class="tab-icon">🌸</text>
+        <text class="tab-text">维系型</text>
+        <text class="tab-meta text-dimmer text-xs">浇一盆花</text>
+      </view>
+    </view>
+
+    <!-- 加载态 -->
+    <view wx:if="{{loading}}" class="loading">
+      <text class="text-dimmer text-sm">加载中…</text>
+    </view>
+
+    <!-- 撬动型列表 -->
+    <block wx:if="{{activeTab === 'leverage' && !loading}}">
+      <view class="list-header">
+        <text class="text-dim text-sm">用心栽培，定期照料，静候收获</text>
+      </view>
+      <view wx:for="{{leverageList}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
+        <view class="contact-row">
+          <text class="contact-name">{{item.name}}</text>
+          <view class="contact-tags">
+            <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+            <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+          </view>
+        </view>
+        <view class="contact-detail">
+          <text class="text-dim text-sm">{{item.how}}</text>
+          <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
+        </view>
+      </view>
+    </block>
+
+    <!-- 维系型列表 -->
+    <block wx:if="{{activeTab === 'nurture' && !loading}}">
+      <view class="list-header">
+        <text class="text-dim text-sm">不需要理由，在场就是全部</text>
+      </view>
+      <view wx:for="{{nurtureList}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
+        <view class="contact-row">
+          <text class="contact-name">{{item.name}}</text>
+          <view class="contact-tags">
+            <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+          </view>
+        </view>
+        <view class="contact-detail">
+          <text class="text-dim text-sm">{{item.bond}}</text>
+          <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
+        </view>
+        <view wx:if="{{item.nextDate}}" class="next-date">
+          <text class="text-accent text-sm">📅 {{item.nextDate}}</text>
+        </view>
+      </view>
+    </block>
+  </block>
+</view>

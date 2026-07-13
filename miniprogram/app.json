@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/dashboard/dashboard",
+    "pages/contacts/contacts",
+    "pages/mine/mine",
+    "pages/weekly/weekly",
+    "pages/billing/billing"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F5F4EE",
+    "navigationBarTitleText": "Welian ∞",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F5F4EE",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#9A968C",
+    "selectedColor": "#C96442",
+    "backgroundColor": "#EDEBE3",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/dashboard/dashboard",
+        "text": "仪表盘"
+      },
+      {
+        "pagePath": "pages/contacts/contacts",
+        "text": "关系"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

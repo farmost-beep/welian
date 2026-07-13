@@ -1,0 +1,42 @@
+<!-- pages/mine/mine.wxml — 我的 -->
+<view class="container">
+  <!-- 品牌头 -->
+  <view class="brand-header">
+    <text class="brand-name">Welian</text>
+    <text class="brand-inf">∞</text>
+  </view>
+  <text class="brand-tagline text-dim">更用心 — 更好的朋友、更好的家人、更好的合作者</text>
+
+  <!-- 当前套餐 -->
+  <view class="card plan-card">
+    <view class="plan-row">
+      <text class="plan-label">当前套餐</text>
+      <text class="tag tag-{{plan === 'pro' ? 'leverage' : 'dual'}}">{{planLabel}}</text>
+    </view>
+    <view class="plan-row">
+      <text class="plan-label">剩余额度</text>
+      <text class="plan-credits">{{credits}} 点</text>
+    </view>
+    <button class="btn btn-block" bindtap="goBilling">管理套餐 / 充值</button>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="menu-group">
+    <view class="menu-item" bindtap="goWeekly">
+      <text class="menu-icon">📋</text>
+      <text class="menu-text">周报</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="goBilling">
+      <text class="menu-icon">💳</text>
+      <text class="menu-text">充值 / 套餐</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+  </view>
+
+  <!-- 关于 -->
+  <view class="about">
+    <text class="text-dimmer text-xs">维联 — 维系情感，联结目标</text>
+    <text class="text-dimmer text-xs">© 2026 Welian ∞</text>
+  </view>
+</view>

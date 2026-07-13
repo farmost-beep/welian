@@ -195,6 +195,17 @@ def main():
     p_weekly.add_argument("--push", action="store_true", help="Push to WeChat via bot")
     p_weekly.add_argument("--user", default="", help="WeChat user ID to push to (default: all bot users)")
 
+    # Anchor assistant (SPEC §6.2)
+    p_anchor = sub.add_parser("anchor", help="AI-suggested goal anchor for a contact")
+    p_anchor.add_argument("contact", help="Contact name or ID (or 'batch' for batch mode)")
+    p_anchor.add_argument("--apply", action="store_true", help="Apply suggestion without confirmation")
+    p_anchor.add_argument("--limit", type=int, default=20, help="Batch mode: max contacts to suggest")
+
+    # Batch classify nature (SPEC §2.4)
+    p_classify = sub.add_parser("classify", help="Batch classify contact nature (撬动/维系)")
+    p_classify.add_argument("--apply", action="store_true", help="Apply suggestions (default: dry run)")
+    p_classify.add_argument("--init-nurture", action="store_true", help="Also initialize nurture fields")
+
     args = parser.parse_args()
 
     # ── Edge commands ──
@@ -236,12 +247,19 @@ def main():
         print(msg)
 
     elif args.command == "balance":
-        bal = tokens.get_balance(args.user)
-        print(f"Token Balance ({bal['plan']})")
-        print(f"  Allowance: {bal['allowance']}/month")
-        print(f"  Purchased: {bal['purchased']}")
-        print(f"  Used this month: {bal['used_this_month']}")
-        print(f"  Remaining: {bal['remaining']}")
+        info = tokens.get_plan_info(args.user)
+        print(f"联点余额 — {info['plan_label']}")
+        print(f"  套餐: {info['plan']}")
+        print(f"  每月额度: {info['allowance']} 点")
+        if info['purchased'] > 0:
+            print(f"  额外购买: {info['purchased']} 点")
+        print(f"  本月已用: {info['used_this_month']} 点")
+        print(f"  剩余可用: {info['remaining']} 点")
+        print(f"  累计使用: {info['total_used']} 点")
+        print(f"  下次重置: {info['next_reset_date']}（{info['days_to_reset']}天后）")
+        if info['plan'] != 'pro':
+            print()
+            print(f"  💡 升级 Pro：¥29/月 或 ¥299/年，每月额度提升至500点")
 
     # ── Export / Import ──
     elif args.command == "export":
@@ -435,6 +453,75 @@ def main():
                 await send_long_message(api, user_id, report)
             asyncio.run(push())
             print(f"\n✓ Pushed to WeChat user: {user_id[:12]}...")
+
+    elif args.command == "anchor":
+        client = EdgeClient()
+        if args.contact == "batch":
+            print("批量锚定建议（SPEC §6.2 目标锚定助手）\n")
+            results = client.batch_suggest_anchors(limit=args.limit)
+            if not results:
+                print("所有 core 层联系人已锚定 👍")
+            for r in results:
+                s = r["suggestion"]
+                if "error" in s:
+                    print(f"  ✗ {r['name']}: {s['error']}")
+                    continue
+                print(f"  {r['name']} (strength={r['strength']}, tags={r['tags']})")
+                print(f"    目标：{s.get('goals', [])}")
+                print(f"    联结：{s.get('how', '')}")
+                print(f"    方向：{s.get('direction', '')}")
+                print(f"    类型：{s.get('nature', 'leverage')}")
+                if args.apply:
+                    ok, msg = client.apply_anchor(r["contact_id"], s)
+                    print(f"    → {msg}")
+                print()
+            if not args.apply:
+                print("加 --apply 自动应用，或逐个确认。")
+        else:
+            contact, _ = engine.resolve_contact(args.contact)
+            if not contact:
+                print(f"未找到联系人「{args.contact}」")
+                return
+            suggestion = client.suggest_anchor(contact["id"])
+            if "error" in suggestion:
+                print(f"错误：{suggestion['error']}")
+                return
+            print(f"锚定建议：{contact['name']}\n")
+            print(f"  目标：{suggestion.get('goals', [])}")
+            print(f"  联结：{suggestion.get('how', '')}")
+            print(f"  方向：{suggestion.get('direction', '')}")
+            print(f"  类型：{suggestion.get('nature', 'leverage')}")
+            if args.apply:
+                ok, msg = client.apply_anchor(contact["id"], suggestion)
+                print(f"\n{msg}")
+            else:
+                print("\n加 --apply 应用此建议。")
+
+    elif args.command == "classify":
+        print("批量关系分类（SPEC §2.4 双关系模型）\n")
+        changes = engine.batch_classify_natures(dry_run=not args.apply)
+        if not changes:
+            print("所有联系人已分类，无需调整 👍")
+        else:
+            print(f"{'应用' if args.apply else '建议'} {len(changes)} 项变更：\n")
+            for cid, name, old, new in changes:
+                old_label = {"leverage": "撬动", "nurture": "维系", "dual": "双重"}.get(old, old)
+                new_label = {"leverage": "撬动", "nurture": "维系", "dual": "双重"}.get(new, new)
+                print(f"  {name}: {old_label} → {new_label}")
+            if not args.apply:
+                print(f"\n加 --apply 应用（当前为 dry run）")
+
+        if args.init_nurture:
+            print("\n初始化维系型字段（SPEC §2.5）\n")
+            nurture_changes = engine.batch_init_nurture(dry_run=not args.apply)
+            if not nurture_changes:
+                print("所有维系型联系人已初始化 👍")
+            else:
+                print(f"{'应用' if args.apply else '建议'} {len(nurture_changes)} 项：\n")
+                for cid, name, nature in nurture_changes:
+                    print(f"  {name} [{nature}]")
+                if not args.apply:
+                    print(f"\n加 --apply 应用")
 
     elif args.command == "doctor":
         _run_doctor()

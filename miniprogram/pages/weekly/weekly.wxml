@@ -1,0 +1,37 @@
+<!-- pages/weekly/weekly.wxml — 周报页 -->
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="page-title">📋 社交周报</text>
+    <text class="page-subtitle">{{weekRange}}</text>
+  </view>
+
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">正在整理本周回顾…</text>
+  </view>
+
+  <!-- 周报内容 -->
+  <block wx:for="{{sections}}" wx:key="title">
+    <view class="card section-card">
+      <text class="section-title">{{item.title}}</text>
+      <view class="section-items">
+        <block wx:for="{{item.items}}" wx:for-item="entry" wx:key="index">
+          <!-- 字符串条目 -->
+          <view wx:if="{{entry.type}}" class="weekly-item">
+            <text class="item-dot {{entry.type === 'leverage' ? 'leverage' : 'nurture'}}">·</text>
+            <view class="item-content">
+              <text class="item-name {{entry.type === 'leverage' ? 'text-accent' : 'text-green'}}">{{entry.name}}</text>
+              <text class="item-reason text-dim text-sm"> — {{entry.reason}}</text>
+            </view>
+          </view>
+          <!-- 普通文本条目 -->
+          <view wx:else class="weekly-item">
+            <text class="item-dot">·</text>
+            <text class="item-text">{{entry}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </block>
+</view>

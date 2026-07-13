@@ -178,7 +178,10 @@ class EdgeClient:
                 f"近期活动：{d['recent_activities']}条")
 
     def _gather_record(self, payload) -> str:
-        """Save record to local storage, return context for LLM confirmation."""
+        """Save record to local storage, return context for LLM confirmation.
+
+        SPEC §6.2 AI记录增强: auto-suggest nature type + extract sentiment.
+        """
         contact_name = payload.get("contact")
         summary = payload.get("summary", payload.get("raw", ""))
 
@@ -186,24 +189,94 @@ class EdgeClient:
             contact, _ = engine.resolve_contact(contact_name)
             if contact:
                 engine.add_timeline(contact["id"], summary)
-                # Check for related todos
                 todos = [t for t in engine.list_todos()
                          if t.get("contact") == contact["id"] and t.get("status") == "pending"]
+
+                # AI enhancement: suggest nature if unclassified
+                nature_suggestion = self._suggest_nature(contact, summary)
+
                 todo_info = ""
                 if todos:
                     todo_info = f"\n相关待办：{todos[0]['task'][:60]}"
+
+                nature_info = ""
+                if nature_suggestion:
+                    nature_info = f"\n关系类型建议：{nature_suggestion}"
+
                 return (f"已记录到联系人「{contact['name']}」的时间线。\n"
-                        f"摘要：{summary}\n{todo_info}\n"
+                        f"摘要：{summary}\n{todo_info}{nature_info}\n"
                         f"记录已保存。")
             else:
                 cid = contact_name.lower().replace(" ", "_")
-                engine.add_contact(cid, contact_name, nature=engine.NATURE_LEVERAGE)
+                suggested_nature = engine.auto_classify_nature({
+                    "name": contact_name, "notes": summary, "tags": [], "relation": ""
+                })
+                engine.add_contact(cid, contact_name, nature=suggested_nature)
                 engine.add_timeline(cid, summary)
+                nature_label = "维系型" if suggested_nature == engine.NATURE_NURTURE else "撬动型"
                 return (f"新建联系人「{contact_name}」并记录。\n"
                         f"摘要：{summary}\n"
+                        f"关系类型：{nature_label}（可调整）\n"
                         f"记录已保存。")
         else:
             return f"记录内容：{summary}\n（未关联到具体联系人）\n记录已保存。"
+
+    def _suggest_nature(self, contact, summary) -> str:
+        """SPEC §6.2: AI suggests relationship type based on interaction content.
+
+        Returns suggestion text or empty string if no suggestion needed.
+        """
+        current_nature = engine.infer_nature(contact)
+        if current_nature != engine.NATURE_LEVERAGE:
+            return ""  # Already classified as nurture/dual, no need
+
+        # Heuristic: check if interaction content suggests nurture
+        nurture_signals = ["父亲", "母亲", "爸妈", "老婆", "老公", "儿子", "女儿",
+                          "生日", "手术", "住院", "搬家", "结婚", "纪念日",
+                          "老友", "同学", "室友", "邻居", "陪伴", "想念"]
+        text = (summary or "").lower()
+        if any(kw in text for kw in nurture_signals):
+            return "这段关系像是维系型（家人/挚友），要改成维系型吗？"
+
+        # LLM-based suggestion (if heuristics don't trigger)
+        try:
+            llm = self._get_llm()
+            prompt = (f"联系人：{contact.get('name', '')}\n"
+                     f"现有标签：{contact.get('tags', [])}\n"
+                     f"互动内容：{summary[:100]}\n"
+                     f"这个关系更像是「撬动型」（职业社交、目标联结）还是「维系型」（家人、挚友、情感纽带）？"
+                     f"只回答「撬动型」或「维系型」或「不确定」。")
+            resp = llm.complete(prompt, system="你是关系分类助手，只回答一个词。", max_tokens=10, temperature=0)
+            resp = resp.strip()
+            if "维系" in resp:
+                return "这段关系像是维系型（家人/挚友），要改成维系型吗？"
+        except Exception:
+            pass
+
+        return ""
+
+    def _ai_enhance_record(self, contact, summary) -> dict:
+        """SPEC §6.2: AI record enhancement — extract sentiment + key info.
+
+        Returns dict with: sentiment, key_points, suggested_todo.
+        """
+        try:
+            llm = self._get_llm()
+            prompt = (f"分析这条互动记录，提取关键信息：\n"
+                     f"联系人：{contact.get('name', '')}\n"
+                     f"内容：{summary}\n\n"
+                     f"返回JSON：{{\"sentiment\": \"positive/neutral/negative\", "
+                     f"\"key_points\": [\"要点1\", \"要点2\"], "
+                     f"\"suggested_todo\": \"待办事项或空\"}}")
+            resp = llm.complete(prompt, system="你是记录分析助手，只返回JSON。", max_tokens=200, temperature=0)
+            resp = resp.strip()
+            if resp.startswith("```"):
+                import re
+                resp = re.sub(r"^```(?:json)?\s*", "", resp)
+                resp = re.sub(r"\s*```$", "", resp)
+            return json.loads(resp)
+        except Exception:
+            return {"sentiment": "neutral", "key_points": [], "suggested_todo": ""}
 
     def _gather_todo(self) -> str:
         """Gather todo list for LLM formatting."""
@@ -760,10 +833,132 @@ class EdgeClient:
                 "  · \"who to reach out\" — 帮你想清楚\n"
                 "  · \"draft a message to X\" — 帮你拟好话\n"
                 "  · \"how is X doing\" — 帮你回顾一段关系\n"
-                "  · \"monthly review\" — 看看这个月的自己\n\n"
+                "  · \"monthly review\" — 看看这个月的自己\n"
+                "  · \"帮我锚定X\" — AI建议目标联结\n"
+                "  · \"批量锚定\" — 批量AI建议锚定\n\n"
                 "  为目标联结的关系：该联系谁+为什么+聊什么\n"
                 "  值得陪伴的关系：记得他在乎的事+重要时刻在场\n\n"
                 "  试试看 😊")
+
+    # ── Anchor assistant (SPEC §6.2 目标锚定助手) ──
+
+    def suggest_anchor(self, contact_id) -> dict:
+        """AI suggests leverage anchor for a contact (SPEC §6.2).
+
+        Returns dict with: goals, how, direction, nature_suggestion.
+        """
+        contact = engine.get_contact(contact_id)
+        if not contact:
+            return {"error": f"Contact not found: {contact_id}"}
+
+        # Gather minimal context for AI
+        tags = contact.get("tags", [])
+        notes = (contact.get("notes") or "")[:200]
+        relation = contact.get("relation") or contact.get("role") or ""
+        tls = engine.list_timeline(contact_id, days=180)
+        recent = [t["summary"][:60] for t in tls[:3]]
+        memories = [m["content"][:50] for m in contact.get("memories", [])[:3]]
+
+        try:
+            llm = self._get_llm()
+            prompt = (f"联系人：{contact['name']}\n"
+                     f"标签：{tags}\n"
+                     f"关系：{relation}\n"
+                     f"备注：{notes}\n"
+                     f"近期互动：{recent}\n"
+                     f"记忆：{memories}\n\n"
+                     f"请为这个联系人建议目标锚定。返回JSON：\n"
+                     f'{{"goals": ["目标1"], "how": "具体怎么联结", '
+                     f'"direction": "互惠/给予/索取/报恩", '
+                     f'"nature": "leverage/nurture/dual"}}\n'
+                     f"只返回JSON，不要其他文字。")
+            resp = llm.complete(prompt, system="你是关系锚定助手，基于信息建议目标联结。只返回JSON。",
+                               max_tokens=200, temperature=0)
+            resp = resp.strip()
+            if resp.startswith("```"):
+                import re
+                resp = re.sub(r"^```(?:json)?\s*", "", resp)
+                resp = re.sub(r"\s*```$", "", resp)
+            return json.loads(resp)
+        except Exception as e:
+            # Fallback: rule-based suggestion
+            return self._rule_based_anchor(contact, tags, relation)
+
+    def _rule_based_anchor(self, contact, tags, relation) -> dict:
+        """Fallback: rule-based anchor suggestion using tags/relation."""
+        tag_str = " ".join(t.lower() for t in tags)
+
+        # Cluster-based suggestions (ROADMAP §3.3)
+        if "民建" in tag_str:
+            return {"goals": ["事业", "政策"], "how": "民建人脉+政策信息交流",
+                    "direction": "互惠", "nature": "leverage"}
+        if "邮储" in tag_str or "ustc" in tag_str:
+            return {"goals": ["事业", "知识"], "how": "校友/同事资源网络",
+                    "direction": "互惠", "nature": "leverage"}
+        if "投资" in tag_str or "vc" in tag_str:
+            return {"goals": ["投资"], "how": "项目引荐+行业洞察",
+                    "direction": "互惠", "nature": "leverage"}
+        if "ai" in tag_str or "技术" in tag_str:
+            return {"goals": ["AI能力"], "how": "技术交流+能力互补",
+                    "direction": "互惠", "nature": "leverage"}
+
+        # Default
+        return {"goals": ["事业"], "how": "行业资源交流", "direction": "互惠",
+                "nature": "leverage"}
+
+    def batch_suggest_anchors(self, strength_min=3, limit=20) -> list:
+        """Batch suggest anchors for unanchored core contacts (SPEC §6.2).
+
+        SPEC §3.2.2: prioritize by strength, use cluster-based suggestions.
+        Returns list of {contact_id, name, suggestion}.
+        """
+        contacts = engine.list_contacts()
+        unanchored = []
+        for c in contacts:
+            if c.get("relation") == "self":
+                continue
+            if c.get("strength", 0) < strength_min:
+                continue
+            lev = c.get("leverage") or {}
+            if not lev.get("confirmed"):
+                unanchored.append(c)
+
+        # Sort by strength descending
+        unanchored.sort(key=lambda c: -c.get("strength", 0))
+        results = []
+        for c in unanchored[:limit]:
+            suggestion = self.suggest_anchor(c["id"])
+            results.append({
+                "contact_id": c["id"],
+                "name": c["name"],
+                "strength": c.get("strength", 0),
+                "tags": c.get("tags", []),
+                "suggestion": suggestion,
+            })
+        return results
+
+    def apply_anchor(self, contact_id, suggestion) -> tuple:
+        """Apply an AI-suggested anchor after user confirmation.
+
+        Returns (ok, message).
+        """
+        if "error" in suggestion:
+            return False, suggestion["error"]
+
+        nature = suggestion.get("nature", "leverage")
+        if nature in engine.VALID_NATURES:
+            engine.set_nature(contact_id, nature)
+
+        if nature in (engine.NATURE_LEVERAGE, engine.NATURE_DUAL):
+            goals = suggestion.get("goals", [])
+            how = suggestion.get("how", "")
+            direction = suggestion.get("direction", "互惠")
+            ok, msg = engine.set_leverage(contact_id, goals, how, direction)
+            if ok:
+                return True, f"✓ 已锚定「{engine.get_contact(contact_id)['name']}」\n  目标：{goals}\n  联结方式：{how}\n  方向：{direction}"
+            return False, msg
+
+        return True, f"✓ 已设置「{engine.get_contact(contact_id)['name']}」为维系型关系"
 
 
 # ── LLM system prompts ──

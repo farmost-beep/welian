@@ -203,6 +203,112 @@ def set_nature(contact_id, nature):
         return False, f"Invalid nature: {nature}"
     return update_contact(contact_id, {"nature": nature})
 
+# ── Batch nature classification (SPEC §2.4 default + §2.5 data model) ──
+
+# Relations/tags that strongly indicate nurture type
+NURTURE_RELATIONS = {"家人", "父母", "配偶", "子女", "亲属", "挚友", "老友", "恩师", "family"}
+NURTURE_TAGS = {"家人", "亲戚", "挚友", "老友", "同学会", "室友", "邻居"}
+# Relations/tags that strongly indicate leverage type
+LEVERAGE_TAGS = {"客户", "同行", "合作", "同事", "供应商", "领导", "下属", "民建", "邮储", "ustc", "职教社"}
+
+def auto_classify_nature(contact):
+    """Auto-classify a contact's nature based on relation/tags/notes (SPEC §2.4).
+
+    Default: leverage (SPEC §2.4 "新联系人默认撬动型").
+    Family relations → nurture.
+    Close friend/mentor → nurture.
+    """
+    explicit = contact.get("nature")
+    if explicit in VALID_NATURES and explicit != NATURE_LEVERAGE:
+        return explicit  # Already classified, keep it
+
+    relation = (contact.get("relation") or contact.get("role") or "").lower()
+    tags = set(t.lower() for t in contact.get("tags", []))
+    notes = (contact.get("notes") or "").lower()
+
+    # Strong nurture signals
+    if relation in NURTURE_RELATIONS or any(t in NURTURE_TAGS for t in tags):
+        return NATURE_NURTURE
+
+    # If has family relation keywords in notes
+    if any(kw in notes for kw in ["父亲", "母亲", "老婆", "老公", "儿子", "女儿", "爸", "妈"]):
+        return NATURE_NURTURE
+
+    # Default: leverage
+    return NATURE_LEVERAGE
+
+def batch_classify_natures(dry_run=True):
+    """Batch classify all contacts' nature based on rules (SPEC §2.4).
+
+    Returns list of (contact_id, name, old_nature, suggested_nature).
+    Does NOT auto-apply unless dry_run=False.
+    """
+    contacts = _load(CONTACTS_FILE)
+    changes = []
+    for c in contacts:
+        if c.get("relation") == "self":
+            continue
+        old = c.get("nature", NATURE_LEVERAGE)
+        suggested = auto_classify_nature(c)
+        if suggested != old:
+            changes.append((c["id"], c.get("name", ""), old, suggested))
+            if not dry_run:
+                c["nature"] = suggested
+    if not dry_run and changes:
+        _save(CONTACTS_FILE, contacts)
+    return changes
+
+def init_nurture_fields(contact_id, bond="", important_dates=None, memories=None):
+    """Initialize nurture fields for a contact (SPEC §2.5).
+
+    Ensures the nurture object exists with proper structure.
+    """
+    contacts = _load(CONTACTS_FILE)
+    for c in contacts:
+        if c["id"] == contact_id:
+            n = c.setdefault("nurture", {})
+            if bond:
+                n["bond"] = bond
+            if important_dates:
+                c.setdefault("important_dates", []).extend(important_dates)
+            if memories:
+                c.setdefault("memories", []).extend(memories)
+            n.setdefault("presence_events", [])
+            _save(CONTACTS_FILE, contacts)
+            return True, f"Nurture initialized for {c.get('name', contact_id)}"
+    return False, f"Contact not found: {contact_id}"
+
+def batch_init_nurture(dry_run=True):
+    """Initialize nurture fields for all nurture-type contacts (SPEC §2.5).
+
+    Ensures every nurture contact has:
+    - nurture.bond (empty string if not set)
+    - nurture.presence_events (empty list)
+    - important_dates (empty list)
+    - memories (empty list)
+    """
+    contacts = _load(CONTACTS_FILE)
+    changes = []
+    for c in contacts:
+        if c.get("relation") == "self":
+            continue
+        nature = infer_nature(c)
+        if nature != NATURE_NURTURE and nature != NATURE_DUAL:
+            continue
+        n = c.get("nurture") or {}
+        needs_init = not n or "bond" not in n or "presence_events" not in n
+        if needs_init:
+            changes.append((c["id"], c.get("name", ""), nature))
+            if not dry_run:
+                n.setdefault("bond", "")
+                n.setdefault("presence_events", [])
+                c["nurture"] = n
+                c.setdefault("important_dates", [])
+                c.setdefault("memories", [])
+    if not dry_run and changes:
+        _save(CONTACTS_FILE, contacts)
+    return changes
+
 # ── Nurture fields (SPEC §2.3) ──
 
 def add_memory(contact_id, content, tags=None):
@@ -397,7 +503,7 @@ def advise_leverage(top=5):
             score += 25
         score += c.get("strength", 1) * 2
         if score > 0:
-            tls = list_timeline(contact=cid, days=9999)
+            tls = list_timeline(contact_id=cid, days=9999)
             last_summary = tls[0].get("summary", "") if tls else ""
             candidates.append({
                 "contact": c, "signals": signals, "score": score,

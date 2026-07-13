@@ -1,0 +1,122 @@
+/* pages/contacts/contacts.wxss */
+
+/* ── 搜索框 ── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 16rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 28rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1A1915;
+}
+
+.search-clear {
+  font-size: 36rpx;
+  color: #9A968C;
+  padding: 0 8rpx;
+}
+
+/* ── Tab 切换 ── */
+.tab-bar {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  gap: 4rpx;
+}
+
+.tab-item.active {
+  border-color: #C96442;
+  background: #F2E8E0;
+}
+
+.tab-icon {
+  font-size: 36rpx;
+}
+
+.tab-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+
+.tab-item.active .tab-text {
+  color: #C96442;
+}
+
+.tab-meta {
+  margin-top: 2rpx;
+}
+
+/* ── 列表 ── */
+.list-header {
+  margin-bottom: 20rpx;
+  padding: 0 8rpx;
+}
+
+.loading {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+/* ── 联系人卡片 ── */
+.contact-card {
+  padding: 24rpx 28rpx;
+}
+
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.contact-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+
+.contact-tags {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.cooldown-warn {
+  font-weight: 600;
+}
+
+.contact-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.next-date {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid #D9D5C7;
+}
