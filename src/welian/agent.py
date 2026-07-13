@@ -300,6 +300,15 @@ class LocalAgent:
                     None, self.edge.get_context, text)
                 return {"type": "response", "id": req_id, "data": ctx}
 
+            elif cmd == "search":
+                # Search contacts by keywords (two-step LLM flow step 2)
+                keywords = msg.get("keywords", [])
+                contact_name = msg.get("contact_name", "")
+                intent = msg.get("intent", "")
+                ctx = await asyncio.get_event_loop().run_in_executor(
+                    None, self.edge.search_contacts, keywords, contact_name, intent)
+                return {"type": "response", "id": req_id, "data": ctx}
+
             elif cmd == "save_turn":
                 # Save conversation turn after web-side LLM generates reply
                 text = msg.get("text", "")

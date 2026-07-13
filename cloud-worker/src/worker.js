@@ -306,6 +306,68 @@ async function handleBilling(req, env) {
 
 // ── Data sync (full cloud mode) ──
 
+async function handleExtractIntent(req, env) {
+  // Step 1 of two-step LLM flow: extract intent + keywords from user message
+  // Returns JSON: { intent, contact_name, keywords, todo_related }
+  const body = await req.json();
+  const userToken = body.user_token;
+  const text = body.text;
+
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+  if (!text) {
+    return { status: 400, data: { error: 'text required' } };
+  }
+
+  const system = `你是一个意图分析助手。分析用户消息，提取关键信息。只返回JSON，不要其他内容。
+
+JSON格式：
+{
+  "intent": "query_contact|query_todo|record|draft|chat|help",
+  "contact_name": "用户提到的人名或昵称，没有则为空字符串",
+  "keywords": ["搜索关键词，用于在联系人数据库中模糊匹配"],
+  "todo_related": true或false
+}
+
+规则：
+- "老许啥情况" → intent=query_contact, contact_name="老许", keywords=["许","老许"]
+- "有啥待办" → intent=query_todo, keywords=[]
+- "记一下今天和老许聊了Q3预算" → intent=record, contact_name="老许", keywords=["许","老许"]
+- "帮我给老许写个消息" → intent=draft, contact_name="老许", keywords=["许","老许"]
+- "你好" → intent=chat, keywords=[]
+- 昵称/简称都要提取（如"老许"→keywords包含"许"）`;
+
+  try {
+    const llmResp = await callLLM(text, system, env, {
+      max_tokens: 200,
+      temperature: 0,
+    });
+
+    if (!llmResp) {
+      return { status: 502, data: { error: 'LLM call failed' } };
+    }
+
+    // Parse JSON from LLM response
+    let parsed;
+    try {
+      // Strip any non-JSON text
+      const jsonMatch = llmResp.text.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch (e) {
+      parsed = null;
+    }
+
+    if (!parsed) {
+      parsed = { intent: 'chat', contact_name: '', keywords: [], todo_related: false };
+    }
+
+    return { status: 200, data: parsed };
+  } catch (e) {
+    return { status: 500, data: { error: e.message } };
+  }
+}
+
 async function handleDataSync(req, env) {
   const body = await req.json();
   const userToken = body.user_token;
@@ -412,6 +474,11 @@ export default {
       }
 
       // ── Data sync (full cloud mode) ──
+
+      if (path === '/ai/extract_intent' && method === 'POST') {
+        const r = await handleExtractIntent(request, env);
+        return jsonResponse(r.data, r.status);
+      }
 
       if (path === '/data/sync' && method === 'POST') {
         const r = await handleDataSync(request, env);

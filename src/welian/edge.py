@@ -90,11 +90,109 @@ class EdgeClient:
 
     # ── Main chat entry point ──
 
+    def search_contacts(self, keywords: list, contact_name: str = "", intent: str = "") -> dict:
+        """Search contacts by keywords and return detailed context.
+
+        Used in two-step LLM flow: step 1 extracts keywords, step 2 uses
+        this method to find relevant contacts with full details.
+        """
+        contacts = engine.list_contacts()
+        results = []
+
+        # Build search terms
+        search_terms = []
+        if contact_name:
+            search_terms.append(contact_name)
+        search_terms.extend(keywords)
+        # Remove empty/duplicates
+        search_terms = list(set(t for t in search_terms if t))
+
+        if not search_terms:
+            # No keywords — return overview + todos + recent activity
+            return self.get_context("")
+
+        # Fuzzy match contacts
+        for c in contacts:
+            name = c["name"]
+            aliases = c.get("aliases", [])
+            notes = c.get("notes", "") or ""
+            relation = c.get("relation", "") or ""
+            sub_relation = c.get("sub_relation", "") or ""
+
+            searchable = f"{name} {' '.join(aliases)} {notes} {relation} {sub_relation}"
+
+            matched = False
+            for term in search_terms:
+                if term in name or term in searchable:
+                    matched = True
+                    break
+            if matched:
+                results.append(c)
+
+        # Build detailed context for matched contacts
+        lines = []
+        for c in results[:10]:  # Top 10 matches
+            name = c["name"]
+            nature = engine.infer_nature(c)
+            role = engine.contact_role(c)
+            relation = c.get("relation", "")
+            notes = c.get("notes", "") or ""
+            strength = c.get("strength", 3)
+            leverage = c.get("leverage", {})
+            important_dates = c.get("important_dates", [])
+
+            detail_lines = [f"【{name}】"]
+            detail_lines.append(f"  类型：{nature} | 角色：{role} | 关系强度：{strength}/5")
+            if relation:
+                detail_lines.append(f"  关系：{relation}")
+            if notes:
+                detail_lines.append(f"  备注：{notes[:200]}")
+            if leverage:
+                goals = leverage.get("goals", "")
+                how = leverage.get("how", "")
+                if goals:
+                    detail_lines.append(f"  撬动目标：{goals[:100]}")
+                if how:
+                    detail_lines.append(f"  联结方式：{how[:100]}")
+            if important_dates:
+                for d in important_dates[:3]:
+                    detail_lines.append(f"  重要日期：{d.get('label','')} {d.get('date','')}")
+
+            # Timeline (last 5 interactions)
+            tls = engine.list_timeline(contact_id=c["id"], days=365)
+            if tls:
+                detail_lines.append("  近期互动：")
+                for t in tls[:5]:
+                    summary = t.get("summary", t.get("content", ""))[:80]
+                    detail_lines.append(f"    · {t.get('date','')[:10]} {summary}")
+
+            # Related todos
+            contact_todos = [t for t in engine.list_todos()
+                             if t.get("contact") == c["id"] and t.get("status") == "pending"]
+            if contact_todos:
+                detail_lines.append("  相关待办：")
+                for t in contact_todos[:5]:
+                    detail_lines.append(f"    · {t.get('task', t.get('content', ''))[:80]}")
+
+            lines.append("\n".join(detail_lines))
+
+        # Always include overview + pending todos
+        overview = self._gather_overview()
+        todo_ctx = self._gather_todo()
+
+        result_text = f"搜索关键词：{', '.join(search_terms)}\n匹配到 {len(results)} 个联系人\n\n"
+        result_text += "\n\n".join(lines)
+        if todo_ctx:
+            result_text += "\n\n" + todo_ctx
+
+        return {
+            "data_context": result_text,
+            "matched_count": len(results),
+            "conversation": list(self._conversation),
+        }
+
     def get_context(self, text: str = "") -> dict:
         """Return edge data context for a user message, without calling LLM.
-
-        Used by web cloud-first mode: agent provides data, web calls cloud LLM
-        for intent detection + response generation in one call.
 
         Returns comprehensive data (contacts, todos, recent activities) so the
         cloud LLM can determine intent and reference relevant data itself.

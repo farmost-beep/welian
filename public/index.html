@@ -873,34 +873,116 @@ async function getCloudDataContext(userToken) {
   }
 }
 
+async function agentSearch(keywords, contactName, intent) {
+  // Ask agent to search contacts by keywords (two-step flow step 2)
+  // Returns {data_context, matched_count, conversation} or null
+  if (!bridgeFrame || !bridgeReady) return null;
+  return new Promise((resolve) => {
+    const reqId = 'sch_' + Date.now();
+    let resolved = false;
+
+    const handler = (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'welian-bridge') return;
+      if (msg.type === 'ws-message' && msg.data && msg.data.id === reqId && !resolved) {
+        resolved = true;
+        window.removeEventListener('message', handler);
+        if (msg.data.type === 'response' && msg.data.data) {
+          resolve(msg.data.data);
+        } else {
+          resolve(null);
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        window.removeEventListener('message', handler);
+        resolve(null);
+      }
+    }, 5000);
+
+    bridgeFrame.contentWindow.postMessage({
+      source: 'welian-parent',
+      type: 'send',
+      payload: { cmd: 'search', id: reqId, keywords: keywords, contact_name: contactName, intent: intent }
+    }, '*');
+  });
+}
+
+async function extractIntent(text, userToken) {
+  // Step 1: Cloud LLM extracts intent + keywords from user message
+  try {
+    const resp = await fetch(`${CLOUD_URL}/ai/extract_intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_token: userToken, text: text }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    console.log('[extractIntent]', JSON.stringify(data));
+    return data;
+  } catch (e) {
+    console.log('[extractIntent] failed:', e.message);
+    return null;
+  }
+}
+
 async function cloudChat(text) {
-  // Use Clerk user ID as user_token for billing identity
+  // Two-step LLM flow:
+  // 1. Cloud LLM extracts intent + keywords
+  // 2. Agent searches contacts by keywords (or cloud KV fallback)
+  // 3. Cloud LLM generates reply with precise data context
   const userToken = clerkUserId || 'web-anonymous-' + Date.now();
   console.log('[cloudChat] Start, bridgeReady:', bridgeReady, 'isLive:', isLive);
 
-  // Step 1: Get data context — prefer live agent, fall back to cloud KV
+  // Step 1: Extract intent + keywords
+  const intent = await extractIntent(text, userToken);
   let dataContext = '';
   let conversationHistoryFromAgent = [];
 
-  if (bridgeFrame && bridgeReady) {
-    // Live agent: get fresh data context
-    const agentContext = await getAgentContext(text);
-    if (agentContext) {
-      dataContext = agentContext.data_context || '';
-      conversationHistoryFromAgent = agentContext.conversation || [];
-      console.log('[cloudChat] agent context, data_context len:', dataContext.length);
+  // Step 2: Get data context based on intent
+  if (intent && (intent.contact_name || (intent.keywords && intent.keywords.length > 0))) {
+    // Has keywords — search for specific contacts
+    console.log('[cloudChat] Searching for:', intent.contact_name, intent.keywords);
+
+    if (bridgeFrame && bridgeReady) {
+      // Live agent: search contacts
+      const searchResult = await agentSearch(intent.keywords || [], intent.contact_name || '', intent.intent || '');
+      if (searchResult) {
+        dataContext = searchResult.data_context || '';
+        conversationHistoryFromAgent = searchResult.conversation || [];
+        console.log('[cloudChat] agent search result, data_context len:', dataContext.length, 'matched:', searchResult.matched_count);
+      }
+    }
+
+    if (!dataContext && clerkUserId) {
+      // No agent — use cloud KV data (less precise but has overview)
+      dataContext = await getCloudDataContext(clerkUserId);
+      console.log('[cloudChat] cloud KV fallback, data_context len:', dataContext.length);
+    }
+  } else {
+    // No specific keywords — get general context
+    if (bridgeFrame && bridgeReady) {
+      const agentContext = await getAgentContext(text);
+      if (agentContext) {
+        dataContext = agentContext.data_context || '';
+        conversationHistoryFromAgent = agentContext.conversation || [];
+        console.log('[cloudChat] agent context, data_context len:', dataContext.length);
+      }
+    }
+
+    if (!dataContext && clerkUserId) {
+      dataContext = await getCloudDataContext(clerkUserId);
+      if (dataContext) {
+        console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
+      }
     }
   }
 
-  if (!dataContext && clerkUserId) {
-    // No agent or agent failed — try cloud KV (full cloud mode)
-    dataContext = await getCloudDataContext(clerkUserId);
-    if (dataContext) {
-      console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
-    }
-  }
-
-  // Step 2: Build messages for cloud LLM
+  // Step 3: Build messages for cloud LLM
   const systemPrompt = `你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
 
 你的风格：
@@ -921,7 +1003,6 @@ async function cloudChat(text) {
   }
 
   // Build messages array: conversation history + current message
-  // Keep history short to avoid LLM timeout on large payloads
   const messages = [];
   if (conversationHistoryFromAgent.length > 0) {
     messages.push(...conversationHistoryFromAgent.slice(-4));
@@ -930,7 +1011,7 @@ async function cloudChat(text) {
   }
   messages.push({ role: 'user', content: userContent });
 
-  // Step 3: Call cloud LLM
+  // Step 4: Call cloud LLM
   console.log('[cloudChat] Calling cloud LLM, messages:', messages.length, 'total content len:', messages.reduce((a,m)=>a+(m.content||'').length,0));
   try {
     const resp = await fetch(`${CLOUD_URL}/ai/chat`, {
@@ -953,13 +1034,12 @@ async function cloudChat(text) {
     const data = await resp.json();
     console.log('[cloudChat] Cloud reply length:', (data.reply||'').length);
 
-    // Update conversation history (both browser-side and agent-side)
+    // Update conversation history
     conversationHistory.push({ role: 'user', content: text });
     conversationHistory.push({ role: 'assistant', content: data.reply });
     if (conversationHistory.length > 20) {
       conversationHistory = conversationHistory.slice(-20);
     }
-    // Tell agent to save the turn (for edge-side conversation continuity)
     if (bridgeFrame && bridgeReady) {
       saveAgentTurn(text, data.reply);
     }
@@ -1154,8 +1234,8 @@ function onBridgeMessage(e) {
 
   if (msg.type === 'ws-message') {
     const data = msg.data;
-    // Ignore context/save_turn responses (handled by their own listeners)
-    if (data.id && (data.id.startsWith('ctx_') || data.id.startsWith('save_'))) return;
+    // Ignore context/save_turn/search responses (handled by their own listeners)
+    if (data.id && (data.id.startsWith('ctx_') || data.id.startsWith('save_') || data.id.startsWith('sch_'))) return;
     // Ignore auth_ok (handled in tryBridgeConnect)
     if (data.type === 'auth_ok') return;
     // No other ws-message types expected in cloud-first mode
