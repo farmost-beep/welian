@@ -517,4 +517,40 @@ class LocalAgent:
         site = web.TCPSite(runner, "0.0.0.0", self.port)
         await site.start()
 
+        # Start background data sync to cloud (full cloud mode)
+        asyncio.create_task(self._sync_loop())
+
         await asyncio.Future()  # run forever
+
+    async def _sync_loop(self):
+        """Periodically sync data_context to cloud KV for full cloud mode."""
+        import urllib.request
+        from .cli import _get_user_id
+
+        cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
+        # Prefer Clerk user_id from auth.json, fall back to WELIAN_USER_TOKEN env
+        user_token = _get_user_id() or os.environ.get("WELIAN_USER_TOKEN")
+        if not user_token or len(user_token) < 10:
+            print("  ⚠ Cloud sync skipped — no valid user_token (run 'welian login')")
+            return
+
+        # Sync immediately on startup, then every 5 minutes
+        while True:
+            try:
+                ctx = await asyncio.get_event_loop().run_in_executor(
+                    None, self.edge.get_context, "")
+                data = json.dumps({
+                    "user_token": user_token,
+                    "data_context": ctx.get("data_context", ""),
+                }).encode()
+                req = urllib.request.Request(
+                    f"{cloud_url}/data/sync",
+                    data=data,
+                    headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=30)
+                print(f"  ☁ Cloud data synced ({len(ctx.get('data_context', ''))} chars)")
+            except Exception as e:
+                print(f"  ⚠ Cloud sync failed: {e}")
+            await asyncio.sleep(300)  # 5 minutes

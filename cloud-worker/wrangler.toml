@@ -17,4 +17,10 @@ binding = "DEVICES"
 id = "9d6745b3fcc7459999b78497c267d9b1"
 preview_id = "636d9d7704b1460ea19caf7186cd4f90"
 
+# KV namespace for user data context (synced from agent)
+[[kv_namespaces]]
+binding = "USER_DATA"
+id = "98c045b73d874a869493706dc585bafb"
+preview_id = "98c045b73d874a869493706dc585bafb"
+
 # Set LLM_API_KEY via: wrangler secret put LLM_API_KEY

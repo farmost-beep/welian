@@ -304,6 +304,44 @@ async function handleBilling(req, env) {
   };
 }
 
+// ── Data sync (full cloud mode) ──
+
+async function handleDataSync(req, env) {
+  const body = await req.json();
+  const userToken = body.user_token;
+  const dataContext = body.data_context;
+
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+
+  if (!dataContext || typeof dataContext !== 'string' || dataContext.length === 0) {
+    return { status: 200, data: { ok: false, reason: 'empty data_context' } };
+  }
+
+  // Store in KV with 7-day TTL (agent re-syncs periodically)
+  await env.USER_DATA.put(`ctx:${userToken}`, dataContext, { expirationTtl: 604800 });
+
+  return { status: 200, data: { ok: true, synced_at: new Date().toISOString() } };
+}
+
+async function handleDataContext(req, env) {
+  const url = new URL(req.url);
+  const userToken = url.searchParams.get('user_token');
+
+  if (!userToken || typeof userToken !== 'string' || userToken.length < 10) {
+    return { status: 401, data: { error: 'Invalid or missing user_token' } };
+  }
+
+  const dataContext = await env.USER_DATA.get(`ctx:${userToken}`);
+
+  if (!dataContext) {
+    return { status: 200, data: { data_context: '', synced_at: null } };
+  }
+
+  return { status: 200, data: { data_context: dataContext } };
+}
+
 // ── Main worker entry ──
 
 export default {
@@ -371,6 +409,18 @@ export default {
           free_monthly: 100,
           pro_monthly: 500,
         });
+      }
+
+      // ── Data sync (full cloud mode) ──
+
+      if (path === '/data/sync' && method === 'POST') {
+        const r = await handleDataSync(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/data/context' && method === 'GET') {
+        const r = await handleDataContext(request, env);
+        return jsonResponse(r.data, r.status);
       }
 
       // ── WeChat OAuth ──

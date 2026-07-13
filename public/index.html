@@ -859,16 +859,45 @@ function saveAgentTurn(text, reply) {
   }, '*');
 }
 
+async function getCloudDataContext(userToken) {
+  // Fetch data context from cloud KV (synced by agent)
+  // Returns data_context string or empty string
+  try {
+    const resp = await fetch(`${CLOUD_URL}/data/context?user_token=${encodeURIComponent(userToken)}`);
+    if (!resp.ok) return '';
+    const data = await resp.json();
+    return data.data_context || '';
+  } catch (e) {
+    console.log('[getCloudDataContext] failed:', e.message);
+    return '';
+  }
+}
+
 async function cloudChat(text) {
   // Use Clerk user ID as user_token for billing identity
   const userToken = clerkUserId || 'web-anonymous-' + Date.now();
   console.log('[cloudChat] Start, bridgeReady:', bridgeReady, 'isLive:', isLive);
 
-  // Step 1: If agent bridge is available, get edge data context
-  let agentContext = null;
+  // Step 1: Get data context — prefer live agent, fall back to cloud KV
+  let dataContext = '';
+  let conversationHistoryFromAgent = [];
+
   if (bridgeFrame && bridgeReady) {
-    agentContext = await getAgentContext(text);
-    console.log('[cloudChat] agentContext:', agentContext ? 'got it' : 'null', 'data_context len:', agentContext ? (agentContext.data_context||'').length : 0);
+    // Live agent: get fresh data context
+    const agentContext = await getAgentContext(text);
+    if (agentContext) {
+      dataContext = agentContext.data_context || '';
+      conversationHistoryFromAgent = agentContext.conversation || [];
+      console.log('[cloudChat] agent context, data_context len:', dataContext.length);
+    }
+  }
+
+  if (!dataContext && clerkUserId) {
+    // No agent or agent failed — try cloud KV (full cloud mode)
+    dataContext = await getCloudDataContext(clerkUserId);
+    if (dataContext) {
+      console.log('[cloudChat] cloud KV context, data_context len:', dataContext.length);
+    }
   }
 
   // Step 2: Build messages for cloud LLM
@@ -887,15 +916,15 @@ async function cloudChat(text) {
 
   // Build user message: combine text + data context
   let userContent = text;
-  if (agentContext && agentContext.data_context) {
-    userContent = `用户消息：${text}\n\n相关数据：\n${agentContext.data_context}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。`;
+  if (dataContext) {
+    userContent = `用户消息：${text}\n\n相关数据：\n${dataContext}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。`;
   }
 
   // Build messages array: conversation history + current message
   // Keep history short to avoid LLM timeout on large payloads
   const messages = [];
-  if (agentContext && agentContext.conversation && agentContext.conversation.length > 0) {
-    messages.push(...agentContext.conversation.slice(-4));
+  if (conversationHistoryFromAgent.length > 0) {
+    messages.push(...conversationHistoryFromAgent.slice(-4));
   } else if (conversationHistory.length > 0) {
     messages.push(...conversationHistory.slice(-4));
   }

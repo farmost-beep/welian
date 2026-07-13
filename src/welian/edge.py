@@ -90,7 +90,7 @@ class EdgeClient:
 
     # ── Main chat entry point ──
 
-    def get_context(self, text: str) -> dict:
+    def get_context(self, text: str = "") -> dict:
         """Return edge data context for a user message, without calling LLM.
 
         Used by web cloud-first mode: agent provides data, web calls cloud LLM
@@ -98,14 +98,11 @@ class EdgeClient:
 
         Returns comprehensive data (contacts, todos, recent activities) so the
         cloud LLM can determine intent and reference relevant data itself.
+        Empty text is used for periodic cloud sync.
 
         Returns:
             {"data_context": str, "conversation": list}
         """
-        text = text.strip()
-        if not text:
-            return {"data_context": "", "conversation": []}
-
         # Gather comprehensive context (not intent-specific)
         data_context = self._gather_full_context(text)
         return {
