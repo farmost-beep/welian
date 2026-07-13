@@ -272,7 +272,7 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
         api.send_message(user_id,
             "Welian 命令：\n"
             "  /login — 绑定 / 查看绑定\n"
-            "  /unbind — 解除绑定\n"
+            "  /logout — 解除绑定\n"
             "  /help — 显示帮助\n"
             "  /status — 查看状态\n"
             "  /who — 该联系谁\n"
@@ -313,7 +313,7 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
                 f"绑定后，你在网页和微信里看到的是同一份数据。",
                 context_token,
             )
-    elif cmd in ("/unbind", "/解绑", "/unbind_wechat"):
+    elif cmd in ("/logout", "/unbind", "/解绑", "/登出", "/退出登录"):
         wechat_uid = f"wechat_{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
         result = await asyncio.to_thread(_unbind, wechat_uid)
         if result and result.get("ok"):
