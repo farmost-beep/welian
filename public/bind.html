@@ -58,6 +58,9 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
   <h1>🔗 绑定微信</h1>
   <p class="sub">登录后，你的微信就能和小维连通了</p>
   <div id="clerk-mount"></div>
+  <div id="manual-bind" style="display:none;margin-bottom:16px">
+    <button class="btn" onclick="bindAttempted=false;doBind()">🔗 立即绑定</button>
+  </div>
   <div id="status" class="status"></div>
   <div id="bound-section" style="display:none">
     <div class="user-info">
@@ -113,7 +116,12 @@ async function initClerk() {
       bindAttempted = true;
       clearInterval(pollInterval);
       document.getElementById('clerk-mount').style.display = 'none';
+      document.getElementById('manual-bind').style.display = 'block';
       await doBind();
+    }
+    // Show manual bind button if logged in but bind hasn't happened
+    if (window.Clerk.user && bindAttempted) {
+      document.getElementById('manual-bind').style.display = 'block';
     }
   }, 500);
   setTimeout(() => clearInterval(pollInterval), 300000);
@@ -152,6 +160,7 @@ async function doBind() {
     }
 
     const token = await session.getToken();
+    console.log('Clerk token:', token ? token.substring(0, 30) + '...' : 'null');
 
     const resp = await fetch(`${API}/ai/bind_wechat`, {
       method: 'POST',
@@ -163,9 +172,9 @@ async function doBind() {
     });
 
     const data = await resp.json();
+    console.log('Bind response:', resp.status, data);
 
     if (resp.ok && data.ok) {
-      // Show user info
       const name = data.name || '';
       const email = data.email || '';
       document.getElementById('bound-name').textContent = name || '已绑定';
@@ -174,10 +183,11 @@ async function doBind() {
       document.getElementById('clerk-mount').style.display = 'none';
       showStatus('ok', '✅ 绑定成功！');
     } else {
-      showStatus('err', data.error || '绑定失败');
+      showStatus('err', data.error || `绑定失败 (HTTP ${resp.status})`);
       bindAttempted = false;
     }
   } catch(e) {
+    console.error('Bind error:', e);
     showStatus('err', '绑定出错：' + e.message);
     bindAttempted = false;
   }
