@@ -704,8 +704,37 @@ async function handleDataSync(req, env) {
   return { status: 200, data: { ok: true, synced_at: new Date().toISOString() } };
 }
 
+// Merge two datasets by unique key, preferring newer updated/created timestamp
+function mergeDatasets(cloudItems, edgeItems, idField) {
+  const map = new Map();
+  // Start with cloud items (may have flywheel-added entries)
+  for (const item of cloudItems) {
+    const key = item[idField] || item.id;
+    if (key) map.set(key, item);
+  }
+  // Merge edge items — overwrite if edge item is newer
+  for (const item of edgeItems) {
+    const key = item[idField] || item.id;
+    if (!key) continue;
+    const existing = map.get(key);
+    if (!existing) {
+      // New item from edge, add it
+      map.set(key, item);
+    } else {
+      // Compare timestamps — keep newer
+      const edgeTime = item.updated || item.created || '';
+      const cloudTime = existing.updated || existing.created || '';
+      if (edgeTime >= cloudTime) {
+        map.set(key, item);
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 async function handleDataSyncFull(req, env) {
-  // Sync full edge data (contacts, todos, timeline) to cloud KV
+  // Bidirectional merge sync: edge data merges with cloud data (not overwrite)
+  // Cloud may have flywheel-added entries from conversation; edge has local data
   const body = await req.json();
 
   // Verify agent sync token
@@ -714,21 +743,45 @@ async function handleDataSyncFull(req, env) {
     return { status: 401, data: { error: 'Invalid sync token' } };
   }
 
-  const contacts = body.contacts || [];
-  const todos = body.todos || [];
-  const timeline = body.timeline || [];
+  const edgeContacts = body.contacts || [];
+  const edgeTodos = body.todos || [];
+  const edgeTimeline = body.timeline || [];
 
-  // Store each dataset separately in KV (7-day TTL)
-  await env.USER_DATA.put(`contacts:${userId}`, JSON.stringify(contacts), { expirationTtl: 604800 });
-  await env.USER_DATA.put(`todos:${userId}`, JSON.stringify(todos), { expirationTtl: 604800 });
-  await env.USER_DATA.put(`timeline:${userId}`, JSON.stringify(timeline), { expirationTtl: 604800 });
+  // Load existing cloud data
+  const cloudContacts = await loadDataset(env, userId, 'contacts');
+  const cloudTodos = await loadDataset(env, userId, 'todos');
+  const cloudTimeline = await loadDataset(env, userId, 'timeline');
+
+  // Merge: cloud items + edge items, dedup by id, keep newer
+  const mergedContacts = mergeDatasets(cloudContacts, edgeContacts, 'id');
+  const mergedTodos = mergeDatasets(cloudTodos, edgeTodos, 'id');
+  const mergedTimeline = mergeDatasets(cloudTimeline, edgeTimeline, 'id');
+
+  // Save merged data back to cloud
+  await saveDataset(env, userId, 'contacts', mergedContacts);
+  await saveDataset(env, userId, 'todos', mergedTodos);
+  await saveDataset(env, userId, 'timeline', mergedTimeline);
+
+  // Return cloud-only items (items in cloud but not in edge) so agent can pull them
+  const edgeContactIds = new Set(edgeContacts.map(c => c.id));
+  const edgeTodoIds = new Set(edgeTodos.map(t => t.id));
+  const edgeTimelineIds = new Set(edgeTimeline.map(t => t.id));
+  const cloudOnlyContacts = mergedContacts.filter(c => !edgeContactIds.has(c.id));
+  const cloudOnlyTodos = mergedTodos.filter(t => !edgeTodoIds.has(t.id));
+  const cloudOnlyTimeline = mergedTimeline.filter(t => !edgeTimelineIds.has(t.id));
 
   return {
     status: 200,
     data: {
       ok: true,
       synced_at: new Date().toISOString(),
-      counts: { contacts: contacts.length, todos: todos.length, timeline: timeline.length },
+      counts: { contacts: mergedContacts.length, todos: mergedTodos.length, timeline: mergedTimeline.length },
+      // Cloud-only items for agent to merge into local
+      cloud_only: {
+        contacts: cloudOnlyContacts,
+        todos: cloudOnlyTodos,
+        timeline: cloudOnlyTimeline,
+      },
     },
   };
 }

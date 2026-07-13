@@ -557,8 +557,9 @@ class LocalAgent:
         sync_token = f"{user_id}:{sync_secret}"
 
         def _load_and_sync():
-            """Load all data files and sync to cloud. Runs in thread executor."""
-            # Load all data
+            """Load all data files and sync to cloud. Runs in thread executor.
+            After sync, merge cloud-only items back to local (bidirectional)."""
+            # Load all local data
             datasets = {}
             for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
                 try:
@@ -575,7 +576,7 @@ class LocalAgent:
                 "timeline": datasets["timeline"],
             }, ensure_ascii=False)
 
-            # Sync full data to /data/sync_full
+            # Sync to cloud (merge mode — cloud returns cloud_only items)
             data = payload.encode("utf-8")
             req = urllib.request.Request(
                 f"{cloud_url}/data/sync_full",
@@ -585,6 +586,20 @@ class LocalAgent:
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
                 result = json.loads(resp.read())
+
+            # Merge cloud-only items back to local (bidirectional sync)
+            cloud_only = result.get("cloud_only", {})
+            merged_count = 0
+            for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
+                cloud_items = cloud_only.get(name, [])
+                if cloud_items:
+                    local_ids = {item.get("id") for item in datasets[name]}
+                    new_items = [item for item in cloud_items if item.get("id") not in local_ids]
+                    if new_items:
+                        datasets[name].extend(new_items)
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            json.dump(datasets[name], f, ensure_ascii=False, indent=2)
+                        merged_count += len(new_items)
 
             # Also sync summary data_context (for quick overview without search)
             ctx = self.edge.get_context("")
@@ -600,14 +615,17 @@ class LocalAgent:
             )
             urllib.request.urlopen(req2, timeout=30)
 
-            return result, len(datasets["contacts"]), len(datasets["todos"]), len(datasets["timeline"])
+            return result, len(datasets["contacts"]), len(datasets["todos"]), len(datasets["timeline"]), merged_count
 
         # Sync immediately on startup, then every 5 minutes
         while True:
             try:
-                result, nc, nt, ntl = await asyncio.get_event_loop().run_in_executor(
+                result, nc, nt, ntl, merged = await asyncio.get_event_loop().run_in_executor(
                     None, _load_and_sync)
-                print(f"  ☁ Cloud sync: {nc} contacts, {nt} todos, {ntl} timeline → {result.get('ok')}")
+                msg = f"  ☁ Cloud sync: {nc} contacts, {nt} todos, {ntl} timeline → {result.get('ok')}"
+                if merged > 0:
+                    msg += f" | ← merged {merged} cloud-only items to local"
+                print(msg)
             except Exception as e:
                 print(f"  ⚠ Cloud sync failed: {e}")
             await asyncio.sleep(300)  # 5 minutes
