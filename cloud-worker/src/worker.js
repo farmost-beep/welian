@@ -84,7 +84,7 @@ async function verifyClerkToken(token, env) {
   }
 
   // Clerk domain from publishable key (hardcoded for now, or derive from env)
-  const clerkDomain = env.CLERK_FRONTEND_DOMAIN || 'fancy-kingfish-81.clerk.accounts.dev';
+  const clerkDomain = env.CLERK_FRONTEND_DOMAIN || 'clerk.welian.app';
 
   try {
     // Split JWT into parts
@@ -1487,12 +1487,21 @@ async function handleContactsCRUD(req, env, method) {
 
   if (method === 'GET') {
     const contacts = await loadDataset(env, userId, 'contacts');
-    // Return minimal list (id, name, relation, nature)
-    const minimal = contacts.map(c => ({
+    // Return list with key fields for display
+    const list = contacts.map(c => ({
       id: c.id, name: c.name, relation: c.relation || '',
-      nature: c.nature || 'leverage', role: c.role || c.relation || '',
+      sub_relation: c.sub_relation || '', company: c.company || '',
+      title: c.title || '', nature: c.nature || 'leverage',
+      role: c.role || c.relation || '', strength: c.strength || 0,
+      tags: (c.tags || []).slice(0, 5),
+      leverage: c.leverage || null,
+      nurture: c.nurture || null,
+      important_dates: c.important_dates || [],
+      memories: c.memories || [],
+      presence_events: c.presence_events || [],
+      updated: c.updated || '',
     }));
-    return { status: 200, data: { contacts: minimal, total: contacts.length } };
+    return { status: 200, data: { contacts: list, total: contacts.length } };
   }
 
   if (method === 'POST') {

@@ -298,6 +298,32 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .mine-plan-btn.current{border-color:var(--green);background:rgba(74,124,89,.08);cursor:default}
 .mine-plan-btn .name{font-weight:600;margin-bottom:2px}
 .mine-plan-btn .price{font-size:.78em;color:var(--dim)}
+/* Contact detail drawer */
+.mine-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:95;display:none}
+.mine-detail-overlay.show{display:block}
+.mine-detail{position:fixed;bottom:0;left:0;width:100%;max-height:80vh;background:var(--bg);border-radius:16px 16px 0 0;z-index:96;transform:translateY(100%);transition:transform .3s ease;overflow-y:auto;box-shadow:0 -4px 20px rgba(0,0,0,.1)}
+.mine-detail.show{transform:translateY(0)}
+.mine-detail-header{position:sticky;top:0;background:var(--bg);padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;z-index:1}
+.mine-detail-name{font-family:'Newsreader',serif;font-size:1.2em;font-weight:500}
+.mine-detail-sub{font-size:.8em;color:var(--dim);margin-top:2px}
+.mine-detail-close{font-size:1.2em;color:var(--dim);cursor:pointer;background:none;border:none;padding:4px}
+.mine-detail-body{padding:16px 20px 40px}
+.mine-detail-section{margin-bottom:20px}
+.mine-detail-section-title{font-size:.8em;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.mine-detail-item{padding:6px 0;font-size:.85em;line-height:1.6;border-bottom:1px solid var(--border)}
+.mine-detail-item:last-child{border-bottom:none}
+.mine-detail-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mine-detail-tag{font-size:.7em;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--dim)}
+.mine-detail-leverage{background:var(--accent-bg);border-radius:8px;padding:10px 12px;font-size:.85em}
+.mine-detail-leverage .label{color:var(--dim);font-size:.78em}
+.mine-detail-leverage .value{color:var(--text);margin-bottom:4px}
+.mine-detail-nurture{background:rgba(74,124,89,.08);border-radius:8px;padding:10px 12px;font-size:.85em}
+.mine-detail-date{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:.85em}
+.mine-detail-date .icon{font-size:1em}
+@media(min-width:880px){
+  .mine-detail{max-width:480px;left:50%;transform:translateX(-50%) translateY(100%)}
+  .mine-detail.show{transform:translateX(-50%) translateY(0)}
+}
 @media(min-width:880px){
   .mine-content{padding:24px 16px 80px}
   .mine-tab{font-size:.72em}
@@ -400,6 +426,19 @@ footer .privacy{color:var(--dimmer);max-width:400px}
     <button class="mine-tab" data-tab="weekly" onclick="switchMineTab('weekly')"><span class="icon">📋</span><span data-i18n="tab_weekly">周报</span></button>
     <button class="mine-tab" data-tab="billing" onclick="switchMineTab('billing')"><span class="icon">💳</span><span data-i18n="tab_billing">套餐</span></button>
   </div>
+</div>
+
+<!-- Contact detail drawer -->
+<div class="mine-detail-overlay" id="contactDetailOverlay" onclick="closeContactDetail()"></div>
+<div class="mine-detail" id="contactDetail">
+  <div class="mine-detail-header">
+    <div>
+      <div class="mine-detail-name" id="detailName"></div>
+      <div class="mine-detail-sub" id="detailSub"></div>
+    </div>
+    <button class="mine-detail-close" onclick="closeContactDetail()">×</button>
+  </div>
+  <div class="mine-detail-body" id="detailBody"></div>
 </div>
 
 <!-- Auth modal -->
@@ -527,6 +566,35 @@ const I18N = {
     mine_today: 'today',
     mine_days_left: 'days left',
     mine_no_suggestions: 'No suggestions for now',
+    detail_timeline: 'Timeline',
+    detail_leverage: 'Leverage',
+    detail_nurture: 'Nurture',
+    detail_dates: 'Important Dates',
+    detail_memories: 'Memories',
+    detail_presence: 'Presence Events',
+    detail_tags: 'Tags',
+    detail_goals: 'Goals',
+    detail_how: 'How',
+    detail_direction: 'Direction',
+    detail_bond: 'Bond',
+    detail_no_timeline: 'No interactions yet',
+    detail_no_leverage: 'Not anchored yet',
+    detail_no_nurture: 'No nurture info',
+    detail_no_dates: 'No important dates',
+    detail_no_memories: 'No memories',
+    detail_no_presence: 'No presence events',
+    detail_loading: 'Loading…',
+    role_friend: 'As a Friend',
+    role_family: 'As Family',
+    role_collaborator: 'As a Collaborator',
+    role_interactions: 'interactions',
+    role_presence: 'presence events',
+    role_todos_done: 'todos done',
+    flywheel_title: 'Data Flywheel',
+    flywheel_timeline: 'Timeline total',
+    flywheel_coverage: 'Core interaction coverage',
+    flywheel_this_week: 'This week goal',
+    flywheel_items: 'items',
   },
   zh: {
     tagline: '每段关系都值得<em>用心</em>',
@@ -634,6 +702,35 @@ const I18N = {
     mine_today: '今天',
     mine_days_left: '天后',
     mine_no_suggestions: '暂无建议',
+    detail_timeline: '互动记录',
+    detail_leverage: '撬动信息',
+    detail_nurture: '维系信息',
+    detail_dates: '重要日期',
+    detail_memories: '记忆',
+    detail_presence: '在场事件',
+    detail_tags: '标签',
+    detail_goals: '目标',
+    detail_how: '撬动方式',
+    detail_direction: '方向',
+    detail_bond: '关系纽带',
+    detail_no_timeline: '暂无互动记录',
+    detail_no_leverage: '尚未锚定',
+    detail_no_nurture: '暂无维系信息',
+    detail_no_dates: '暂无重要日期',
+    detail_no_memories: '暂无记忆',
+    detail_no_presence: '暂无在场事件',
+    detail_loading: '加载中…',
+    role_friend: '作为朋友',
+    role_family: '作为家人',
+    role_collaborator: '作为合作者',
+    role_interactions: '次互动',
+    role_presence: '次在场',
+    role_todos_done: '件做到',
+    flywheel_title: '数据飞轮',
+    flywheel_timeline: '累计互动',
+    flywheel_coverage: 'Core层覆盖率',
+    flywheel_this_week: '本周记录目标',
+    flywheel_items: '条',
   },
 };
 
@@ -2316,7 +2413,11 @@ async function mineApi(path, method = 'GET', body = null) {
   const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
   if (!token) throw new Error('No token');
   const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
-  if (body) opts.body = JSON.stringify(body);
+  if (body) {
+    // Inject session_token for AI endpoints that need it
+    body.session_token = token;
+    opts.body = JSON.stringify(body);
+  }
   const resp = await fetch(`${CLOUD_URL}${path}`, opts);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
@@ -2335,7 +2436,10 @@ async function loadOverview() {
     ]);
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
-    const timeline = (timelineRes.timeline || []).slice(0, 10);
+    const allTimeline = timelineRes.timeline || [];
+
+    // Cache contacts for detail view
+    mineCache.contacts = contacts;
 
     // Stats
     const leverage = contacts.filter(c => c.nature === 'leverage').length;
@@ -2345,7 +2449,63 @@ async function loadOverview() {
     // This month interactions
     const now = new Date();
     const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthTimeline = (timelineRes.timeline || []).filter(t => (t.date || '').startsWith(monthPrefix));
+    const monthTimeline = allTimeline.filter(t => (t.date || '').startsWith(monthPrefix));
+
+    // ── Role classification ──
+    // Friend: nurture/dual with non-family relations
+    // Family: nurture with family relations (父母/配偶/子女/家人/亲戚/兄弟/姐妹)
+    // Collaborator: leverage/dual with work relations
+    const familyKeywords = ['父', '母', '爸', '妈', '配偶', '妻', '夫', '子', '女', '家', '亲戚', '兄弟', '姐妹', '爷爷', '奶奶', '外公', '外婆'];
+    const isFamily = (c) => {
+      if (c.nature === 'nurture' || c.nature === 'dual') {
+        const rel = (c.relation || '') + (c.role || '') + (c.sub_relation || '');
+        return familyKeywords.some(k => rel.includes(k));
+      }
+      return false;
+    };
+    const isFriend = (c) => {
+      if (c.nature === 'nurture' || c.nature === 'dual') return !isFamily(c);
+      return false;
+    };
+    const isCollaborator = (c) => c.nature === 'leverage' || c.nature === 'dual';
+
+    // Build contact lookup
+    const contactMap = {};
+    contacts.forEach(c => contactMap[c.id] = c);
+
+    // Classify timeline entries by role
+    const friendTimeline = monthTimeline.filter(t => contactMap[t.contact] && isFriend(contactMap[t.contact]));
+    const familyTimeline = monthTimeline.filter(t => contactMap[t.contact] && isFamily(contactMap[t.contact]));
+    const collabTimeline = monthTimeline.filter(t => contactMap[t.contact] && isCollaborator(contactMap[t.contact]));
+
+    // Presence events this month
+    const friendPresence = contacts.filter(isFriend).reduce((sum, c) => sum + (c.presence_events?.length || 0), 0);
+    const familyPresence = contacts.filter(isFamily).reduce((sum, c) => sum + (c.presence_events?.length || 0), 0);
+
+    // Todos done (approximate: count todos with status done — but API only returns pending)
+    // Use total todos as proxy for collaborator activity
+    const collabTodos = todos.filter(t => contactMap[t.contact] && isCollaborator(contactMap[t.contact]));
+
+    // Upcoming important dates (next 30 days)
+    const today = new Date();
+    const todayStr = today.toISOString().substring(0, 10);
+    const upcomingDates = [];
+    contacts.forEach(c => {
+      (c.important_dates || []).forEach(dt => {
+        const dateStr = dt.date || '';
+        if (dateStr.length >= 5) {
+          // Format MM-DD or MM-DD-YYYY
+          const mmdd = dateStr.length === 5 ? dateStr : dateStr.substring(5);
+          const thisYear = `${today.getFullYear()}-${mmdd}`;
+          const dDate = new Date(thisYear);
+          const delta = Math.floor((dDate - today) / 86400000);
+          if (delta >= 0 && delta <= 30) {
+            upcomingDates.push({ name: c.name, date: mmdd, label: dt.label || '', delta, contactId: c.id });
+          }
+        }
+      });
+    });
+    upcomingDates.sort((a, b) => a.delta - b.delta);
 
     let html = `
       <!-- Stats card -->
@@ -2373,40 +2533,81 @@ async function loadOverview() {
       </div>
     `;
 
-    // Recent interactions
-    if (timeline.length > 0) {
+    // ── Three-role dashboard ──
+    const roleCard = (icon, label, interactions, presence, extra) => `
+      <div class="mine-card">
+        <div class="role-header" style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span style="font-size:1.1em">${icon}</span>
+          <span class="mine-card-title" style="margin:0">${label}</span>
+        </div>
+        <div style="font-size:.78em;color:var(--dim);margin-bottom:6px">${interactions} ${d.role_interactions}${presence > 0 ? ` · ${presence} ${d.role_presence}` : ''}</div>
+        ${extra || ''}
+      </div>
+    `;
+
+    // Friend role
+    let friendExtra = '';
+    if (friendTimeline.length > 0) {
+      friendTimeline.slice(0, 3).forEach(t => {
+        const name = contactMap[t.contact]?.name || '';
+        friendExtra += `<div class="mine-detail-item">· ${escapeHtml(name)}：${escapeHtml((t.summary || '').substring(0, 50))}</div>`;
+      });
+    }
+    html += roleCard('🌱', d.role_friend, friendTimeline.length, friendPresence, friendExtra);
+
+    // Family role
+    let familyExtra = '';
+    if (familyTimeline.length > 0) {
+      familyTimeline.slice(0, 3).forEach(t => {
+        const name = contactMap[t.contact]?.name || '';
+        familyExtra += `<div class="mine-detail-item">· ${escapeHtml(name)}：${escapeHtml((t.summary || '').substring(0, 50))}</div>`;
+      });
+    }
+    html += roleCard('🏡', d.role_family, familyTimeline.length, familyPresence, familyExtra);
+
+    // Collaborator role
+    let collabExtra = '';
+    if (collabTodos.length > 0) {
+      collabExtra += `<div style="font-size:.78em;color:var(--dim);margin-bottom:4px">${collabTodos.length} ${d.role_todos_done}</div>`;
+      collabTodos.slice(0, 3).forEach(t => {
+        const name = contactMap[t.contact]?.name || '';
+        collabExtra += `<div class="mine-detail-item">· ${escapeHtml((t.task || '').substring(0, 50))}${name ? ` [${escapeHtml(name)}]` : ''}</div>`;
+      });
+    }
+    if (collabTimeline.length > 0) {
+      collabExtra += `<div style="font-size:.78em;color:var(--dim);margin:6px 0 4px">${collabTimeline.length} ${d.role_interactions}</div>`;
+      collabTimeline.slice(0, 2).forEach(t => {
+        const name = contactMap[t.contact]?.name || '';
+        collabExtra += `<div class="mine-detail-item">· ${escapeHtml(name)}：${escapeHtml((t.summary || '').substring(0, 50))}</div>`;
+      });
+    }
+    html += roleCard('🤝', d.role_collaborator, collabTimeline.length, 0, collabExtra);
+
+    // ── Upcoming important dates ──
+    if (upcomingDates.length > 0) {
+      html += `<div class="mine-section-title">${d.detail_dates}</div>`;
+      html += `<div class="mine-card">`;
+      upcomingDates.slice(0, 5).forEach(dt => {
+        const deltaLabel = dt.delta === 0 ? d.mine_today : `${dt.delta}${d.mine_days_left}`;
+        html += `<div class="mine-detail-date" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(dt.contactId)}')"><span class="icon">📅</span><span>${escapeHtml(dt.name)} — ${escapeHtml(dt.date)} ${escapeHtml(dt.label)} <span style="color:var(--accent)">(${deltaLabel})</span></span></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // ── Recent interactions ──
+    if (allTimeline.length > 0) {
       html += `<div class="mine-section-title">${d.mine_interactions}</div>`;
       html += `<div class="mine-card">`;
-      timeline.slice(0, 5).forEach(t => {
+      allTimeline.slice(0, 5).forEach(t => {
         const dt = (t.date || '').substring(5) || '';
-        const contactName = contacts.find(c => c.id === t.contact)?.name || t.contact || '';
+        const contactName = contactMap[t.contact]?.name || t.contact || '';
         const summary = (t.summary || t.action || '').substring(0, 60);
-        html += `<div class="mine-contact"><div><div class="mine-contact-name">${escapeHtml(contactName)}</div><div class="mine-contact-sub">${dt} · ${escapeHtml(summary)}</div></div></div>`;
+        html += `<div class="mine-contact" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(t.contact || '')}')"><div><div class="mine-contact-name">${escapeHtml(contactName)}</div><div class="mine-contact-sub">${dt} · ${escapeHtml(summary)}</div></div></div>`;
       });
       html += `</div>`;
     }
 
-    // Pending todos
-    if (todos.length > 0) {
-      html += `<div class="mine-section-title">${d.mine_weekly_todos}</div>`;
-      html += `<div class="mine-card">`;
-      const today = new Date().toISOString().substring(0, 10);
-      todos.slice(0, 5).forEach(t => {
-        const due = (t.due || '').substring(0, 10);
-        let dueLabel = '';
-        if (due) {
-          const delta = Math.floor((new Date(due) - new Date(today)) / 86400000);
-          if (delta < 0) dueLabel = `${-delta}${d.mine_overdue}`;
-          else if (delta === 0) dueLabel = d.mine_today;
-          else dueLabel = `${delta}${d.mine_days_left}`;
-        }
-        const contactName = contacts.find(c => c.id === t.contact)?.name || '';
-        html += `<div class="mine-todo"><span class="mine-todo-dot ${due && due < today ? 'mine-todo-overdue' : ''}">·</span><div><span>${escapeHtml(t.task || '').substring(0, 60)}</span>${contactName ? `<span class="mine-contact-sub"> [${escapeHtml(contactName)}]</span>` : ''}${dueLabel ? `<span class="mine-contact-sub"> — ${dueLabel}</span>` : ''}</div></div>`;
-      });
-      html += `</div>`;
-    }
-
-    if (contacts.length === 0 && todos.length === 0 && timeline.length === 0) {
+    if (contacts.length === 0 && todos.length === 0 && allTimeline.length === 0) {
       html = `<div class="mine-empty">${d.mine_empty}</div>`;
     }
 
@@ -2457,7 +2658,8 @@ async function loadContactsTab(keyword) {
 function renderContactItem(c, d) {
   const nature = c.nature === 'nurture' ? 'nurture' : (c.nature === 'dual' ? 'dual' : 'leverage');
   const natureLabel = nature === 'leverage' ? d.mine_leverage : (nature === 'nurture' ? d.mine_nurture : d.mine_dual);
-  return `<div class="mine-contact"><div><div class="mine-contact-name">${escapeHtml(c.name || '')}</div><div class="mine-contact-sub">${escapeHtml(c.relation || c.role || '')}</div></div><span class="mine-tag ${nature}">${natureLabel}</span></div>`;
+  const sub = [c.relation || c.role || '', c.company || ''].filter(Boolean).join(' · ');
+  return `<div class="mine-contact" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(c.id)}')"><div><div class="mine-contact-name">${escapeHtml(c.name || '')}</div><div class="mine-contact-sub">${escapeHtml(sub)}</div></div><span class="mine-tag ${nature}">${natureLabel}</span></div>`;
 }
 
 function switchContactsSubtab(subtab) {
@@ -2488,6 +2690,129 @@ function onContactsSearch(val) {
   else loadContactsTab();
 }
 
+// ── Contact detail drawer ──
+
+async function openContactDetail(contactId) {
+  const d = I18N[currentLang];
+  const contact = (mineCache.contacts || []).find(c => c.id === contactId);
+  if (!contact) return;
+
+  // Show drawer immediately with basic info
+  document.getElementById('detailName').textContent = contact.name || '';
+  const subParts = [contact.relation || contact.role || '', contact.company || '', contact.title || ''].filter(Boolean);
+  document.getElementById('detailSub').textContent = subParts.join(' · ');
+  document.getElementById('detailBody').innerHTML = `<div class="mine-empty">${d.detail_loading}</div>`;
+  document.getElementById('contactDetailOverlay').classList.add('show');
+  document.getElementById('contactDetail').classList.add('show');
+
+  try {
+    // Fetch timeline for this contact
+    let timeline = [];
+    try {
+      const tlRes = await mineApi(`/data/timeline?contact_id=${encodeURIComponent(contactId)}`);
+      timeline = tlRes.timeline || [];
+    } catch (e) {}
+
+    let html = '';
+
+    // Tags
+    if (contact.tags && contact.tags.length > 0) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_tags}</div>`;
+      html += `<div class="mine-detail-tags">`;
+      contact.tags.forEach(t => html += `<span class="mine-detail-tag">${escapeHtml(t)}</span>`);
+      html += `</div></div>`;
+    }
+
+    // Leverage info
+    const hasLeverage = contact.nature === 'leverage' || contact.nature === 'dual' || contact.leverage;
+    if (hasLeverage) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_leverage}</div>`;
+      if (contact.leverage) {
+        html += `<div class="mine-detail-leverage">`;
+        if (contact.leverage.goals) html += `<div><span class="label">${d.detail_goals}: </span><span class="value">${escapeHtml(contact.leverage.goals.join(', '))}</span></div>`;
+        if (contact.leverage.how) html += `<div><span class="label">${d.detail_how}: </span><span class="value">${escapeHtml(contact.leverage.how)}</span></div>`;
+        if (contact.leverage.direction) html += `<div><span class="label">${d.detail_direction}: </span><span class="value">${escapeHtml(contact.leverage.direction)}</span></div>`;
+        if (contact.leverage.confirmed) html += `<div class="label" style="margin-top:4px">✓ ${escapeHtml(contact.leverage.confirmed)}</div>`;
+        html += `</div>`;
+      } else {
+        html += `<div class="mine-detail-item">${d.detail_no_leverage}</div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Nurture info
+    const hasNurture = contact.nature === 'nurture' || contact.nature === 'dual' || contact.nurture;
+    if (hasNurture) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_nurture}</div>`;
+      const n = contact.nurture || {};
+      if (n.bond || contact.important_dates?.length || contact.memories?.length || contact.presence_events?.length) {
+        html += `<div class="mine-detail-nurture">`;
+        if (n.bond) html += `<div><span class="label">${d.detail_bond}: </span><span class="value">${escapeHtml(n.bond)}</span></div>`;
+        html += `</div>`;
+      } else {
+        html += `<div class="mine-detail-item">${d.detail_no_nurture}</div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Important dates
+    if (contact.important_dates && contact.important_dates.length > 0) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_dates}</div>`;
+      contact.important_dates.forEach(dt => {
+        html += `<div class="mine-detail-date"><span class="icon">📅</span><span>${escapeHtml(dt.date || '')} — ${escapeHtml(dt.label || '')}</span></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Memories
+    if (contact.memories && contact.memories.length > 0) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_memories}</div>`;
+      contact.memories.forEach(m => {
+        html += `<div class="mine-detail-item">${escapeHtml(typeof m === 'string' ? m : (m.content || m.text || JSON.stringify(m)))}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Presence events
+    if (contact.presence_events && contact.presence_events.length > 0) {
+      html += `<div class="mine-detail-section">`;
+      html += `<div class="mine-detail-section-title">${d.detail_presence}</div>`;
+      contact.presence_events.forEach(p => {
+        html += `<div class="mine-detail-item">${escapeHtml(typeof p === 'string' ? p : (p.event || p.summary || JSON.stringify(p)))}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Timeline
+    html += `<div class="mine-detail-section">`;
+    html += `<div class="mine-detail-section-title">${d.detail_timeline}</div>`;
+    if (timeline.length > 0) {
+      timeline.forEach(t => {
+        const dt = (t.date || '').substring(5) || '';
+        const summary = t.summary || t.action || '';
+        html += `<div class="mine-detail-item"><span style="color:var(--dim)">${dt}</span> ${escapeHtml(summary)}</div>`;
+      });
+    } else {
+      html += `<div class="mine-detail-item" style="color:var(--dimmer)">${d.detail_no_timeline}</div>`;
+    }
+    html += `</div>`;
+
+    document.getElementById('detailBody').innerHTML = html;
+  } catch (e) {
+    document.getElementById('detailBody').innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+function closeContactDetail() {
+  document.getElementById('contactDetailOverlay').classList.remove('show');
+  document.getElementById('contactDetail').classList.remove('show');
+}
+
 // ── Weekly tab ──
 
 async function loadWeeklyTab() {
@@ -2498,7 +2823,7 @@ async function loadWeeklyTab() {
     const [todosRes, timelineRes, adviseRes] = await Promise.all([
       mineApi('/data/todos'),
       mineApi('/data/timeline'),
-      mineApi('/ai/advise_cloud', 'POST', { session_token: await getClerkToken() }).catch(() => null),
+      mineApi('/ai/advise_cloud', 'POST', {}).catch(() => null),
     ]);
     const todos = todosRes.todos || [];
     const timeline = (timelineRes.timeline || []).slice(0, 10);
@@ -2534,8 +2859,9 @@ async function loadWeeklyTab() {
     // Section 2: Who to reach out
     html += `<div class="mine-section-title">${d.mine_weekly_suggest}</div>`;
     html += `<div class="mine-card">`;
-    if (advise && advise.reply) {
-      html += `<div style="font-size:.88em;line-height:1.7;white-space:pre-wrap">${escapeHtml(advise.reply)}</div>`;
+    const adviseText = advise && (advise.result || advise.reply || '');
+    if (adviseText) {
+      html += `<div style="font-size:.88em;line-height:1.7;white-space:pre-wrap">${escapeHtml(adviseText)}</div>`;
     } else if (advise && advise.suggestions) {
       advise.suggestions.forEach(s => {
         html += `<div class="mine-todo"><span class="mine-todo-dot">·</span><div><strong>${escapeHtml(s.name || '')}</strong> — ${escapeHtml(s.reason || '')}</div></div>`;
@@ -2563,6 +2889,33 @@ async function loadWeeklyTab() {
       });
       html += `</div>`;
     }
+
+    // Section 4: Flywheel metrics
+    const totalTimeline = timeline.length;  // already sliced to 50 in API, but use full count from response
+    const fullTimelineCount = timelineRes.timeline ? timelineRes.timeline.length : 0;
+    const weekCount = weekTimeline.length;
+    const lastWeekStart = new Date(now.getTime() - 14 * 86400000);
+    const lastWeekTimeline = timeline.filter(t => {
+      const td = new Date(t.date || '2000');
+      return td >= lastWeekStart && td < weekAgo;
+    });
+    const lastWeekCount = lastWeekTimeline.length;
+    const weekGoal = Math.max(5, Math.ceil((lastWeekCount + weekCount) / 2 + 2));
+    // Core coverage: contacts with strength >= 3 that have timeline
+    const coreContacts = (mineCache.contacts || []).filter(c => (c.strength || 0) >= 3);
+    const coreWithTimeline = new Set();
+    timeline.forEach(t => { if (t.contact) coreWithTimeline.add(t.contact); });
+    const coverage = coreContacts.length > 0 ? Math.round(coreWithTimeline.size / coreContacts.length * 100) : 0;
+
+    html += `<div class="mine-section-title">${d.flywheel_title}</div>`;
+    html += `<div class="mine-card">`;
+    html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.85em"><span style="color:var(--dim)">${d.flywheel_timeline}</span><span style="font-weight:600">${fullTimelineCount} ${d.flywheel_items}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.85em"><span style="color:var(--dim)">${d.flywheel_coverage}</span><span style="font-weight:600">${coverage}%</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.85em"><span style="color:var(--dim)">${d.flywheel_this_week}</span><span style="font-weight:600;color:var(--accent)">${weekCount}/${weekGoal} ${d.flywheel_items}</span></div>`;
+    if (lastWeekCount > 0) {
+      html += `<div style="font-size:.72em;color:var(--dimmer);margin-top:4px">上周 ${lastWeekCount} ${d.flywheel_items}</div>`;
+    }
+    html += `</div>`;
 
     content.innerHTML = html;
   } catch (e) {
