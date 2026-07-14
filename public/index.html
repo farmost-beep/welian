@@ -267,6 +267,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
     <button id="demoBtn" onclick="showScenarioPicker()" style="font-size:.82em;color:var(--accent);background:none;border:none;cursor:pointer">🎭 模拟体验</button>
     <button id="langBtn" onclick="toggleLang()">EN</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
+    <button id="billingBtn" onclick="openBilling()" style="display:none;font-size:.8em;color:var(--dim);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">💳 <span data-i18n="billing_btn">套餐</span></button>
     <button class="cta" id="authBtn" onclick="toggleAuth()">登录</button>
   </div>
 </nav>
@@ -333,6 +334,16 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <span><a href="https://github.com/farmost-beep/welian" target="_blank" rel="noopener">GitHub</a><span class="sep"> · </span><a href="https://welian.app">welian.app</a></span>
 </footer>
 
+</div>
+
+<!-- Billing modal -->
+<div id="billing-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,244,238,.95);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;overflow-y:auto;box-sizing:border-box">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg);box-sizing:border-box;position:relative">
+    <button onclick="closeBilling()" style="position:absolute;top:18px;right:22px;font-size:1.3em;color:var(--dim);cursor:pointer;background:none;border:none;line-height:1">×</button>
+    <h2 style="font-family:'Newsreader',serif;font-size:1.4em;font-weight:400;margin-bottom:6px;text-align:center" data-i18n="billing_title">套餐与额度</h2>
+    <p style="text-align:center;font-size:.85em;color:var(--dim);margin-bottom:24px" data-i18n="billing_sub">管理你的联点额度</p>
+    <div id="billing-content"><p style="text-align:center;color:var(--dim);padding:12px;font-size:.8em" data-i18n="billing_loading">加载中…</p></div>
+  </div>
 </div>
 
 <!-- Auth modal -->
@@ -403,6 +414,31 @@ const I18N = {
     cloud_error: 'Error: ',
     live_upgraded: 'Local agent connected ✅ Data synced from your device.',
     live_available: '💡 Local data detected! Refresh to enable full features.',
+    billing_btn: 'Plan',
+    billing_title: 'Plan & Credits',
+    billing_sub: 'Manage your AI credits',
+    billing_loading: 'Loading…',
+    billing_current: 'Current Plan',
+    billing_remaining: 'Remaining',
+    billing_used: 'Used this month',
+    billing_allowance: 'Monthly allowance',
+    billing_purchased: 'Purchased credits',
+    billing_reset: 'Resets monthly',
+    billing_upgrade: 'Upgrade',
+    billing_buy: 'Buy',
+    billing_pro_monthly: 'Pro Monthly',
+    billing_pro_yearly: 'Pro Yearly',
+    billing_pack_100: '100 Credits',
+    billing_pack_500: '500 Credits',
+    billing_free: 'Free',
+    billing_pro: 'Pro',
+    billing_confirm_upgrade: 'Upgrade to',
+    billing_confirm_buy: 'Buy',
+    billing_success: 'Done ✓',
+    billing_error: 'Failed: ',
+    billing_not_authed: 'Please sign in first.',
+    billing_history: 'Recent history',
+    billing_no_history: 'No history yet',
   },
   zh: {
     tagline: '每段关系都值得<em>用心</em>',
@@ -453,6 +489,31 @@ const I18N = {
     cloud_error: '出错了：',
     live_upgraded: '本地 agent 已连接 ✅ 数据从你的设备同步。',
     live_available: '💡 检测到本地数据！刷新页面可启用完整功能。',
+    billing_btn: '套餐',
+    billing_title: '套餐与额度',
+    billing_sub: '管理你的联点额度',
+    billing_loading: '加载中…',
+    billing_current: '当前套餐',
+    billing_remaining: '剩余额度',
+    billing_used: '本月已用',
+    billing_allowance: '每月额度',
+    billing_purchased: '已购联点',
+    billing_reset: '每月自动刷新',
+    billing_upgrade: '升级',
+    billing_buy: '购买',
+    billing_pro_monthly: 'Pro 月付',
+    billing_pro_yearly: 'Pro 年付',
+    billing_pack_100: '100 联点包',
+    billing_pack_500: '500 联点包',
+    billing_free: '免费版',
+    billing_pro: 'Pro',
+    billing_confirm_upgrade: '确认升级到',
+    billing_confirm_buy: '确认购买',
+    billing_success: '完成 ✓',
+    billing_error: '操作失败：',
+    billing_not_authed: '请先登录。',
+    billing_history: '最近记录',
+    billing_no_history: '暂无记录',
   },
 };
 
@@ -859,6 +920,7 @@ function onAuthed(user) {
   authBtn.title = tipParts.join('\n');
 
   navStatus.style.display = 'inline-flex';
+  document.getElementById('billingBtn').style.display = 'inline-block';
   // Close auth modal if open
   document.getElementById('clerk-auth').classList.remove('show');
 
@@ -880,6 +942,7 @@ function onSignedOut() {
   removeBridge();
   authBtn.textContent = I18N[currentLang].sign_in;
   navStatus.style.display = 'none';
+  document.getElementById('billingBtn').style.display = 'none';
   if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();
   showWelcome();
@@ -2015,6 +2078,162 @@ function quickDraft() {
   input.focus();
   const len = input.value.length;
   input.setSelectionRange(len, len);
+}
+
+// ── Billing ──
+
+async function openBilling() {
+  if (!isAuthed) {
+    addMsg('ai', I18N[currentLang].billing_not_authed);
+    return;
+  }
+  document.getElementById('billing-modal').style.display = 'flex';
+  document.getElementById('billing-content').innerHTML = `<p style="text-align:center;color:var(--dim);padding:12px;font-size:.8em">${I18N[currentLang].billing_loading}</p>`;
+  await loadBillingInfo();
+}
+
+function closeBilling() {
+  document.getElementById('billing-modal').style.display = 'none';
+}
+
+async function loadBillingInfo() {
+  const d = I18N[currentLang];
+  const token = await getClerkToken();
+  if (!token) {
+    document.getElementById('billing-content').innerHTML = `<p style="text-align:center;color:#C65D5D;padding:12px;font-size:.85em">${d.billing_not_authed}</p>`;
+    return;
+  }
+  try {
+    const resp = await fetch(`${CLOUD_URL}/ai/billing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_token: token }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const info = await resp.json();
+    renderBilling(info);
+  } catch (e) {
+    document.getElementById('billing-content').innerHTML = `<p style="text-align:center;color:#C65D5D;padding:12px;font-size:.85em">${d.billing_error}${e.message}</p>`;
+  }
+}
+
+function renderBilling(info) {
+  const d = I18N[currentLang];
+  const planLabel = info.plan === 'pro' ? d.billing_pro : d.billing_free;
+  const remaining = info.remaining ?? 0;
+  const allowance = info.allowance ?? 100;
+  const used = info.used ?? 0;
+  const purchased = info.purchased ?? 0;
+  const pct = allowance > 0 ? Math.min(100, Math.round(remaining / (allowance + purchased) * 100)) : 0;
+  const isPro = info.plan === 'pro';
+
+  const history = (info.recent_history || []).slice(-5).reverse();
+  const historyHtml = history.length ? history.map(h => {
+    const dt = new Date(h.date).toLocaleDateString(currentLang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' });
+    const action = h.action === 'upgrade' ? d.billing_upgrade : (h.action === 'purchase' ? d.billing_buy : h.action);
+    return `<div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--dim);padding:4px 0;border-bottom:1px solid var(--border)"><span>${dt} · ${action}</span><span>${h.detail || ''}</span></div>`;
+  }).join('') : `<p style="font-size:.78em;color:var(--dimmer);padding:8px 0">${d.billing_no_history}</p>`;
+
+  document.getElementById('billing-content').innerHTML = `
+    <!-- Status card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:.85em;color:var(--dim)">${d.billing_current}</span>
+        <span style="font-size:.8em;font-weight:600;padding:3px 12px;border-radius:20px;background:${isPro ? 'var(--green)' : 'var(--surface2)'};color:${isPro ? '#fff' : 'var(--text)'}">${planLabel}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <span style="font-size:.85em;color:var(--dim)">${d.billing_remaining}</span>
+        <span style="font-size:1.4em;font-weight:600;color:var(--accent)">${remaining} <span style="font-size:.6em;color:var(--dim)">/ ${allowance + purchased}</span></span>
+      </div>
+      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:12px">
+        <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;transition:width .3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.75em;color:var(--dimmer)">
+        <span>${d.billing_used}: ${used}</span>
+        <span>${d.billing_allowance}: ${allowance}</span>
+        ${purchased > 0 ? `<span>${d.billing_purchased}: ${purchased}</span>` : ''}
+      </div>
+      <p style="font-size:.72em;color:var(--dimmer);margin-top:8px;text-align:center">${d.billing_reset}</p>
+    </div>
+
+    <!-- Upgrade section -->
+    <div style="margin-bottom:20px">
+      <p style="font-size:.85em;font-weight:500;margin-bottom:10px">${d.billing_upgrade}</p>
+      <div style="display:flex;gap:10px">
+        <button onclick="doUpgrade('pro_monthly')" ${isPro ? 'disabled' : ''} style="flex:1;padding:12px;border:1px solid ${isPro ? 'var(--border)' : 'var(--accent)'};border-radius:10px;background:${isPro ? 'var(--surface)' : 'var(--accent-bg)'};color:var(--text);font-size:.85em;cursor:${isPro ? 'default' : 'pointer'};font-family:inherit;transition:all .15s;opacity:${isPro ? '.5' : '1'}">
+          <div style="font-weight:600">${d.billing_pro_monthly}</div>
+          <div style="font-size:.78em;color:var(--dim);margin-top:2px">¥29/月 · 500点/月</div>
+        </button>
+        <button onclick="doUpgrade('pro_yearly')" ${isPro ? 'disabled' : ''} style="flex:1;padding:12px;border:1px solid ${isPro ? 'var(--border)' : 'var(--accent)'};border-radius:10px;background:${isPro ? 'var(--surface)' : 'var(--accent-bg)'};color:var(--text);font-size:.85em;cursor:${isPro ? 'default' : 'pointer'};font-family:inherit;transition:all .15s;opacity:${isPro ? '.5' : '1'}">
+          <div style="font-weight:600">${d.billing_pro_yearly}</div>
+          <div style="font-size:.78em;color:var(--dim);margin-top:2px">¥290/年 · 500点/月</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Purchase credits section -->
+    <div style="margin-bottom:20px">
+      <p style="font-size:.85em;font-weight:500;margin-bottom:10px">${d.billing_buy}</p>
+      <div style="display:flex;gap:10px">
+        <button onclick="doPurchase('100')" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:.85em;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-weight:600">${d.billing_pack_100}</div>
+          <div style="font-size:.78em;color:var(--dim);margin-top:2px">¥10 · 永不过期</div>
+        </button>
+        <button onclick="doPurchase('500')" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:.85em;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-weight:600">${d.billing_pack_500}</div>
+          <div style="font-size:.78em;color:var(--dim);margin-top:2px">¥45 · 永不过期</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div>
+      <p style="font-size:.85em;font-weight:500;margin-bottom:8px">${d.billing_history}</p>
+      ${historyHtml}
+    </div>
+  `;
+}
+
+async function doUpgrade(plan) {
+  const d = I18N[currentLang];
+  const planName = plan === 'pro_yearly' ? d.billing_pro_yearly : d.billing_pro_monthly;
+  if (!confirm(`${d.billing_confirm_upgrade} ${planName}？`)) return;
+  const token = await getClerkToken();
+  if (!token) return;
+  try {
+    const resp = await fetch(`${CLOUD_URL}/ai/upgrade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_token: token, plan }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    alert(d.billing_success);
+    await loadBillingInfo();
+  } catch (e) {
+    alert(d.billing_error + e.message);
+  }
+}
+
+async function doPurchase(pack) {
+  const d = I18N[currentLang];
+  const packName = pack === '500' ? d.billing_pack_500 : d.billing_pack_100;
+  if (!confirm(`${d.billing_confirm_buy} ${packName}？`)) return;
+  const token = await getClerkToken();
+  if (!token) return;
+  try {
+    const resp = await fetch(`${CLOUD_URL}/ai/purchase_credits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_token: token, pack }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    alert(d.billing_success);
+    await loadBillingInfo();
+  } catch (e) {
+    alert(d.billing_error + e.message);
+  }
 }
 
 // ── Init ──
