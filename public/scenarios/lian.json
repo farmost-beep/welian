@@ -12,23 +12,36 @@
     {"id":"g3","title":"2000 · 卧虎藏龙，与袁和平碰撞武打设计","description":"《卧虎藏龙》让华语电影首次征服奥斯卡。袁和平是武术指导。记录一次关于武打设计的对话。","type":"record_interaction","contact_names":["袁和平","Yuen Woo-ping","八爷"],"keywords":["卧虎藏龙","武打","动作","竹林","袁和平","设计","crouching"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2001 · 奥斯卡之夜，给妻子写一封信","description":"《卧虎藏龙》获奥斯卡最佳外语片。拟写一封给妻子的感谢信。","type":"draft_message","contact_names":["林惠嘉","惠嘉","妻子"],"keywords":["奥斯卡","感谢","妻子","oscar","信","梦想","年","爱"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2005 · 断背山，与 Heath Ledger 的合作","description":"《断背山》让你获得威尼斯金狮奖。Heath Ledger 的表演震撼人心。记录一次关于表演的对话。","type":"record_interaction","contact_names":["Heath","Heath Ledger","Ledger"],"keywords":["断背山","表演","heath","ledger","brokeback","演员","表演","导演"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2013 · 少年派，给两个孩子写一封信","description":"《少年派的奇幻漂流》让你第二次获得奥斯卡最佳导演。拟写一封给两个孩子的信。","type":"draft_message","contact_names":["儿子","孩子","children","Han","Mason"],"keywords":["少年派","奥斯卡","孩子","感谢","梦想","信","父亲","爱"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2013 · 少年派，给两个孩子写一封信","description":"《少年派的奇幻漂流》让你第二次获得奥斯卡最佳导演。拟写一封给两个孩子的信。","type":"draft_message","contact_names":["儿子","孩子","children","Han","Mason"],"keywords":["少年派","奥斯卡","孩子","感谢","梦想","信","父亲","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2016 · 比利林恩的中场战事，给团队写一封信","description":"你用120帧3D技术拍摄《比利林恩的中场战事》，革新电影技术。拟写一封给技术团队的信。","type":"draft_message","keywords":["比利林恩","120帧","3d","技术","团队","信","电影","革新"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2019 · 双子杀手3D，与 Will Smith 碰撞","description":"《双子杀手》再次挑战120帧3D，Will Smith 主演。记录一次关于表演与技术的对话。","type":"record_interaction","contact_names":["Will Smith","Will","Smith"],"keywords":["双子杀手","will smith","120帧","3d","表演","技术","gemini","克隆"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2021 · 与儿子和解","description":"你常年泡在片场，对两个儿子的陪伴不够。记录一次与儿子的和解对话。","type":"record_interaction","contact_names":["儿子","Han","Mason","孩子"],"keywords":["儿子","和解","父亲","陪伴","抱歉","家","爱","片场"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2023 · 给年轻导演写一封信","description":"你从六年失业到两座奥斯卡，想给年轻导演分享经验。拟写一封给年轻导演的信。","type":"draft_message","keywords":["年轻导演","信","经验","建议","电影","坚持","梦想","未来"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_wife","name":"林惠嘉","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"你失业六年她养家，从没让你放弃电影。你最感激的人。","platforms":{"email":"jane@anglee.com"},"important_dates":[{"label":"结婚纪念日","date":"1983-08-19"}],"created":"1983-08-19T00:00:00Z","updated":"2013-01-01T00:00:00Z"},
     {"id":"c_xu","name":"徐立功","relation":"导师","role":"中影公司总经理","nature":"leverage","strength":5,"notes":"你的伯乐。投资了你的前三部电影（推手、喜宴、饮食男女），开启了你的导演生涯。","platforms":{"email":"likong@taiwanfilm.com"},"leverage":{"goals":"电影投资+制作","how":"直接沟通"},"created":"1991-01-01T00:00:00Z","updated":"1994-01-01T00:00:00Z"},
     {"id":"c_yuen","name":"袁和平","relation":"同事","role":"武术指导","nature":"leverage","strength":4,"notes":"八爷，《卧虎藏龙》的武术指导。竹林打戏是他的杰作。","platforms":{"email":"yuen@hkfilm.com"},"created":"2000-01-01T00:00:00Z","updated":"2000-01-01T00:00:00Z"},
     {"id":"c_heath","name":"Heath Ledger","relation":"同事","role":"演员","nature":"nurture","strength":4,"notes":"《断背山》的主演。他的表演深沉内敛，是你合作过的最天才的演员之一。2008年去世。","important_dates":[{"label":"去世","date":"2008-01-22"}],"created":"2004-01-01T00:00:00Z","updated":"2008-01-22T00:00:00Z"},
-    {"id":"c_son","name":"儿子们","relation":"家人","role":"儿子","nature":"nurture","strength":5,"notes":"两个儿子 Han 和 Mason。你常年在片场，对他们的陪伴不够。","created":"1990-01-01T00:00:00Z","updated":"2013-01-01T00:00:00Z"}
+    {"id":"c_son","name":"儿子们","relation":"家人","role":"儿子","nature":"nurture","strength":5,"notes":"两个儿子 Han 和 Mason。你常年在片场，对他们的陪伴不够。","created":"1990-01-01T00:00:00Z","updated":"2013-01-01T00:00:00Z"},
+    {"id":"c_willsmith","name":"Will Smith","relation":"同事","role":"演员","nature":"leverage","strength":3,"notes":"《双子杀手》主演。一人分饰两角，挑战120帧3D技术下的表演。","created":"2019-01-01T00:00:00Z","updated":"2019-01-01T00:00:00Z"}
   ],
   "todos":[
     {"id":"t1","contact":"c_wife","task":"和妻子确认坚持电影梦想","priority":"P0","due":"","status":"pending","created":"1985-01-01T00:00:00Z"},
     {"id":"t2","contact":"c_xu","task":"给徐立功写感谢信","priority":"P0","due":"","status":"pending","created":"1991-01-01T00:00:00Z"},
-    {"id":"t3","contact":"c_wife","task":"奥斯卡之夜给妻子写一封信","priority":"P0","due":"","status":"pending","created":"2001-03-01T00:00:00Z"}
+    {"id":"t3","contact":"c_wife","task":"奥斯卡之夜给妻子写一封信","priority":"P0","due":"","status":"pending","created":"2001-03-01T00:00:00Z"},
+    {"id":"t4","contact":"","task":"比利林恩给技术团队写一封信","priority":"P1","due":"","status":"pending","created":"2016-10-01T00:00:00Z"},
+    {"id":"t5","contact":"c_willsmith","task":"与 Will Smith 碰撞表演与技术","priority":"P0","due":"","status":"pending","created":"2019-10-01T00:00:00Z"},
+    {"id":"t6","contact":"c_son","task":"与儿子和解","priority":"P0","due":"","status":"pending","created":"2021-01-01T00:00:00Z"},
+    {"id":"t7","contact":"","task":"给年轻导演写一封信","priority":"P1","due":"","status":"pending","created":"2023-01-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_wife","date":"1985-06-01","summary":"纽约大学毕业后六年没有工作。在家带孩子写剧本，妻子养家。","sentiment":"neutral","created":"1985-06-01T00:00:00Z"},
     {"id":"tl2","contact":"c_xu","date":"1991-12-01","summary":"徐立功投资《推手》，你的第一部电影开拍。","sentiment":"positive","created":"1991-12-01T00:00:00Z"},
-    {"id":"tl3","contact":"c_wife","date":"2001-03-25","summary":"《卧虎藏龙》获奥斯卡最佳外语片。你在台上说'感谢我的妻子林惠嘉'。","sentiment":"positive","created":"2001-03-25T00:00:00Z"}
+    {"id":"tl3","contact":"c_wife","date":"2001-03-25","summary":"《卧虎藏龙》获奥斯卡最佳外语片。你在台上说'感谢我的妻子林惠嘉'。","sentiment":"positive","created":"2001-03-25T00:00:00Z"},
+    {"id":"tl4","contact":"","date":"2016-10-14","summary":"《比利林恩的中场战事》首映，120帧3D技术革新引发业界热议。","sentiment":"positive","created":"2016-10-14T00:00:00Z"},
+    {"id":"tl5","contact":"c_willsmith","date":"2019-10-11","summary":"《双子杀手》上映，与 Will Smith 合作挑战120帧3D。","sentiment":"neutral","created":"2019-10-11T00:00:00Z"},
+    {"id":"tl6","contact":"c_son","date":"2021-01-01","summary":"与两个儿子和解，为常年泡在片场缺少陪伴道歉。","sentiment":"positive","created":"2021-01-01T00:00:00Z"},
+    {"id":"tl7","contact":"","date":"2023-01-01","summary":"给年轻导演写一封信，分享从六年失业到两座奥斯卡的经验。","sentiment":"positive","created":"2023-01-01T00:00:00Z"}
   ]
 }

@@ -66,6 +66,44 @@
       "keywords": ["结婚", "anniversary", "爱", "love", "感谢", "31", "年", "永远", "家"],
       "need_all_keywords": false,
       "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2020 · 疫情中与 Verna 重连",
+      "description": "疫情让一切停摆。你终于有时间给 Verna 打电话了。记录一次在隔离中与老友的重连对话。",
+      "type": "record_interaction",
+      "contact_names": ["Verna", "Verna Williams"],
+      "keywords": ["疫情", "pandemic", "verna", "朋友", "重连", "电话", "想念", "隔离"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2022 · 出版《The Light We Carry》，给读者写一封信",
+      "description": "你的新书《The Light We Carry》即将出版。拟写一封给读者的信，分享写作的初心。",
+      "type": "draft_message",
+      "keywords": ["书", "book", "light", "carry", "读者", "信", "写作", "希望"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2023 · 与 Oprah 对谈，录制播客",
+      "description": "Oprah 邀请你参加她的播客对谈。你们聊了新书、家庭和成长。记录这次对谈。",
+      "type": "record_interaction",
+      "contact_names": ["Oprah", "Oprah Winfrey"],
+      "keywords": ["oprah", "播客", "podcast", "对谈", "书", "分享", "成长", "访谈"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2024 · 给自己写一封信",
+      "description": "60 岁了。从芝加哥南区到白宫再到作家，你经历了很多。拟写一封给自己的信，回顾与感恩。",
+      "type": "draft_message",
+      "keywords": ["自己", "60", "回顾", "感恩", "信", "人生", "芝加哥", "成长"],
+      "need_all_keywords": false,
+      "count": 1
     }
   ],
   "contacts": [
@@ -226,6 +264,42 @@
       "due": "",
       "status": "pending",
       "created": "2023-10-03T00:00:00Z"
+    },
+    {
+      "id": "t7",
+      "contact": "c_verna",
+      "task": "疫情期间给 Verna 打电话",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2020-04-01T00:00:00Z"
+    },
+    {
+      "id": "t8",
+      "contact": "",
+      "task": "给读者写新书出版信",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2022-11-01T00:00:00Z"
+    },
+    {
+      "id": "t9",
+      "contact": "c_oprah",
+      "task": "与 Oprah 录制播客对谈",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2023-11-01T00:00:00Z"
+    },
+    {
+      "id": "t10",
+      "contact": "",
+      "task": "给自己写一封信",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2024-01-01T00:00:00Z"
     }
   ],
   "timeline": [
@@ -276,6 +350,38 @@
       "summary": "结婚 31 周年。他在洛杉矶开会，你在玛莎葡萄园岛写书。发了短信但没通电话。",
       "sentiment": "neutral",
       "created": "2023-10-03T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_verna",
+      "date": "2020-04-15",
+      "summary": "疫情期间终于给 Verna 打了电话。你们聊了一个多小时，从芝加哥南区聊到白宫。",
+      "sentiment": "positive",
+      "created": "2020-04-15T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "",
+      "date": "2022-11-15",
+      "summary": "《The Light We Carry》出版，登上畅销榜第一名。你在新书发布会上哭了。",
+      "sentiment": "positive",
+      "created": "2022-11-15T00:00:00Z"
+    },
+    {
+      "id": "tl9",
+      "contact": "c_oprah",
+      "date": "2023-11-20",
+      "summary": "与 Oprah 录制播客对谈，聊了新书、空巢和成长。录制结束后你们拥抱了很久。",
+      "sentiment": "positive",
+      "created": "2023-11-20T00:00:00Z"
+    },
+    {
+      "id": "tl10",
+      "contact": "",
+      "date": "2024-01-17",
+      "summary": "60 岁生日。在芝加哥南区的老房子前站了很久，给自己写了一封信。",
+      "sentiment": "neutral",
+      "created": "2024-01-17T00:00:00Z"
     }
   ]
 }

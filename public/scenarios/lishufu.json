@@ -1,0 +1,299 @@
+{
+  "id": "lishufu",
+  "name": "李书福",
+  "title": "吉利汽车创始人",
+  "avatar": "🚗",
+  "tagline": "从骑自行车拍照到收购沃尔沃，草根企业家的造车梦",
+  "intro": "你是李书福。从骑自行车给人拍照起步，到做冰箱配件、摩托车，再到造汽车、拿牌照、收购沃尔沃和戴姆勒。每一段历程中，关键关系决定了你的命运。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1982 · 骑自行车拍照创业，与父亲的一次对话",
+      "description": "你骑着自行车走街串巷给人拍照，这是你创业的起点。记录一次与父亲关于这个'不务正业'选择的对话。",
+      "type": "record_interaction",
+      "contact_names": ["父亲"],
+      "keywords": ["自行车", "拍照", "创业", "父亲", "不务正业", "赚钱", "选择"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1984 · 做冰箱配件，给妻子说创业计划",
+      "description": "你开始做冰箱配件，这是你第一次进入制造业。拟写一条消息给妻子，说你的创业计划和信心。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["冰箱", "配件", "制造业", "妻子", "计划", "信心", "创业", "工厂"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1989 · 转型做摩托车，与团队定方向",
+      "description": "冰箱配件做不下去了，你转型做摩托车。拟写一条消息给核心团队，宣布转型方向。",
+      "type": "draft_message",
+      "keywords": ["摩托车", "转型", "团队", "方向", "制造业", "决心", "变化"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1997 · 决定造汽车，给妻子一个交代",
+      "description": "你宣布要造汽车，所有人都觉得你疯了。拟写一条消息给妻子，解释你为什么要造汽车。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["造车", "汽车", "疯了", "妻子", "梦想", "解释", "决心", "交代"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2002 · 拿到汽车生产牌照，与安聪慧庆祝",
+      "description": "吉利终于拿到汽车生产牌照，这是历史性时刻。安聪慧是你最信任的技术骨干。记录一次与安聪慧的庆祝对话。",
+      "type": "record_interaction",
+      "contact_names": ["安聪慧"],
+      "keywords": ["牌照", "生产许可", "汽车", "安聪慧", "庆祝", "历史性", "终于"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2010 · 收购沃尔沃，与沈晖确认整合方案",
+      "description": "吉利以18亿美元收购沃尔沃，这是中国汽车史上最大海外并购。沈晖是整合的关键人物。记录一次与沈晖关于沃尔沃整合方案的对话。",
+      "type": "record_interaction",
+      "contact_names": ["沈晖"],
+      "keywords": ["沃尔沃", "收购", "并购", "沈晖", "整合", "方案", "18亿", "海外"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2013 · 收购伦敦出租车，给团队写一封信",
+      "description": "吉利收购英国伦敦出租车公司（锰铜控股）。拟写一封给团队的信，宣告吉利的全球化步伐。",
+      "type": "draft_message",
+      "keywords": ["伦敦出租车", "锰铜", "收购", "全球化", "团队", "信", "英国", "步伐"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2018 · 入股戴姆勒，与沃尔沃CEO沟通",
+      "description": "吉利以90亿美元入股戴姆勒成为最大股东。记录一次与沃尔沃CEO关于入股戴姆勒后协同效应的对话。",
+      "type": "record_interaction",
+      "contact_names": ["沃尔沃CEO"],
+      "keywords": ["戴姆勒", "奔驰", "入股", "90亿", "沃尔沃CEO", "协同", "最大股东"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2020 · 极氪发布，与安聪慧定战略",
+      "description": "极氪品牌正式发布，进军高端智能电动车。安聪慧被任命为极氪CEO。记录一次与安聪慧关于极氪战略的对话。",
+      "type": "record_interaction",
+      "contact_names": ["安聪慧"],
+      "keywords": ["极氪", "电动车", "智能", "安聪慧", "战略", "高端", "品牌", "CEO"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给吉利员工写一封信",
+      "description": "经历了从草根到全球化的历程，你想给吉利全体员工写一封信。拟写这封信，回顾来路，展望未来。",
+      "type": "draft_message",
+      "keywords": ["员工", "信", "吉利", "回顾", "未来", "感谢", "梦想", "造车"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_shenhui",
+      "name": "沈晖",
+      "relation": "同事",
+      "role": "吉利副总裁 / 沃尔沃整合负责人",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "沃尔沃收购后的整合关键人物。他有丰富的跨国企业管理经验，是你最信任的国际化操盘手。",
+      "platforms": {"email": "shenhui@geely.com"},
+      "important_dates": [{"label": "加入吉利", "date": "2009-01-01"}],
+      "leverage": {"goals": "确保沃尔沃收购后的顺利整合", "how": "充分授权，信任他的跨国管理能力"},
+      "created": "2009-01-01T00:00:00Z",
+      "updated": "2010-03-28T00:00:00Z"
+    },
+    {
+      "id": "c_anconghui",
+      "name": "安聪慧",
+      "relation": "同事",
+      "role": "吉利集团总裁 / 极氪CEO",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "从吉利早期就跟随你的核心骨干。从拿牌照到极氪发布，他始终在你身边。是你最信任的技术和管理搭档。",
+      "platforms": {"email": "anconghui@geely.com"},
+      "important_dates": [{"label": "加入吉利", "date": "1996-01-01"}],
+      "leverage": {"goals": "共同推动吉利从草根到全球化的转型", "how": "长期信任，关键战役共同决策"},
+      "created": "1996-01-01T00:00:00Z",
+      "updated": "2020-04-01T00:00:00Z"
+    },
+    {
+      "id": "c_wife_ls",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "从你骑自行车拍照时就跟着你。你每次做出看似疯狂的决定，她虽然担心但始终支持。",
+      "platforms": {},
+      "important_dates": [{"label": "结婚纪念日", "date": "1983-06-18"}],
+      "created": "1983-06-18T00:00:00Z",
+      "updated": "1997-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_father",
+      "name": "父亲",
+      "relation": "家人",
+      "role": "父亲",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "台州农民出身，希望你安稳过日子。你骑自行车拍照创业时他觉得你不务正业，但后来看到你的成就也为你骄傲。",
+      "platforms": {},
+      "important_dates": [{"label": "生日", "date": "1940-09-10"}],
+      "created": "1982-01-01T00:00:00Z",
+      "updated": "1982-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_volvoceo",
+      "name": "沃尔沃CEO",
+      "relation": "商业伙伴",
+      "role": "沃尔沃汽车CEO",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "收购沃尔沃后需要维护的关键关系。既要给沃尔沃独立运营空间，又要推动与吉利的协同效应。",
+      "platforms": {"email": "ceo@volvocars.com"},
+      "leverage": {"goals": "推动吉利与沃尔沃的协同效应", "how": "尊重独立性，寻找合作点"},
+      "created": "2010-03-28T00:00:00Z",
+      "updated": "2018-02-24T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_father",
+      "task": "和父亲谈拍照创业的事",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1982-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_wife_ls",
+      "task": "给妻子说造汽车的决定",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1997-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_anconghui",
+      "task": "和安聪慧庆祝拿到汽车牌照",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2002-11-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_shenhui",
+      "task": "和沈晖确认沃尔沃整合方案",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2010-03-28T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_volvoceo",
+      "task": "和沃尔沃CEO沟通入股戴姆勒后的协同",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2018-02-24T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_anconghui",
+      "task": "和安聪慧定极氪战略",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2020-04-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_father",
+      "date": "1982-01-01",
+      "summary": "骑着自行车走街串巷给人拍照，两块钱一张。父亲觉得你不务正业，但这是你创业的起点。",
+      "sentiment": "neutral",
+      "created": "1982-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_wife_ls",
+      "date": "1984-06-01",
+      "summary": "开始做冰箱配件，第一次进入制造业。妻子跟着你从台州的小作坊起步。",
+      "sentiment": "positive",
+      "created": "1984-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_wife_ls",
+      "date": "1997-01-01",
+      "summary": "宣布要造汽车。所有人都觉得你疯了，妻子虽然担心但支持你的梦想。",
+      "sentiment": "neutral",
+      "created": "1997-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_anconghui",
+      "date": "2002-11-01",
+      "summary": "吉利终于拿到汽车生产牌照。你和安聪慧在工厂里庆祝，这是历史性时刻。",
+      "sentiment": "positive",
+      "created": "2002-11-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_shenhui",
+      "date": "2010-03-28",
+      "summary": "吉利以18亿美元收购沃尔沃100%股权。沈晖负责整合，这是中国汽车史上最大海外并购。",
+      "sentiment": "positive",
+      "created": "2010-03-28T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_volvoceo",
+      "date": "2018-02-24",
+      "summary": "吉利以90亿美元入股戴姆勒，成为最大股东。与沃尔沃CEO沟通协同效应。",
+      "sentiment": "positive",
+      "created": "2018-02-24T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_anconghui",
+      "date": "2020-04-01",
+      "summary": "极氪品牌正式发布，安聪慧任CEO。吉利进军高端智能电动车市场。",
+      "sentiment": "positive",
+      "created": "2020-04-01T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_father",
+      "date": "2010-03-28",
+      "summary": "收购沃尔沃那天，你想起父亲当年说你'不务正业'。从自行车到沃尔沃，你走了28年。",
+      "sentiment": "positive",
+      "created": "2010-03-28T00:00:00Z"
+    }
+  ]
+}

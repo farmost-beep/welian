@@ -12,7 +12,11 @@
     {"id":"g3","title":"1998 · 引入 IBM 顾问，与孙亚芳推动变革","description":"请 IBM 来做管理变革，内部阻力很大。孙亚芳是你最信任的搭档。记录一次推动变革的对话。","type":"record_interaction","contact_names":["孙亚芳","Sun","IBM"],"keywords":["ibm","变革","管理","流程","改革","ipd","阻力"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2000 · IT 泡沫破裂，给员工写一封安慰信","description":"华为差点卖掉，你抑郁到想自杀。拟写一封给全体员工的信，告诉大家华为不会倒。","type":"draft_message","keywords":["冬天","困难","坚持","活下去","华为","员工","未来"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2018 · 孟晚舟被拘，给女儿写一封信","description":"女儿孟晚舟在加拿大被拘押。你无法直接帮她。拟写一封给她的信，表达父亲的支持。","type":"draft_message","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["女儿","晚舟","坚强","父亲","信","想念"," proud","爱"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2020 · 与孟晚舟的最后一次通话","description":"晚舟还在加拿大，你们只能通过电话联系。记录一次与女儿的通话。","type":"record_interaction","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["电话","通话","加拿大","想念","坚强","回家","父亲"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2020 · 与孟晚舟的最后一次通话","description":"晚舟还在加拿大，你们只能通过电话联系。记录一次与女儿的通话。","type":"record_interaction","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["电话","通话","加拿大","想念","坚强","回家","父亲"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2021 · 孟晚舟回国，给女儿写一封信","description":"晚舟终于回到中国了。你等了1028天。拟写一封给她的信，表达喜悦和父爱。","type":"draft_message","contact_names":["孟晚舟","晚舟","女儿"],"keywords":["回国","回来","女儿","晚舟","1028","父亲","信","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2022 · 华为突破制裁，给员工写一封信","description":"美国制裁持续加压，但华为在芯片和操作系统上取得突破。拟写一封给全体员工的信。","type":"draft_message","keywords":["制裁","突破","鸿蒙","麒麟","华为","员工","坚持","未来"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2023 · 任正非内部讲话，与郭平讨论战略","description":"你在内部讲话中强调'活下去'是最低纲领。与郭平讨论未来战略方向。记录这次对话。","type":"record_interaction","contact_names":["郭平","Guo"],"keywords":["战略","活下去","讲话","内部","方向","未来","华为","讨论"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2024 · 给全体员工写一封信","description":"华为在制裁中越战越强。拟写一封给全体员工的信，总结过去展望未来。","type":"draft_message","keywords":["华为","员工","信","未来","信心","制裁","突破","感谢"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_sun","name":"孙亚芳","relation":"同事","role":"华为董事长","nature":"leverage","strength":5,"notes":"你最信任的搭档，1992年加入华为，后任董事长。她负责市场和公共关系。","platforms":{"email":"sun@huawei.com"},"leverage":{"goals":"管理变革+市场体系","how":"直接沟通"},"created":"1992-01-01T00:00:00Z","updated":"1998-01-01T00:00:00Z"},
@@ -23,11 +27,19 @@
   "todos":[
     {"id":"t1","contact":"c_sun","task":"和孙亚芳谈华为创业方向","priority":"P0","due":"","status":"pending","created":"1987-01-01T00:00:00Z"},
     {"id":"t2","contact":"","task":"给研发团队写一封鼓舞信","priority":"P0","due":"","status":"pending","created":"1992-06-01T00:00:00Z"},
-    {"id":"t3","contact":"c_meng","task":"给孟晚舟写一封信","priority":"P0","due":"","status":"pending","created":"2018-12-01T00:00:00Z"}
+    {"id":"t3","contact":"c_meng","task":"给孟晚舟写一封信","priority":"P0","due":"","status":"pending","created":"2018-12-01T00:00:00Z"},
+    {"id":"t4","contact":"c_meng","task":"给回国的孟晚舟写一封信","priority":"P0","due":"","status":"pending","created":"2021-09-25T00:00:00Z"},
+    {"id":"t5","contact":"","task":"给员工写华为突破制裁的信","priority":"P1","due":"","status":"pending","created":"2022-01-01T00:00:00Z"},
+    {"id":"t6","contact":"c_guo","task":"与郭平讨论战略方向","priority":"P1","due":"","status":"pending","created":"2023-01-01T00:00:00Z"},
+    {"id":"t7","contact":"","task":"给全体员工写年度信","priority":"P1","due":"","status":"pending","created":"2024-01-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_sun","date":"1987-09-15","summary":"在深圳南山注册华为，凑了2.1万元，代理香港交换机。","sentiment":"positive","created":"1987-09-15T00:00:00Z"},
     {"id":"tl2","contact":"","date":"1992-12-01","summary":"决定自主研发C&C08交换机，押上全部身家。","sentiment":"neutral","created":"1992-12-01T00:00:00Z"},
-    {"id":"tl3","contact":"c_meng","date":"2018-12-01","summary":"孟晚舟在温哥华转机时被加拿大拘押，美国要求引渡。","sentiment":"negative","created":"2018-12-01T00:00:00Z"}
+    {"id":"tl3","contact":"c_meng","date":"2018-12-01","summary":"孟晚舟在温哥华转机时被加拿大拘押，美国要求引渡。","sentiment":"negative","created":"2018-12-01T00:00:00Z"},
+    {"id":"tl4","contact":"c_meng","date":"2021-09-25","summary":"孟晚舟乘坐中国政府包机回到深圳，结束了1028天的拘押。你在深圳机场等她。","sentiment":"positive","created":"2021-09-25T00:00:00Z"},
+    {"id":"tl5","contact":"","date":"2022-08-01","summary":"华为在制裁中发布鸿蒙3.0，自研芯片取得突破。你内部说'把活下来作为最主要纲领'。","sentiment":"positive","created":"2022-08-01T00:00:00Z"},
+    {"id":"tl6","contact":"c_guo","date":"2023-03-01","summary":"与郭平在内部会议上讨论未来五年战略，强调'有质量地活下来'。","sentiment":"neutral","created":"2023-03-01T00:00:00Z"},
+    {"id":"tl7","contact":"","date":"2024-03-01","summary":"华为在制裁第五年依然增长，你给全体员工写了一封年度信。","sentiment":"positive","created":"2024-03-01T00:00:00Z"}
   ]
 }

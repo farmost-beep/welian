@@ -1,0 +1,282 @@
+{
+  "id": "zhongshanshan",
+  "name": "钟睒睒",
+  "title": "农夫山泉创始人",
+  "avatar": "💧",
+  "tagline": "从记者到首富，一瓶水打天下",
+  "intro": "你是钟睒睒。1984 年你是浙江日报记者，1991 年下海去海南创业失败。1996 年你创办农夫山泉，2000 年发起“水战“挑战纯净水巨头。2008 年农夫果园爆火，2013 年遭遇京华时报围攻。2019 年万泰生物HPV疫苗上市，2020 年农夫山泉港股上市，2022 年你成为中国首富。你低调、孤傲，但内心深处，母亲是你永远的牵挂。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1984 · 浙江日报记者时期，与同事告别",
+      "description": "你在浙江日报做了5年记者，采访了无数企业家，心里种下了创业的种子。你决定辞职下海。记录一次与记者时期同事的告别对话。",
+      "type": "record_interaction",
+      "contact_names": ["记者时期同事"],
+      "keywords": ["记者", "浙江日报", "辞职", "下海", "告别", "创业", "同事", "采访"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1991 · 海南创业失败，与同事复盘",
+      "description": "你在海南创业失败——种蘑菇、卖窗帘都赔了钱。你回到杭州，与曾经的记者同事复盘这段经历。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["记者时期同事"],
+      "keywords": ["海南", "创业", "失败", "复盘", "蘑菇", "窗帘", "赔钱", "教训"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1996 · 创办农夫山泉，给团队写一封动员信",
+      "description": "你在千岛湖畔创办农夫山泉，定位“天然水”。拟写一封动员信给初创团队，阐述你的愿景——做中国最好的水。",
+      "type": "draft_message",
+      "keywords": ["农夫山泉", "天然水", "千岛湖", "团队", "愿景", "动员", "创业", "水"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2000 · 水战挑战纯净水，与团队商议策略",
+      "description": "你公开宣称“纯净水对人体无益”，直接挑战娃哈哈等纯净水巨头。这是一场豪赌。记录一次与团队商议水战策略的对话。",
+      "type": "record_interaction",
+      "contact_names": ["记者时期同事"],
+      "keywords": ["水战", "纯净水", "天然水", "挑战", "娃哈哈", "策略", "争议", "营销"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2008 · 农夫果园爆火，与妻子分享",
+      "description": "农夫果园“喝前摇一摇“广告语火遍全国，产品供不应求。你难得回家早，与妻子分享这份喜悦。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["妻子"],
+      "keywords": ["农夫果园", "摇一摇", "爆火", "妻子", "喜悦", "回家", "广告", "成功"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2013 · 京华时报围攻，给团队写一封稳定军心信",
+      "description": "京华时报连续报道指控农夫山泉水质不达标，引发舆论危机。拟写一封内部信给团队，稳定军心、明确应对方向。",
+      "type": "draft_message",
+      "keywords": ["京华时报", "舆论", "水质", "危机", "团队", "稳定", "回应", "标准"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2019 · 万泰生物HPV疫苗上市，与儿子谈未来",
+      "description": "万泰生物国产HPV疫苗获批上市，这是你布局多年的大棋。你与儿子钟墅子谈未来规划。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["钟墅子"],
+      "keywords": ["万泰生物", "HPV", "疫苗", "上市", "儿子", "钟墅子", "未来", "规划"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2020 · 农夫山泉港股上市，与妻子回顾来路",
+      "description": "农夫山泉在港交所上市，首日暴涨。你成为千亿富豪。你与妻子回顾从海南失败到今天的来路。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["妻子"],
+      "keywords": ["上市", "港交所", "农夫山泉", "妻子", "回顾", "海南", "来路", "千亿"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2022 · 成为中国首富，与母亲报平安",
+      "description": "你以财富登顶中国首富。但你最想做的是给年迈的母亲打个电话报平安——你常年在外，她总担心你。记录这次与母亲的对话。",
+      "type": "record_interaction",
+      "contact_names": ["母亲"],
+      "keywords": ["首富", "母亲", "报平安", "电话", "担心", "低调", "家人", "健康"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给母亲写一封信",
+      "description": "你已年近七旬，母亲年事更高。你一生不善表达感情，但这次你想给母亲写一封信，说出那些从未说出口的话。",
+      "type": "draft_message",
+      "contact_names": ["母亲"],
+      "keywords": ["母亲", "信", "感谢", "抱歉", "陪伴", "儿子", "健康", "爱"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_mother",
+      "name": "母亲",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你早年父亲去世，母亲独自将你养大。你下海创业时她最担心，你成为首富后她最关心的仍是你吃没吃饭。你常年在外，对她心怀愧疚。",
+      "important_dates": [{"label": "生日", "date": "12-08"}],
+      "created": "1984-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_wife",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你极其低调，从不让家人曝光。妻子默默支持你从海南失败到首富的全部历程。她是你最安静的港湾。",
+      "important_dates": [{"label": "结婚纪念日", "date": "1990-06-15"}],
+      "created": "1990-06-15T00:00:00Z",
+      "updated": "2020-09-01T00:00:00Z"
+    },
+    {
+      "id": "c_zhongshuzi",
+      "name": "钟墅子",
+      "relation": "家人",
+      "role": "儿子",
+      "nature": "dual",
+      "strength": 4,
+      "notes": "你的儿子。在美国接受教育后回国。你对他的期望很高，希望他能理解实业的价值，而不只是资本运作。",
+      "platforms": {"email": "sz@nongfuspring.com"},
+      "important_dates": [{"label": "生日", "date": "1992-08-01"}],
+      "leverage": {"goals": "培养儿子接班意识，传承实业精神", "how": "让他参与万泰生物等核心业务，在实践中成长"},
+      "created": "2015-01-01T00:00:00Z",
+      "updated": "2019-12-01T00:00:00Z"
+    },
+    {
+      "id": "c_journalist_colleague",
+      "name": "记者时期同事",
+      "relation": "朋友",
+      "role": "浙江日报前同事",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "你在浙江日报时期的同事和好友。你下海后仍与他们保持联系。他们是你创业失败时唯一能倾诉的人。",
+      "created": "1984-01-01T00:00:00Z",
+      "updated": "2000-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_journalist_colleague",
+      "task": "辞职下海前与老同事好好告别",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1989-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_journalist_colleague",
+      "task": "海南创业失败后找老同事复盘",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1993-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_wife",
+      "task": "农夫果园爆火后多回家陪妻子",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2008-06-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_zhongshuzi",
+      "task": "HPV疫苗上市后与儿子深谈未来规划",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2019-12-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_mother",
+      "task": "成为首富后给母亲打电话报平安",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2022-11-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_mother",
+      "task": "给母亲写一封真心话的信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2023-01-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_journalist_colleague",
+      "date": "1984-01-01",
+      "summary": "你在浙江日报做记者，五年间采访了上百位企业家。这段经历让你看到了商业的力量，也种下了创业的种子。",
+      "sentiment": "neutral",
+      "created": "1984-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_journalist_colleague",
+      "date": "1991-06-01",
+      "summary": "你辞职去海南创业。种蘑菇、卖窗帘、养对虾，全部失败。你回到杭州，身上只剩几千块。",
+      "sentiment": "negative",
+      "created": "1991-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_wife",
+      "date": "1996-09-26",
+      "summary": "你在千岛湖畔创办农夫山泉，定位“天然水”。妻子拿出积蓄支持你。你说：“这次一定能成。”",
+      "sentiment": "positive",
+      "created": "1996-09-26T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_journalist_colleague",
+      "date": "2000-04-24",
+      "summary": "你召开记者会公开宣称“纯净水对人体无益”，发起“水战”。记者时期的老同事提醒你：“这会得罪整个行业。“你说：“我不怕。”",
+      "sentiment": "negative",
+      "created": "2000-04-24T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_wife",
+      "date": "2008-06-01",
+      "summary": "农夫果园“喝前摇一摇“广告爆火。你难得早回家，妻子说：“今天太阳从西边出来了。”",
+      "sentiment": "positive",
+      "created": "2008-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_zhongshuzi",
+      "date": "2019-12-31",
+      "summary": "万泰生物国产二价HPV疫苗获批上市。你布局了十年的大棋终于落地。你与儿子钟墅子长谈未来。",
+      "sentiment": "positive",
+      "created": "2019-12-31T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_wife",
+      "date": "2020-09-08",
+      "summary": "农夫山泉在港交所上市，首日股价暴涨85%。你与妻子坐在家里看电视上的敲钟仪式，她说：“你终于不用再担心失败了。”",
+      "sentiment": "positive",
+      "created": "2020-09-08T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_mother",
+      "date": "2022-11-08",
+      "summary": "你以4550亿元财富成为中国首富。当晚你给母亲打电话，她只问：“吃饭了没？别老熬夜。”",
+      "sentiment": "positive",
+      "created": "2022-11-08T00:00:00Z"
+    }
+  ]
+}

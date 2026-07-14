@@ -1,0 +1,31 @@
+Metadata-Version: 2.4
+Name: welian-app
+Version: 1.1.0
+Summary: Welian — AI companion for relationships. Be a better friend, a better family, a better you.
+Home-page: https://welian.app
+Author: Welian
+License: MIT
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.9
+License-File: LICENSE
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: httpx>=0.24
+Requires-Dist: fastapi>=0.100
+Requires-Dist: uvicorn>=0.23
+Requires-Dist: websockets>=11.0
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+Welian helps you nurture two types of relationships: goal-driven ties (leverage) and lifelong bonds (nurture).

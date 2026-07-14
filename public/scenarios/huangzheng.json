@@ -1,0 +1,309 @@
+{
+  "id": "huangzheng",
+  "name": "黄峥",
+  "title": "拼多多创始人",
+  "avatar": "🛍️",
+  "tagline": "从Google实习到巴菲特午餐，从拼多多到食品科学，关系是最大的杠杆",
+  "intro": "你是黄峥。从Google实习到段永平带你见巴菲特，从欧酷网到拼多多诞生，从纳斯达克上市到卸任CEO研究食品科学。每一段历程中，关键关系是你最大的杠杆。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "2002 · Google实习，与丁磊的一次技术交流",
+      "description": "你在Google实习期间，丁磊通过技术问题找到你。记录这次与丁磊的初次交流，这是一段重要关系的起点。",
+      "type": "record_interaction",
+      "contact_names": ["丁磊"],
+      "keywords": ["Google", "实习", "丁磊", "技术", "网易", "交流", "初识"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "2006 · 段永平带你赴巴菲特午餐",
+      "description": "段永平以62万美元拍下巴菲特午餐，带你同去。记录这次午餐上段永平给你的启发。",
+      "type": "record_interaction",
+      "contact_names": ["段永平"],
+      "keywords": ["段永平", "巴菲特", "午餐", "投资", "本分", "常识", "启发"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "2009 · 创办欧酷网前给妻子一个交代",
+      "description": "你决定离开Google自己创业，做欧酷网。拟写一条消息给妻子，解释你的选择和决心。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["创业", "欧酷", "离开Google", "妻子", "决心", "选择", "放心"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2015 · 拼多多诞生，与段永平汇报方向",
+      "description": "拼多多正式上线，你用社交电商的新模式切入下沉市场。记录一次与段永平关于拼多多方向的交流。",
+      "type": "record_interaction",
+      "contact_names": ["段永平"],
+      "keywords": ["拼多多", "社交电商", "下沉市场", "段永平", "方向", "本分", "模式"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2018 · 纳斯达克上市，给团队写一封信",
+      "description": "拼多多在纳斯达克上市，从成立到上市仅三年。拟写一封给团队的信，感谢大家并展望未来。",
+      "type": "draft_message",
+      "keywords": ["上市", "纳斯达克", "团队", "感谢", "三年", "未来", "信", "拼多多"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2019 · 百亿补贴，与陈磊确认执行方案",
+      "description": "百亿补贴是拼多多的关键战役。陈磊是你的技术搭档。记录一次与陈磊关于百亿补贴执行方案的对话。",
+      "type": "record_interaction",
+      "contact_names": ["陈磊"],
+      "keywords": ["百亿补贴", "陈磊", "执行", "方案", "iPhone", "补贴", "用户增长"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2020 · 疫情爆发，给母亲报平安",
+      "description": "疫情爆发，母亲在杭州老家担心你。拟写一条消息给母亲，报平安并叮嘱她注意防护。",
+      "type": "draft_message",
+      "contact_names": ["母亲"],
+      "keywords": ["疫情", "母亲", "平安", "防护", "口罩", "注意", "放心"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2021 · 卸任CEO，与陈磊交接",
+      "description": "你决定卸任CEO，把位置交给陈磊。记录一次与陈磊的交接对话，交代你的期望和嘱托。",
+      "type": "record_interaction",
+      "contact_names": ["陈磊"],
+      "keywords": ["卸任", "CEO", "陈磊", "交接", "嘱托", "信任", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2022 · 转向食品科学，给妻子解释新方向",
+      "description": "你离开拼多多一线，转向研究食品科学和生命科学。拟写一条消息给妻子，解释这个看似疯狂的选择。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["食品科学", "生命科学", "妻子", "新方向", "研究", "农业", "理解"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给股东写最后一封信",
+      "description": "你决定逐步退出拼多多，给股东写最后一封信。拟写这封信，回顾拼多多历程，展望未来。",
+      "type": "draft_message",
+      "keywords": ["股东", "最后一封信", "拼多多", "回顾", "感谢", "未来", "信", "告别"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_duanyongping",
+      "name": "段永平",
+      "relation": "导师",
+      "role": "步步高/OPPO/vivo 创始人",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你的恩师和人生导师。他带你赴巴菲特午餐，教你'本分'和'常识'。拼多多创立时他是重要支持者。",
+      "platforms": {"email": "duan@bbk.com"},
+      "important_dates": [{"label": "巴菲特午餐", "date": "2006-06-26"}],
+      "leverage": {"goals": "获得人生和商业方向的指引", "how": "定期请教，践行本分哲学"},
+      "created": "2002-01-01T00:00:00Z",
+      "updated": "2006-06-26T00:00:00Z"
+    },
+    {
+      "id": "c_dinglei",
+      "name": "丁磊",
+      "relation": "朋友",
+      "role": "网易创始人",
+      "nature": "dual",
+      "strength": 4,
+      "notes": "Google实习期间因技术问题结识。后来他引荐你认识段永平，是你人生重要转折的推手。",
+      "platforms": {"email": "dinglei@163.com"},
+      "leverage": {"goals": "技术交流和人脉引荐", "how": "保持真诚的技术交流"},
+      "created": "2002-06-01T00:00:00Z",
+      "updated": "2002-06-01T00:00:00Z"
+    },
+    {
+      "id": "c_chenlei",
+      "name": "陈磊",
+      "relation": "同事",
+      "role": "拼多多继任CEO",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "你的技术搭档，从欧酷网时期就跟随你。你卸任后把CEO交给他，信任他能带领拼多多继续前行。",
+      "platforms": {"email": "chenlei@pinduoduo.com"},
+      "important_dates": [{"label": "接任CEO", "date": "2021-03-17"}],
+      "leverage": {"goals": "确保拼多多平稳交接和持续发展", "how": "充分授权，明确期望"},
+      "created": "2009-01-01T00:00:00Z",
+      "updated": "2021-03-17T00:00:00Z"
+    },
+    {
+      "id": "c_wife_hz",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "在你每次重大人生选择时，她都是你最亲近的倾听者。从离开Google到卸任CEO到研究食品科学，她始终支持。",
+      "platforms": {},
+      "important_dates": [{"label": "结婚纪念日", "date": "2008-10-10"}],
+      "created": "2008-10-10T00:00:00Z",
+      "updated": "2008-10-10T00:00:00Z"
+    },
+    {
+      "id": "c_mother_hz",
+      "name": "母亲",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "杭州人，你最牵挂的家人。你从小成绩优异，母亲为你骄傲。疫情期间你最担心她。",
+      "platforms": {},
+      "important_dates": [{"label": "生日", "date": "1955-05-15"}],
+      "created": "2002-01-01T00:00:00Z",
+      "updated": "2020-02-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_dinglei",
+      "task": "和丁磊的技术交流，建立关系",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2002-06-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_duanyongping",
+      "task": "巴菲特午餐后的复盘和请教",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2006-06-26T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_wife_hz",
+      "task": "给妻子解释创业的决定",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2009-01-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_duanyongping",
+      "task": "向段永平汇报拼多多方向",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2015-09-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_chenlei",
+      "task": "和陈磊确认百亿补贴执行方案",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2019-06-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_chenlei",
+      "task": "和陈磊交接CEO",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2021-03-17T00:00:00Z"
+    },
+    {
+      "id": "t7",
+      "contact": "c_mother_hz",
+      "task": "疫情中给母亲报平安",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2020-02-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_dinglei",
+      "date": "2002-06-01",
+      "summary": "Google实习期间，丁磊通过一个技术问题找到你。这次交流成为你们友谊的起点。",
+      "sentiment": "positive",
+      "created": "2002-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_duanyongping",
+      "date": "2006-06-26",
+      "summary": "段永平以62万美元拍下巴菲特午餐，带你同去。巴菲特说'做正确的事，把事做正确'，你铭记至今。",
+      "sentiment": "positive",
+      "created": "2006-06-26T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_wife_hz",
+      "date": "2009-01-01",
+      "summary": "离开Google创办欧酷网。妻子支持你的创业梦想，但心中也有不安。",
+      "sentiment": "neutral",
+      "created": "2009-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_duanyongping",
+      "date": "2015-09-01",
+      "summary": "拼多多正式上线。你向段永平汇报方向，他用'本分'二字给你定心。",
+      "sentiment": "positive",
+      "created": "2015-09-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_chenlei",
+      "date": "2018-07-26",
+      "summary": "拼多多在纳斯达克上市，从成立到上市仅三年。陈磊在台下为你鼓掌。",
+      "sentiment": "positive",
+      "created": "2018-07-26T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_mother_hz",
+      "date": "2020-02-01",
+      "summary": "疫情爆发，你最担心杭州老家的母亲。给她报平安，叮嘱她注意防护。",
+      "sentiment": "negative",
+      "created": "2020-02-01T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_chenlei",
+      "date": "2021-03-17",
+      "summary": "你卸任CEO，把位置交给陈磊。在交接对话中你嘱托他坚持本分，保持初心。",
+      "sentiment": "neutral",
+      "created": "2021-03-17T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_wife_hz",
+      "date": "2022-01-01",
+      "summary": "你转向研究食品科学和生命科学。妻子虽意外，但理解你追寻内心热爱的选择。",
+      "sentiment": "neutral",
+      "created": "2022-01-01T00:00:00Z"
+    }
+  ]
+}

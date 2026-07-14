@@ -12,7 +12,11 @@
     {"id":"g3","title":"1995 · 大话西游，与刘镇伟碰撞创意","description":"《大话西游》票房惨败但后来成为经典。刘镇伟是导演。记录一次关于创作的对话。","type":"record_interaction","contact_names":["刘镇伟","Jeffrey Lau","镇伟"],"keywords":["大话西游","创作","经典","票房","刘镇伟","西游","创意"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2001 · 少林足球，给吴孟达写一封信","description":"吴孟达是你最默契的搭档，从《赌圣》到《少林足球》。拟写一封给他的信。","type":"draft_message","contact_names":["吴孟达","达叔","Ng Man-tat"],"keywords":["达叔","搭档","感谢","少林足球","合作","年","默契"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2016 · 美人鱼票房冠军，与邓超确认合作","description":"《美人鱼》创下华语票房纪录。邓超是主演。记录一次关于合作的对话。","type":"record_interaction","contact_names":["邓超","Deng Chao","超哥"],"keywords":["美人鱼","票房","合作","邓超","电影","喜剧"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2021 · 给罗慧娟写一封迟到的信","description":"罗慧娟是你的初恋，2012年因癌症去世。你曾说过'如果可以重来，就不要那么忙了'。拟写一封给她的信。","type":"draft_message","contact_names":["罗慧娟","慧娟"],"keywords":["慧娟","初恋","抱歉","遗憾","信","想念","如果","爱"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2021 · 给罗慧娟写一封迟到的信","description":"罗慧娟是你的初恋，2012年因癌症去世。你曾说过'如果可以重来，就不要那么忙了'。拟写一封给她的信。","type":"draft_message","contact_names":["罗慧娟","慧娟"],"keywords":["慧娟","初恋","抱歉","遗憾","信","想念","如果","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2022 · 回归银幕，给影迷写一封信","description":"你宣布将执导新片，回归大银幕。拟写一封给影迷的信，分享你的创作计划。","type":"draft_message","keywords":["回归","银幕","新片","影迷","信","创作","电影","喜剧"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2023 · 给吴孟达写一封迟到的信","description":"吴孟达2021年去世，你们因误会多年未合作。拟写一封给达叔的迟到的信。","type":"draft_message","contact_names":["吴孟达","达叔","Ng Man-tat"],"keywords":["达叔","迟到","信","想念","搭档","抱歉","默契","年"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2024 · 与石班瑜重聚","description":"石班瑜是你的御用配音演员，你的国语声音就是他。记录一次重聚的对话。","type":"record_interaction","contact_names":["石班瑜","Shi Banyu"],"keywords":["石班瑜","配音","重聚","声音","合作","国语","年","经典"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2025 · 给影迷写一封信","description":"从跑龙套到喜剧之王，你走过了40年。拟写一封给影迷的感谢信。","type":"draft_message","keywords":["影迷","感谢","信","电影","喜剧","40年","一生","经典"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_liang","name":"梁朝伟","relation":"朋友","role":"演员","nature":"nurture","strength":4,"notes":"TVB训练班同期，一起跑龙套。后来他成了文艺片影帝，你成了喜剧之王。","created":"1983-01-01T00:00:00Z","updated":"1983-01-01T00:00:00Z"},
@@ -20,16 +24,25 @@
     {"id":"c_liuzhenwei","name":"刘镇伟","relation":"同事","role":"导演","nature":"leverage","strength":4,"notes":"《大话西游》的导演。你们合作了多部经典。","platforms":{"email":"jeffrey@hkfilm.com"},"created":"1995-01-01T00:00:00Z","updated":"1995-01-01T00:00:00Z"},
     {"id":"c_wumengda","name":"吴孟达","relation":"同事","role":"演员 / 黄金搭档","nature":"nurture","strength":5,"notes":"你银幕上最默契的搭档，从《赌圣》到《少林足球》。2021年去世。","important_dates":[{"label":"去世","date":"2021-02-27"}],"created":"1990-01-01T00:00:00Z","updated":"2021-02-27T00:00:00Z"},
     {"id":"c_luohuijuan","name":"罗慧娟","relation":"家人","role":"初恋","nature":"nurture","strength":5,"notes":"TVB时期相恋，你因为太忙最终分开。2012年因癌症去世。《西游降魔篇》里的段小姐就是写给她的。","important_dates":[{"label":"去世","date":"2012-06-30"}],"created":"1988-01-01T00:00:00Z","updated":"2012-06-30T00:00:00Z"},
-    {"id":"c_dengchao","name":"邓超","relation":"同事","role":"演员","nature":"leverage","strength":3,"notes":"《美人鱼》主演，票房冠军。","created":"2016-01-01T00:00:00Z","updated":"2016-01-01T00:00:00Z"}
+    {"id":"c_dengchao","name":"邓超","relation":"同事","role":"演员","nature":"leverage","strength":3,"notes":"《美人鱼》主演，票房冠军。","created":"2016-01-01T00:00:00Z","updated":"2016-01-01T00:00:00Z"},
+    {"id":"c_shibanyu","name":"石班瑜","relation":"同事","role":"配音演员","nature":"nurture","strength":4,"notes":"你的御用国语配音演员。《大话西游》到《功夫》，你的国语声音就是他。","created":"1995-01-01T00:00:00Z","updated":"2024-01-01T00:00:00Z"}
   ],
   "todos":[
     {"id":"t1","contact":"c_liang","task":"和梁朝伟谈梦想","priority":"P0","due":"","status":"pending","created":"1983-01-01T00:00:00Z"},
     {"id":"t2","contact":"c_lixiuxian","task":"给李修贤写感谢信","priority":"P0","due":"","status":"pending","created":"1990-01-01T00:00:00Z"},
-    {"id":"t3","contact":"c_luohuijuan","task":"给罗慧娟写一封迟到的信","priority":"P0","due":"","status":"pending","created":"2021-01-01T00:00:00Z"}
+    {"id":"t3","contact":"c_luohuijuan","task":"给罗慧娟写一封迟到的信","priority":"P0","due":"","status":"pending","created":"2021-01-01T00:00:00Z"},
+    {"id":"t4","contact":"","task":"回归银幕给影迷写一封信","priority":"P1","due":"","status":"pending","created":"2022-01-01T00:00:00Z"},
+    {"id":"t5","contact":"c_wumengda","task":"给吴孟达写一封迟到的信","priority":"P0","due":"","status":"pending","created":"2023-02-27T00:00:00Z"},
+    {"id":"t6","contact":"c_shibanyu","task":"与石班瑜重聚","priority":"P1","due":"","status":"pending","created":"2024-01-01T00:00:00Z"},
+    {"id":"t7","contact":"","task":"给影迷写一封信","priority":"P1","due":"","status":"pending","created":"2025-01-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_liang","date":"1983-09-01","summary":"和梁朝伟一起在TVB跑龙套，演死尸、演路人。你们约定要成为大明星。","sentiment":"neutral","created":"1983-09-01T00:00:00Z"},
     {"id":"tl2","contact":"c_lixiuxian","date":"1990-08-18","summary":"《赌圣》上映，打破香港票房纪录。你从龙套变成了星爷。","sentiment":"positive","created":"1990-08-18T00:00:00Z"},
-    {"id":"tl3","contact":"c_luohuijuan","date":"2012-06-30","summary":"罗慧娟因癌症在新加坡去世。你没能见最后一面。","sentiment":"negative","created":"2012-06-30T00:00:00Z"}
+    {"id":"tl3","contact":"c_luohuijuan","date":"2012-06-30","summary":"罗慧娟因癌症在新加坡去世。你没能见最后一面。","sentiment":"negative","created":"2012-06-30T00:00:00Z"},
+    {"id":"tl4","contact":"","date":"2022-01-01","summary":"宣布将执导新片，回归大银幕。","sentiment":"positive","created":"2022-01-01T00:00:00Z"},
+    {"id":"tl5","contact":"c_wumengda","date":"2023-02-27","summary":"吴孟达去世两周年，给达叔写一封迟到的信。","sentiment":"negative","created":"2023-02-27T00:00:00Z"},
+    {"id":"tl6","contact":"c_shibanyu","date":"2024-01-01","summary":"与石班瑜重聚，你的国语声音就是他。","sentiment":"positive","created":"2024-01-01T00:00:00Z"},
+    {"id":"tl7","contact":"","date":"2025-01-01","summary":"从跑龙套到喜剧之王40年，给影迷写一封感谢信。","sentiment":"positive","created":"2025-01-01T00:00:00Z"}
   ]
 }

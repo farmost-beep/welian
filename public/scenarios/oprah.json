@@ -1,0 +1,284 @@
+{
+  "id": "oprah",
+  "name": "Oprah Winfrey",
+  "title": "媒体女王 / 慈善家",
+  "avatar": "📺",
+  "tagline": "从贫困童年到媒体帝国，用真实和共情改变世界",
+  "intro": "你是 Oprah Winfrey。从密西西比的贫困童年到芝加哥的脱口秀女王，从Oprah秀到O杂志，从支持奥巴马到告别秀。每一段历程中，关键关系决定了你的命运。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1976 · 加入WJZ电视台，与Gayle的友谊起点",
+      "description": "你在巴尔的摩WJZ电视台起步，Gayle King是你最早的同事和朋友。记录一次与Gayle在电视台早期的友谊对话。",
+      "type": "record_interaction",
+      "contact_names": ["Gayle King"],
+      "keywords": ["WJZ", "Baltimore", "Gayle", "friendship", "colleague", "early", "television"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1984 · 芝加哥主持，给Stedman写一条消息",
+      "description": "你搬到芝加哥主持AM Chicago，收视率飙升。Stedman Graham是你的伴侣。拟写一条消息给Stedman，分享你在芝加哥的兴奋和不安。",
+      "type": "draft_message",
+      "contact_names": ["Stedman Graham"],
+      "keywords": ["Chicago", "AM Chicago", "Stedman", "excited", "nervous", "move", "ratings", "love"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1986 · Oprah秀开播，与Maya Angelou的一次对话",
+      "description": "The Oprah Winfrey Show全国开播。Maya Angelou是你的导师和灵感来源。记录一次与Maya Angelou关于节目使命的对话。",
+      "type": "record_interaction",
+      "contact_names": ["Maya Angelou"],
+      "keywords": ["Oprah Show", "Maya Angelou", "mentor", "mission", "voice", "purpose", "television", "inspiration"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1993 · 采访迈克尔杰克逊，给团队写一封信",
+      "description": "你采访了迈克尔杰克逊，全球数亿人观看。拟写一封给团队的信，感谢他们让这次历史性采访成为可能。",
+      "type": "draft_message",
+      "keywords": ["Michael Jackson", "interview", "historic", "billion", "team", "thank you", "grateful", "moment"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "1998 · 创办Oxygen，与Gayle商量合作",
+      "description": "你创办Oxygen电视网，面向女性观众。Gayle King是你最信任的搭档。记录一次与Gayle关于Oxygen合作方向的对话。",
+      "type": "record_interaction",
+      "contact_names": ["Gayle King"],
+      "keywords": ["Oxygen", "network", "women", "Gayle", "collaboration", "direction", "partner", "trust"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2000 · 创办O杂志，给读者写一封信",
+      "description": "你创办O, The Oprah Magazine。拟写一封给读者的创刊信，阐述杂志的使命——帮助女性活出最好的自己。",
+      "type": "draft_message",
+      "keywords": ["O Magazine", "launch", "readers", "women", "mission", "best self", "live", "create"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2008 · 支持奥巴马，与Barack确认站台",
+      "description": "你公开支持Barack Obama竞选总统，这是你第一次政治背书。记录一次与Barack Obama关于竞选站台的确切对话。",
+      "type": "record_interaction",
+      "contact_names": ["Barack Obama"],
+      "keywords": ["Obama", "endorsement", "campaign", "president", "Iowa", "rally", "support", "historic"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2011 · 告别秀，给观众写一封信",
+      "description": "The Oprah Winfrey Show播出最后一集，25年传奇落幕。拟写一封给观众的告别信，感谢他们25年的陪伴。",
+      "type": "draft_message",
+      "keywords": ["farewell", "final episode", "25 years", "audience", "thank you", "grateful", "love", "goodbye"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2015 · 收购Weight Watchers，与Maya Angelou的启示",
+      "description": "你收购Weight Watchers股份，投身健康事业。Maya Angelou曾说'当你知道更好，就做得更好'。记录一次回忆Maya Angelou这句话对你的启示。",
+      "type": "record_interaction",
+      "contact_names": ["Maya Angelou"],
+      "keywords": ["Weight Watchers", "health", "Maya Angelou", "better", "know better do better", "wisdom", "inspiration", "wellness"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给观众写最后一封信",
+      "description": "经历了从贫困到媒体帝国的传奇人生，你想给观众写最后一封信。拟写这封信，浓缩你一生的感悟。",
+      "type": "draft_message",
+      "keywords": ["audience", "final letter", "gratitude", "life", "journey", "love", "purpose", "legacy", "truth"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_gayle",
+      "name": "Gayle King",
+      "relation": "挚友",
+      "role": "CBS This Morning 主持人 / CBS Mornings",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你最好的朋友，从巴尔的摩WJZ电视台时期就在一起。你们的友谊持续了近五十年，是彼此最坚实的支撑。",
+      "platforms": {"email": "gayle@cbs.com"},
+      "important_dates": [{"label": "相识纪念日", "date": "1976-01-01"}],
+      "created": "1976-01-01T00:00:00Z",
+      "updated": "1976-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_stedman",
+      "name": "Stedman Graham",
+      "relation": "家人",
+      "role": "伴侣 / 教育家",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "1986年相识的伴侣。你们选择不结婚但相伴至今。他给你空间和尊重，是你事业背后的稳定力量。",
+      "platforms": {"email": "stedman@gha.com"},
+      "important_dates": [{"label": "相识纪念日", "date": "1986-06-01"}],
+      "created": "1986-06-01T00:00:00Z",
+      "updated": "1986-06-01T00:00:00Z"
+    },
+    {
+      "id": "c_maya",
+      "name": "Maya Angelou",
+      "relation": "导师",
+      "role": "诗人 / 民权活动家 / 作家",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你的精神导师。她教你'当你知道更好，就做得更好'。她的智慧和力量贯穿你整个职业生涯。",
+      "platforms": {},
+      "important_dates": [{"label": "相识纪念日", "date": "1988-01-01"}],
+      "created": "1988-01-01T00:00:00Z",
+      "updated": "2014-05-28T00:00:00Z"
+    },
+    {
+      "id": "c_obama",
+      "name": "Barack Obama",
+      "relation": "朋友",
+      "role": "美国第44任总统",
+      "nature": "dual",
+      "strength": 4,
+      "notes": "2008年你第一次为政治候选人背书，帮助他在艾奥瓦州初选中胜出。你们的友谊基于共同的价值观和对社会进步的信念。",
+      "platforms": {"email": "barack@obama.org"},
+      "important_dates": [{"label": "首次背书", "date": "2007-12-08"}],
+      "leverage": {"goals": "支持一位你信任的候选人改变国家", "how": "用你的平台和影响力为他站台"},
+      "created": "2007-12-08T00:00:00Z",
+      "updated": "2008-11-04T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_gayle",
+      "task": "和Gayle在WJZ电视台早期的友谊对话",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1976-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_stedman",
+      "task": "给Stedman分享芝加哥的兴奋和不安",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1984-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_maya",
+      "task": "和Maya Angelou谈Oprah秀的使命",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1986-09-08T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_gayle",
+      "task": "和Gayle商量Oxygen合作方向",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1998-02-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_obama",
+      "task": "和Barack Obama确认竞选站台",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2007-12-08T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_maya",
+      "task": "回忆Maya Angelou的启示",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2015-10-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_gayle",
+      "date": "1976-01-01",
+      "summary": "在巴尔的摩WJZ电视台与Gayle King相识。一场暴风雪中她借住你家，友谊从此开始。",
+      "sentiment": "positive",
+      "created": "1976-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_stedman",
+      "date": "1984-01-01",
+      "summary": "搬到芝加哥主持AM Chicago。收视率从最后一名飙升到第一。Stedman在你身边支持你。",
+      "sentiment": "positive",
+      "created": "1984-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_maya",
+      "date": "1986-09-08",
+      "summary": "The Oprah Winfrey Show全国开播。Maya Angelou教你用真实的声音说话，节目的使命由此确立。",
+      "sentiment": "positive",
+      "created": "1986-09-08T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_maya",
+      "date": "1993-02-10",
+      "summary": "采访迈克尔杰克逊，全球数亿人观看。Maya Angelou的话回响在你耳边：'真相是最有力的武器'。",
+      "sentiment": "positive",
+      "created": "1993-02-10T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_gayle",
+      "date": "1998-02-01",
+      "summary": "创办Oxygen电视网，面向女性观众。Gayle是你最信任的合作搭档。",
+      "sentiment": "positive",
+      "created": "1998-02-01T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_obama",
+      "date": "2007-12-08",
+      "summary": "在艾奥瓦州为Barack Obama首次公开站台背书。你的支持帮助他在关键初选中胜出。",
+      "sentiment": "positive",
+      "created": "2007-12-08T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_stedman",
+      "date": "2011-05-25",
+      "summary": "The Oprah Winfrey Show播出最后一集。25年传奇落幕，Stedman在台下为你骄傲。",
+      "sentiment": "neutral",
+      "created": "2011-05-25T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_maya",
+      "date": "2015-10-19",
+      "summary": "收购Weight Watchers股份，投身健康事业。Maya Angelou曾说'当你知道更好，就做得更好'，这句话指引了你。",
+      "sentiment": "positive",
+      "created": "2015-10-19T00:00:00Z"
+    }
+  ]
+}

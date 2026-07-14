@@ -12,7 +12,11 @@
     {"id":"g3","title":"2000 · 创立 Blue Origin，给团队写一封信","description":"你秘密创立了太空公司 Blue Origin。拟写一封给早期团队的信。","type":"draft_message","keywords":["blue origin","太空","火箭","梦想","未来","space","人类","信"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2013 · 收购华盛顿邮报，给读者写一封信","description":"你以2.5亿美元收购了华盛顿邮报。拟写一封给读者的公开信。","type":"draft_message","keywords":["华盛顿邮报","washington post","新闻","自由","读者","信","未来","新闻"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2019 · 与 Mackenzie 离婚，给员工写一封信","description":"你和 Mackenzie 离婚了。拟写一封给 Amazon 员工的信，稳定军心。","type":"draft_message","contact_names":["Mackenzie","Mackenzie Scott"],"keywords":["离婚","mackenzie","感谢","员工","amazing","未来","个人","信"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2021 · 卸任 Amazon CEO，给股东写最后一封信","description":"你卸任 Amazon CEO，专注 Blue Origin。拟写最后一封给股东的信。","type":"draft_message","keywords":["ceo","卸任","day one","感谢","股东","未来","blue origin","太空"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2021 · 卸任 Amazon CEO，给股东写最后一封信","description":"你卸任 Amazon CEO，专注 Blue Origin。拟写最后一封给股东的信。","type":"draft_message","keywords":["ceo","卸任","day one","感谢","股东","未来","blue origin","太空"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2021 · Blue Origin 首次载人飞行","description":"New Shepard 火箭完成首次载人飞行，你亲自上天。记录这次历史性时刻与团队的对话。","type":"record_interaction","contact_names":["Lauren","Lauren Sanchez","Sanchez"],"keywords":["blue origin","太空","载人","飞行","new shepard","space","梦想","历史"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2022 · 慈善捐赠，给团队写一封信","description":"你通过 Bezos Earth Fund 承诺投入100亿美元应对气候变化。拟写一封给慈善团队的信。","type":"draft_message","keywords":["慈善","捐赠","earth fund","气候","信","未来","地球","团队"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2023 · 与 Lauren 订婚","description":"你和 Lauren Sanchez 在游艇上订婚。记录一次关于未来的对话。","type":"record_interaction","contact_names":["Lauren","Lauren Sanchez","Sanchez"],"keywords":["订婚","lauren","sanchez","游艇","未来","爱","ring","承诺"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2024 · 给母亲写一封信","description":"母亲 Jackie 一直支持你的太空梦和创业路。拟写一封给她的感谢信。","type":"draft_message","contact_names":["Jackie","Jackie Bezos","母亲"],"keywords":["母亲","jackie","感谢","信","爱","支持","太空","bezos"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_mackenzie","name":"Mackenzie Scott","relation":"家人","role":"前妻 / 作家","nature":"nurture","strength":4,"notes":"Amazon 的第一位员工，在车库写早期订单。2019年离婚，她分得4%股份并捐出大量财富。","platforms":{"email":"mackenzie@mackenziescott.com"},"important_dates":[{"label":"结婚纪念日","date":"1993-09-04"}],"created":"1993-09-04T00:00:00Z","updated":"2019-01-01T00:00:00Z"},
@@ -23,11 +27,19 @@
   "todos":[
     {"id":"t1","contact":"c_mackenzie","task":"和 Mackenzie 确认创业方向","priority":"P0","due":"","status":"pending","created":"1994-06-01T00:00:00Z"},
     {"id":"t2","contact":"","task":"给股东写第一封 Day One 信","priority":"P0","due":"","status":"pending","created":"1997-05-01T00:00:00Z"},
-    {"id":"t3","contact":"c_mackenzie","task":"面对与 Mackenzie 的离婚","priority":"P0","due":"","status":"pending","created":"2019-01-01T00:00:00Z"}
+    {"id":"t3","contact":"c_mackenzie","task":"面对与 Mackenzie 的离婚","priority":"P0","due":"","status":"pending","created":"2019-01-01T00:00:00Z"},
+    {"id":"t4","contact":"c_sanchez","task":"记录 Blue Origin 首次载人飞行","priority":"P0","due":"","status":"pending","created":"2021-07-20T00:00:00Z"},
+    {"id":"t5","contact":"","task":"慈善捐赠给团队写一封信","priority":"P1","due":"","status":"pending","created":"2022-11-01T00:00:00Z"},
+    {"id":"t6","contact":"c_sanchez","task":"与 Lauren 订婚","priority":"P0","due":"","status":"pending","created":"2023-05-22T00:00:00Z"},
+    {"id":"t7","contact":"c_bezos_mom","task":"给母亲写一封信","priority":"P1","due":"","status":"pending","created":"2024-05-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_mackenzie","date":"1994-07-05","summary":"在贝尔维尤的车库创办 Amazon。Mackenzie 开车送你从纽约到西雅图，路上你写商业计划。","sentiment":"positive","created":"1994-07-05T00:00:00Z"},
     {"id":"tl2","contact":"","date":"1997-05-15","summary":"Amazon 在纳斯达克上市，发行价18美元。你在第一封股东信中写下 Day One。","sentiment":"positive","created":"1997-05-15T00:00:00Z"},
-    {"id":"tl3","contact":"c_mackenzie","date":"2019-01-09","summary":"与 Mackenzie 联合宣布离婚。25年婚姻结束。","sentiment":"negative","created":"2019-01-09T00:00:00Z"}
+    {"id":"tl3","contact":"c_mackenzie","date":"2019-01-09","summary":"与 Mackenzie 联合宣布离婚。25年婚姻结束。","sentiment":"negative","created":"2019-01-09T00:00:00Z"},
+    {"id":"tl4","contact":"c_sanchez","date":"2021-07-20","summary":"Blue Origin New Shepard 完成首次载人飞行，你亲自上天。","sentiment":"positive","created":"2021-07-20T00:00:00Z"},
+    {"id":"tl5","contact":"","date":"2022-11-01","summary":"通过 Bezos Earth Fund 承诺投入100亿美元应对气候变化。","sentiment":"positive","created":"2022-11-01T00:00:00Z"},
+    {"id":"tl6","contact":"c_sanchez","date":"2023-05-22","summary":"与 Lauren Sanchez 在游艇上订婚。","sentiment":"positive","created":"2023-05-22T00:00:00Z"},
+    {"id":"tl7","contact":"c_bezos_mom","date":"2024-05-01","summary":"给母亲 Jackie 写一封感谢信，感谢她一生的支持。","sentiment":"positive","created":"2024-05-01T00:00:00Z"}
   ]
 }

@@ -1,0 +1,299 @@
+{
+  "id": "yuminhong",
+  "name": "俞敏洪",
+  "title": "新东方创始人",
+  "avatar": "📚",
+  "tagline": "从北大教师到教培帝国，再到东方甄选，关键关系决定命运",
+  "intro": "你是俞敏洪。从北大留校任教，到创办新东方，再到三驾马车合伙、纽交所上市、双减转型、东方甄选爆火。每一段历程中，关键关系决定了你的命运。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1985 · 北大留校任教的抉择",
+      "description": "北大毕业，你选择留校任教。母亲希望你有个稳定的铁饭碗。记录一次与母亲关于留校的对话，她既欣慰又担忧。",
+      "type": "record_interaction",
+      "contact_names": ["母亲", "妈妈"],
+      "keywords": ["留校", "北大", "教师", "铁饭碗", "母亲", "稳定", "教书"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1991 · 创办新东方前给妻子一个承诺",
+      "description": "你决定辞去北大教职，出去办培训班。妻子既支持又担心。拟写一条消息给妻子，承诺你会闯出一片天。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["辞职", "创业", "新东方", "培训", "承诺", "妻子", "放心", "闯"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1995 · 三驾马车合伙，与王强徐小平谈分工",
+      "description": "你把北大同学王强和徐小平请回国，组成三驾马车。记录一次关于合伙分工和股权的对话。",
+      "type": "record_interaction",
+      "contact_names": ["王强", "徐小平"],
+      "keywords": ["合伙", "三驾马车", "分工", "股权", "回国", "合作", "股份"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2003 · 非典危机，给团队写一封信",
+      "description": "非典爆发，新东方停课退费，现金流告急。拟写一封给全体员工的信，稳定军心，承诺不裁员。",
+      "type": "draft_message",
+      "keywords": ["非典", "停课", "退费", "团队", "信心", "不裁员", "一起", "困难"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2006 · 纽交所上市前与徐小平确认股权",
+      "description": "新东方即将在纽交所上市，三驾马车的股权分配是敏感问题。记录一次与徐小平关于上市和股权的对话。",
+      "type": "record_interaction",
+      "contact_names": ["徐小平"],
+      "keywords": ["上市", "纽交所", "股权", "分配", "IPO", "股份", "徐小平"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2012 · 与ETS版权之争，给王强商量对策",
+      "description": "ETS起诉新东方侵犯托福考试版权，这是重大危机。记录一次与王强关于应对策略的对话。",
+      "type": "record_interaction",
+      "contact_names": ["王强"],
+      "keywords": ["ETS", "版权", "托福", "诉讼", "侵权", "应对", "和解", "王强"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2019 · 教培黄金时代，给团队定方向",
+      "description": "教培行业如日中天，新东方市值高企。拟写一条消息给核心管理团队，提醒大家居安思危。",
+      "type": "draft_message",
+      "keywords": ["教培", "黄金时代", "方向", "居安思危", "团队", "未来", "警惕"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2021 · 双减政策转型，给全体员工写一封信",
+      "description": "双减政策落地，教培行业天翻地覆。拟写一封给全体员工的信，宣布转型方向，安抚人心。",
+      "type": "draft_message",
+      "keywords": ["双减", "转型", "农业", "直播", "员工", "信", "方向", "活下去"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2022 · 东方甄选爆火，与董宇辉的一次对话",
+      "description": "董宇辉在东方甄选直播间爆火，知识带货出圈。记录一次与董宇辉的对话，关于他的成长和未来。",
+      "type": "record_interaction",
+      "contact_names": ["董宇辉"],
+      "keywords": ["东方甄选", "直播", "董宇辉", "爆火", "知识带货", "出圈", "成长"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2024 · 给年轻人写一封信",
+      "description": "经历了起起落落，你想给年轻人写一封信，分享你对人生和关系的感悟。拟写这封信。",
+      "type": "draft_message",
+      "keywords": ["年轻人", "信", "人生", "感悟", "关系", "坚持", "希望", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_xuxiaoping",
+      "name": "徐小平",
+      "relation": "合伙人",
+      "role": "新东方三驾马车之一",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "北大同学，留学加拿大后回国加入新东方。负责出国咨询和留学业务，性格外向善于演讲。后来因股权问题产生矛盾，最终离开新东方做天使投资。",
+      "platforms": {"email": "xuxiaoping@neworiental.com"},
+      "important_dates": [{"label": "加入新东方", "date": "1995-12-01"}],
+      "leverage": {"goals": "确认合伙分工和股权分配", "how": "坦诚谈清楚分工和利益"},
+      "created": "1995-12-01T00:00:00Z",
+      "updated": "1995-12-01T00:00:00Z"
+    },
+    {
+      "id": "c_wangqiang",
+      "name": "王强",
+      "relation": "合伙人",
+      "role": "新东方三驾马车之一",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "北大同学，在美国贝尔实验室工作后回国加入新东方。负责英语口语和基础教学，性格强势，对教学品质要求极高。",
+      "platforms": {"email": "wangqiang@neworiental.com"},
+      "important_dates": [{"label": "加入新东方", "date": "1995-12-01"}],
+      "leverage": {"goals": "共同应对ETS版权危机", "how": "面对面商量对策"},
+      "created": "1995-12-01T00:00:00Z",
+      "updated": "1995-12-01T00:00:00Z"
+    },
+    {
+      "id": "c_dongyuhui",
+      "name": "董宇辉",
+      "relation": "同事",
+      "role": "东方甄选主播",
+      "nature": "dual",
+      "strength": 4,
+      "notes": "新东方英语老师转型主播，以知识带货出圈。他的才华和真诚打动了无数人，是东方甄选转型的关键人物。",
+      "platforms": {"email": "dongyuhui@dongfangzhenxuan.com"},
+      "important_dates": [{"label": "爆火日", "date": "2022-06-16"}],
+      "leverage": {"goals": "支持董宇辉的成长和发展", "how": "给他舞台和信任"},
+      "created": "2022-06-01T00:00:00Z",
+      "updated": "2022-06-16T00:00:00Z"
+    },
+    {
+      "id": "c_wife",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "在你最艰难的时候支持你创业。你曾因工作忙碌忽略家庭，但她始终在背后默默支撑。",
+      "platforms": {"email": "wife@yuminhong.com"},
+      "important_dates": [{"label": "结婚纪念日", "date": "1988-08-08"}],
+      "created": "1988-08-08T00:00:00Z",
+      "updated": "1991-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_mother",
+      "name": "母亲",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "农村出身，含辛茹苦供你读书。她最希望你有个稳定的铁饭碗，但你选择了创业这条路。",
+      "platforms": {},
+      "important_dates": [{"label": "生日", "date": "1940-03-08"}],
+      "created": "1985-07-01T00:00:00Z",
+      "updated": "1985-07-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_mother",
+      "task": "和母亲谈留校任教的事",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1985-07-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_wife",
+      "task": "给妻子一个创业的承诺",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1991-01-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_wangqiang",
+      "task": "和王强徐小平谈三驾马车合伙分工",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1995-12-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_xuxiaoping",
+      "task": "上市前和徐小平确认股权分配",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2006-01-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_wangqiang",
+      "task": "和王强商量ETS版权诉讼对策",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2012-01-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_dongyuhui",
+      "task": "和董宇辉谈成长和未来",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2022-06-16T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_mother",
+      "date": "1985-07-01",
+      "summary": "北大毕业留校任教。母亲既欣慰又担忧，希望你能安安稳稳当老师。",
+      "sentiment": "positive",
+      "created": "1985-07-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_wife",
+      "date": "1991-01-01",
+      "summary": "辞去北大教职，创办新东方前身——北大外语培训部。妻子支持但担心。",
+      "sentiment": "neutral",
+      "created": "1991-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_xuxiaoping",
+      "date": "1995-12-01",
+      "summary": "徐小平和王强从国外回来，三驾马车正式组建。新东方进入快速发展期。",
+      "sentiment": "positive",
+      "created": "1995-12-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_wife",
+      "date": "2003-04-20",
+      "summary": "非典爆发，新东方停课退费，现金流告急。妻子在身边默默支持。",
+      "sentiment": "negative",
+      "created": "2003-04-20T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_xuxiaoping",
+      "date": "2006-09-07",
+      "summary": "新东方在纽交所上市，成为中国第一家海外上市的教育公司。三驾马车成为亿万富翁。",
+      "sentiment": "positive",
+      "created": "2006-09-07T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_wangqiang",
+      "date": "2012-01-01",
+      "summary": "ETS起诉新东方侵犯托福考试版权。王强和你一起商量应对策略，最终和解。",
+      "sentiment": "negative",
+      "created": "2012-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_dongyuhui",
+      "date": "2021-07-24",
+      "summary": "双减政策落地，教培行业天翻地覆。你决定转型做农产品直播——东方甄选。",
+      "sentiment": "negative",
+      "created": "2021-07-24T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_dongyuhui",
+      "date": "2022-06-16",
+      "summary": "董宇辉在东方甄选直播间爆火，知识带货出圈。新东方在废墟上重新站起来。",
+      "sentiment": "positive",
+      "created": "2022-06-16T00:00:00Z"
+    }
+  ]
+}

@@ -12,7 +12,11 @@
     {"id":"g3","title":"2005 · 与国美黄光裕的渠道之争","description":"国美降价促销格力空调，你公开对抗黄光裕，撤出国美。记录这次冲突。","type":"record_interaction","contact_names":["黄光裕","国美","Gome"],"keywords":["国美","渠道","降价","冲突","对抗","黄光裕","价格"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2012 · 接任董事长，给员工写一封信","description":"你正式接任格力董事长。拟写一封给全体员工的信。","type":"draft_message","keywords":["格力","董事长","未来","创新","员工","信心","中国制造"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2016 · 收购银隆造车，与魏银仓的冲突","description":"你推动收购银隆新能源，但与创始人魏银仓产生严重分歧。记录这次冲突。","type":"record_interaction","contact_names":["魏银仓","银隆","Yinlong"],"keywords":["银隆","造车","新能源","冲突","收购","分歧","魏银仓"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2023 · 给儿子写一封信","description":"你忙于事业，对儿子陪伴太少。拟写一封给儿子的信，表达歉意和爱。","type":"draft_message","contact_names":["儿子","东东"],"keywords":["儿子","抱歉","母亲","爱","想念","忙","对不起","家"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2023 · 给儿子写一封信","description":"你忙于事业，对儿子陪伴太少。拟写一封给儿子的信，表达歉意和爱。","type":"draft_message","contact_names":["儿子","东东"],"keywords":["儿子","抱歉","母亲","爱","想念","忙","对不起","家"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2024 · 格力渠道变革，给经销商写一封信","description":"你推动格力渠道数字化转型，线上线下融合。拟写一封给经销商的信，解释变革方向。","type":"draft_message","keywords":["渠道","变革","数字化","经销商","格力","线上","线下","未来"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2024 · 新能源进展，给团队写一封信","description":"格力在新能源领域持续投入，钛电池和储能取得进展。拟写一封给团队的信。","type":"draft_message","keywords":["新能源","钛电池","储能","格力","团队","进展","未来","技术"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2025 · 智能制造突破，给员工写一封信","description":"格力智能制造取得重大突破，灯塔工厂投产。拟写一封给全体员工的信。","type":"draft_message","keywords":["智能制造","灯塔工厂","格力","员工","突破","未来","中国制造","信"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2025 · 给年轻女性写一封信","description":"你从销售员做到董事长，想鼓励更多年轻女性勇敢追梦。拟写一封给年轻女性的信。","type":"draft_message","keywords":["年轻女性","信","鼓励","勇敢","追梦","独立","奋斗","女性"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_zhu","name":"朱江洪","relation":"同事","role":"格力前董事长","nature":"leverage","strength":4,"notes":"格力的技术奠基人，你的老领导。他主内（技术），你主外（销售）。","platforms":{"email":"zhu@gree.com"},"created":"1990-01-01T00:00:00Z","updated":"2012-01-01T00:00:00Z"},
@@ -23,11 +27,19 @@
   "todos":[
     {"id":"t1","contact":"c_zhu","task":"和朱江洪确认销售方向","priority":"P0","due":"","status":"pending","created":"1990-01-01T00:00:00Z"},
     {"id":"t2","contact":"c_wei","task":"面对与魏银仓的冲突","priority":"P0","due":"","status":"pending","created":"2016-01-01T00:00:00Z"},
-    {"id":"t3","contact":"c_son","task":"给儿子写一封信","priority":"P1","due":"","status":"pending","created":"2023-01-01T00:00:00Z"}
+    {"id":"t3","contact":"c_son","task":"给儿子写一封信","priority":"P1","due":"","status":"pending","created":"2023-01-01T00:00:00Z"},
+    {"id":"t4","contact":"","task":"给经销商写渠道变革信","priority":"P0","due":"","status":"pending","created":"2024-03-01T00:00:00Z"},
+    {"id":"t5","contact":"","task":"给团队写新能源进展信","priority":"P1","due":"","status":"pending","created":"2024-08-01T00:00:00Z"},
+    {"id":"t6","contact":"","task":"给员工写智能制造突破信","priority":"P1","due":"","status":"pending","created":"2025-01-01T00:00:00Z"},
+    {"id":"t7","contact":"","task":"给年轻女性写鼓励信","priority":"P1","due":"","status":"pending","created":"2025-03-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_zhu","date":"1990-03-01","summary":"36岁南下珠海加入海利（格力前身）当业务员。朱江洪是厂长。","sentiment":"positive","created":"1990-03-01T00:00:00Z"},
     {"id":"tl2","contact":"c_huang","date":"2005-03-01","summary":"国美未经格力同意降价促销，你公开对抗黄光裕，撤出国美渠道。","sentiment":"negative","created":"2005-03-01T00:00:00Z"},
-    {"id":"tl3","contact":"c_wei","date":"2017-10-01","summary":"银隆新能源爆出财务问题，你与魏银仓公开互相指责。","sentiment":"negative","created":"2017-10-01T00:00:00Z"}
+    {"id":"tl3","contact":"c_wei","date":"2017-10-01","summary":"银隆新能源爆出财务问题，你与魏银仓公开互相指责。","sentiment":"negative","created":"2017-10-01T00:00:00Z"},
+    {"id":"tl4","contact":"","date":"2024-03-15","summary":"格力推动渠道数字化转型，线上线下融合。你给经销商写了一封信解释变革。","sentiment":"neutral","created":"2024-03-15T00:00:00Z"},
+    {"id":"tl5","contact":"","date":"2024-08-01","summary":"格力钛电池和储能业务取得新进展，你给团队写了鼓励信。","sentiment":"positive","created":"2024-08-01T00:00:00Z"},
+    {"id":"tl6","contact":"","date":"2025-01-10","summary":"格力灯塔工厂正式投产，智能制造水平达到行业领先。你给全体员工写了信。","sentiment":"positive","created":"2025-01-10T00:00:00Z"},
+    {"id":"tl7","contact":"","date":"2025-03-08","summary":"在国际妇女节，你给年轻女性写了一封公开信，鼓励她们勇敢追梦。","sentiment":"positive","created":"2025-03-08T00:00:00Z"}
   ]
 }

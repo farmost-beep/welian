@@ -1,0 +1,298 @@
+{
+  "id": "sandberg",
+  "name": "Sheryl Sandberg",
+  "title": "Meta COO / Lean In 作者",
+  "avatar": "💼",
+  "tagline": "From Google to Meta, from Lean In to Option B — every relationship shaped the journey",
+  "intro": "You are Sheryl Sandberg. In 2001 you joined Google as its first business unit leader. In 2004 you married Dave Goldberg. In 2008 Mark Zuckerberg recruited you to Facebook. In 2013 you published Lean In and became the voice of women in tech. In 2015 Dave died suddenly on vacation. In 2016 you published Option B about grief and resilience. In 2019 you remarried Tom Bernthal. In 2022 you stepped down as Meta COO. Your life is a story of ambition, loss, and rebuilding.",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "2001 · Joining Google, aligning with the team",
+      "description": "You just joined Google to lead its nascent ad business. Eric Schmidt and the team need to know your vision. Record a conversation about your plans for AdWords.",
+      "type": "record_interaction",
+      "contact_names": ["Mark Zuckerberg", "Eric Schmidt"],
+      "keywords": ["google", "adwords", "ads", "team", "vision", "plan", "business", "schmidt"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "2004 · Marrying Dave Goldberg, writing vows",
+      "description": "You are about to marry Dave Goldberg. You want to write your vows but don't know where to start. Draft a message expressing what he means to you.",
+      "type": "draft_message",
+      "contact_names": ["Dave Goldberg"],
+      "keywords": ["dave", "goldberg", "vows", "marriage", "wedding", "love", "partner", "family"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "2008 · Joining Facebook, negotiating with Mark",
+      "description": "Mark Zuckerberg has been courting you for months to join Facebook as COO. You need to have a frank conversation about your role and authority. Record this negotiation.",
+      "type": "record_interaction",
+      "contact_names": ["Mark Zuckerberg", "Mark"],
+      "keywords": ["facebook", "mark", "zuckerberg", "coo", "role", "authority", "join", "negotiate"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "2013 · Lean In launch, messaging the foundation team",
+      "description": "Lean In is about to publish. You want to send a message to your Lean In Foundation team, thanking them and setting the mission. Draft this message.",
+      "type": "draft_message",
+      "contact_names": ["Lean In Foundation团队"],
+      "keywords": ["lean in", "book", "launch", "foundation", "team", "women", "mission", "thank"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2015 · Dave's sudden death, talking to your children",
+      "description": "Dave died suddenly on vacation. Your children are grieving and confused. You need to talk to them about their father's death. Record this devastating conversation.",
+      "type": "record_interaction",
+      "contact_names": ["孩子们"],
+      "keywords": ["dave", "death", "died", "children", "kids", "grief", "father", "loss", "sad"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2016 · Option B, writing to the Lean In community",
+      "description": "You are writing Option B about grief and resilience. You want to write a message to the Lean In community sharing why you're telling this story. Draft this message.",
+      "type": "draft_message",
+      "contact_names": ["Lean In Foundation团队"],
+      "keywords": ["option b", "grief", "resilience", "lean in", "community", "dave", "loss", "healing"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2019 · Marrying Tom Bernthal, telling the children",
+      "description": "You are marrying Tom Bernthal and want to tell your children first. They need to know Tom is not replacing Dave. Record this conversation with your children.",
+      "type": "record_interaction",
+      "contact_names": ["Tom Bernthal", "Tom", "孩子们"],
+      "keywords": ["tom", "bernthal", "marry", "wedding", "children", "kids", "dave", "love", "family"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2020 · Pandemic remote management, checking in with Mark",
+      "description": "The pandemic forced Meta to go remote. You and Mark need to align on managing the company through crisis. Record a conversation with Mark about remote leadership.",
+      "type": "record_interaction",
+      "contact_names": ["Mark Zuckerberg", "Mark"],
+      "keywords": ["pandemic", "covid", "remote", "mark", "zuckerberg", "management", "crisis", "leadership"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2022 · Stepping down as Meta COO, farewell to Mark",
+      "description": "You are stepping down as Meta COO after 14 years. You want to have a final conversation with Mark about your journey together. Record this farewell.",
+      "type": "record_interaction",
+      "contact_names": ["Mark Zuckerberg", "Mark"],
+      "keywords": ["step down", "resign", "coo", "meta", "facebook", "mark", "farewell", "thank", "14 years"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · Writing a letter to your daughters",
+      "description": "You want to write a letter to your daughter and son about resilience, ambition, and what you've learned about love and loss. Draft this letter.",
+      "type": "draft_message",
+      "contact_names": ["孩子们"],
+      "keywords": ["daughters", "children", "letter", "resilience", "ambition", "love", "loss", "lean in", "advice"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_zuck",
+      "name": "Mark Zuckerberg",
+      "relation": "colleague",
+      "role": "Meta CEO / Founder",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "Mark recruited you in 2008 and you've been his operational partner for 14 years. He's the visionary, you're the operator. Your partnership defined Facebook's golden era.",
+      "platforms": {"email": "zuck@meta.com"},
+      "important_dates": [{"label": "Joined Facebook", "date": "2008-03-01"}],
+      "leverage": {"goals": "Build Facebook into a global business powerhouse", "how": "You run operations and monetization while Mark focuses on product and vision"},
+      "created": "2008-03-01T00:00:00Z",
+      "updated": "2022-06-01T00:00:00Z"
+    },
+    {
+      "id": "c_dave",
+      "name": "Dave Goldberg",
+      "relation": "family",
+      "role": "Husband (deceased)",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "Your beloved husband and the love of your life. CEO of SurveyMonkey. He died suddenly in 2015 from a treadmill accident while on vacation in Mexico. His death shattered your world.",
+      "important_dates": [{"label": "Wedding Anniversary", "date": "2004-02-01"}, {"label": "Dave's Memorial", "date": "2015-05-05"}],
+      "created": "2004-02-01T00:00:00Z",
+      "updated": "2015-05-05T00:00:00Z"
+    },
+    {
+      "id": "c_tom",
+      "name": "Tom Bernthal",
+      "relation": "family",
+      "role": "Husband",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "Founder of Kelton Global. You met through Dave's brother Rob. He brought joy back into your life after Dave's death. You married in 2019.",
+      "platforms": {"email": "tom@kelton.com"},
+      "important_dates": [{"label": "Wedding Anniversary", "date": "2019-08-01"}],
+      "created": "2018-01-01T00:00:00Z",
+      "updated": "2022-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_children",
+      "name": "Children",
+      "relation": "family",
+      "role": "Son and Daughter",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "Your two children with Dave. They were young when Dave died. You've tried to be both mother and father while running one of the world's biggest companies.",
+      "created": "2005-01-01T00:00:00Z",
+      "updated": "2023-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_leanin",
+      "name": "Lean In Foundation team",
+      "relation": "colleague",
+      "role": "Lean In Foundation",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "The team behind the Lean In movement. They helped you turn a book into a global community for women's empowerment. They became your support system after Dave's death.",
+      "platforms": {"email": "team@leanin.org"},
+      "leverage": {"goals": "Build a global movement for women's empowerment", "how": "Invest in the foundation, share your platform, amplify their work"},
+      "created": "2013-03-01T00:00:00Z",
+      "updated": "2020-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_zuck",
+      "task": "Align with Mark on your COO role and authority",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2008-03-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_leanin",
+      "task": "Prepare Lean In book launch with foundation team",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2013-02-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_children",
+      "task": "Talk to children about Dave's death",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2015-05-05T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_children",
+      "task": "Tell children about marrying Tom",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2019-06-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_zuck",
+      "task": "Align with Mark on pandemic remote management",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2020-03-15T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_zuck",
+      "task": "Farewell conversation with Mark before stepping down",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2022-06-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_zuck",
+      "date": "2001-11-01",
+      "summary": "You joined Google to lead AdWords. You built the ad business from scratch into Google's revenue engine.",
+      "sentiment": "positive",
+      "created": "2001-11-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_dave",
+      "date": "2004-02-01",
+      "summary": "You married Dave Goldberg. He was your equal, your partner, your best friend. You built a life together while both running major tech companies.",
+      "sentiment": "positive",
+      "created": "2004-02-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_zuck",
+      "date": "2008-03-01",
+      "summary": "Mark Zuckerberg recruited you to Facebook as COO. You were 38, he was 23. He needed an adult in the room. You became the most powerful woman in tech.",
+      "sentiment": "positive",
+      "created": "2008-03-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_leanin",
+      "date": "2013-03-11",
+      "summary": "Lean In was published and became a global phenomenon. You launched the Lean In Foundation to turn the book into a movement.",
+      "sentiment": "positive",
+      "created": "2013-03-11T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_dave",
+      "date": "2015-05-01",
+      "summary": "Dave died suddenly from head trauma while exercising on vacation in Mexico. He was 47. Your world collapsed. You had to tell your children their father was gone.",
+      "sentiment": "negative",
+      "created": "2015-05-01T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_leanin",
+      "date": "2017-04-24",
+      "summary": "Option B was published. You wrote about grief, resilience, and rebuilding after loss. The Lean In community became your support system.",
+      "sentiment": "neutral",
+      "created": "2017-04-24T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_tom",
+      "date": "2019-08-01",
+      "summary": "You married Tom Bernthal. Your children walked you down the aisle. Tom brought laughter back into your home.",
+      "sentiment": "positive",
+      "created": "2019-08-01T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_zuck",
+      "date": "2022-06-01",
+      "summary": "You announced you were stepping down as Meta COO after 14 years. Mark wrote: 'You have been a partner and friend. Thank you for everything.'",
+      "sentiment": "neutral",
+      "created": "2022-06-01T00:00:00Z"
+    }
+  ]
+}

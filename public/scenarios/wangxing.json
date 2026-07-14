@@ -12,7 +12,11 @@
     {"id":"g3","title":"2010 · 创办美团，与穆荣均确认合伙","description":"饭否之后你创办美团，穆荣均是你新的搭档。记录一次关于美团的对话。","type":"record_interaction","contact_names":["穆荣均","荣均","Mu"],"keywords":["美团","团购","创业","start","方向","本地","生活"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2015 · 合并大众点评，给团队写一封信","description":"美团与大众点评合并。拟写一封给团队的信，稳定军心。","type":"draft_message","keywords":["合并","大众点评","团队","未来","信心","整合","美团"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2020 · 与张一鸣的边界之争","description":"字节跳动进入本地生活，与美团正面竞争。你和张一鸣曾是朋友。记录这次冲突。","type":"record_interaction","contact_names":["张一鸣","一鸣","字节","ByteDance"],"keywords":["竞争","边界","字节","抖音","本地生活","冲突","朋友"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2023 · 王慧文生病，给老战友写一封信","description":"王慧文因病退出了美团管理。你们从大学一起创业到现在。拟写一封给他的信。","type":"draft_message","contact_names":["王慧文","慧文","老王"],"keywords":["慧文","兄弟","保重","健康","感谢","一起","年"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2023 · 王慧文生病，给老战友写一封信","description":"王慧文因病退出了美团管理。你们从大学一起创业到现在。拟写一封给他的信。","type":"draft_message","contact_names":["王慧文","慧文","老王"],"keywords":["慧文","兄弟","保重","健康","感谢","一起","年"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2024 · 美团出海，与穆荣均对齐战略","description":"美团开始布局海外市场，首先瞄准香港和东南亚。与穆荣均讨论出海战略。记录这次对话。","type":"record_interaction","contact_names":["穆荣均","荣均","Mu"],"keywords":["出海","海外","香港","东南亚","战略","美团","国际化","方向"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2024 · AI 战略布局，给团队写一封信","description":"美团全面拥抱 AI，从配送到客服到商家工具。拟写一封给团队的信，阐述 AI 战略。","type":"draft_message","keywords":["ai","战略","美团","团队","智能化","未来","配送","商家"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2025 · 无人配送落地，给团队写一封信","description":"美团无人配送车在多个城市规模化运营。拟写一封给团队的信，庆祝里程碑。","type":"draft_message","keywords":["无人配送","自动驾驶","车","美团","团队","里程碑","城市","运营"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2025 · 给王慧文写一封信（康复后）","description":"慧文康复了，你们重新聊起了创业的日子。拟写一封给他的信，欢迎他回来。","type":"draft_message","contact_names":["王慧文","慧文","老王"],"keywords":["慧文","康复","回来","兄弟","感谢","一起","创业","信"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_wanghuiwen","name":"王慧文","relation":"同事","role":"美团联合创始人","nature":"nurture","strength":5,"notes":"清华室友，校内网和美团的联合创始人。2023年因病退出管理。","platforms":{"wechat":"wanghuiwen"},"created":"2005-01-01T00:00:00Z","updated":"2023-01-01T00:00:00Z"},
@@ -23,11 +27,19 @@
   "todos":[
     {"id":"t1","contact":"c_wanghuiwen","task":"和王慧文谈校内网创业方向","priority":"P0","due":"","status":"pending","created":"2005-01-01T00:00:00Z"},
     {"id":"t2","contact":"c_murongjun","task":"和穆荣均谈创办美团","priority":"P0","due":"","status":"pending","created":"2010-03-01T00:00:00Z"},
-    {"id":"t3","contact":"c_wanghuiwen","task":"给王慧文写一封信","priority":"P0","due":"","status":"pending","created":"2023-06-01T00:00:00Z"}
+    {"id":"t3","contact":"c_wanghuiwen","task":"给王慧文写一封信","priority":"P0","due":"","status":"pending","created":"2023-06-01T00:00:00Z"},
+    {"id":"t4","contact":"c_murongjun","task":"与穆荣均讨论美团出海战略","priority":"P0","due":"","status":"pending","created":"2024-02-01T00:00:00Z"},
+    {"id":"t5","contact":"","task":"给团队写 AI 战略信","priority":"P1","due":"","status":"pending","created":"2024-06-01T00:00:00Z"},
+    {"id":"t6","contact":"","task":"给团队写无人配送里程碑信","priority":"P1","due":"","status":"pending","created":"2025-01-01T00:00:00Z"},
+    {"id":"t7","contact":"c_wanghuiwen","task":"给康复的王慧文写一封信","priority":"P0","due":"","status":"pending","created":"2025-03-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"c_wanghuiwen","date":"2005-12-01","summary":"和王慧文在清华附近的出租屋创办校内网，白板上写满了产品想法。","sentiment":"positive","created":"2005-12-01T00:00:00Z"},
     {"id":"tl2","contact":"","date":"2009-07-08","summary":"饭否被关停。505天后才恢复，但错过了微博崛起的窗口。","sentiment":"negative","created":"2009-07-08T00:00:00Z"},
-    {"id":"tl3","contact":"c_wanghuiwen","date":"2023-05-01","summary":"王慧文因抑郁症状退出美团日常管理。你感到失落和担忧。","sentiment":"negative","created":"2023-05-01T00:00:00Z"}
+    {"id":"tl3","contact":"c_wanghuiwen","date":"2023-05-01","summary":"王慧文因抑郁症状退出美团日常管理。你感到失落和担忧。","sentiment":"negative","created":"2023-05-01T00:00:00Z"},
+    {"id":"tl4","contact":"c_murongjun","date":"2024-02-15","summary":"与穆荣均讨论美团出海计划，决定先以 KeeTa 品牌进入香港市场。","sentiment":"positive","created":"2024-02-15T00:00:00Z"},
+    {"id":"tl5","contact":"","date":"2024-06-01","summary":"美团全面拥抱 AI，内部成立 AI 战略组。你给团队写了一封信。","sentiment":"positive","created":"2024-06-01T00:00:00Z"},
+    {"id":"tl6","contact":"","date":"2025-01-20","summary":"美团无人配送车在北京、深圳多个区域实现规模化运营。","sentiment":"positive","created":"2025-01-20T00:00:00Z"},
+    {"id":"tl7","contact":"c_wanghuiwen","date":"2025-03-10","summary":"王慧文康复后第一次约你吃饭，你们聊了三个小时，从校内网聊到未来。","sentiment":"positive","created":"2025-03-10T00:00:00Z"}
   ]
 }

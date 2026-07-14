@@ -1,0 +1,296 @@
+{
+  "id": "wangshi",
+  "name": "王石",
+  "title": "万科创始人",
+  "avatar": "🏔️",
+  "tagline": "从倒卖玉米到登顶珠峰，从股改到宝万之争，每一步都是关系的选择",
+  "intro": "你是王石。1983 年你只身南下深圳倒卖玉米赚到第一桶金，1988 年完成万科股改，1994 年击退君安的“君万之争”，两次登顶珠峰。2008 年汶川“捐款门“让你第一次尝到舆论反噬。2012 年与田朴珺相恋引发争议，2015 年宝万之争中姚振华举牌万科，2017 年你卸任董事长。你的一生，是不断在商业与个人之间做选择。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1983 · 深圳倒卖玉米，与母亲告别",
+      "description": "你决定辞去体制内工作南下深圳倒卖玉米。母亲极力反对，认为你放弃了铁饭碗。记录一次与母亲的对话——她的担忧、你的决心。",
+      "type": "record_interaction",
+      "contact_names": ["母亲", "妈妈"],
+      "keywords": ["深圳", "玉米", "南下", "辞职", "铁饭碗", "创业", "担心"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1988 · 万科股改，与管理团队确认方向",
+      "description": "万科即将进行股份制改造。你需要和管理团队确认股改方案，明确未来的治理结构。记录一次与核心团队的讨论。",
+      "type": "record_interaction",
+      "contact_names": ["郁亮", "管理团队"],
+      "keywords": ["股改", "股份制", "万科", "治理", "上市", "股权", "团队"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1994 · 君万之争，与宁高宁商议对策",
+      "description": "君安证券联合其他股东试图改组万科董事会。你紧急联系华润的宁高宁商议对策。记录这次关键的沟通。",
+      "type": "record_interaction",
+      "contact_names": ["宁高宁", "华润"],
+      "keywords": ["君万", "君安", "改组", "董事会", "举牌", "华润", "对策", "防守"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1999 · 首次登顶珠峰，给团队写一条消息",
+      "description": "你即将出发攀登珠穆朗玛峰。在出发前，拟写一条消息给万科管理团队，交代你不在期间的公司事务。",
+      "type": "draft_message",
+      "keywords": ["珠峰", "登顶", "登山", "公司", "团队", "郁亮", "期间", "代理"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2003 · 再登珠峰，与郁亮交代公司战略",
+      "description": "你第二次攀登珠峰，这次你已将日常管理交给郁亮。出发前记录一次与郁亮的对话，确认他对你不在时的战略方向有信心。",
+      "type": "record_interaction",
+      "contact_names": ["郁亮"],
+      "keywords": ["珠峰", "登山", "郁亮", "战略", "授权", "管理", "信任", "交接"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2008 · 汶川捐款门后，给万科员工写一封内部信",
+      "description": "汶川地震后你建议万科捐款200万，引发舆论风暴，被指责“吝啬”。拟写一封内部信给全体员工，回应质疑、稳定军心。",
+      "type": "draft_message",
+      "keywords": ["汶川", "捐款", "地震", "员工", "内部", "回应", "舆论", "责任"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2012 · 与田朴珺相恋，向母亲坦白",
+      "description": "你与田朴珺的恋情被媒体曝光，引发巨大争议。你决定向母亲坦白这段关系。记录一次与母亲的对话。",
+      "type": "record_interaction",
+      "contact_names": ["母亲", "田朴珺"],
+      "keywords": ["田朴珺", "恋情", "母亲", "坦白", "年龄", "争议", "家人", "理解"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2015 · 宝万之争，与姚振华正面交锋",
+      "description": "姚振华的宝能系大举举牌万科，试图夺取控制权。这是一场决定万科命运的战争。记录一次与姚振华的直接交锋或沟通。",
+      "type": "record_interaction",
+      "contact_names": ["姚振华", "宝能"],
+      "keywords": ["宝万", "宝能", "姚振华", "举牌", "控制权", "万科", "资本", "交锋"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2017 · 卸任万科董事长，与郁亮交接",
+      "description": "你决定卸任万科董事长，将接力棒交给郁亮。记录一次与郁亮的交接对话——回顾过去、展望未来。",
+      "type": "record_interaction",
+      "contact_names": ["郁亮"],
+      "keywords": ["卸任", "董事长", "交接", "郁亮", "万科", "传承", "未来", "感谢"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给年轻人写一封信",
+      "description": "你已经远离万科日常管理多年。回首一生，你想给年轻人写一封信，分享你对人生、选择和勇气的思考。",
+      "type": "draft_message",
+      "keywords": ["年轻人", "信", "人生", "勇气", "选择", "登山", "创业", "建议"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_yuliang",
+      "name": "郁亮",
+      "relation": "同事",
+      "role": "万科继任 CEO / 董事长",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你一手培养的接班人。从财务出身到掌舵万科，他稳重务实，和你互补。你登山期间公司全靠他。",
+      "platforms": {"email": "yuliang@vanke.com"},
+      "important_dates": [{"label": "入职万科", "date": "1990-01-01"}],
+      "leverage": {"goals": "确保万科在你不在时稳定运转，完成权力交接", "how": "充分授权，明确战略方向，信任他的判断"},
+      "created": "1990-01-01T00:00:00Z",
+      "updated": "2017-06-30T00:00:00Z"
+    },
+    {
+      "id": "c_tianpujun",
+      "name": "田朴珺",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "比你小30岁的妻子。你们的恋情曾引发巨大争议，但她一直陪伴在你身边。她独立、有事业心。",
+      "platforms": {"email": "tpj@example.com"},
+      "important_dates": [{"label": "相识纪念日", "date": "2012-01-01"}],
+      "created": "2012-01-01T00:00:00Z",
+      "updated": "2018-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_ninggaoning",
+      "name": "宁高宁",
+      "relation": "商业伙伴",
+      "role": "华润集团董事长",
+      "nature": "leverage",
+      "strength": 4,
+      "notes": "华润是万科的大股东。宁高宁是你重要的商业盟友，在君万之争和后来的多次危机中都是关键支持者。",
+      "platforms": {"email": "ngaoning@crc.com.hk"},
+      "leverage": {"goals": "在股权之争中获得华润的支持", "how": "保持密切沟通，在关键时刻争取华润投票"},
+      "created": "1994-01-01T00:00:00Z",
+      "updated": "2016-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_yaozhenhua",
+      "name": "姚振华",
+      "relation": "竞争对手",
+      "role": "宝能集团创始人",
+      "nature": "dual",
+      "strength": 3,
+      "notes": "潮汕商人，以资本运作著称。2015年起宝能系大举举牌万科，引发“宝万之争”。你曾公开称他为“野蛮人”。",
+      "platforms": {"email": "yao@baoneng.com"},
+      "created": "2015-07-01T00:00:00Z",
+      "updated": "2017-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_mother",
+      "name": "母亲",
+      "relation": "家人",
+      "role": "母亲",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你南下深圳时她极力反对，但后来一直默默支持。她对你与田朴珺的恋情有过顾虑，但最终接受了。",
+      "important_dates": [{"label": "生日", "date": "01-15"}],
+      "created": "1983-01-01T00:00:00Z",
+      "updated": "2012-06-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_mother",
+      "task": "南下深圳前和母亲好好谈一次",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1983-01-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_yuliang",
+      "task": "股改方案确认后和郁亮对齐管理方向",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1988-12-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_ninggaoning",
+      "task": "君万之争期间与宁高宁保持每日沟通",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1994-03-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_yuliang",
+      "task": "登山前向郁亮交代公司事务",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2003-04-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_yaozhenhua",
+      "task": "宝万之争中制定应对姚振华的策略",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2015-12-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_yuliang",
+      "task": "卸任前与郁亮完成正式交接",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2017-06-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_mother",
+      "date": "1983-05-01",
+      "summary": "你辞去广州铁路局的工作南下深圳倒卖玉米。母亲哭着劝你回来，说铁饭碗不能丢。你没有听。",
+      "sentiment": "negative",
+      "created": "1983-05-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_yuliang",
+      "date": "1988-11-01",
+      "summary": "万科完成股份制改造，成为深圳第一家上市公司。郁亮此时已加入团队，负责财务。",
+      "sentiment": "positive",
+      "created": "1988-11-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_ninggaoning",
+      "date": "1994-03-30",
+      "summary": "君万之争爆发。君安证券联合股东提议改组万科董事会。你连夜联系宁高宁，华润的投票成为关键。",
+      "sentiment": "negative",
+      "created": "1994-03-30T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_yuliang",
+      "date": "1999-05-27",
+      "summary": "你首次登顶珠穆朗玛峰，成为中国登顶珠峰最年长者。出发前将公司事务全权交给郁亮。",
+      "sentiment": "positive",
+      "created": "1999-05-27T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_yuliang",
+      "date": "2003-05-22",
+      "summary": "你第二次登顶珠峰。这次你更加从容，因为郁亮已经能独立掌舵万科。",
+      "sentiment": "positive",
+      "created": "2003-05-22T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_yaozhenhua",
+      "date": "2015-12-04",
+      "summary": "宝能系举牌万科，持股比例超过20%。你公开称姚振华为“野蛮人”，宝万之争正式爆发。",
+      "sentiment": "negative",
+      "created": "2015-12-04T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_yuliang",
+      "date": "2017-06-30",
+      "summary": "你正式卸任万科董事长，郁亮接任。在股东大会上你说：“万科的舞台，交给郁亮了。”",
+      "sentiment": "positive",
+      "created": "2017-06-30T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_tianpujun",
+      "date": "2018-01-01",
+      "summary": "你与田朴珺的关系逐渐被公众接受。她陪伴你走过宝万之争最艰难的时期。",
+      "sentiment": "positive",
+      "created": "2018-01-01T00:00:00Z"
+    }
+  ]
+}

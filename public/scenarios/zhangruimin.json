@@ -1,0 +1,284 @@
+{
+  "id": "zhangruimin",
+  "name": "张瑞敏",
+  "title": "海尔集团创始人",
+  "avatar": "🔨",
+  "tagline": "砸冰箱砸出质量信仰，人单合一砸出管理革命",
+  "intro": "你是张瑞敏。1984 年你接手濒临倒闭的青岛电冰箱厂。1985 年你当众砸掉76台不合格冰箱，砸出了质量信仰。1988 年海尔获国家质量奖。1998 年你提出“休克鱼“兼并理论。2005 年你提出“人单合一“管理革命。2012 年收购三洋，2016 年收购GE家电。2018 年海尔智家品牌诞生，2020 年卡奥斯工业互联网平台崛起。你用一生证明：管理就是激发人的尊严。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1984 · 接手青岛电冰箱厂，与杨绵绵商议整顿",
+      "description": "你被派去接手濒临倒闭的青岛电冰箱厂。厂里纪律涣散，工人偷懒。你找到副手杨绵绵，商议如何整顿。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["杨绵绵"],
+      "keywords": ["电冰箱厂", "接手", "整顿", "杨绵绵", "纪律", "倒闭", "改革", "管理"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1985 · 砸冰箱事件，给全厂员工写一封动员信",
+      "description": "你发现76台冰箱有质量问题，决定当众砸毁。这是中国企业管理史上的标志性事件。拟写一封动员信给全厂员工，阐述质量就是生命。",
+      "type": "draft_message",
+      "keywords": ["砸冰箱", "质量", "不合格", "员工", "动员", "信仰", "冰箱", "生命"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1988 · 海尔获国家质量奖，与杨绵绵庆祝",
+      "description": "海尔冰箱获得中国电冰箱史上第一枚国家质量金牌。你与一路走来的杨绵绵分享这份荣誉。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["杨绵绵"],
+      "keywords": ["国家质量奖", "金牌", "海尔", "杨绵绵", "庆祝", "荣誉", "质量", "冰箱"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1998 · 兼并休克鱼，与德国工程师谈合作",
+      "description": "你提出“休克鱼“理论——兼并那些硬件好但管理差的企业。你正在与德国工程师讨论引进技术和质量标准。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["德国工程师"],
+      "keywords": ["休克鱼", "兼并", "德国", "工程师", "技术", "质量", "标准", "合作"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2005 · 人单合一，给管理团队写一封变革信",
+      "description": "你提出“人单合一“管理模式——每个员工直接面对用户。这颠覆了传统科层制。拟写一封变革信给管理团队，解释为什么必须自我革命。",
+      "type": "draft_message",
+      "keywords": ["人单合一", "管理", "变革", "员工", "用户", "团队", "革命", "科层制"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2012 · 收购三洋，与周云杰商议整合",
+      "description": "海尔收购日本三洋电机的白电业务。你派周云杰负责整合。记录一次与周云杰关于跨文化整合的对话。",
+      "type": "record_interaction",
+      "contact_names": ["周云杰"],
+      "keywords": ["三洋", "收购", "日本", "周云杰", "整合", "跨文化", "白电", "管理"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2016 · 收购GE家电，与周云杰确认战略",
+      "description": "海尔以54亿美元收购GE家电业务，这是中国家电业最大的海外并购。你与周云杰确认整合战略。记录这次关键对话。",
+      "type": "record_interaction",
+      "contact_names": ["周云杰"],
+      "keywords": ["GE", "通用电气", "收购", "周云杰", "战略", "整合", "海外", "家电"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2018 · 海尔智家品牌发布，给团队写一封愿景信",
+      "description": "海尔智家品牌正式发布，标志着海尔从制造企业向物联网生态企业转型。拟写一封愿景信给团队，描绘未来。",
+      "type": "draft_message",
+      "keywords": ["海尔智家", "物联网", "品牌", "团队", "愿景", "生态", "转型", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2020 · 卡奥斯工业互联网，与周云杰谈平台战略",
+      "description": "卡奥斯工业互联网平台崛起，成为海尔的新增长极。你与周云杰深谈平台战略和未来方向。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["周云杰"],
+      "keywords": ["卡奥斯", "工业互联网", "平台", "周云杰", "战略", "生态", "未来", "增长"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给海尔员工写一封信",
+      "description": "你已经退居幕后多年。回首从砸冰箱到人单合一的四十年，你想给海尔全体员工写一封信，分享你对管理、人和未来的思考。",
+      "type": "draft_message",
+      "keywords": ["员工", "信", "海尔", "管理", "人单合一", "砸冰箱", "未来", "思考"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_yangmianmian",
+      "name": "杨绵绵",
+      "relation": "同事",
+      "role": "海尔集团副董事长 / 你的副手",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你1984年接手冰箱厂时的核心副手。她执行力极强，是你管理理念最忠实的践行者。从砸冰箱到人单合一，她始终在你身边。",
+      "platforms": {"email": "ymm@haier.com"},
+      "important_dates": [{"label": "加入海尔", "date": "1984-12-01"}],
+      "leverage": {"goals": "将管理理念落地为可执行的制度和流程", "how": "充分授权，让她负责日常运营和执行"},
+      "created": "1984-12-01T00:00:00Z",
+      "updated": "2013-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_zhouyunjie",
+      "name": "周云杰",
+      "relation": "同事",
+      "role": "海尔集团继任 CEO / 董事长",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "你培养的接班人。从基层做起，主导了收购三洋和GE家电的整合。他理解人单合一的精髓，是你理念的传承者。",
+      "platforms": {"email": "zyj@haier.com"},
+      "important_dates": [{"label": "加入海尔", "date": "1988-07-01"}],
+      "leverage": {"goals": "完成海尔国际化转型和权力交接", "how": "让他主导海外并购整合，在实践中建立威信"},
+      "created": "1988-07-01T00:00:00Z",
+      "updated": "2021-11-01T00:00:00Z"
+    },
+    {
+      "id": "c_wife",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你常年以厂为家，妻子默默承担了所有家庭责任。她从无怨言，是你最安静的后盾。",
+      "important_dates": [{"label": "结婚纪念日", "date": "1980-05-01"}],
+      "created": "1980-05-01T00:00:00Z",
+      "updated": "2020-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_german_engineer",
+      "name": "德国工程师",
+      "relation": "商业伙伴",
+      "role": "德国技术顾问",
+      "nature": "leverage",
+      "strength": 3,
+      "notes": "90年代引进德国利勃海尔技术时的德国工程师。他帮海尔建立了严格的质量标准体系，是海尔质量信仰的技术源头。",
+      "platforms": {"email": "engineer@liebherr.de"},
+      "leverage": {"goals": "引进德国质量管理标准和技术", "how": "虚心学习，严格按德国标准执行"},
+      "created": "1985-01-01T00:00:00Z",
+      "updated": "1998-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_yangmianmian",
+      "task": "接手冰箱厂后与杨绵绵商议整顿方案",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1984-12-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_german_engineer",
+      "task": "引进德国质量标准并落地执行",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1985-06-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_yangmianmian",
+      "task": "国家质量奖后与杨绵绵规划下一步",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1988-12-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_zhouyunjie",
+      "task": "收购三洋后指导周云杰做好跨文化整合",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2012-11-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_zhouyunjie",
+      "task": "收购GE家电后与周云杰确认整合战略",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2016-06-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_zhouyunjie",
+      "task": "卡奥斯平台崛起后与周云杰深谈未来",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2020-09-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_yangmianmian",
+      "date": "1984-12-01",
+      "summary": "你被派去接手濒临倒闭的青岛电冰箱厂。厂里亏空147万，工人偷懒成风。你找到杨绵绵，说：“我们要把这个厂救活。”",
+      "sentiment": "neutral",
+      "created": "1984-12-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_german_engineer",
+      "date": "1985-12-01",
+      "summary": "你发现76台冰箱有质量问题，当众用大锤砸毁。很多工人哭了。你说：“今天不砸这些冰箱，明天别人就砸我们的饭碗。”",
+      "sentiment": "negative",
+      "created": "1985-12-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_yangmianmian",
+      "date": "1988-12-01",
+      "summary": "海尔冰箱获得中国电冰箱史上第一枚国家质量金牌。你和杨绵绵站在领奖台上，她说：“老张，砸对了。”",
+      "sentiment": "positive",
+      "created": "1988-12-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_german_engineer",
+      "date": "1998-03-01",
+      "summary": "你提出“休克鱼“兼并理论，以无形资产盘活有形资产。德国工程师帮你建立的质量标准体系成为兼并整合的核心武器。",
+      "sentiment": "positive",
+      "created": "1998-03-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_zhouyunjie",
+      "date": "2005-09-21",
+      "summary": "你正式提出“人单合一“管理模式。周云杰是第一批实践者，他在自己的团队中试点，将员工直接面对用户。",
+      "sentiment": "positive",
+      "created": "2005-09-21T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_zhouyunjie",
+      "date": "2012-11-06",
+      "summary": "海尔收购日本三洋电机白电业务。周云杰带队赴日整合，面对日本企业文化的巨大差异。",
+      "sentiment": "neutral",
+      "created": "2012-11-06T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_zhouyunjie",
+      "date": "2016-06-06",
+      "summary": "海尔以54亿美元收购GE家电业务。这是中国家电业最大的海外并购。周云杰负责整合，你告诉他：“尊重GE的文化，但注入海尔的基因。”",
+      "sentiment": "positive",
+      "created": "2016-06-06T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_zhouyunjie",
+      "date": "2021-11-05",
+      "summary": "周云杰正式接任海尔集团董事长。你在交接仪式上说：“海尔不再需要张瑞敏，但海尔永远需要人单合一。”",
+      "sentiment": "positive",
+      "created": "2021-11-05T00:00:00Z"
+    }
+  ]
+}

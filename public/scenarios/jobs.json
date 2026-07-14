@@ -94,6 +94,15 @@
       "keywords": ["爱", "感谢", "love", "thank", "妻子", "家人", "一生", "永远"],
       "need_all_keywords": false,
       "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2010 · iPad 发布，给开发者写一封信",
+      "description": "iPad 即将发布，你相信它会重新定义平板电脑。拟写一封给开发者社区的信，邀请他们为 iPad 创造应用。",
+      "type": "draft_message",
+      "keywords": ["ipad", "开发者", "应用", "app", "平板", "未来", "革命", "developer"],
+      "need_all_keywords": false,
+      "count": 1
     }
   ],
   "contacts": [
@@ -269,6 +278,15 @@
       "due": "",
       "status": "pending",
       "created": "2011-01-01T00:00:00Z"
+    },
+    {
+      "id": "t7",
+      "contact": "",
+      "task": "给开发者写 iPad 发布信",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2010-01-27T00:00:00Z"
     }
   ],
   "timeline": [
@@ -335,6 +353,14 @@
       "summary": "最后一次在 WWDC 公开露面，介绍 iCloud。Laurene 在台下。你知道时间不多了。",
       "sentiment": "neutral",
       "created": "2011-06-06T00:00:00Z"
+    },
+    {
+      "id": "tl9",
+      "contact": "",
+      "date": "2010-01-27",
+      "summary": "iPad 发布会。你坐在皮革沙发上，用 iPad 浏览网页、看照片。你相信这会重新定义平板电脑。",
+      "sentiment": "positive",
+      "created": "2010-01-27T00:00:00Z"
     }
   ]
 }

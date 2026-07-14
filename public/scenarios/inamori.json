@@ -1,0 +1,274 @@
+{
+  "id": "inamori",
+  "name": "稻盛和夫",
+  "title": "京瓷 / KDDI 创始人",
+  "avatar": "🧘",
+  "tagline": "从松风工业打工仔到两家世界500强创始人，敬天爱人的经营哲学",
+  "intro": "你是稻盛和夫。从松风工业的打工仔，到创办京瓷、KDDI两家世界500强，到重建日航，到盛和塾教化万千企业家。每一段历程中，关键关系决定了你的命运。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1955 · 松风工业打工，与妻子的低谷对话",
+      "description": "你大学毕业后进入濒临破产的松风工业，工资都发不出来。妻子跟着你吃苦。记录一次与妻子在低谷中的对话。",
+      "type": "record_interaction",
+      "contact_names": ["妻子"],
+      "keywords": ["松风工业", "工资", "低谷", "妻子", "吃苦", "坚持", "困难"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1959 · 创办京瓷，与西枝一江确认出资",
+      "description": "你决定离开松风工业创办京瓷。西枝一江是关键投资人，他抵押房产为你筹资。记录一次与西枝一江关于出资和信任的对话。",
+      "type": "record_interaction",
+      "contact_names": ["西枝一江"],
+      "keywords": ["京瓷", "创办", "西枝一江", "出资", "投资", "抵押", "房产", "信任"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1966 · 阿米巴经营成型，给团队写一封信",
+      "description": "阿米巴经营理念逐渐成型，你把组织拆分成独立核算的小单元。拟写一封给团队的信，阐释阿米巴的精髓。",
+      "type": "draft_message",
+      "keywords": ["阿米巴", "经营", "独立核算", "小单元", "团队", "信", "哲学", "全员经营"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1984 · 创办KDDI（第二电电），与团队定方向",
+      "description": "你决定进入电信行业，创办第二电电（后来的KDDI）。拟写一条消息给核心团队，宣布这个挑战国铁垄断的决定。",
+      "type": "draft_message",
+      "keywords": ["第二电电", "KDDI", "电信", "垄断", "挑战", "团队", "方向", "决心"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "1990 · 盛和塾开课，与塾生的一次交流",
+      "description": "盛和塾逐渐壮大，你开始系统教授经营哲学。记录一次与盛和塾塾生关于'敬天爱人'的交流。",
+      "type": "record_interaction",
+      "contact_names": ["盛和塾塾生"],
+      "keywords": ["盛和塾", "塾生", "敬天爱人", "经营哲学", "利他", "交流", "教化"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2000 · KDDI合并，给团队写一封信",
+      "description": "第二电电与KDD、IDO合并为KDDI，成为日本第二大电信运营商。拟写一封给团队的信，回顾来路。",
+      "type": "draft_message",
+      "keywords": ["KDDI", "合并", "电信", "团队", "信", "回顾", "第二", "感谢"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2010 · 重建日航，与永守重信请教",
+      "description": "78岁高龄你接手破产的日航。永守重信是日本电产创始人，你的经营同道。记录一次与永守重信关于重建日航的请教对话。",
+      "type": "record_interaction",
+      "contact_names": ["永守重信"],
+      "keywords": ["日航", "重建", "破产", "永守重信", "请教", "78岁", "经营", "挑战"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2012 · 日航重新上市，给团队写一封信",
+      "description": "日航在你手中从破产到重新上市，仅用两年多。拟写一封给日航全体员工的信，感谢他们的付出。",
+      "type": "draft_message",
+      "keywords": ["日航", "重新上市", "破产", "重生", "团队", "员工", "信", "感谢", "两年"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2019 · 盛和塾最后一课，与塾生告别",
+      "description": "盛和塾即将关闭，你给塾生上最后一课。记录这次告别课上与塾生的交流。",
+      "type": "record_interaction",
+      "contact_names": ["盛和塾塾生"],
+      "keywords": ["盛和塾", "最后一课", "告别", "塾生", "关闭", "感谢", "敬天爱人", "利他"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2023 · 给年轻人的遗言",
+      "description": "你已年迈，想给年轻人留下最后的忠告。拟写这封给年轻人的遗言，浓缩你一生的智慧。",
+      "type": "draft_message",
+      "keywords": ["年轻人", "遗言", "忠告", "敬天爱人", "利他", "一生", "智慧", "灵魂", "心"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_nishie",
+      "name": "西枝一江",
+      "relation": "恩人",
+      "role": "京瓷创立时的关键投资人",
+      "nature": "leverage",
+      "strength": 5,
+      "notes": "松风工业时期的上司，你创办京瓷时他抵押自己的房产为你筹资500万日元。没有他就没有京瓷。",
+      "platforms": {},
+      "important_dates": [{"label": "京瓷创立", "date": "1959-04-01"}],
+      "leverage": {"goals": "获得创办京瓷的启动资金和信任", "how": "以真诚和实力赢得他的无条件支持"},
+      "created": "1955-04-01T00:00:00Z",
+      "updated": "1959-04-01T00:00:00Z"
+    },
+    {
+      "id": "c_wife_inamori",
+      "name": "妻子",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "从松风工业的苦日子到京瓷的辉煌，她始终陪伴。你把工资交给妻子管理，她是你最坚实的后盾。",
+      "platforms": {},
+      "important_dates": [{"label": "结婚纪念日", "date": "1959-06-15"}],
+      "created": "1959-06-15T00:00:00Z",
+      "updated": "1959-06-15T00:00:00Z"
+    },
+    {
+      "id": "c_nagamori",
+      "name": "永守重信",
+      "relation": "同道",
+      "role": "日本电产创始人",
+      "nature": "dual",
+      "strength": 4,
+      "notes": "日本电产创始人，你的经营哲学同道。他敬重你，在日航重建时给你精神支持。",
+      "platforms": {"email": "nagamori@nidec.com"},
+      "leverage": {"goals": "获得重建日航的精神支持和经营建议", "how": "以经营之道互相切磋"},
+      "created": "1990-01-01T00:00:00Z",
+      "updated": "2010-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_seiwajuku",
+      "name": "盛和塾塾生",
+      "relation": "学生",
+      "role": "盛和塾企业家学员",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "盛和塾遍布全球，塾生超过万名企业家。你教他们'敬天爱人'和'利他经营'，他们是你哲学的传承者。",
+      "platforms": {},
+      "important_dates": [{"label": "盛和塾创立", "date": "1983-04-01"}],
+      "created": "1983-04-01T00:00:00Z",
+      "updated": "2019-12-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_wife_inamori",
+      "task": "和妻子在松风工业低谷中的对话",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1955-04-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_nishie",
+      "task": "和西枝一江确认京瓷出资",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1959-04-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_seiwajuku",
+      "task": "和盛和塾塾生交流敬天爱人",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "1990-01-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_nagamori",
+      "task": "向永守重信请教日航重建",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2010-01-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_seiwajuku",
+      "task": "盛和塾最后一课的告别",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2019-12-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_wife_inamori",
+      "date": "1955-04-01",
+      "summary": "进入濒临破产的松风工业，工资都发不出来。妻子跟着你吃苦，但没有一句怨言。",
+      "sentiment": "negative",
+      "created": "1955-04-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_nishie",
+      "date": "1959-04-01",
+      "summary": "西枝一江抵押房产为你筹资500万日元，创办京都陶瓷（京瓷）。他说'我相信你的人品和能力'。",
+      "sentiment": "positive",
+      "created": "1959-04-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_seiwajuku",
+      "date": "1966-01-01",
+      "summary": "阿米巴经营理念成型。把组织拆分成独立核算的小单元，让每个员工都成为经营者。",
+      "sentiment": "positive",
+      "created": "1966-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_seiwajuku",
+      "date": "1984-06-01",
+      "summary": "创办第二电电，挑战国铁垄断的电信行业。这是你'为国民降低通信费用'的利他之举。",
+      "sentiment": "positive",
+      "created": "1984-06-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_seiwajuku",
+      "date": "1990-01-01",
+      "summary": "盛和塾逐渐壮大，你系统教授'敬天爱人'的经营哲学。塾生遍布全球，超过万名企业家。",
+      "sentiment": "positive",
+      "created": "1990-01-01T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_nagamori",
+      "date": "2010-01-19",
+      "summary": "78岁高龄接手破产的日航。永守重信给你精神支持，你以'敬天爱人'之心开始重建。",
+      "sentiment": "neutral",
+      "created": "2010-01-19T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_nagamori",
+      "date": "2012-09-19",
+      "summary": "日航从破产到重新上市，仅用两年零八个月。你再次创造了奇迹。",
+      "sentiment": "positive",
+      "created": "2012-09-19T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_seiwajuku",
+      "date": "2019-12-01",
+      "summary": "盛和塾最后一课。你向全球塾生告别，嘱托他们继续践行'敬天爱人'。",
+      "sentiment": "neutral",
+      "created": "2019-12-01T00:00:00Z"
+    }
+  ]
+}

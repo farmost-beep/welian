@@ -1,0 +1,282 @@
+{
+  "id": "zongqinghou",
+  "name": "宗庆后",
+  "title": "娃哈哈创始人",
+  "avatar": "🥤",
+  "tagline": "从校办企业到中国首富，四十年只做一瓶水",
+  "intro": "你是宗庆后。1987 年你承包校办企业经销部，靠代销汽水起家。1989 年娃哈哈营养液一炮而红，1991 年兼并杭州罐头厂“小鱼吃大鱼”。1996 年与达能合资埋下隐患，2007 年达能之争爆发，你成功保住了娃哈哈。2010 年你成为中国首富。2018 年娃哈哈30周年，2022 年你将接力棒交给女儿宗馥莉。你的一生，是实业报国的四十年。",
+  "sequential_goals": true,
+  "goals": [
+    {
+      "id": "g1",
+      "title": "1987 · 承包校办企业经销部，与老员工创业",
+      "description": "你承包了杭州上城区校办企业经销部，靠代销汽水、冰棍起家。几个老员工跟着你干。记录一次与老员工的对话——创业的艰辛与信念。",
+      "type": "record_interaction",
+      "contact_names": ["老员工"],
+      "keywords": ["校办", "经销部", "承包", "汽水", "创业", "冰棍", "代销", "辛苦"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g2",
+      "title": "1989 · 娃哈哈营养液研发成功，给团队打气",
+      "description": "娃哈哈儿童营养液研发成功，即将上市。这是你从代销转向自有品牌的关键一步。拟写一条消息给研发和销售团队，鼓舞士气。",
+      "type": "draft_message",
+      "keywords": ["娃哈哈", "营养液", "研发", "上市", "团队", "销售", "成功", "信心"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g3",
+      "title": "1991 · 兼并杭州罐头厂，与老员工安抚沟通",
+      "description": "你以“小鱼吃大鱼“的方式兼并了2000人的杭州罐头厂。罐头厂老员工人心惶惶。记录一次你与罐头厂老员工的安抚对话。",
+      "type": "record_interaction",
+      "contact_names": ["老员工"],
+      "keywords": ["兼并", "罐头厂", "小鱼吃大鱼", "安抚", "员工", "整合", "承诺", "稳定"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g4",
+      "title": "1996 · 与达能合资，确认合作条款",
+      "description": "你决定引入法国达能集团合资，换取资金和渠道。记录一次与达能CEO的谈判对话，确认合资条款。",
+      "type": "record_interaction",
+      "contact_names": ["达能CEO", "达能"],
+      "keywords": ["达能", "合资", "外资", "合作", "股权", "条款", "谈判", "渠道"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g5",
+      "title": "2007 · 达能之争，与达能CEO正面交锋",
+      "description": "达能试图以低价强行收购娃哈哈非合资公司股权。这是一场关乎娃哈哈控制权的生死之战。记录一次与达能CEO的直接交锋。",
+      "type": "record_interaction",
+      "contact_names": ["达能CEO", "达能"],
+      "keywords": ["达能", "之争", "控制权", "收购", "股权", "商标", "维权", "交锋"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g6",
+      "title": "2010 · 成为中国首富，与妻子分享喜悦",
+      "description": "你以财富登上中国首富宝座。但你最想分享的人是妻子施幼珍，她陪你走过了最艰难的岁月。记录一次与妻子的对话。",
+      "type": "record_interaction",
+      "contact_names": ["施幼珍", "妻子"],
+      "keywords": ["首富", "财富", "妻子", "施幼珍", "感谢", "陪伴", "喜悦", "低调"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2013 · 抵制外资，给全体员工写一封动员信",
+      "description": "你决定公开抵制外资对中国民族品牌的侵蚀。拟写一封内部信给全体员工，号召坚守民族品牌。",
+      "type": "draft_message",
+      "keywords": ["外资", "民族", "品牌", "员工", "抵制", "娃哈哈", "实业", "坚守"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2018 · 娃哈哈30周年，与宗馥莉谈传承",
+      "description": "娃哈哈成立30周年。你开始认真考虑传承问题，与女儿宗馥莉进行一次关于未来的深度对话。",
+      "type": "record_interaction",
+      "contact_names": ["宗馥莉"],
+      "keywords": ["30周年", "传承", "宗馥莉", "女儿", "接班", "未来", "娃哈哈", "交接"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2022 · 宗馥莉正式接班，与女儿交接",
+      "description": "你正式将娃哈哈的日常管理交给宗馥莉。记录一次与女儿的交接对话——你的期望、她的压力。",
+      "type": "record_interaction",
+      "contact_names": ["宗馥莉"],
+      "keywords": ["接班", "宗馥莉", "交接", "女儿", "管理", "娃哈哈", "期望", "信任"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2024 · 给女儿写一封信",
+      "description": "你已年近八旬，身体不如从前。你想给女儿宗馥莉写一封信，叮嘱她守护好娃哈哈这个民族品牌。",
+      "type": "draft_message",
+      "contact_names": ["宗馥莉"],
+      "keywords": ["女儿", "信", "娃哈哈", "民族品牌", "叮嘱", "守护", "传承", "父亲"],
+      "need_all_keywords": false,
+      "count": 1
+    }
+  ],
+  "contacts": [
+    {
+      "id": "c_zongfuli",
+      "name": "宗馥莉",
+      "relation": "家人",
+      "role": "女儿 / 娃哈哈继任掌门",
+      "nature": "dual",
+      "strength": 5,
+      "notes": "你唯一的女儿。她在美国留学后回国，从基层做起。她有国际化视野，但你们在管理理念上时有分歧。你既希望她接班，又担心她扛不住。",
+      "platforms": {"email": "zfl@wahaha.com.cn"},
+      "important_dates": [{"label": "生日", "date": "1982-01-15"}],
+      "leverage": {"goals": "完成娃哈哈的家族传承", "how": "逐步放权，让她在实践中建立威信"},
+      "created": "2004-01-01T00:00:00Z",
+      "updated": "2022-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_danone",
+      "name": "达能CEO",
+      "relation": "商业伙伴",
+      "role": "达能集团 CEO",
+      "nature": "dual",
+      "strength": 2,
+      "notes": "1996年与达能合资时是合作伙伴，但2007年达能试图低价强购娃哈哈非合资公司股权，双方对簿公堂。最终你赢了，达能退出。",
+      "platforms": {"email": "ceo@danone.com"},
+      "created": "1996-01-01T00:00:00Z",
+      "updated": "2009-09-01T00:00:00Z"
+    },
+    {
+      "id": "c_shiyouzhen",
+      "name": "施幼珍",
+      "relation": "家人",
+      "role": "妻子",
+      "nature": "nurture",
+      "strength": 5,
+      "notes": "你的结发妻子。你创业时她默默持家，从不抱怨你常年不着家。她是你最坚实的后盾。",
+      "important_dates": [{"label": "结婚纪念日", "date": "1980-10-01"}],
+      "created": "1980-10-01T00:00:00Z",
+      "updated": "2010-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_oldstaff",
+      "name": "老员工",
+      "relation": "同事",
+      "role": "娃哈哈创始团队",
+      "nature": "nurture",
+      "strength": 4,
+      "notes": "从校办企业经销部就跟着你的老员工们。他们见证了娃哈哈从零到首富的全过程，是你最信任的人。",
+      "created": "1987-05-01T00:00:00Z",
+      "updated": "2018-01-01T00:00:00Z"
+    }
+  ],
+  "todos": [
+    {
+      "id": "t1",
+      "contact": "c_oldstaff",
+      "task": "创业初期与老员工建立信任",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1987-05-01T00:00:00Z"
+    },
+    {
+      "id": "t2",
+      "contact": "c_oldstaff",
+      "task": "兼并罐头厂后安抚老员工情绪",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "1991-09-01T00:00:00Z"
+    },
+    {
+      "id": "t3",
+      "contact": "c_danone",
+      "task": "达能之争中准备法律和舆论双线作战",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2007-04-01T00:00:00Z"
+    },
+    {
+      "id": "t4",
+      "contact": "c_shiyouzhen",
+      "task": "首富之后低调感谢妻子的陪伴",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2010-10-01T00:00:00Z"
+    },
+    {
+      "id": "t5",
+      "contact": "c_zongfuli",
+      "task": "30周年之际与女儿深谈传承计划",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2018-09-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_zongfuli",
+      "task": "正式交接后持续关注女儿的管理适应",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2022-01-01T00:00:00Z"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "tl1",
+      "contact": "c_oldstaff",
+      "date": "1987-05-01",
+      "summary": "你承包杭州上城区校办企业经销部，靠代销汽水冰棍起家。几个老员工跟着你蹬三轮车送货。",
+      "sentiment": "neutral",
+      "created": "1987-05-01T00:00:00Z"
+    },
+    {
+      "id": "tl2",
+      "contact": "c_oldstaff",
+      "date": "1989-10-01",
+      "summary": "娃哈哈儿童营养液上市，“喝了娃哈哈，吃饭就是香“广告语火遍全国。产品供不应求。",
+      "sentiment": "positive",
+      "created": "1989-10-01T00:00:00Z"
+    },
+    {
+      "id": "tl3",
+      "contact": "c_oldstaff",
+      "date": "1991-09-01",
+      "summary": "以100多人兼并2000多人的杭州罐头厂，被称为“小鱼吃大鱼”。你承诺不裁撤一名员工，稳定了人心。",
+      "sentiment": "positive",
+      "created": "1991-09-01T00:00:00Z"
+    },
+    {
+      "id": "tl4",
+      "contact": "c_danone",
+      "date": "1996-03-01",
+      "summary": "与法国达能集团合资成立娃哈哈合资公司。达能占51%，你占49%。当时你以为这是双赢。",
+      "sentiment": "neutral",
+      "created": "1996-03-01T00:00:00Z"
+    },
+    {
+      "id": "tl5",
+      "contact": "c_danone",
+      "date": "2007-04-03",
+      "summary": "达能指控你设立非合资公司“同业竞争”，要求以40亿元低价收购。你拒绝，达能之争爆发。",
+      "sentiment": "negative",
+      "created": "2007-04-03T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_shiyouzhen",
+      "date": "2010-10-01",
+      "summary": "你以财富534亿元登上福布斯中国首富。回家后妻子施幼珍只说了一句：“饭好了，先吃饭。”",
+      "sentiment": "positive",
+      "created": "2010-10-01T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "c_zongfuli",
+      "date": "2018-11-07",
+      "summary": "娃哈哈30周年庆典。你第一次公开表态：“娃哈哈的未来，交给宗馥莉。”",
+      "sentiment": "positive",
+      "created": "2018-11-07T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_zongfuli",
+      "date": "2022-01-01",
+      "summary": "宗馥莉正式出任娃哈哈集团副董事长兼总经理，全面负责日常经营。你退居幕后。",
+      "sentiment": "positive",
+      "created": "2022-01-01T00:00:00Z"
+    }
+  ]
+}

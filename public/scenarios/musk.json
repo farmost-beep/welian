@@ -64,6 +64,44 @@
       "keywords": ["妈妈", "母亲", "抱歉", "sorry", "想念", "忙", "家", "love"],
       "need_all_keywords": false,
       "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2024 · Neuralink 首例人体植入，给团队写一封信",
+      "description": "Neuralink 完成首例人体脑机接口植入手术。这是人类历史上的里程碑。拟写一封给团队的信。",
+      "type": "draft_message",
+      "keywords": ["neuralink", "脑机接口", "植入", "团队", "里程碑", "未来", "人类", "breakthrough"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2024 · 创立 xAI，给团队写一封信",
+      "description": "你创立了 xAI，目标是理解宇宙的本质。Grok 模型即将发布。拟写一封给团队的信。",
+      "type": "draft_message",
+      "keywords": ["xai", "grok", "ai", "团队", "宇宙", "真理", "未来", "mission"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2025 · 火星计划加速，与 Gwynne 讨论星舰",
+      "description": "星舰试飞取得进展，火星计划时间表在加速。与 Gwynne 讨论下一步运营计划。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["Gwynne", "Gwynne Shotwell", "Shotwell"],
+      "keywords": ["火星", "mars", "星舰", "starship", "spacex", "计划", "时间表", "运营"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2025 · 给 Vivian 写一封信",
+      "description": "你的孩子 Vivian 公开与你划清界限。无论关系如何，你仍是她的父亲。拟写一封给她的信。",
+      "type": "draft_message",
+      "contact_names": ["Vivian", "Vivian Wilson", "Xavier"],
+      "keywords": ["vivian", "xavier", "孩子", "父亲", "爱", "信", "family", "对不起"],
+      "need_all_keywords": false,
+      "count": 1
     }
   ],
   "contacts": [
@@ -142,6 +180,19 @@
       "notes": "管理 Musk 家族财富和信托。需要定期沟通投资策略。",
       "created": "2016-01-01T00:00:00Z",
       "updated": "2016-01-01T00:00:00Z"
+    },
+    {
+      "id": "c_vivian",
+      "name": "Vivian Jenna Wilson",
+      "relation": "家人",
+      "role": "女儿",
+      "nature": "nurture",
+      "strength": 3,
+      "notes": "原名 Xavier Alexander Musk，2022年公开变性并改名，与你在法律上划清界限。你仍是她的父亲。",
+      "platforms": {},
+      "important_dates": [{"label": "生日", "date": "2004-04-15"}],
+      "created": "2004-04-15T00:00:00Z",
+      "updated": "2025-01-01T00:00:00Z"
     }
   ],
   "todos": [
@@ -189,6 +240,42 @@
       "due": "",
       "status": "pending",
       "created": "2023-01-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "",
+      "task": "给 Neuralink 团队写人体植入里程碑信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2024-01-30T00:00:00Z"
+    },
+    {
+      "id": "t7",
+      "contact": "",
+      "task": "给 xAI 团队写使命信",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2024-07-01T00:00:00Z"
+    },
+    {
+      "id": "t8",
+      "contact": "c_gwynne",
+      "task": "与 Gwynne 讨论火星计划运营",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": "t9",
+      "contact": "c_vivian",
+      "task": "给 Vivian 写一封信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2025-02-01T00:00:00Z"
     }
   ],
   "timeline": [
@@ -231,6 +318,38 @@
       "summary": "母亲节发了短信但没打电话，Maye 回复'你忙就好，妈妈为你骄傲'。",
       "sentiment": "negative",
       "created": "2023-05-14T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "",
+      "date": "2024-01-30",
+      "summary": "Neuralink 完成首例人体脑机接口植入手术。患者在术后可以用意念下国际象棋。",
+      "sentiment": "positive",
+      "created": "2024-01-30T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "",
+      "date": "2024-07-12",
+      "summary": "正式宣布 xAI 成立，发布 Grok 模型。目标是'理解宇宙的本质'。",
+      "sentiment": "positive",
+      "created": "2024-07-12T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_gwynne",
+      "date": "2025-01-15",
+      "summary": "与 Gwynne 在 Boca Chica 讨论星舰第七次试飞后的运营计划，火星时间表可能提前。",
+      "sentiment": "positive",
+      "created": "2025-01-15T00:00:00Z"
+    },
+    {
+      "id": "tl9",
+      "contact": "c_vivian",
+      "date": "2025-02-01",
+      "summary": "Vivian 在社交媒体上再次公开批评你。你很久没和她说话了，但她是你的孩子。",
+      "sentiment": "negative",
+      "created": "2025-02-01T00:00:00Z"
     }
   ]
 }

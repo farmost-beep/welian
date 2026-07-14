@@ -66,6 +66,45 @@
       "keywords": ["回家", "过年", "父亲", "爸爸", "龙岩", "想念", "春节", "抱歉"],
       "need_all_keywords": false,
       "count": 1
+    },
+    {
+      "id": "g7",
+      "title": "2024 · 加码 AI 投资，与沈南鹏探讨合作",
+      "description": "你在卸任后专注 AI 领域投资。沈南鹏也在布局 AI，两人有合作空间。记录一次关于 AI 投资的对话。",
+      "type": "record_interaction",
+      "contact_names": ["沈南鹏", "南鹏", "红杉", "Neil"],
+      "keywords": ["ai", "投资", "合作", "模型", "赛道", "红杉", "未来", "讨论"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g8",
+      "title": "2024 · 字节 12 周年，给全员写一封信",
+      "description": "字节跳动成立 12 周年。从锦秋家园到全球帝国。拟写一封给全员的信，回顾与展望。",
+      "type": "draft_message",
+      "keywords": ["字节", "bytedance", "12", "周年", "全员", "信", "感谢", "未来"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g9",
+      "title": "2025 · AI 模型竞争，与梁汝波对齐战略",
+      "description": "国内外 AI 模型竞争白热化，豆包模型需要持续迭代。与梁汝波对齐 AI 战略方向。记录这次对话。",
+      "type": "record_interaction",
+      "contact_names": ["梁汝波", "汝波", "Liang"],
+      "keywords": ["ai", "模型", "豆包", "竞争", "战略", "方向", "字节", "迭代"],
+      "need_all_keywords": false,
+      "count": 1
+    },
+    {
+      "id": "g10",
+      "title": "2025 · 给妻子写一封信",
+      "description": "创业 13 年，她一直默默支持。你说过要补偿她，但总是太忙。拟写一封给她的信。",
+      "type": "draft_message",
+      "contact_names": ["妻子"],
+      "keywords": ["妻子", "感谢", "爱", "抱歉", "忙", "家", "补偿", "love"],
+      "need_all_keywords": false,
+      "count": 1
     }
   ],
   "contacts": [
@@ -204,6 +243,42 @@
       "due": "",
       "status": "pending",
       "created": "2023-01-01T00:00:00Z"
+    },
+    {
+      "id": "t6",
+      "contact": "c_shen",
+      "task": "与沈南鹏探讨 AI 投资合作",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2024-03-01T00:00:00Z"
+    },
+    {
+      "id": "t7",
+      "contact": "",
+      "task": "给全员写字节 12 周年信",
+      "priority": "P1",
+      "due": "",
+      "status": "pending",
+      "created": "2024-03-13T00:00:00Z"
+    },
+    {
+      "id": "t8",
+      "contact": "c_liang",
+      "task": "与梁汝波对齐 AI 模型战略",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": "t9",
+      "contact": "c_wife",
+      "task": "给妻子写一封信",
+      "priority": "P0",
+      "due": "",
+      "status": "pending",
+      "created": "2025-02-01T00:00:00Z"
     }
   ],
   "timeline": [
@@ -246,6 +321,38 @@
       "summary": "春节回了龙岩一天就走了，父亲说'你忙就好'，但你能看出他的失落。",
       "sentiment": "negative",
       "created": "2023-01-22T00:00:00Z"
+    },
+    {
+      "id": "tl6",
+      "contact": "c_shen",
+      "date": "2024-03-15",
+      "summary": "和沈南鹏在一场 AI 论坛上碰面，聊了半小时关于大模型投资的机会和风险。",
+      "sentiment": "positive",
+      "created": "2024-03-15T00:00:00Z"
+    },
+    {
+      "id": "tl7",
+      "contact": "",
+      "date": "2024-03-13",
+      "summary": "字节跳动 12 周年。从锦秋家园到全球数十亿用户，你给全员写了一封信。",
+      "sentiment": "positive",
+      "created": "2024-03-13T00:00:00Z"
+    },
+    {
+      "id": "tl8",
+      "contact": "c_liang",
+      "date": "2025-01-10",
+      "summary": "与梁汝波讨论豆包模型与国内外竞品的差距，决定加大算力投入。",
+      "sentiment": "neutral",
+      "created": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": "tl9",
+      "contact": "c_wife",
+      "date": "2025-02-14",
+      "summary": "情人节，你终于给妻子写了一封信。她已经很久没收到你手写的东西了。",
+      "sentiment": "positive",
+      "created": "2025-02-14T00:00:00Z"
     }
   ]
 }

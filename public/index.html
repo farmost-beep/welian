@@ -239,7 +239,11 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .goal-item.pending .goal-item-title::before{content:'⬜ '}
 .goal-exit{width:100%;margin-top:12px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8em}
 .goal-exit:hover{opacity:.9}
-@media(max-width:768px){.goal-tracker{width:calc(100% - 32px)}}
+@media(max-width:768px){
+  .goal-tracker{width:calc(100% - 24px);left:12px;right:12px;bottom:60px;top:auto;border-radius:10px;max-height:200px;overflow:hidden}
+  .goal-tracker.expanded{max-height:300px;overflow-y:auto}
+  .goal-tracker-body{max-height:240px;overflow-y:auto}
+}
 /* Quick login */
 .quick-login{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 .quick-login-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;font-size:.95em;cursor:pointer;transition:opacity .2s}
@@ -1335,7 +1339,7 @@ let simulationPersona = null;
 let simulationData = null;
 let simulationGoals = [];
 
-const SCENARIO_IDS = ['jobs', 'musk', 'zhang', 'obama', 'renzhengfei', 'leijun', 'wangxing', 'caodewang', 'dongmingzhu', 'buffett', 'bezos', 'gates', 'zhouxingchi', 'lian', 'maotai', 'yanglan', 'maotai2'];
+const SCENARIO_IDS = ['jobs', 'musk', 'zhang', 'obama', 'renzhengfei', 'leijun', 'wangxing', 'caodewang', 'dongmingzhu', 'buffett', 'bezos', 'gates', 'zhouxingchi', 'lian', 'maotai', 'yanglan', 'maotai2', 'yuminhong', 'huangzheng', 'lishufu', 'inamori', 'oprah', 'wangshi', 'zongqinghou', 'zhongshanshan', 'sandberg', 'zhangruimin'];
 
 async function showScenarioPicker() {
   const picker = document.getElementById('scenarioPicker');
@@ -1458,21 +1462,38 @@ function updateGoalTracker() {
   document.getElementById('goalProgress').textContent = `${done}/${total}`;
   const list = document.getElementById('goalList');
   const isSequential = simulationData && simulationData.sequential_goals;
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
   if (isSequential) {
-    // Sequential mode: show completed goals + current goal only
     const firstUndoneIdx = simulationGoals.findIndex(g => !g.done);
-    const items = simulationGoals.map((g, i) => {
-      if (g.done) {
-        return `<div class="goal-item done"><div class="goal-item-title">${g.title}</div></div>`;
+
+    if (isMobile) {
+      // Mobile: only show current goal + next goal
+      const items = [];
+      if (firstUndoneIdx >= 0) {
+        const current = simulationGoals[firstUndoneIdx];
+        items.push(`<div class="goal-item pending"><div class="goal-item-title">${current.title}</div><div class="goal-item-desc">${current.description}</div></div>`);
+        // Next goal preview (locked)
+        if (firstUndoneIdx + 1 < simulationGoals.length) {
+          items.push(`<div class="goal-item" style="opacity:.4"><div class="goal-item-title">🔒 下一个</div></div>`);
+        }
+      } else {
+        items.push(`<div class="goal-item done"><div class="goal-item-title">🎉 全部完成！</div></div>`);
       }
-      if (i === firstUndoneIdx) {
-        return `<div class="goal-item pending"><div class="goal-item-title">${g.title}</div><div class="goal-item-desc">${g.description}</div></div>`;
-      }
-      // Locked goals
-      return `<div class="goal-item" style="opacity:.4"><div class="goal-item-title">🔒 ???</div></div>`;
-    }).join('');
-    list.innerHTML = items;
+      list.innerHTML = items.join('');
+    } else {
+      // Desktop: show all goals
+      const items = simulationGoals.map((g, i) => {
+        if (g.done) {
+          return `<div class="goal-item done"><div class="goal-item-title">${g.title}</div></div>`;
+        }
+        if (i === firstUndoneIdx) {
+          return `<div class="goal-item pending"><div class="goal-item-title">${g.title}</div><div class="goal-item-desc">${g.description}</div></div>`;
+        }
+        return `<div class="goal-item" style="opacity:.4"><div class="goal-item-title">🔒 ???</div></div>`;
+      }).join('');
+      list.innerHTML = items;
+    }
   } else {
     list.innerHTML = simulationGoals.map(g => `
       <div class="goal-item ${g.done ? 'done' : 'pending'}">

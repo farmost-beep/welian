@@ -12,21 +12,34 @@
     {"id":"g3","title":"1996 · 落马入狱，给妻子写一封信","description":"你因经济问题被调查，女儿在狱中自杀。拟写一封给妻子马静芬的信。","type":"draft_message","contact_names":["马静芬","妻子","静芬"],"keywords":["女儿","妻子","抱歉","信","对不起","想念","坚强","爱"],"need_all_keywords":false,"count":1},
     {"id":"g4","title":"2002 · 保外就医，与马静芬确认种橙","description":"74岁保外就医，你决定承包荒山种冰糖橙。马静芬陪你一起。记录一次关于再创业的对话。","type":"record_interaction","contact_names":["马静芬","妻子","静芬"],"keywords":["橙子","褚橙","种橙","创业","荒山","新寨","妻子","再创业"],"need_all_keywords":false,"count":1},
     {"id":"g5","title":"2012 · 褚橙进京，给消费者写一封信","description":"褚橙首次通过电商进入北京市场，一橙难求。拟写一封给消费者的信。","type":"draft_message","keywords":["褚橙","消费者","品质","感谢","信","电商","北京","人生"],"need_all_keywords":false,"count":1},
-    {"id":"g6","title":"2018 · 给马静芬写一封感谢信","description":"你90岁了，马静芬陪你走过了烟王、入狱、橙王的全部人生。拟写一封给她的感谢信。","type":"draft_message","contact_names":["马静芬","妻子","静芬"],"keywords":["马静芬","感谢","妻子","一生","年","陪伴","信","爱"],"need_all_keywords":false,"count":1}
+    {"id":"g6","title":"2018 · 给马静芬写一封感谢信","description":"你90岁了，马静芬陪你走过了烟王、入狱、橙王的全部人生。拟写一封给她的感谢信。","type":"draft_message","contact_names":["马静芬","妻子","静芬"],"keywords":["马静芬","感谢","妻子","一生","年","陪伴","信","爱"],"need_all_keywords":false,"count":1},
+    {"id":"g7","title":"2014 · 褚橙庄园扩张，给团队写一封信","description":"褚橙供不应求，你决定扩建庄园规模。拟写一封给种植团队的信。","type":"draft_message","keywords":["褚橙","庄园","扩张","团队","种植","信","未来","品质"],"need_all_keywords":false,"count":1},
+    {"id":"g8","title":"2016 · 给孙子讲故事","description":"你给孙子讲你的一生——从烟王到入狱再到橙王。记录一次与孙子的对话。","type":"record_interaction","contact_names":["孙子","grandson"],"keywords":["孙子","故事","人生","经验","传承","家","烟王","橙王"],"need_all_keywords":false,"count":1},
+    {"id":"g9","title":"2018 · 与马静芬金婚","description":"你和马静芬结婚50年金婚。记录这次金婚纪念的对话。","type":"record_interaction","contact_names":["马静芬","妻子","静芬"],"keywords":["金婚","50年","马静芬","妻子","陪伴","爱","年","纪念"],"need_all_keywords":false,"count":1},
+    {"id":"g10","title":"2019 · 给创业者写一封信","description":"你75岁再创业种橙子，想给创业者分享永不放弃的精神。拟写一封给创业者的信。","type":"draft_message","keywords":["创业者","信","人生","坚持","永不放弃","经验","褚橙","创业"],"need_all_keywords":false,"count":1}
   ],
   "contacts":[
     {"id":"c_wife","name":"马静芬","relation":"家人","role":"妻子","nature":"nurture","strength":5,"notes":"陪你走过烟王、入狱、橙王的全部人生。你入狱时她独自承受，女儿自杀时她没告诉你。","important_dates":[{"label":"结婚纪念日","date":"1955-01-01"}],"created":"1955-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"},
     {"id":"c_daughter","name":"褚映群","relation":"家人","role":"女儿","nature":"nurture","strength":5,"notes":"你被调查时她也被关押，1996年在狱中自杀。这是你一生最大的痛。","important_dates":[{"label":"去世","date":"1996-12-01"}],"created":"1965-01-01T00:00:00Z","updated":"1996-12-01T00:00:00Z"},
-    {"id":"c_son","name":"褚一斌","relation":"家人","role":"儿子","nature":"leverage","strength":4,"notes":"在国外生活多年，后来回国帮你打理褚橙庄园。","platforms":{"phone":"私人号码"},"created":"1963-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"}
+    {"id":"c_son","name":"褚一斌","relation":"家人","role":"儿子","nature":"leverage","strength":4,"notes":"在国外生活多年，后来回国帮你打理褚橙庄园。","platforms":{"phone":"私人号码"},"created":"1963-01-01T00:00:00Z","updated":"2018-01-01T00:00:00Z"},
+    {"id":"c_grandson","name":"孙子","relation":"家人","role":"孙子","nature":"nurture","strength":4,"notes":"褚一斌的孩子。你给孙子讲你的一生故事，希望传承永不放弃的精神。","created":"2005-01-01T00:00:00Z","updated":"2016-01-01T00:00:00Z"}
   ],
   "todos":[
     {"id":"t1","contact":"","task":"和团队确认玉溪烟厂改革方向","priority":"P0","due":"","status":"pending","created":"1979-01-01T00:00:00Z"},
     {"id":"t2","contact":"c_wife","task":"给马静芬写一封信","priority":"P0","due":"","status":"pending","created":"1996-01-01T00:00:00Z"},
-    {"id":"t3","contact":"c_wife","task":"和马静芬确认种橙再创业","priority":"P0","due":"","status":"pending","created":"2002-01-01T00:00:00Z"}
+    {"id":"t3","contact":"c_wife","task":"和马静芬确认种橙再创业","priority":"P0","due":"","status":"pending","created":"2002-01-01T00:00:00Z"},
+    {"id":"t4","contact":"","task":"褚橙庄园扩张给团队写一封信","priority":"P1","due":"","status":"pending","created":"2014-01-01T00:00:00Z"},
+    {"id":"t5","contact":"c_grandson","task":"给孙子讲故事","priority":"P1","due":"","status":"pending","created":"2016-01-01T00:00:00Z"},
+    {"id":"t6","contact":"c_wife","task":"与马静芬金婚","priority":"P0","due":"","status":"pending","created":"2018-01-01T00:00:00Z"},
+    {"id":"t7","contact":"","task":"给创业者写一封信","priority":"P1","due":"","status":"pending","created":"2019-01-01T00:00:00Z"}
   ],
   "timeline":[
     {"id":"tl1","contact":"","date":"1979-10-01","summary":"接手玉溪卷烟厂，开始大刀阔斧改革。","sentiment":"positive","created":"1979-10-01T00:00:00Z"},
     {"id":"tl2","contact":"c_daughter","date":"1996-12-05","summary":"女儿褚映群在狱中自杀。你一生最大的痛。","sentiment":"negative","created":"1996-12-05T00:00:00Z"},
-    {"id":"tl3","contact":"c_wife","date":"2002-01-01","summary":"74岁保外就医，与马静芬承包新寨荒山种冰糖橙。","sentiment":"neutral","created":"2002-01-01T00:00:00Z"}
+    {"id":"tl3","contact":"c_wife","date":"2002-01-01","summary":"74岁保外就医，与马静芬承包新寨荒山种冰糖橙。","sentiment":"neutral","created":"2002-01-01T00:00:00Z"},
+    {"id":"tl4","contact":"","date":"2014-01-01","summary":"褚橙供不应求，决定扩建庄园规模。","sentiment":"positive","created":"2014-01-01T00:00:00Z"},
+    {"id":"tl5","contact":"c_grandson","date":"2016-01-01","summary":"给孙子讲你的一生——从烟王到入狱再到橙王。","sentiment":"positive","created":"2016-01-01T00:00:00Z"},
+    {"id":"tl6","contact":"c_wife","date":"2018-01-01","summary":"与马静芬结婚50年金婚。","sentiment":"positive","created":"2018-01-01T00:00:00Z"},
+    {"id":"tl7","contact":"","date":"2019-03-05","summary":"给创业者写一封最后的信，分享永不放弃的精神。","sentiment":"neutral","created":"2019-03-05T00:00:00Z"}
   ]
 }
