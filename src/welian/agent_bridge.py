@@ -81,11 +81,16 @@ class AgentBridge:
         return reply.strip()
 
     def _call_claude(self, text: str, session: dict, work_dir: str) -> str:
-        """Call Claude Code CLI in non-interactive mode."""
+        """Call Claude Code CLI in non-interactive mode.
+
+        Uses --dangerously-skip-permissions because the WeChat bridge
+        has no way to surface permission prompts to the user.
+        """
         cmd = [
             "claude", "-p", text,
             "--session-id", session["session_id"],
             "--output-format", "text",
+            "--dangerously-skip-permissions",
         ]
         logger.info(f"[agent_bridge] claude: session={session['session_id'][:8]}... dir={work_dir}")
         result = subprocess.run(
@@ -102,8 +107,10 @@ class AgentBridge:
 
         First message: no resume flag (creates new session).
         Subsequent messages: --continue (resumes most recent session in work_dir).
+        Uses --permission-mode dangerous because the WeChat bridge has no way
+        to surface permission prompts to the user.
         """
-        cmd = ["devin", "-p", text]
+        cmd = ["devin", "-p", text, "--permission-mode", "dangerous"]
         if session.get("started"):
             cmd.append("--continue")
         logger.info(f"[agent_bridge] devin: session={session['session_id'][:8]}... dir={work_dir} continue={session.get('started', False)}")
