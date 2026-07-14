@@ -26,7 +26,7 @@
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -363,8 +363,27 @@ async function callLLM(prompt, system, env, options = {}) {
     return null;
   }
 
-  const model = env.LLM_MODEL || 'claude-sonnet-4-6';
-  const baseUrl = env.LLM_BASE_URL || 'https://api.anthropic.com';
+  // Model tier selection: standard (default), enhanced, premium
+  const tier = options.model_tier || 'standard';
+  const tierModels = {
+    standard: env.LLM_MODEL || 'MiniMax-M3',
+    enhanced: env.LLM_MODEL_ENHANCED || 'claude-sonnet-4-6',
+    premium: env.LLM_MODEL_PREMIUM || 'claude-opus-4-6',
+  };
+  const tierBaseUrls = {
+    standard: env.LLM_BASE_URL || 'https://api.minimaxi.com/anthropic',
+    enhanced: env.LLM_BASE_URL_ENHANCED || 'https://api.anthropic.com',
+    premium: env.LLM_BASE_URL_PREMIUM || 'https://api.anthropic.com',
+  };
+  const tierApiKeys = {
+    standard: apiKey,
+    enhanced: env.LLM_API_KEY_ENHANCED || apiKey,
+    premium: env.LLM_API_KEY_PREMIUM || apiKey,
+  };
+
+  const model = tierModels[tier] || tierModels.standard;
+  const baseUrl = tierBaseUrls[tier] || tierBaseUrls.standard;
+  const useApiKey = tierApiKeys[tier] || apiKey;
 
   const body = {
     model: model,
@@ -384,7 +403,7 @@ async function callLLM(prompt, system, env, options = {}) {
       const resp = await fetch(`${baseUrl}/v1/messages`, {
         method: 'POST',
         headers: {
-          'x-api-key': apiKey,
+          'x-api-key': useApiKey,
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
@@ -580,9 +599,25 @@ const PRICING = {
   credit_pack_500: 39.9, // ¥ for 500 points
 };
 
+const MODEL_MULTIPLIERS = { standard: 1, enhanced: 3, premium: 10 };
+
 async function getBillingData(env, userId) {
   const raw = await env.USER_DATA.get(`billing:${userId}`);
-  if (raw) return JSON.parse(raw);
+  if (raw) {
+    const data = JSON.parse(raw);
+    // Rollover: when month changes, carry over unused subscription allowance (max 1 month)
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (data.monthKey !== monthKey) {
+      const allowance = getMonthlyAllowance(data.plan);
+      const prevRemaining = Math.max(0, allowance - data.used);
+      data.rollover = Math.min(prevRemaining, allowance); // cap at 1 month's allowance
+      data.monthKey = monthKey;
+      data.used = 0;
+      await saveBillingData(env, userId, data);
+    }
+    return data;
+  }
   // Default: free plan
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -591,6 +626,7 @@ async function getBillingData(env, userId) {
     monthKey,
     used: 0,
     purchased: 0,        // purchased credits (don't expire monthly)
+    rollover: 0,         // unused subscription credits from last month (max 1 month)
     history: [],          // [{date, action, points, detail}]
     subscription: null,   // {plan, start, expire, auto_renew}
   };
@@ -612,7 +648,8 @@ function getMonthlyAllowance(plan) {
 
 function getRemaining(billing) {
   const allowance = getMonthlyAllowance(billing.plan);
-  return Math.max(0, allowance + billing.purchased - billing.used);
+  const rollover = billing.rollover || 0;
+  return Math.max(0, allowance + rollover + billing.purchased - billing.used);
 }
 
 async function handleChat(req, env) {
@@ -622,6 +659,7 @@ async function handleChat(req, env) {
   const system = body.system || '';
   const maxTokens = body.max_tokens || 1024;
   const temperature = body.temperature !== undefined ? body.temperature : 0.7;
+  const modelTier = body.model_tier || 'standard';
 
   // Verify Clerk session and get user_id
   const userId = await getVerifiedUserId(req, env, body);
@@ -659,20 +697,23 @@ async function handleChat(req, env) {
     messages,
     max_tokens: maxTokens,
     temperature,
+    model_tier: modelTier,
   });
 
   if (!llmResp) {
     return { status: 502, data: { error: 'LLM call failed' } };
   }
 
-  // ── Billing: deduct points after LLM call ──
-  const points = calcPoints(llmResp.usage);
+  // ── Billing: deduct points after LLM call (with model tier multiplier) ──
+  const tierMultiplier = MODEL_MULTIPLIERS[modelTier] || 1;
+  const basePoints = calcPoints(llmResp.usage);
+  const points = Math.ceil(basePoints * tierMultiplier);
   billing.used += points;
   billing.history.push({
     date: now.toISOString(),
     action: 'chat',
     points,
-    detail: `input=${llmResp.usage.input_tokens}, output=${llmResp.usage.output_tokens}`,
+    detail: `tier=${modelTier}, input=${llmResp.usage.input_tokens}, output=${llmResp.usage.output_tokens}`,
   });
   // Keep history last 100 entries
   if (billing.history.length > 100) billing.history = billing.history.slice(-100);
@@ -722,6 +763,7 @@ async function handleBilling(req, env) {
       used: billing.used,
       remaining: getRemaining(billing),
       allowance: getMonthlyAllowance(billing.plan),
+      rollover: billing.rollover || 0,
       purchased: billing.purchased,
       subscription: billing.subscription,
       recent_history: billing.history.slice(-10),
@@ -805,6 +847,232 @@ async function handlePurchaseCredits(req, env) {
       remaining: getRemaining(billing),
     },
   };
+}
+
+// ── WeChat Pay orders (personal QR code mode) ──
+
+const ORDER_PRICES = {
+  upgrade_pro_monthly: 29,
+  upgrade_pro_yearly: 290,
+  purchase_100: 10,
+  purchase_500: 45,
+};
+
+async function handleCreateOrder(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { type, id, amount } = body;
+  if (!type || !id) return { status: 400, data: { error: 'type and id required' } };
+
+  const key = `${type}_${id}`;
+  const expectedAmount = ORDER_PRICES[key];
+  if (!expectedAmount) return { status: 400, data: { error: 'invalid product' } };
+
+  const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const order = {
+    order_id: orderId,
+    user_id: userId,
+    type,
+    id,
+    amount: expectedAmount,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    confirmed_at: null,
+  };
+
+  await env.USER_DATA.put(`order:${orderId}`, JSON.stringify(order));
+  // Also index by user for listing
+  const userOrdersRaw = await env.USER_DATA.get(`orders:${userId}`) || '[]';
+  const userOrders = JSON.parse(userOrdersRaw);
+  userOrders.push(orderId);
+  await env.USER_DATA.put(`orders:${userId}`, JSON.stringify(userOrders.slice(-50)));
+
+  return { status: 200, data: { order_id: orderId, amount: expectedAmount, status: 'pending' } };
+}
+
+async function handleConfirmOrder(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { order_id } = body;
+  if (!order_id) return { status: 400, data: { error: 'order_id required' } };
+
+  const raw = await env.USER_DATA.get(`order:${order_id}`);
+  if (!raw) return { status: 404, data: { error: 'order not found' } };
+
+  const order = JSON.parse(raw);
+  if (order.user_id !== userId) return { status: 403, data: { error: 'not your order' } };
+  if (order.status === 'confirmed') return { status: 200, data: { ok: true, already_confirmed: true } };
+
+  // Mark as confirmed
+  order.status = 'confirmed';
+  order.confirmed_at = new Date().toISOString();
+  await env.USER_DATA.put(`order:${order_id}`, JSON.stringify(order));
+
+  // Apply the purchase
+  const billing = await getBillingData(env, userId);
+  if (order.type === 'upgrade') {
+    const now = new Date();
+    let expire = new Date(now);
+    if (order.id === 'pro_yearly') expire.setFullYear(expire.getFullYear() + 1);
+    else expire.setMonth(expire.getMonth() + 1);
+    billing.plan = 'pro';
+    billing.subscription = { plan: order.id, start: now.toISOString(), expire: expire.toISOString() };
+    billing.history.push({ date: now.toISOString(), action: 'upgrade', points: 0, detail: `paid ¥${order.amount} for ${order.id}` });
+  } else if (order.type === 'purchase') {
+    const points = order.id === '500' ? 500 : 100;
+    billing.purchased += points;
+    billing.history.push({ date: new Date().toISOString(), action: 'purchase', points, detail: `paid ¥${order.amount} for ${points} credits` });
+  }
+  await saveBillingData(env, userId, billing);
+
+  return { status: 200, data: { ok: true, status: 'confirmed', plan: billing.plan, remaining: getRemaining(billing) } };
+}
+
+async function handleListOrders(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const userOrdersRaw = await env.USER_DATA.get(`orders:${userId}`) || '[]';
+  const orderIds = JSON.parse(userOrdersRaw);
+  const orders = [];
+  for (const oid of orderIds.slice(-10)) {
+    const raw = await env.USER_DATA.get(`order:${oid}`);
+    if (raw) orders.push(JSON.parse(raw));
+  }
+  return { status: 200, data: { orders } };
+}
+
+// ── Delete account (注销即焚) ──
+
+async function handleDeleteAccount(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  // Delete all user data from KV
+  const datasets = ['contacts', 'timeline', 'todos'];
+  for (const ds of datasets) {
+    await saveDataset(env, userId, ds, []);
+  }
+  // Delete billing data
+  await env.USER_DATA.delete(`billing:${userId}`);
+  // Delete orders
+  const ordersRaw = await env.USER_DATA.get(`orders:${userId}`) || '[]';
+  const orderIds = JSON.parse(ordersRaw);
+  for (const oid of orderIds) {
+    await env.USER_DATA.delete(`order:${oid}`);
+  }
+  await env.USER_DATA.delete(`orders:${userId}`);
+  // Delete wechat binding
+  const wechatId = await env.USER_DATA.get(`wechat_user:${userId}`);
+  if (wechatId) {
+    await env.USER_DATA.delete(`wechat_bind:${wechatId}`);
+    await env.USER_DATA.delete(`wechat_user:${userId}`);
+  }
+
+  return { status: 200, data: { ok: true, deleted: true } };
+}
+
+// ── Meeting prep (见面功课) ──
+
+async function handleMeetingPrep(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { contact_id, contact_name } = body;
+  let contact = null;
+  const contacts = await loadDataset(env, userId, 'contacts');
+
+  if (contact_id) {
+    contact = contacts.find(c => c.id === contact_id);
+  } else if (contact_name) {
+    contact = contacts.find(c =>
+      c.name === contact_name ||
+      (c.aliases || []).includes(contact_name) ||
+      (c.alias || []).includes(contact_name)
+    );
+  }
+
+  if (!contact) return { status: 404, data: { error: 'contact not found' } };
+
+  // Get timeline for this contact
+  const allTimeline = await loadDataset(env, userId, 'timeline');
+  const contactTimeline = allTimeline
+    .filter(t => t.contact === contact.id)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    .slice(0, 5);
+
+  // Get pending todos
+  const todos = await loadDataset(env, userId, 'todos');
+  const contactTodos = todos.filter(t => t.contact === contact.id && !t.done);
+
+  // Build context for AI
+  const context = {
+    contact: { name: contact.name, relation: contact.relation, nature: contact.nature },
+    last_interactions: contactTimeline.map(t => ({ date: t.date, summary: t.summary || t.action })),
+    pending_todos: contactTodos.map(t => t.task),
+    nurture: contact.nurture || {},
+    memories: (contact.memories || []).slice(0, 5),
+    important_dates: contact.important_dates || [],
+  };
+
+  // Call LLM for meeting prep suggestions
+  const system = `You are Welian (小维), a social relationship assistant. The user is about to meet someone. Based on the contact info, recent interactions, and pending todos, provide a concise meeting prep briefing in the user's language (Chinese if contact names are Chinese, otherwise English). Include: 1) Last conversation recap (1-2 lines), 2) Pending items to follow up, 3) 2-3 conversation tips based on memories and important dates. Keep it under 200 words.`;
+
+  const userMsg = `Contact: ${JSON.stringify(context)}`;
+
+  const result = await callLLM(userMsg, system, env, { max_tokens: 512, temperature: 0.5, messages: [{ role: 'user', content: userMsg }] });
+
+  if (!result) return { status: 500, data: { error: 'LLM call failed' } };
+
+  // Billing
+  const billing = await getBillingData(env, userId);
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (billing.monthKey !== monthKey) { billing.monthKey = monthKey; billing.used = 0; }
+  const points = calcPoints(result.usage);
+  billing.used += points;
+  billing.history.push({ date: now.toISOString(), action: 'meeting_prep', points, detail: `meeting prep for ${contact.name}` });
+  if (billing.history.length > 100) billing.history = billing.history.slice(-100);
+  await saveBillingData(env, userId, billing);
+
+  return {
+    status: 200,
+    data: {
+      contact: { name: contact.name, relation: contact.relation, nature: contact.nature },
+      timeline: contactTimeline,
+      todos: contactTodos,
+      prep: result.text,
+      usage: { points, remaining: getRemaining(billing) },
+    },
+  };
+}
+
+// ── Cost estimation ──
+
+const COST_ESTIMATES = {
+  chat: { input: 2000, output: 500 },
+  draft: { input: 3000, output: 500 },
+  advise: { input: 6000, output: 1500 },
+  meeting_prep: { input: 4000, output: 1000 },
+  weekly: { input: 8000, output: 2000 },
+  monthly: { input: 5000, output: 2000 },
+};
+
+async function handleEstimateCost(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const { action, model_tier } = body;
+  const tier = MODEL_MULTIPLIERS[model_tier || 'standard'] || 1;
+  const est = COST_ESTIMATES[action];
+  if (!est) return { status: 400, data: { error: 'unknown action' } };
+  const points = Math.ceil((est.input / 1000 * 1 + est.output / 1000 * 2) * tier);
+  return { status: 200, data: { action, model_tier: model_tier || 'standard', estimated_points: points } };
 }
 
 // ── WeChat bot binding ──
@@ -1480,7 +1748,9 @@ async function saveDataset(env, userId, name, data) {
 // GET  /data/contacts — list all contacts (minimal)
 // DELETE /data/contacts?id=xxx — delete a contact
 async function handleContactsCRUD(req, env, method) {
-  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  // Read body once for both auth and CRUD
+  const body = method === 'GET' ? null : await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
   if (!userId) {
     return { status: 401, data: { error: 'Authentication required' } };
   }
@@ -1505,7 +1775,6 @@ async function handleContactsCRUD(req, env, method) {
   }
 
   if (method === 'POST') {
-    const body = await req.json();
     const contacts = await loadDataset(env, userId, 'contacts');
 
     const name = (body.name || '').trim();
@@ -1574,7 +1843,8 @@ async function handleContactsCRUD(req, env, method) {
 // POST /data/timeline — add a timeline entry
 // GET  /data/timeline?contact_id=xxx — list timeline (optionally filtered)
 async function handleTimelineCRUD(req, env, method) {
-  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  const body = method === 'GET' ? null : await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
   if (!userId) {
     return { status: 401, data: { error: 'Authentication required' } };
   }
@@ -1591,7 +1861,6 @@ async function handleTimelineCRUD(req, env, method) {
   }
 
   if (method === 'POST') {
-    const body = await req.json();
     const summary = (body.summary || '').trim();
     const contactId = body.contact_id || body.contact || '';
     if (!summary) {
@@ -1628,7 +1897,8 @@ async function handleTimelineCRUD(req, env, method) {
 // GET  /data/todos — list pending todos
 // POST /data/todos/done — mark todo as done
 async function handleTodosCRUD(req, env, method, path) {
-  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  const body = method === 'GET' ? null : await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
   if (!userId) {
     return { status: 401, data: { error: 'Authentication required' } };
   }
@@ -1641,7 +1911,6 @@ async function handleTodosCRUD(req, env, method, path) {
   }
 
   if (method === 'POST' && path === '/data/todos/done') {
-    const body = await req.json();
     const todoId = body.id;
     const todos = await loadDataset(env, userId, 'todos');
     const idx = todos.findIndex(t => t.id === todoId);
@@ -1655,13 +1924,29 @@ async function handleTodosCRUD(req, env, method, path) {
   }
 
   if (method === 'POST') {
-    const body = await req.json();
     const task = (body.task || '').trim();
     if (!task) {
       return { status: 400, data: { error: 'task required' } };
     }
 
     const todos = await loadDataset(env, userId, 'todos');
+
+    // Update existing todo if id is provided
+    if (body.id) {
+      const idx = todos.findIndex(t => t.id === body.id);
+      if (idx >= 0) {
+        todos[idx] = {
+          ...todos[idx],
+          task,
+          contact: body.contact_id || body.contact || todos[idx].contact || '',
+          priority: body.priority || todos[idx].priority || 'P1',
+          due: body.due || todos[idx].due || '',
+          updated: new Date().toISOString(),
+        };
+        await saveDataset(env, userId, 'todos', todos);
+        return { status: 200, data: { ok: true, todo: todos[idx] } };
+      }
+    }
     const todo = {
       id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       contact: body.contact_id || body.contact || '',
@@ -1784,6 +2069,23 @@ export default {
         return jsonResponse(PRICING);
       }
 
+      // ── WeChat Pay orders ──
+
+      if (path === '/ai/create_order' && method === 'POST') {
+        const r = await handleCreateOrder(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/confirm_order' && method === 'POST') {
+        const r = await handleConfirmOrder(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/list_orders' && method === 'POST') {
+        const r = await handleListOrders(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       // ── Data sync (full cloud mode) ──
 
       if (path === '/ai/extract_intent' && method === 'POST') {
@@ -1825,6 +2127,21 @@ export default {
 
       if ((path === '/data/todos' || path === '/data/todos/done') && (method === 'GET' || method === 'POST' || method === 'DELETE')) {
         const r = await handleTodosCRUD(request, env, method, path);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/data/delete_account' && method === 'POST') {
+        const r = await handleDeleteAccount(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/meeting_prep' && method === 'POST') {
+        const r = await handleMeetingPrep(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/estimate_cost' && method === 'POST') {
+        const r = await handleEstimateCost(request, env);
         return jsonResponse(r.data, r.status);
       }
 

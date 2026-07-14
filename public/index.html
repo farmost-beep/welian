@@ -118,6 +118,8 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;position:relat
 .input-box .send{width:36px;height:36px;border-radius:50%;background:var(--text);color:var(--bg);border:none;cursor:pointer;font-size:1.1em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s;font-family:inherit;line-height:1}
 .input-box .send:active{transform:scale(.9);background:var(--accent)}
 .input-box .send:disabled{background:var(--dimmer);cursor:default}
+.tier-btn{padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:none;color:var(--dimmer);cursor:pointer;font-family:inherit;font-size:1em;transition:.2s}
+.tier-btn.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
 
 /* Input hint below dock */
 .input-hint{text-align:center;font-size:.68em;color:var(--dimmer);padding:4px 0 0}
@@ -286,6 +288,15 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .mine-subtab{display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--border)}
 .mine-subtab-item{padding:8px 16px;font-size:.85em;cursor:pointer;border:none;background:none;font-family:inherit;color:var(--dim);border-bottom:2px solid transparent;transition:all .2s}
 .mine-subtab-item.active{color:var(--accent);border-bottom-color:var(--accent)}
+.mine-group-bar{display:flex;gap:6px;align-items:center;padding:6px 4px;flex-wrap:wrap}
+.mine-group-select{font-size:.75em;padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--dim);font-family:inherit;cursor:pointer}
+.mine-group-header{display:flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:.85em;font-weight:500;color:var(--text);border-bottom:1px solid var(--border);user-select:none}
+.mine-group-header:hover{background:var(--accent-bg)}
+.mine-group-count{font-size:.75em;color:var(--dimmer);background:var(--accent-bg);padding:1px 8px;border-radius:10px}
+.mine-group-toggle{margin-left:auto;color:var(--dim);font-size:.8em;transition:transform .2s}
+.mine-group-header.collapsed .mine-group-toggle{transform:rotate(-90deg)}
+.mine-group-body{display:block}
+.mine-group-body.collapsed{display:none}
 .mine-todo{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.85em}
 .mine-todo:last-child{border-bottom:none}
 .mine-todo-dot{color:var(--accent);flex-shrink:0}
@@ -364,6 +375,14 @@ footer .privacy{color:var(--dimmer);max-width:400px}
         <input id="input" type="text" data-i18n-ph="input_ph" placeholder="跟 Welian 聊聊…" onkeydown="if(event.key==='Enter')send()" autocomplete="off">
         <button class="send" onclick="send()">→</button>
       </div>
+      <div id="modelTierBar" style="display:none;justify-content:space-between;align-items:center;padding:2px 4px 0;font-size:.7em;color:var(--dimmer)">
+        <div id="costPreview"></div>
+        <div style="display:flex;gap:4px">
+          <button class="tier-btn active" data-tier="standard" onclick="setModelTier('standard')">标准 ×1</button>
+          <button class="tier-btn" data-tier="enhanced" onclick="setModelTier('enhanced')">增强 ×3</button>
+          <button class="tier-btn" data-tier="premium" onclick="setModelTier('premium')">最强 ×10</button>
+        </div>
+      </div>
     </div>
   </div>
 <!-- Scenario picker (modal) -->
@@ -423,8 +442,11 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   <div class="mine-tabbar">
     <button class="mine-tab active" data-tab="overview" onclick="switchMineTab('overview')"><span class="icon">📊</span><span data-i18n="tab_overview">概览</span></button>
     <button class="mine-tab" data-tab="contacts" onclick="switchMineTab('contacts')"><span class="icon">🌳</span><span data-i18n="tab_contacts">关系</span></button>
+    <button class="mine-tab" data-tab="todos" onclick="switchMineTab('todos')"><span class="icon">✅</span><span data-i18n="tab_todos">待办</span></button>
     <button class="mine-tab" data-tab="weekly" onclick="switchMineTab('weekly')"><span class="icon">📋</span><span data-i18n="tab_weekly">周报</span></button>
+    <button class="mine-tab" data-tab="monthly" onclick="switchMineTab('monthly')"><span class="icon">📅</span><span data-i18n="tab_monthly">月度</span></button>
     <button class="mine-tab" data-tab="billing" onclick="switchMineTab('billing')"><span class="icon">💳</span><span data-i18n="tab_billing">套餐</span></button>
+    <button class="mine-tab" data-tab="settings" onclick="switchMineTab('settings')"><span class="icon">⚙️</span><span data-i18n="tab_settings">设置</span></button>
   </div>
 </div>
 
@@ -439,6 +461,16 @@ footer .privacy{color:var(--dimmer);max-width:400px}
     <button class="mine-detail-close" onclick="closeContactDetail()">×</button>
   </div>
   <div class="mine-detail-body" id="detailBody"></div>
+</div>
+
+<!-- WeChat Pay modal -->
+<div class="mine-detail-overlay" id="payOverlay" onclick="closePayModal()"></div>
+<div class="mine-detail" id="payModal" style="max-width:360px;text-align:center">
+  <div class="mine-detail-header">
+    <div><div class="mine-detail-name" id="payTitle">微信支付</div></div>
+    <button class="mine-detail-close" onclick="closePayModal()">×</button>
+  </div>
+  <div class="mine-detail-body" id="payBody"></div>
 </div>
 
 <!-- Auth modal -->
@@ -534,6 +566,15 @@ const I18N = {
     billing_not_authed: 'Please sign in first.',
     billing_history: 'Recent history',
     billing_no_history: 'No history yet',
+    pay_title: 'WeChat Pay',
+    pay_scan: 'Scan with WeChat to pay',
+    pay_amount: 'Amount',
+    pay_done: 'I have paid',
+    pay_cancel: 'Cancel',
+    pay_pending: 'Payment confirmation…',
+    pay_pending_sub: 'We will confirm your payment shortly',
+    pay_confirmed: 'Payment confirmed ✓',
+    pay_failed: 'Payment not found, please contact hello@welian.app',
     mine_btn: 'Me',
     tab_overview: 'Overview',
     tab_contacts: 'Contacts',
@@ -595,6 +636,104 @@ const I18N = {
     flywheel_coverage: 'Core interaction coverage',
     flywheel_this_week: 'This week goal',
     flywheel_items: 'items',
+    // Contact edit
+    edit_contact: 'Edit',
+    delete_contact: 'Delete',
+    save_contact: 'Save',
+    cancel_edit: 'Cancel',
+    confirm_delete: 'Delete this contact? All related timeline and todos will be removed.',
+    edit_name: 'Name',
+    edit_relation: 'Relation',
+    edit_company: 'Company',
+    edit_title: 'Title',
+    edit_nature: 'Type',
+    edit_nature_leverage: 'Leverage',
+    edit_nature_nurture: 'Nurture',
+    edit_nature_dual: 'Dual',
+    edit_tags: 'Tags (comma separated)',
+    edit_notes: 'Notes',
+    edit_goals: 'Goals (comma separated)',
+    edit_how: 'How',
+    edit_bond: 'Bond',
+    edit_dates: 'Important dates (date|label per line)',
+    edit_memories: 'Memories (one per line)',
+    // Export & delete account
+    tab_settings: 'Settings',
+    export_data: 'Export my data',
+    export_desc: 'Download all your data as JSON',
+    delete_account: 'Delete account',
+    delete_account_desc: 'Permanently delete all your data. This cannot be undone.',
+    confirm_delete_account: 'Are you absolutely sure? All contacts, timeline, todos, and billing data will be permanently deleted.',
+    export_done: 'Data exported ✓',
+    delete_done: 'Account deleted. Goodbye. ∞',
+    // Monthly dashboard
+    tab_monthly: 'Monthly',
+    monthly_title: 'This Month',
+    monthly_friend: 'As a Friend',
+    monthly_family: 'As Family',
+    monthly_collaborator: 'As a Collaborator',
+    monthly_interactions: 'interactions',
+    monthly_presence: 'presence events',
+    monthly_todos_done: 'promises kept',
+    monthly_no_data: 'No activity this month yet',
+    monthly_upcoming: 'Upcoming',
+    // Cooldown
+    cooldown_warning: 'days since last contact',
+    cooldown_urgent: 'Reach out soon',
+    // Meeting prep
+    meeting_prep: 'Meeting Prep',
+    meeting_prep_title: 'Before you meet',
+    meeting_prep_loading: 'Preparing…',
+    meeting_last: 'Last conversation',
+    meeting_todos: 'Pending todos',
+    meeting_tips: 'Tips',
+    // Model tier
+    model_standard: 'Standard',
+    model_enhanced: 'Enhanced',
+    model_premium: 'Premium',
+    model_cost_est: 'est.',
+    // Cost preview
+    cost_preview: 'Estimated cost',
+    cost_points: 'points',
+    // Contact grouping
+    group_by: 'Group by',
+    group_relation: 'Relation',
+    group_company: 'Company',
+    group_tag: 'Tag',
+    group_strength: 'Strength',
+    group_cooldown: 'Cooldown',
+    group_other: 'Other',
+    group_core: 'Core (4-5)',
+    group_important: 'Important (3)',
+    group_casual: 'Casual (1-2)',
+    group_urgent: 'Needs attention',
+    group_normal: 'In touch',
+    group_recent: 'Recently contacted',
+    group_never: 'Never contacted',
+    group_unGrouped: 'Ungrouped',
+    // Todos tab
+    tab_todos: 'Todos',
+    todo_title: 'Todos',
+    todo_add: 'Add todo',
+    todo_edit: 'Edit',
+    todo_delete: 'Delete',
+    todo_done: 'Done',
+    todo_undone: 'Undo',
+    todo_task: 'Task',
+    todo_contact: 'Contact (optional)',
+    todo_due: 'Due date (optional)',
+    todo_priority: 'Priority',
+    todo_save: 'Save',
+    todo_cancel: 'Cancel',
+    todo_empty: 'No todos yet',
+    todo_confirm_delete: 'Delete this todo?',
+    todo_overdue: 'overdue',
+    todo_today: 'today',
+    todo_days_left: 'd left',
+    todo_filter_all: 'All',
+    todo_filter_pending: 'Pending',
+    todo_filter_done: 'Completed',
+    todo_select_contact: 'Select contact',
   },
   zh: {
     tagline: '每段关系都值得<em>用心</em>',
@@ -670,6 +809,15 @@ const I18N = {
     billing_not_authed: '请先登录。',
     billing_history: '最近记录',
     billing_no_history: '暂无记录',
+    pay_title: '微信支付',
+    pay_scan: '用微信扫码支付',
+    pay_amount: '金额',
+    pay_done: '我已支付',
+    pay_cancel: '取消',
+    pay_pending: '正在确认支付…',
+    pay_pending_sub: '我们会尽快确认您的付款',
+    pay_confirmed: '支付成功 ✓',
+    pay_failed: '未找到付款，请联系 hello@welian.app',
     mine_btn: '我的',
     tab_overview: '概览',
     tab_contacts: '关系',
@@ -731,6 +879,104 @@ const I18N = {
     flywheel_coverage: 'Core层覆盖率',
     flywheel_this_week: '本周记录目标',
     flywheel_items: '条',
+    // Contact edit
+    edit_contact: '编辑',
+    delete_contact: '删除',
+    save_contact: '保存',
+    cancel_edit: '取消',
+    confirm_delete: '确认删除此联系人？相关的互动记录和待办也会被删除。',
+    edit_name: '姓名',
+    edit_relation: '关系',
+    edit_company: '公司',
+    edit_title: '职位',
+    edit_nature: '类型',
+    edit_nature_leverage: '撬动',
+    edit_nature_nurture: '维系',
+    edit_nature_dual: '双重',
+    edit_tags: '标签（逗号分隔）',
+    edit_notes: '备注',
+    edit_goals: '目标（逗号分隔）',
+    edit_how: '撬动方式',
+    edit_bond: '关系纽带',
+    edit_dates: '重要日期（每行 date|label）',
+    edit_memories: '记忆（每行一条）',
+    // Export & delete account
+    tab_settings: '设置',
+    export_data: '导出我的数据',
+    export_desc: '下载所有数据为 JSON 文件',
+    delete_account: '注销账户',
+    delete_account_desc: '永久删除你的所有数据，不可恢复。',
+    confirm_delete_account: '确定要注销吗？所有联系人、互动记录、待办和账单数据将被永久删除。',
+    export_done: '数据已导出 ✓',
+    delete_done: '账户已注销。再见。∞',
+    // Monthly dashboard
+    tab_monthly: '月度',
+    monthly_title: '本月的你',
+    monthly_friend: '作为朋友',
+    monthly_family: '作为家人',
+    monthly_collaborator: '作为合作者',
+    monthly_interactions: '次互动',
+    monthly_presence: '次在场',
+    monthly_todos_done: '件做到',
+    monthly_no_data: '本月还没有活动',
+    monthly_upcoming: '即将到来',
+    // Cooldown
+    cooldown_warning: '天未联系',
+    cooldown_urgent: '该联系了',
+    // Meeting prep
+    meeting_prep: '见面功课',
+    meeting_prep_title: '见面前看看',
+    meeting_prep_loading: '准备中…',
+    meeting_last: '上次聊了什么',
+    meeting_todos: '待办事项',
+    meeting_tips: '建议',
+    // Model tier
+    model_standard: '标准',
+    model_enhanced: '增强',
+    model_premium: '最强',
+    model_cost_est: '约',
+    // Cost preview
+    cost_preview: '预计消耗',
+    cost_points: '联点',
+    // Contact grouping
+    group_by: '分组',
+    group_relation: '关系',
+    group_company: '公司',
+    group_tag: '标签',
+    group_strength: '亲密度',
+    group_cooldown: '冷却状态',
+    group_other: '其他',
+    group_core: '核心 (4-5)',
+    group_important: '重要 (3)',
+    group_casual: '一般 (1-2)',
+    group_urgent: '需要联系',
+    group_normal: '保持中',
+    group_recent: '近期已联系',
+    group_never: '从未联系',
+    group_unGrouped: '未分组',
+    // Todos tab
+    tab_todos: '待办',
+    todo_title: '待办事项',
+    todo_add: '添加待办',
+    todo_edit: '编辑',
+    todo_delete: '删除',
+    todo_done: '完成',
+    todo_undone: '撤销',
+    todo_task: '任务',
+    todo_contact: '联系人（可选）',
+    todo_due: '截止日期（可选）',
+    todo_priority: '优先级',
+    todo_save: '保存',
+    todo_cancel: '取消',
+    todo_empty: '暂无待办',
+    todo_confirm_delete: '确认删除此待办？',
+    todo_overdue: '已超期',
+    todo_today: '今天',
+    todo_days_left: '天后',
+    todo_filter_all: '全部',
+    todo_filter_pending: '待完成',
+    todo_filter_done: '已完成',
+    todo_select_contact: '选择联系人',
   },
 };
 
@@ -1118,9 +1364,12 @@ function mountClerkSignIn(container) {
 function mountClerkSignUp(container) {
   container = container || document.getElementById('clerk-container');
   try {
+    // Create a fresh div each time — Clerk can't re-mount on the same element
     container.innerHTML = '';
-    clerkInstance.mountSignUp(container);
-    console.log('mountSignUp called');
+    const freshDiv = document.createElement('div');
+    container.appendChild(freshDiv);
+    clerkInstance.mountSignUp(freshDiv);
+    console.log('mountSignUp called on fresh div');
   } catch(e) {
     console.error('mountSignUp failed:', e);
     container.innerHTML = '<p style="color:#C65D5D;text-align:center;padding:20px">Failed to load sign-up form.<br><small>' + e.message + '</small></p>';
@@ -1201,6 +1450,7 @@ async function enableCloudMode() {
 
   clearChat();
   addMsg('ai', I18N[currentLang].cloud_welcome);
+  showModelTierBar();
 }
 
 async function getAgentContext(text) {
@@ -1551,6 +1801,7 @@ async function cloudChat(text) {
         messages: messages,
         system: systemPrompt,
         max_tokens: 1024,
+        model_tier: currentModelTier,
       }),
     });
 
@@ -2019,6 +2270,7 @@ function upgradeToLive(source) {
     systemMsgs.forEach(m => m.remove());
     addMsg('ai', I18N[currentLang].connected);
   }
+  showModelTierBar();
 }
 
 function tryBridgeConnect(url, label) {
@@ -2396,15 +2648,18 @@ function switchMineTab(tab) {
   });
   // Update title
   const d = I18N[currentLang];
-  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, weekly: d.mine_weekly_title, billing: d.billing_title };
+  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, todos: d.todo_title, weekly: d.mine_weekly_title, monthly: d.monthly_title, billing: d.billing_title, settings: d.tab_settings };
   document.getElementById('mineTitle').textContent = titles[tab] || d.mine_title;
   // Load content
   const content = document.getElementById('mineContent');
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   if (tab === 'overview') loadOverview();
   else if (tab === 'contacts') loadContactsTab();
+  else if (tab === 'todos') loadTodosTab();
   else if (tab === 'weekly') loadWeeklyTab();
+  else if (tab === 'monthly') loadMonthlyTab();
   else if (tab === 'billing') loadBillingTab();
+  else if (tab === 'settings') loadSettingsTab();
 }
 
 // ── API helpers ──
@@ -2619,12 +2874,20 @@ async function loadOverview() {
 
 // ── Contacts tab ──
 
+let contactsGroupBy = 'relation';
+let contactsCollapsedGroups = new Set();
+
 async function loadContactsTab(keyword) {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
   try {
-    const res = await mineApi('/data/contacts');
+    const [res, tlRes] = await Promise.all([
+      mineApi('/data/contacts'),
+      mineApi('/data/timeline').catch(() => ({ timeline: [] })),
+    ]);
     let contacts = res.contacts || [];
+    mineCache.contacts = contacts;
+    mineCache.timeline = tlRes.timeline || [];
     let html = `<input class="mine-search" placeholder="${d.mine_search_ph}" oninput="onContactsSearch(this.value)" id="mineSearchInput">`;
 
     if (keyword) {
@@ -2644,6 +2907,17 @@ async function loadContactsTab(keyword) {
         <button class="mine-subtab-item" onclick="switchContactsSubtab('leverage')">🌳 ${d.mine_leverage}</button>
         <button class="mine-subtab-item" onclick="switchContactsSubtab('nurture')">🌸 ${d.mine_nurture}</button>
       </div>`;
+      // Group-by selector
+      html += `<div class="mine-group-bar">
+        <span style="font-size:.75em;color:var(--dimmer)">${d.group_by}:</span>
+        <select class="mine-group-select" onchange="changeGroupBy(this.value)">
+          <option value="relation" ${contactsGroupBy==='relation'?'selected':''}>${d.group_relation}</option>
+          <option value="company" ${contactsGroupBy==='company'?'selected':''}>${d.group_company}</option>
+          <option value="tag" ${contactsGroupBy==='tag'?'selected':''}>${d.group_tag}</option>
+          <option value="strength" ${contactsGroupBy==='strength'?'selected':''}>${d.group_strength}</option>
+          <option value="cooldown" ${contactsGroupBy==='cooldown'?'selected':''}>${d.group_cooldown}</option>
+        </select>
+      </div>`;
       html += `<div id="contactsList"></div>`;
     }
     content.innerHTML = html;
@@ -2655,18 +2929,106 @@ async function loadContactsTab(keyword) {
   }
 }
 
+function changeGroupBy(mode) {
+  contactsGroupBy = mode;
+  contactsCollapsedGroups = new Set();
+  renderContactsList(currentContactsFilter || 'all', I18N[currentLang]);
+}
+
+function toggleGroup(groupKey) {
+  if (contactsCollapsedGroups.has(groupKey)) {
+    contactsCollapsedGroups.delete(groupKey);
+  } else {
+    contactsCollapsedGroups.add(groupKey);
+  }
+  const header = document.querySelector(`[data-group-key="${CSS.escape(groupKey)}"]`);
+  const body = document.querySelector(`[data-group-body="${CSS.escape(groupKey)}"]`);
+  if (header) header.classList.toggle('collapsed');
+  if (body) body.classList.toggle('collapsed');
+}
+
 function renderContactItem(c, d) {
   const nature = c.nature === 'nurture' ? 'nurture' : (c.nature === 'dual' ? 'dual' : 'leverage');
   const natureLabel = nature === 'leverage' ? d.mine_leverage : (nature === 'nurture' ? d.mine_nurture : d.mine_dual);
   const sub = [c.relation || c.role || '', c.company || ''].filter(Boolean).join(' · ');
-  return `<div class="mine-contact" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(c.id)}')"><div><div class="mine-contact-name">${escapeHtml(c.name || '')}</div><div class="mine-contact-sub">${escapeHtml(sub)}</div></div><span class="mine-tag ${nature}">${natureLabel}</span></div>`;
+  // Cooldown warning for leverage/dual contacts
+  let cooldownHtml = '';
+  if (nature !== 'nurture' && mineCache.timeline) {
+    const cd = getCooldownInfo(c, mineCache.timeline);
+    if (cd && cd.urgent) {
+      const daysLabel = cd.days >= 999 ? '从未' : `${cd.days}${d.cooldown_warning}`;
+      cooldownHtml = `<div style="font-size:.7em;color:var(--accent);margin-top:2px">⚠️ ${daysLabel} · ${d.cooldown_urgent}</div>`;
+    }
+  }
+  return `<div class="mine-contact" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(c.id)}')"><div><div class="mine-contact-name">${escapeHtml(c.name || '')}</div><div class="mine-contact-sub">${escapeHtml(sub)}</div>${cooldownHtml}</div><span class="mine-tag ${nature}">${natureLabel}</span></div>`;
 }
 
+let currentContactsFilter = 'all';
+
 function switchContactsSubtab(subtab) {
+  currentContactsFilter = subtab;
   document.querySelectorAll('#contactsSubtab .mine-subtab-item').forEach(btn => {
     btn.classList.toggle('active', btn.textContent.includes(subtab === 'leverage' ? '🌳' : subtab === 'nurture' ? '🌸' : I18N[currentLang].mine_all));
   });
   renderContactsList(subtab, I18N[currentLang]);
+}
+
+function getContactGroups(contacts, groupBy, d) {
+  const groups = new Map(); // key -> { label, contacts[] }
+
+  for (const c of contacts) {
+    let keys = [];
+    if (groupBy === 'relation') {
+      const rel = (c.relation || c.role || '').trim();
+      keys = [rel || d.group_unGrouped];
+    } else if (groupBy === 'company') {
+      const comp = (c.company || '').trim();
+      keys = [comp || d.group_unGrouped];
+    } else if (groupBy === 'tag') {
+      const tags = c.tags || [];
+      keys = tags.length > 0 ? tags : [d.group_unGrouped];
+    } else if (groupBy === 'strength') {
+      const s = c.strength || 0;
+      if (s >= 4) keys = [d.group_core];
+      else if (s === 3) keys = [d.group_important];
+      else keys = [d.group_casual];
+    } else if (groupBy === 'cooldown') {
+      if (c.nature === 'nurture') {
+        keys = ['🌸 ' + d.mine_nurture];
+      } else {
+        const cd = getCooldownInfo(c, mineCache.timeline || []);
+        if (!cd || cd.days >= 999) keys = [d.group_never];
+        else if (cd.urgent) keys = [d.group_urgent];
+        else if (cd.days <= 7) keys = [d.group_recent];
+        else keys = [d.group_normal];
+      }
+    }
+    for (const key of keys) {
+      if (!groups.has(key)) groups.set(key, { label: key, contacts: [] });
+      groups.get(key).contacts.push(c);
+    }
+  }
+
+  // Sort groups
+  const entries = [...groups.entries()];
+  if (groupBy === 'strength') {
+    const order = [d.group_core, d.group_important, d.group_casual];
+    entries.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  } else if (groupBy === 'cooldown') {
+    const order = [d.group_urgent, d.group_never, d.group_normal, d.group_recent, '🌸 ' + d.mine_nurture];
+    entries.sort((a, b) => {
+      const ia = order.indexOf(a[0]); const ib = order.indexOf(b[0]);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+  } else {
+    // Sort by group size desc, ungrouped last
+    entries.sort((a, b) => {
+      if (a[0] === d.group_unGrouped) return 1;
+      if (b[0] === d.group_unGrouped) return -1;
+      return b[1].contacts.length - a[1].contacts.length;
+    });
+  }
+  return entries;
 }
 
 function renderContactsList(filter, d) {
@@ -2675,13 +3037,33 @@ function renderContactsList(filter, d) {
   if (filter === 'leverage') filtered = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual');
   else if (filter === 'nurture') filtered = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual');
   const el = document.getElementById('contactsList');
+  if (!el) return;
   if (filtered.length === 0) {
     el.innerHTML = `<div class="mine-empty">${d.mine_empty_contacts}</div>`;
     return;
   }
-  let html = `<div class="mine-card">`;
-  filtered.forEach(c => html += renderContactItem(c, d));
-  html += `</div>`;
+
+  const groups = getContactGroups(filtered, contactsGroupBy, d);
+
+  let html = '';
+  for (const [groupKey, group] of groups) {
+    const collapsed = contactsCollapsedGroups.has(groupKey);
+    const groupIcon = contactsGroupBy === 'cooldown' && groupKey === d.group_urgent ? '⚠️'
+      : contactsGroupBy === 'cooldown' && groupKey === d.group_never ? '🔴'
+      : contactsGroupBy === 'cooldown' && groupKey === d.group_recent ? '✅'
+      : contactsGroupBy === 'strength' && groupKey === d.group_core ? '⭐'
+      : '📁';
+    html += `<div class="mine-group-header${collapsed ? ' collapsed' : ''}" data-group-key="${escapeHtml(groupKey)}" onclick="toggleGroup('${escapeHtml(groupKey).replace(/'/g,"\\'")}')">`;
+    html += `<span>${groupIcon}</span>`;
+    html += `<span>${escapeHtml(group.label)}</span>`;
+    html += `<span class="mine-group-count">${group.contacts.length}</span>`;
+    html += `<span class="mine-group-toggle">▾</span>`;
+    html += `</div>`;
+    html += `<div class="mine-group-body${collapsed ? ' collapsed' : ''}" data-group-body="${escapeHtml(groupKey)}">`;
+    html += `<div class="mine-card">`;
+    group.contacts.forEach(c => html += renderContactItem(c, d));
+    html += `</div></div>`;
+  }
   el.innerHTML = html;
 }
 
@@ -2704,6 +3086,22 @@ async function openContactDetail(contactId) {
   document.getElementById('detailBody').innerHTML = `<div class="mine-empty">${d.detail_loading}</div>`;
   document.getElementById('contactDetailOverlay').classList.add('show');
   document.getElementById('contactDetail').classList.add('show');
+
+  // Add edit/delete/meeting-prep buttons to header (recreate each time to update contactId)
+  const headerEl = document.querySelector('#contactDetail .mine-detail-header');
+  if (headerEl) {
+    const existing = headerEl.querySelector('.detail-btns');
+    if (existing) existing.remove();
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'detail-btns';
+    btnContainer.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+    btnContainer.innerHTML = `
+      <button class="detail-prep-btn" onclick="meetingPrepDetail('${contactId}')" style="font-size:.75em;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim)">${d.meeting_prep}</button>
+      <button class="detail-edit-btn" onclick="editContactForm('${contactId}')" style="font-size:.75em;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim)">${d.edit_contact}</button>
+      <button class="detail-del-btn" onclick="deleteContact('${contactId}')" style="font-size:.75em;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim)">${d.delete_contact}</button>
+    `;
+    headerEl.appendChild(btnContainer);
+  }
 
   try {
     // Fetch timeline for this contact
@@ -2956,7 +3354,8 @@ function renderBillingTab(info) {
   const allowance = info.allowance ?? 100;
   const used = info.used ?? 0;
   const purchased = info.purchased ?? 0;
-  const total = allowance + purchased;
+  const rollover = info.rollover ?? 0;
+  const total = allowance + rollover + purchased;
   const pct = total > 0 ? Math.min(100, Math.round(remaining / total * 100)) : 0;
   const isPro = info.plan === 'pro';
 
@@ -2981,6 +3380,7 @@ function renderBillingTab(info) {
       <div style="display:flex;justify-content:space-between;font-size:.75em;color:var(--dimmer)">
         <span>${d.billing_used}: ${used}</span>
         <span>${d.billing_allowance}: ${allowance}</span>
+        ${rollover > 0 ? `<span>滚存: ${rollover}</span>` : ''}
         ${purchased > 0 ? `<span>${d.billing_purchased}: ${purchased}</span>` : ''}
       </div>
       <p style="font-size:.72em;color:var(--dimmer);margin-top:8px;text-align:center">${d.billing_reset}</p>
@@ -3012,45 +3412,703 @@ function renderBillingTab(info) {
   `;
 }
 
-async function doUpgrade(plan) {
+// ── WeChat Pay flow ──
+
+const PAY_AMOUNTS = {
+  pro_monthly: 29,
+  pro_yearly: 290,
+  '100': 10,
+  '500': 45,
+};
+
+let currentOrder = null;
+
+function openPayModal(type, id) {
   const d = I18N[currentLang];
-  const planName = plan === 'pro_yearly' ? d.billing_pro_yearly : d.billing_pro_monthly;
-  if (!confirm(`${d.billing_confirm_upgrade} ${planName}？`)) return;
+  const amount = PAY_AMOUNTS[id] || 0;
+  const name = type === 'upgrade' ? (id === 'pro_yearly' ? d.billing_pro_yearly : d.billing_pro_monthly) : (id === '500' ? d.billing_pack_500 : d.billing_pack_100);
+  currentOrder = { type, id, amount, name };
+
+  document.getElementById('payTitle').textContent = d.pay_title;
+  document.getElementById('payBody').innerHTML = `
+    <div style="font-size:1.1em;font-weight:500;margin-bottom:4px">${escapeHtml(name)}</div>
+    <div style="font-size:.8em;color:var(--dim);margin-bottom:16px">${d.pay_amount}: ¥${amount}</div>
+    <img src="/wechat-pay-qr.png" style="width:240px;height:auto;border-radius:12px;margin:0 auto 12px;display:block" alt="WeChat Pay QR">
+    <p style="font-size:.82em;color:var(--dim);margin-bottom:16px">${d.pay_scan}</p>
+    <button onclick="confirmPayment()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:.95em;cursor:pointer;font-family:inherit;margin-bottom:8px">${d.pay_done}</button>
+    <button onclick="closePayModal()" style="width:100%;padding:10px;background:none;color:var(--dim);border:1px solid var(--border);border-radius:10px;font-size:.85em;cursor:pointer;font-family:inherit">${d.pay_cancel}</button>
+  `;
+  document.getElementById('payOverlay').classList.add('show');
+  document.getElementById('payModal').classList.add('show');
+}
+
+function closePayModal() {
+  document.getElementById('payOverlay').classList.remove('show');
+  document.getElementById('payModal').classList.remove('show');
+  currentOrder = null;
+}
+
+async function confirmPayment() {
+  const d = I18N[currentLang];
+  if (!currentOrder) return;
   const token = await getClerkToken();
   if (!token) return;
+
+  // Show pending state
+  document.getElementById('payBody').innerHTML = `
+    <div style="padding:40px 0">
+      <div style="font-size:2em;margin-bottom:12px">⏳</div>
+      <div style="font-size:1em;font-weight:500;margin-bottom:4px">${d.pay_pending}</div>
+      <div style="font-size:.8em;color:var(--dim)">${d.pay_pending_sub}</div>
+    </div>
+  `;
+
+  // Create a pending order on the server
   try {
-    const resp = await fetch(`${CLOUD_URL}/ai/upgrade`, {
+    const resp = await fetch(`${CLOUD_URL}/ai/create_order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ session_token: token, plan }),
+      body: JSON.stringify({ session_token: token, type: currentOrder.type, id: currentOrder.id, amount: currentOrder.amount }),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    await resp.json();
-    alert(d.billing_success);
-    loadBillingTab();
+    const data = await resp.json();
+
+    // Auto-confirm for now (manual confirmation will be added later)
+    // In production, this would poll for payment confirmation
+    const confirmResp = await fetch(`${CLOUD_URL}/ai/confirm_order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_token: token, order_id: data.order_id }),
+    });
+    if (!confirmResp.ok) throw new Error(`HTTP ${confirmResp.status}`);
+    await confirmResp.json();
+
+    document.getElementById('payBody').innerHTML = `
+      <div style="padding:40px 0">
+        <div style="font-size:2em;margin-bottom:12px">✅</div>
+        <div style="font-size:1em;font-weight:500;margin-bottom:4px">${d.pay_confirmed}</div>
+      </div>
+      <button onclick="closePayModal();loadBillingTab()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:.9em;cursor:pointer;font-family:inherit">OK</button>
+    `;
+  } catch (e) {
+    document.getElementById('payBody').innerHTML = `
+      <div style="padding:40px 0">
+        <div style="font-size:2em;margin-bottom:12px">❌</div>
+        <div style="font-size:.85em;color:var(--dim)">${d.pay_failed}</div>
+      </div>
+      <button onclick="closePayModal()" style="width:100%;padding:10px;background:none;color:var(--dim);border:1px solid var(--border);border-radius:10px;font-size:.85em;cursor:pointer;font-family:inherit">${d.pay_cancel}</button>
+    `;
+  }
+}
+
+async function doUpgrade(plan) {
+  openPayModal('upgrade', plan);
+}
+
+async function doPurchase(pack) {
+  openPayModal('purchase', pack);
+}
+
+// ── Feature 1: Contact edit/delete ──
+
+function editContactForm(contactId) {
+  const d = I18N[currentLang];
+  const contact = (mineCache.contacts || []).find(c => c.id === contactId);
+  if (!contact) return;
+  const lev = contact.leverage || {};
+  const nur = contact.nurture || {};
+  const datesStr = (contact.important_dates || []).map(dt => `${dt.date}|${dt.label}`).join('\n');
+  const memStr = (contact.memories || []).map(m => typeof m === 'string' ? m : (m.content || m.text || '')).join('\n');
+
+  document.getElementById('detailBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_name}<input id="edt_name" value="${escapeHtml(contact.name||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_relation}<input id="edt_relation" value="${escapeHtml(contact.relation||contact.role||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;font-size:.8em;color:var(--dim)">${d.edit_company}<input id="edt_company" value="${escapeHtml(contact.company||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+        <label style="flex:1;font-size:.8em;color:var(--dim)">${d.edit_title}<input id="edt_title" value="${escapeHtml(contact.title||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      </div>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_nature}
+        <select id="edt_nature" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px">
+          <option value="leverage" ${contact.nature==='leverage'?'selected':''}>${d.edit_nature_leverage}</option>
+          <option value="nurture" ${contact.nature==='nurture'?'selected':''}>${d.edit_nature_nurture}</option>
+          <option value="dual" ${contact.nature==='dual'?'selected':''}>${d.edit_nature_dual}</option>
+        </select>
+      </label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_tags}<input id="edt_tags" value="${escapeHtml((contact.tags||[]).join(', '))}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px" placeholder="tag1, tag2"></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_goals}<input id="edt_goals" value="${escapeHtml((lev.goals||[]).join(', '))}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px" placeholder="事业, 资源"></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_how}<input id="edt_how" value="${escapeHtml(lev.how||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_bond}<input id="edt_bond" value="${escapeHtml(nur.bond||'')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_dates}<textarea id="edt_dates" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85em;margin-top:4px;min-height:50px" placeholder="11-29|生日&#10;03-15|纪念日">${escapeHtml(datesStr)}</textarea></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_memories}<textarea id="edt_memories" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85em;margin-top:4px;min-height:60px" placeholder="不喝白酒只喝红酒&#10;儿子今年中考">${escapeHtml(memStr)}</textarea></label>
+      <label style="font-size:.8em;color:var(--dim)">${d.edit_notes}<textarea id="edt_notes" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85em;margin-top:4px;min-height:40px">${escapeHtml(contact.notes||'')}</textarea></label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="saveContactEdit('${contactId}')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">${d.save_contact}</button>
+        <button onclick="openContactDetail('${contactId}')" style="flex:1;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em;color:var(--dim)">${d.cancel_edit}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function saveContactEdit(contactId) {
+  const d = I18N[currentLang];
+  const val = id => document.getElementById(id)?.value?.trim() || '';
+  const tags = val('edt_tags').split(',').map(t => t.trim()).filter(Boolean);
+  const goals = val('edt_goals').split(',').map(t => t.trim()).filter(Boolean);
+  const dates = val('edt_dates').split('\n').map(line => { const [date, ...labelParts] = line.split('|'); return { date: (date||'').trim(), label: labelParts.join('|').trim() }; }).filter(dt => dt.date);
+  const memories = val('edt_memories').split('\n').map(m => m.trim()).filter(Boolean);
+
+  const body = {
+    id: contactId,
+    name: val('edt_name'),
+    relation: val('edt_relation'),
+    role: val('edt_relation'),
+    company: val('edt_company'),
+    title: val('edt_title'),
+    nature: val('edt_nature'),
+    tags, notes: val('edt_notes'),
+    leverage: { goals, how: val('edt_how') },
+    nurture: { bond: val('edt_bond') },
+    important_dates: dates,
+    memories,
+  };
+  try {
+    await mineApi('/data/contacts', 'POST', body);
+    // Refresh cache
+    await refreshContactsCache();
+    openContactDetail(contactId);
   } catch (e) {
     alert(d.billing_error + e.message);
   }
 }
 
-async function doPurchase(pack) {
+async function deleteContact(contactId) {
   const d = I18N[currentLang];
-  const packName = pack === '500' ? d.billing_pack_500 : d.billing_pack_100;
-  if (!confirm(`${d.billing_confirm_buy} ${packName}？`)) return;
+  if (!confirm(d.confirm_delete)) return;
+  try {
+    const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
+    const resp = await fetch(`${CLOUD_URL}/data/contacts?id=${encodeURIComponent(contactId)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    closeContactDetail();
+    await refreshContactsCache();
+    if (mineCurrentTab === 'contacts') loadContactsTab();
+  } catch (e) {
+    alert(d.billing_error + e.message);
+  }
+}
+
+async function refreshContactsCache() {
+  try {
+    const data = await mineApi('/data/contacts');
+    mineCache.contacts = data.contacts || [];
+  } catch (e) {}
+}
+
+// ── Feature 2: Export & delete account ──
+
+async function loadSettingsTab() {
+  const d = I18N[currentLang];
+  const content = document.getElementById('mineContent');
+  content.innerHTML = `
+    <div class="mine-card">
+      <div class="mine-card-title">📤 ${d.export_data}</div>
+      <div class="mine-contact-sub" style="margin-bottom:12px">${d.export_desc}</div>
+      <button onclick="exportMyData()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">${d.export_data}</button>
+    </div>
+    <div class="mine-card" style="border-color:rgba(201,100,66,.3)">
+      <div class="mine-card-title" style="color:var(--accent)">⚠️ ${d.delete_account}</div>
+      <div class="mine-contact-sub" style="margin-bottom:12px">${d.delete_account_desc}</div>
+      <button onclick="deleteMyAccount()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">${d.delete_account}</button>
+    </div>
+  `;
+}
+
+async function exportMyData() {
+  const d = I18N[currentLang];
+  try {
+    const [contacts, todos, timeline] = await Promise.all([
+      mineApi('/data/contacts'),
+      mineApi('/data/todos'),
+      mineApi('/data/timeline'),
+    ]);
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      app: 'Welian',
+      version: '1.0',
+      contacts: contacts.contacts || [],
+      todos: todos.todos || [],
+      timeline: timeline.timeline || [],
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `welian-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert(d.export_done);
+  } catch (e) {
+    alert(d.billing_error + e.message);
+  }
+}
+
+async function deleteMyAccount() {
+  const d = I18N[currentLang];
+  if (!confirm(d.confirm_delete_account)) return;
   const token = await getClerkToken();
   if (!token) return;
   try {
-    const resp = await fetch(`${CLOUD_URL}/ai/purchase_credits`, {
+    const resp = await fetch(`${CLOUD_URL}/data/delete_account`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ session_token: token, pack }),
+      body: JSON.stringify({ session_token: token, confirm: true }),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    await resp.json();
-    alert(d.billing_success);
-    loadBillingTab();
+    alert(d.delete_done);
+    location.reload();
   } catch (e) {
     alert(d.billing_error + e.message);
+  }
+}
+
+// ── Feature 3: Monthly dashboard ──
+
+async function loadMonthlyTab() {
+  const d = I18N[currentLang];
+  const content = document.getElementById('mineContent');
+  content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
+  try {
+    const [contactsRes, todosRes, timelineRes] = await Promise.all([
+      mineApi('/data/contacts'),
+      mineApi('/data/todos'),
+      mineApi('/data/timeline'),
+    ]);
+    const contacts = contactsRes.contacts || [];
+    const todos = todosRes.todos || [];
+    const timeline = timelineRes.timeline || [];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Categorize contacts by nature
+    const nurtureContacts = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual');
+    const leverageContacts = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual');
+
+    // This month's timeline
+    const monthTimeline = timeline.filter(t => new Date(t.date || 0) >= monthStart);
+    const monthTodosDone = todos.filter(t => t.done && t.done_at && new Date(t.done_at) >= monthStart);
+
+    // Group by role
+    const friendInteractions = monthTimeline.filter(t => {
+      const c = contacts.find(c => c.id === t.contact);
+      return c && (c.nature === 'nurture' || c.nature === 'dual');
+    });
+    const familyInteractions = monthTimeline.filter(t => {
+      const c = contacts.find(c => c.id === t.contact);
+      return c && c.nature === 'nurture' && (c.relation || c.role || '').match(/父|母|爸|妈|妻|夫|子|女|家|爷|奶|兄|弟|姐|妹|family|parent|spouse|child/i);
+    });
+    const collaboratorInteractions = monthTimeline.filter(t => {
+      const c = contacts.find(c => c.id === t.contact);
+      return c && (c.nature === 'leverage' || c.nature === 'dual');
+    });
+
+    // Upcoming important dates this month
+    const upcomingDates = [];
+    contacts.forEach(c => {
+      (c.important_dates || []).forEach(dt => {
+        if (dt.date) {
+          const m = dt.date.match(/(\d{2})-(\d{2})/);
+          if (m && parseInt(m[1]) === now.getMonth() + 1) {
+            const day = parseInt(m[2]);
+            if (day >= now.getDate()) {
+              upcomingDates.push({ name: c.name, date: dt.date, label: dt.label, days: day - now.getDate() });
+            }
+          }
+        }
+      });
+    });
+    upcomingDates.sort((a, b) => a.days - b.days);
+
+    const monthName = now.toLocaleDateString(currentLang === 'zh' ? 'zh-CN' : 'en-US', { month: 'long' });
+    const hasData = monthTimeline.length > 0 || monthTodosDone.length > 0;
+
+    content.innerHTML = `
+      <div class="mine-card" style="text-align:center;margin-bottom:12px">
+        <div style="font-size:1.2em;font-weight:500">${currentLang==='zh'?'📊 '+monthName+'的你':'📊 '+monthName}</div>
+      </div>
+      ${hasData ? `
+        <div class="mine-section-title">🌱 ${d.monthly_friend}</div>
+        <div class="mine-card">
+          <div class="mine-contact-sub">${friendInteractions.length} ${d.monthly_interactions}</div>
+          ${friendInteractions.slice(0,3).map(t => {
+            const c = contacts.find(c => c.id === t.contact);
+            return `<div class="mine-todo"><span class="mine-todo-dot">·</span><div>${escapeHtml(c?.name||'')}：${escapeHtml((t.summary||t.action||'').substring(0,50))}</div></div>`;
+          }).join('')}
+          ${friendInteractions.length === 0 ? `<div class="mine-empty">${d.monthly_no_data}</div>` : ''}
+        </div>
+        <div class="mine-section-title">🏡 ${d.monthly_family}</div>
+        <div class="mine-card">
+          <div class="mine-contact-sub">${familyInteractions.length} ${d.monthly_interactions}</div>
+          ${familyInteractions.slice(0,3).map(t => {
+            const c = contacts.find(c => c.id === t.contact);
+            return `<div class="mine-todo"><span class="mine-todo-dot">·</span><div>${escapeHtml(c?.name||'')}：${escapeHtml((t.summary||t.action||'').substring(0,50))}</div></div>`;
+          }).join('')}
+          ${familyInteractions.length === 0 ? `<div class="mine-empty">${d.monthly_no_data}</div>` : ''}
+        </div>
+        <div class="mine-section-title">🤝 ${d.monthly_collaborator}</div>
+        <div class="mine-card">
+          <div class="mine-contact-sub">${collaboratorInteractions.length} ${d.monthly_interactions} · ${monthTodosDone.length} ${d.monthly_todos_done}</div>
+          ${collaboratorInteractions.slice(0,3).map(t => {
+            const c = contacts.find(c => c.id === t.contact);
+            return `<div class="mine-todo"><span class="mine-todo-dot">·</span><div>${escapeHtml(c?.name||'')}：${escapeHtml((t.summary||t.action||'').substring(0,50))}</div></div>`;
+          }).join('')}
+          ${collaboratorInteractions.length === 0 ? `<div class="mine-empty">${d.monthly_no_data}</div>` : ''}
+        </div>
+      ` : `<div class="mine-empty">${d.monthly_no_data}</div>`}
+      ${upcomingDates.length > 0 ? `
+        <div class="mine-section-title">📅 ${d.monthly_upcoming}</div>
+        <div class="mine-card">
+          ${upcomingDates.slice(0,5).map(u => `<div class="mine-todo"><span class="mine-todo-dot">·</span><div><strong>${escapeHtml(u.name)}</strong> — ${escapeHtml(u.label)} (${u.date})</div></div>`).join('')}
+        </div>
+      ` : ''}
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+// ── Feature 4: Cooldown warnings in contact list ──
+
+function getCooldownInfo(contact, timeline) {
+  if (contact.nature === 'nurture') return null; // No cooldown for nurture
+  const contactTimeline = timeline.filter(t => t.contact === contact.id);
+  if (contactTimeline.length === 0) return { days: 999, urgent: true };
+  const latest = contactTimeline.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
+  const days = Math.floor((Date.now() - new Date(latest.date || 0)) / 86400000);
+  const threshold = contact.nature === 'dual' ? 21 : 14;
+  return { days, urgent: days >= threshold, latest };
+}
+
+// ── Feature 5: Meeting prep ──
+
+async function meetingPrepDetail(contactId) {
+  const d = I18N[currentLang];
+  const contact = (mineCache.contacts || []).find(c => c.id === contactId);
+  if (!contact) return;
+  const body = document.getElementById('detailBody');
+  body.innerHTML = `<div class="mine-empty">${d.meeting_prep_loading}</div>`;
+  try {
+    const result = await mineApi('/ai/meeting_prep', 'POST', { contact_id: contactId });
+    const data = result;
+    let html = '';
+    if (data.timeline && data.timeline.length > 0) {
+      html += `<div class="mine-detail-section"><div class="mine-detail-section-title">${d.meeting_last}</div>`;
+      data.timeline.forEach(t => {
+        const dt = (t.date || '').substring(0, 10);
+        html += `<div class="mine-detail-item">${dt} — ${escapeHtml(t.summary || t.action || '')}</div>`;
+      });
+      html += `</div>`;
+    }
+    if (data.todos && data.todos.length > 0) {
+      html += `<div class="mine-detail-section"><div class="mine-detail-section-title">${d.meeting_todos}</div>`;
+      data.todos.forEach(t => {
+        html += `<div class="mine-detail-item">⬜ ${escapeHtml(t.task || '')}</div>`;
+      });
+      html += `</div>`;
+    }
+    if (data.prep) {
+      html += `<div class="mine-detail-section"><div class="mine-detail-section-title">${d.meeting_tips}</div>`;
+      html += `<div style="font-size:.88em;line-height:1.7;white-space:pre-wrap">${escapeHtml(data.prep)}</div>`;
+      html += `</div>`;
+    }
+    if (data.usage) {
+      html += `<div style="font-size:.7em;color:var(--dimmer);margin-top:8px">${d.cost_preview}: ${data.usage.points} ${d.cost_points} · ${d.billing_remaining}: ${data.usage.remaining}</div>`;
+    }
+    html += `<button onclick="openContactDetail('${contactId}')" style="margin-top:12px;width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em;color:var(--dim)">${d.cancel_edit}</button>`;
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+async function meetingPrep(contactName) {
+  const d = I18N[currentLang];
+  const contact = (mineCache.contacts || []).find(c =>
+    c.name === contactName || (c.aliases || []).includes(contactName) || (c.alias || []).includes(contactName)
+  );
+  if (!contact) {
+    addMsg('ai', `我没有找到「${contactName}」的记录。你可以先聊聊再问我。`);
+    return;
+  }
+  addMsg('ai', `⏳ ${d.meeting_prep_loading}`);
+  try {
+    const tlRes = await mineApi(`/data/timeline?contact_id=${encodeURIComponent(contact.id)}`);
+    const todosRes = await mineApi('/data/todos');
+    const contactTodos = (todosRes.todos || []).filter(t => t.contact === contact.id && !t.done);
+    const timeline = (tlRes.timeline || []).slice(-5);
+
+    let prep = `📋 **${d.meeting_prep_title}：${contact.name}**\n\n`;
+    if (timeline.length > 0) {
+      prep += `**${d.meeting_last}：**\n`;
+      timeline.forEach(t => {
+        const dt = (t.date || '').substring(0, 10);
+        prep += `  · ${dt} ${t.summary || t.action || ''}\n`;
+      });
+    } else {
+      prep += `**${d.meeting_last}：** 暂无记录\n`;
+    }
+    if (contactTodos.length > 0) {
+      prep += `\n**${d.meeting_todos}：**\n`;
+      contactTodos.forEach(t => prep += `  · ⬜ ${t.task || ''}\n`);
+    }
+    if (contact.nurture?.bond) prep += `\n**关系：** ${contact.nurture.bond}\n`;
+    if (contact.memories?.length > 0) {
+      prep += `\n**记得：**\n`;
+      contact.memories.slice(0, 3).forEach(m => prep += `  · ${typeof m === 'string' ? m : (m.content || '')}\n`);
+    }
+    addMsg('ai', prep);
+  } catch (e) {
+    addMsg('ai', `${d.meeting_prep}失败：${e.message}`);
+  }
+}
+
+// ── Feature 6: Model tier selection ──
+
+let currentModelTier = 'standard';
+const MODEL_TIERS = {
+  standard: { multiplier: 1, label: { en: 'Standard', zh: '标准' } },
+  enhanced: { multiplier: 3, label: { en: 'Enhanced', zh: '增强' } },
+  premium:  { multiplier: 10, label: { en: 'Premium', zh: '最强' } },
+};
+
+function setModelTier(tier) {
+  currentModelTier = tier;
+  document.querySelectorAll('.tier-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tier === tier);
+  });
+  updateCostPreview();
+}
+
+async function updateCostPreview() {
+  const d = I18N[currentLang];
+  const el = document.getElementById('costPreview');
+  if (!el) return;
+  try {
+    const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
+    const resp = await fetch(`${CLOUD_URL}/ai/estimate_cost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'chat', model_tier: currentModelTier, session_token: token }),
+    });
+    const data = await resp.json();
+    if (data.estimated_points) {
+      el.textContent = `${d.cost_preview}: ~${data.estimated_points} ${d.cost_points}`;
+    }
+  } catch (e) {
+    el.textContent = '';
+  }
+}
+
+function showModelTierBar() {
+  const bar = document.getElementById('modelTierBar');
+  if (bar) bar.style.display = 'flex';
+  updateCostPreview();
+}
+
+// ── Feature 7: Rollover (backend handles, frontend just displays) ──
+
+// ── Feature 8: Cost preview ──
+
+function showCostPreview(estimatedPoints) {
+  const d = I18N[currentLang];
+  return `${d.cost_preview}: ~${estimatedPoints} ${d.cost_points}`;
+}
+
+// ── Todos tab (full CRUD) ──
+
+let todosFilter = 'pending';
+let todosCache = [];
+
+async function loadTodosTab() {
+  const d = I18N[currentLang];
+  const content = document.getElementById('mineContent');
+  content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
+  try {
+    // Fetch todos + contacts for the contact dropdown
+    const [todosRes, contactsRes] = await Promise.all([
+      mineApi('/data/todos'),
+      mineApi('/data/contacts').catch(() => ({ contacts: [] })),
+    ]);
+    // The GET /data/todos only returns pending; for "done" view we need all
+    // For now, use what we have
+    todosCache = todosRes.todos || [];
+    mineCache.contacts = contactsRes.contacts || [];
+    renderTodosTab(d);
+  } catch (e) {
+    content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+function renderTodosTab(d) {
+  const content = document.getElementById('mineContent');
+  const today = new Date().toISOString().substring(0, 10);
+
+  // Filter tabs
+  let html = `<div class="mine-subtab" id="todosSubtab">
+    <button class="mine-subtab-item ${todosFilter==='pending'?'active':''}" onclick="switchTodosFilter('pending')">${d.todo_filter_pending}</button>
+    <button class="mine-subtab-item ${todosFilter==='all'?'active':''}" onclick="switchTodosFilter('all')">${d.todo_filter_all}</button>
+  </div>`;
+
+  // Add button
+  html += `<button onclick="showTodoForm()" style="width:100%;padding:10px;margin-bottom:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">+ ${d.todo_add}</button>`;
+
+  // Todo form (hidden by default)
+  html += `<div id="todoForm" style="display:none;margin-bottom:12px"></div>`;
+
+  // Todo list
+  const contacts = mineCache.contacts || [];
+  const contactMap = {};
+  contacts.forEach(c => contactMap[c.id] = c.name);
+
+  let todos = todosCache;
+  // All todos from API are pending; if filter is 'all' we show them all
+  // (done todos are not returned by the API, so 'all' = same as 'pending' for now)
+
+  if (todos.length === 0) {
+    html += `<div class="mine-empty">${d.todo_empty}</div>`;
+  } else {
+    // Sort by due date
+    todos.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+    html += `<div class="mine-card">`;
+    todos.forEach(t => {
+      const due = (t.due || '').substring(0, 10);
+      let dueLabel = '';
+      let dueClass = '';
+      if (due) {
+        const delta = Math.floor((new Date(due) - new Date(today)) / 86400000);
+        if (delta < 0) { dueLabel = `${-delta}${d.todo_overdue}`; dueClass = 'mine-todo-overdue'; }
+        else if (delta === 0) { dueLabel = d.todo_today; }
+        else { dueLabel = `${delta}${d.todo_days_left}`; }
+      }
+      const contactName = contactMap[t.contact] || '';
+      const priorityBadge = t.priority === 'P1' ? '<span style="color:var(--accent);font-size:.7em">●</span>' : '';
+      html += `<div class="mine-todo" id="todo-${escapeHtml(t.id)}">
+        <span class="mine-todo-dot ${dueClass}">${priorityBadge}</span>
+        <div style="flex:1">
+          <div>${escapeHtml(t.task || '')}${dueLabel ? ` <span class="mine-contact-sub">— ${dueLabel}</span>` : ''}</div>
+          ${contactName ? `<div class="mine-contact-sub">${escapeHtml(contactName)}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button onclick="toggleTodoDone('${escapeHtml(t.id)}')" style="font-size:.72em;padding:2px 8px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim);font-family:inherit">✓ ${d.todo_done}</button>
+            <button onclick="showTodoForm('${escapeHtml(t.id)}')" style="font-size:.72em;padding:2px 8px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim);font-family:inherit">${d.todo_edit}</button>
+            <button onclick="deleteTodo('${escapeHtml(t.id)}')" style="font-size:.72em;padding:2px 8px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--dim);font-family:inherit">${d.todo_delete}</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  content.innerHTML = html;
+}
+
+function switchTodosFilter(filter) {
+  todosFilter = filter;
+  renderTodosTab(I18N[currentLang]);
+}
+
+function showTodoForm(todoId) {
+  const d = I18N[currentLang];
+  const form = document.getElementById('todoForm');
+  if (!form) return;
+  const editing = todoId ? todosCache.find(t => t.id === todoId) : null;
+  const contacts = mineCache.contacts || [];
+  const contactOptions = contacts.map(c => `<option value="${escapeHtml(c.id)}" ${editing && editing.contact === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+
+  form.style.display = 'block';
+  form.innerHTML = `
+    <div class="mine-card" style="display:flex;flex-direction:column;gap:10px">
+      <label style="font-size:.8em;color:var(--dim)">${d.todo_task}<input id="todo_task_input" value="${escapeHtml(editing?.task || '')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;font-size:.8em;color:var(--dim)">${d.todo_due}<input id="todo_due_input" type="date" value="${escapeHtml((editing?.due || '').substring(0,10))}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px"></label>
+        <label style="font-size:.8em;color:var(--dim)">${d.todo_priority}
+          <select id="todo_priority_input" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px">
+            <option value="P1" ${editing?.priority === 'P1' ? 'selected' : ''}>P1</option>
+            <option value="P2" ${editing?.priority === 'P2' ? 'selected' : ''}>P2</option>
+            <option value="P3" ${editing?.priority === 'P3' ? 'selected' : ''}>P3</option>
+          </select>
+        </label>
+      </div>
+      <label style="font-size:.8em;color:var(--dim)">${d.todo_contact}
+        <select id="todo_contact_input" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9em;margin-top:4px">
+          <option value="">—</option>
+          ${contactOptions}
+        </select>
+      </label>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveTodo('${escapeHtml(todoId || '')}')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">${d.todo_save}</button>
+        <button onclick="hideTodoForm()" style="flex:1;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em;color:var(--dim)">${d.todo_cancel}</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('todo_task_input')?.focus();
+}
+
+function hideTodoForm() {
+  const form = document.getElementById('todoForm');
+  if (form) { form.style.display = 'none'; form.innerHTML = ''; }
+}
+
+async function saveTodo(todoId) {
+  const d = I18N[currentLang];
+  const task = document.getElementById('todo_task_input')?.value?.trim();
+  if (!task) return;
+  const due = document.getElementById('todo_due_input')?.value || '';
+  const priority = document.getElementById('todo_priority_input')?.value || 'P1';
+  const contact = document.getElementById('todo_contact_input')?.value || '';
+
+  const body = { task, due, priority, contact_id: contact };
+  if (todoId) body.id = todoId; // Update existing
+
+  try {
+    await mineApi('/data/todos', 'POST', body);
+    hideTodoForm();
+    await loadTodosTab();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function toggleTodoDone(todoId) {
+  const d = I18N[currentLang];
+  try {
+    await mineApi('/data/todos/done', 'POST', { id: todoId });
+    // Remove from cache and re-render
+    todosCache = todosCache.filter(t => t.id !== todoId);
+    renderTodosTab(d);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function deleteTodo(todoId) {
+  const d = I18N[currentLang];
+  if (!confirm(d.todo_confirm_delete)) return;
+  try {
+    const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
+    if (!token) { alert('No auth token'); return; }
+    const resp = await fetch(`${CLOUD_URL}/data/todos?id=${encodeURIComponent(todoId)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${resp.status}`);
+    }
+    // Reload from server to ensure consistency
+    await loadTodosTab();
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
   }
 }
 

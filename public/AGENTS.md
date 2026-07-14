@@ -77,3 +77,24 @@
 4. 不编造数据
 5. 不做关系数据变现
 6. 不做"附近的人"/陌生人社交
+
+## Deployment
+
+**DO NOT use `npx wrangler pages deploy` directly** — it fails because Clash Verge VPN
+intercepts Node.js's built-in fetch without proxy support.
+
+Use the custom deploy script instead:
+```bash
+node scripts/deploy.cjs
+```
+
+This script uses undici's ProxyAgent (from wrangler's node_modules) to route through
+the Clash Verge proxy at `127.0.0.1:7897`, and uses BLAKE3 hashing (not SHA1) which
+is what Cloudflare Pages expects.
+
+### Key details
+- **Hash algorithm**: BLAKE3, computed as `blake3(base64(content) + extension).hex().slice(0, 32)`
+- **Proxy**: `http://127.0.0.1:7897` (Clash Verge)
+- **Upload flow**: Get JWT → check-missing → upload base64 → upsert-hashes → create deployment
+- **_redirects/_headers**: Sent as form fields, NOT in the manifest
+- **Manifest format**: `{"/path": "blake3hash"}` as JSON string in multipart form
