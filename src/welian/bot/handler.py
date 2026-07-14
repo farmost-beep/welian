@@ -170,6 +170,7 @@ class SessionManager:
 
     def __init__(self):
         self._clients: Dict[str, EdgeClient] = {}
+        self._local_mode: Dict[str, bool] = {}  # user_id → True if in local agent mode
         self._lock = asyncio.Lock()
 
     def _user_data_dir(self, wechat_user_id: str) -> Path:
@@ -210,6 +211,16 @@ class SessionManager:
         if wechat_user_id in self._clients:
             del self._clients[wechat_user_id]
             logger.info(f"Reset session: {wechat_user_id[:12]}...")
+        self._local_mode.pop(wechat_user_id, None)
+
+    def is_local_mode(self, wechat_user_id: str) -> bool:
+        return self._local_mode.get(wechat_user_id, False)
+
+    def set_local_mode(self, wechat_user_id: str, enabled: bool):
+        if enabled:
+            self._local_mode[wechat_user_id] = True
+        else:
+            self._local_mode.pop(wechat_user_id, None)
 
     def stats(self) -> dict:
         # Check if LLM is actually available
@@ -276,12 +287,20 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             "  /help — 显示帮助\n"
             "  /status — 查看状态\n"
             "  /who — 该联系谁\n"
-            "  /reset — 重置会话\n\n"
-            "直接发消息即可对话：\n"
+            "  /reset — 重置会话\n"
+            "  /local — 切换到本地 Agent（编码模式）\n"
+            "  /local claude — 用 Claude Code\n"
+            "  /local devin — 用 Devin CLI\n"
+            "  /local status — 查看 Agent 状态\n"
+            "  /social — 切回社交 AI 模式\n\n"
+            "社交模式（默认）：\n"
             "  · \"记一下：和张总聊了预算\"\n"
             "  · \"该联系谁\"\n"
             "  · \"给张总拟条消息\"\n"
-            "  · \"月度回顾\"",
+            "  · \"月度回顾\"\n\n"
+            "本地 Agent 模式：\n"
+            "  · 直接发消息，转给本地 AI agent\n"
+            "  · 适合编码、文件操作、系统管理",
             context_token,
         )
     elif cmd in ("/login", "/bind", "/登录", "/绑定"):
@@ -329,10 +348,12 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             )
     elif cmd == "/status":
         s = sessions.stats()
+        mode = "本地 Agent" if sessions.is_local_mode(user_id) else "社交 AI"
         api.send_message(user_id,
             f"Welian Bot 状态 ✅\n"
             f"  活跃用户：{s['active_users']}\n"
-            f"  AI 模式：{s['cloud']}",
+            f"  AI 模式：{s['cloud']}\n"
+            f"  你的模式：{mode}",
             context_token,
         )
     elif cmd == "/who":
@@ -342,6 +363,63 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
     elif cmd == "/reset":
         sessions.reset(user_id)
         api.send_message(user_id, "会话已重置 ✅ 重新开始吧～", context_token)
+    elif cmd == "/local" or cmd.startswith("/local "):
+        from ..agent_bridge import get_bridge, SUPPORTED_AGENTS, DEFAULT_AGENT
+        bridge = get_bridge()
+        parts = cmd.split(maxsplit=1)
+        agent_arg = parts[1].strip() if len(parts) > 1 else ""
+
+        if agent_arg in ("status", "st"):
+            st = bridge.get_status(user_id)
+            mode = "local" if sessions.is_local_mode(user_id) else "social"
+            api.send_message(user_id,
+                f"🔧 Agent 桥接状态\n"
+                f"  当前模式：{'本地 Agent' if mode == 'local' else '社交 AI'}\n"
+                f"  Agent：{st['agent']}\n"
+                f"  会话：{st['session_id'] or '未创建'}\n"
+                f"  工作目录：{st.get('work_dir', '~')}\n"
+                f"  支持：{', '.join(SUPPORTED_AGENTS)}",
+                context_token,
+            )
+        elif agent_arg == "reset":
+            msg = bridge.reset_session(user_id)
+            api.send_message(user_id, msg, context_token)
+        elif agent_arg in SUPPORTED_AGENTS:
+            sessions.set_local_mode(user_id, True)
+            msg = bridge.set_agent(user_id, agent_arg)
+            api.send_message(user_id,
+                f"{msg}\n\n"
+                f"现在你发的消息会直接转给本地 {agent_arg} agent。\n"
+                f"发 /social 切回社交模式。",
+                context_token,
+            )
+        elif agent_arg == "":
+            # No argument — toggle to local with default agent
+            sessions.set_local_mode(user_id, True)
+            st = bridge.get_status(user_id)
+            api.send_message(user_id,
+                f"🔧 已切换到本地 Agent 模式\n"
+                f"  Agent：{st['agent']}\n\n"
+                f"现在你发的消息会直接转给本地 agent。\n"
+                f"  /local claude — 用 Claude Code\n"
+                f"  /local devin — 用 Devin CLI\n"
+                f"  /social — 切回社交模式",
+                context_token,
+            )
+        else:
+            api.send_message(user_id,
+                f"用法：/local [claude|devin|status|reset]\n"
+                f"当前默认 agent：{DEFAULT_AGENT}",
+                context_token,
+            )
+    elif cmd == "/social":
+        sessions.set_local_mode(user_id, False)
+        api.send_message(user_id,
+            "💬 已切换到社交 AI 模式 ✅\n"
+            "现在可以记互动、查联系人、拟消息等。\n"
+            "发 /local 切回本地 Agent。",
+            context_token,
+        )
     else:
         api.send_message(user_id, f"未知命令：{cmd}\n输入 /help 查看可用命令", context_token)
 
@@ -483,7 +561,24 @@ async def process_message(user_id: str, text: str, api: IlinkApi, context_token:
     # Save user ID for weekly report push
     _save_user_id(user_id)
 
-    # Processing indicator for non-trivial messages
+    # ── Route by mode: local agent vs social AI ──
+    if sessions.is_local_mode(user_id):
+        # Processing indicator (local agent may take a while)
+        api.send_message(user_id, "⏳ 本地 Agent 处理中...", context_token)
+        try:
+            from ..agent_bridge import get_bridge
+            bridge = get_bridge()
+            reply = await asyncio.to_thread(bridge.chat, user_id, text)
+            if reply:
+                await send_long_message(api, user_id, reply, context_token)
+            else:
+                api.send_message(user_id, "（Agent 没有返回内容，请重试）", context_token)
+        except Exception as e:
+            logger.error(f"Local agent error: {e}", exc_info=True)
+            api.send_message(user_id, f"Agent 执行出错：{str(e)[:100]}\n发 /social 切回社交模式", context_token)
+        return
+
+    # Social AI mode (default)
     if len(text) > 10:
         api.send_message(user_id, "⏳ 正在处理...", context_token)
 
