@@ -36,12 +36,12 @@ async function loadClerkUI(publishableKey) {
   --bg:#F5F4EE;--surface:#EDEBE3;--border:#D9D5C7;
   --text:#1A1915;--dim:#6B6860;--accent:#C96442;--green:#4A7C59;
 }
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow-x:hidden}
 .card{background:var(--surface);border-radius:16px;padding:40px;max-width:420px;width:90%;text-align:center}
 h1{font-size:24px;margin-bottom:8px;font-weight:600}
 .sub{color:var(--dim);font-size:14px;margin-bottom:24px}
-#clerk-mount{min-height:300px;margin-bottom:16px}
-.status{padding:12px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none}
+#clerk-mount{min-height:300px;margin-bottom:16px;width:100%;display:flex;justify-content:center}
+.status{padding:12px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none;word-break:break-word}
 .status.ok{background:#E8F0E8;color:var(--green);display:block}
 .status.err{background:#F2E8E0;color:var(--accent);display:block}
 .status.loading{background:#E8E8F0;color:#4A5C7C;display:block}
@@ -51,9 +51,23 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 .user-info{background:var(--bg);border-radius:12px;padding:20px;margin:16px 0;text-align:left}
 .user-info .row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .user-info .avatar{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;flex-shrink:0}
-.user-info .name{font-size:16px;font-weight:600}
-.user-info .email{font-size:14px;color:var(--dim)}
+.user-info .name{font-size:16px;font-weight:600;word-break:break-word}
+.user-info .email{font-size:14px;color:var(--dim);word-break:break-all}
 .user-info .label{font-size:12px;color:var(--dim);margin-bottom:4px}
+
+/* 手机端：减小 padding 让 Clerk 自然宽度卡片放下 */
+@media(max-width:480px){
+  .card{
+    width:100%;
+    max-width:none;
+    border-radius:0;
+    padding:20px 12px;
+    min-height:100vh;
+  }
+  h1{font-size:20px}
+  #clerk-mount{min-height:280px}
+  .user-info{padding:16px}
+}
 </style>
 </head>
 <body>
@@ -122,7 +136,19 @@ async function initClerk() {
 
   await loadClerkUI(PUBLISHABLE_KEY);
 
-  try { await window.Clerk.load(); } catch(e) { console.log('Clerk load:', e.message); }
+  try {
+    await window.Clerk.load({
+      appearance: {
+        elements: {
+          card: 'max-width: 360px !important; margin: 0 auto !important;',
+          cardBox: 'max-width: 360px !important;',
+          footerActionLink: 'font-size: 13px !important;',
+          headerTitle: 'font-size: 20px !important;',
+          headerSubtitle: 'font-size: 14px !important;'
+        }
+      }
+    });
+  } catch(e) { console.log('Clerk load:', e.message); }
 
   if (window.Clerk.user) {
     showConfirm();

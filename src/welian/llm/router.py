@@ -201,3 +201,64 @@ def reset_client() -> None:
 def list_providers() -> list:
     """列出所有可用 provider（用于CLI提示）"""
     return list(_PROVIDERS.keys())
+
+
+# ── Adaptive model routing ──
+
+# Task complexity → model mapping
+# Simple tasks (greetings, quick questions) → cheaper model
+# Complex tasks (coding, analysis, multi-step) → capable model
+_ADAPTIVE_RULES = [
+    # (regex pattern, engine, model) — first match wins
+    (r"^(你好|hi|hello|hey|在吗|谢谢|ok|好的|嗯|👍|😊)", "openai", None),  # greetings → cheap
+    (r"^(什么是|解释一下|什么意思|怎么说|怎么写)", "openai", None),  # simple questions → cheap
+    (r"(写代码|实现|修复|重构|review|审查|提交|commit|push|PR|部署|deploy)", "claude", None),  # coding → strong
+    (r"(分析|设计|架构|方案|计划|对比|评估)", "claude", None),  # analysis → strong
+]
+
+import re as _re
+
+def adaptive_route(text: str) -> tuple:
+    """Route text to appropriate engine+model based on content complexity.
+
+    Returns (engine, model) tuple. Model may be None (use default).
+    """
+    text_lower = text.lower().strip()
+    for pattern, engine, model in _ADAPTIVE_RULES:
+        if _re.search(pattern, text_lower, _re.I):
+            return engine, model
+    # Default: claude for unknown complexity
+    return "claude", None
+
+
+def get_client_adaptive(text: str, force_new: bool = False) -> LLMClient:
+    """Get LLM client with adaptive routing based on text content.
+
+    Only routes if engine is set to "adaptive" in config.
+    Otherwise falls back to normal get_client().
+    """
+    from ..bot.config import get_config_value
+    engine = get_config_value("ai.engine", "claude")
+
+    if engine == "adaptive":
+        routed_engine, routed_model = adaptive_route(text)
+        # Temporarily set env vars for this routing
+        old_engine = os.environ.get("LLM_ENGINE")
+        old_model = os.environ.get("LLM_MODEL")
+        os.environ["LLM_ENGINE"] = routed_engine
+        if routed_model:
+            os.environ["LLM_MODEL"] = routed_model
+        try:
+            return get_client(force_new=True)
+        finally:
+            # Restore env
+            if old_engine:
+                os.environ["LLM_ENGINE"] = old_engine
+            else:
+                os.environ.pop("LLM_ENGINE", None)
+            if old_model:
+                os.environ["LLM_MODEL"] = old_model
+            else:
+                os.environ.pop("LLM_MODEL", None)
+
+    return get_client(force_new=force_new)

@@ -4,17 +4,103 @@
 # Data directory (default: ~/.welian/data)
 # data_dir: ~/.welian/data
 
-# AI / LLM configuration
+# ── AI / LLM configuration ──
 ai:
-  engine: "claude"              # claude | openai
+  engine: "claude"              # claude | openai | minimax
   model: "claude-sonnet-4-6"
   api_key_env: "ANTHROPIC_API_KEY"
+  base_url: ""                  # empty = use engine default
+
+  # System prompts — path relative to project root prompts/ dir
+  # Leave empty to use built-in fallback
+  prompts:
+    chat: "prompts/chat.md"              # Main conversation (edge.py _llm_respond)
+    draft: "prompts/draft.md"            # Message drafting
+    extract: "prompts/extract.md"        # Todo extraction from interaction
+    advise: "prompts/advise.md"          # Relationship suggestions
+    intent: "prompts/intent.md"          # Intent extraction (extract_intent)
+    meeting_prep: "prompts/meeting_prep.md"
+    weekly: "prompts/weekly.md"          # Weekly review
+    monthly: "prompts/monthly.md"        # Monthly dashboard
+    proactive: "prompts/proactive.md"    # Proactive suggestions
+    session_summary: "prompts/session_summary.md"
+    import: "prompts/import.md"          # Contact import extraction
+    hn_signals: "prompts/hn_signals.md"  # Hacker News signals
+
   draft:
     default_tone: "warm"
     max_length: 80
     signature: ""
 
-# Token billing (BUSINESS_MODEL §3)
+# ── Cloud Worker LLM tiers ──
+# Cloud-side only (wrangler.toml env vars override these)
+cloud:
+  tiers:
+    standard:
+      model: "MiniMax-M3"
+      base_url: "https://api.minimaxi.com/anthropic"
+    enhanced:
+      model: "claude-sonnet-4-6"
+      base_url: "https://api.anthropic.com"
+    premium:
+      model: "claude-opus-4-6"
+      base_url: "https://api.anthropic.com"
+      service_tier: "priority"     # 1.5x price, faster
+
+  # Tier routing: which scenario uses which tier
+  tier_routing:
+    chat: "standard"
+    draft: "standard"
+    extract_intent: "standard"
+    proactive: "standard"
+    session_summary: "standard"
+    meeting_prep: "enhanced"
+    weekly_report: "enhanced"
+    monthly_report: "enhanced"
+    import: "standard"
+
+  # Data source priority (cloud mode)
+  data_priority:
+    - "cloud_kv"        # Primary: Cloudflare KV
+    - "agent"           # Fallback: local agent (if bridge available)
+
+# ── Routing mode ──
+# How cloudChat decides where to send requests
+routing:
+  mode: "auto"           # auto | live_first | cloud_first | cloud_only
+  # auto: Live if bridge ready, else Cloud
+  # live_first: Try Live, fallback to Cloud
+  # cloud_first: Try Cloud, fallback to Live
+  # cloud_only: Always Cloud (ignore local agent)
+  live_timeout_ms: 30000
+  agent_context_timeout_ms: 5000
+
+# ── Local agent engine ──
+# Live 模式下 cmd:chat 走哪个引擎
+agent:
+  engine: "devin"
+  devin:
+    model: "GLM-5.2 High"
+    permission_mode: "dangerous"
+    max_turns: 50
+    timeout: 3600
+    work_dir: ""
+  edge:
+    model: ""
+
+  # Devin CLI 配置（engine=devin 时生效）
+  devin:
+    model: ""              # 模型名称，空=用 Devin CLI 默认模型
+    permission_mode: "dangerous"  # dangerous | normal | strict
+    max_turns: 50          # 最大推理轮数
+    timeout: 3600          # 超时秒数（默认60分钟，支持长任务）
+    work_dir: "/Users/cyingfang/devin/welian"  # 工作目录，需指向 welian 项目以加载 AGENTS.md
+
+  # Edge LLM 配置（engine=edge 时生效，同 ai 段）
+  edge:
+    model: ""              # 空=用 ai.model
+
+# ── Token billing (BUSINESS_MODEL §3) ──
 tokens:
   free_monthly: 100
   pro_monthly: 500

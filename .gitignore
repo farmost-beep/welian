@@ -29,3 +29,7 @@ build/
 .wrangler/
 src/welian.egg-info/
 data/
+c1_2x.png
+c1_2x_ocr.txt
+c1_gray3x.png
+c1_gray_ocr.txt

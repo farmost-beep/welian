@@ -71,6 +71,15 @@ async function walk(dir, baseDir = dir) {
 }
 
 async function main() {
+  // Sync AGENTS.md from project root to public/ (single source of truth)
+  const { copyFileSync } = require('fs');
+  try {
+    copyFileSync(join(REPO_DIR, 'AGENTS.md'), join(PUBLIC_DIR, 'AGENTS.md'));
+    console.log('Synced AGENTS.md → public/AGENTS.md');
+  } catch (e) {
+    console.log('No AGENTS.md to sync (skipping)');
+  }
+
   console.log(`Collecting files from ${PUBLIC_DIR}...`);
   const files = await walk(PUBLIC_DIR);
   console.log(`Found ${files.length} files`);

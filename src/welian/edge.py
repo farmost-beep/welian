@@ -45,6 +45,7 @@ class EdgeClient:
         self._http_client = None
         self._llm_client = None
         self._conversation: list = []  # multi-turn chat history
+        self._MAX_CONVERSATION = 100  # 保留最近 50 轮对话（100 条消息）
 
     def _get_llm(self):
         """Get LLM client.
@@ -318,8 +319,8 @@ class EdgeClient:
         """Save a conversation turn (called after web-side LLM generates reply)."""
         self._conversation.append({"role": "user", "content": user_text})
         self._conversation.append({"role": "assistant", "content": reply})
-        if len(self._conversation) > 40:
-            self._conversation = self._conversation[-40:]
+        if len(self._conversation) > self._MAX_CONVERSATION:
+            self._conversation = self._conversation[-self._MAX_CONVERSATION:]
 
     def cloud_chat(self, text: str) -> str:
         """Cloud-based chat flow — same as Web's cloudChat().
@@ -456,8 +457,9 @@ class EdgeClient:
             if context_parts:
                 user_content = f'用户消息：{text}\n\n{chr(10).join(context_parts)}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。'
 
-            # Build messages: conversation history + current message
-            messages = list(self._conversation[-4:])
+            # Build messages: full conversation history + current message
+            # 借鉴本地 Agent 模式——发送完整历史，让 LLM 自己管理上下文窗口
+            messages = list(self._conversation)
             messages.append({"role": "user", "content": user_content})
 
             # Step 4: Call cloud LLM
@@ -475,8 +477,8 @@ class EdgeClient:
             # Save turn
             self._conversation.append({"role": "user", "content": text})
             self._conversation.append({"role": "assistant", "content": reply})
-            if len(self._conversation) > 40:
-                self._conversation = self._conversation[-40:]
+            if len(self._conversation) > self._MAX_CONVERSATION:
+                self._conversation = self._conversation[-self._MAX_CONVERSATION:]
 
             return reply
 
@@ -542,7 +544,7 @@ class EdgeClient:
 - 如果用户在查待办，只列出数据中有的待办，按紧急程度分组
 - 如果用户在闲聊，自然回应，可以引导到关系管理话题"""
 
-    def chat(self, text: str) -> str:
+    def chat(self, text: str, file_info=None) -> str:
         """Process user message: LLM is the primary processor.
 
         Flow:
@@ -550,10 +552,13 @@ class EdgeClient:
         2. Local data operations (save record, gather context)
         3. LLM generates final response with data context + conversation history
 
+        If file_info is provided ({base64, filename, media_type, is_image}),
+        the file is included as multimodal content in the LLM call.
+
         All responses go through LLM for natural language.
         """
         text = text.strip()
-        if not text:
+        if not text and not file_info:
             return "跟我说点什么吧 😊"
 
         # Step 1: LLM intent detection
@@ -564,16 +569,19 @@ class EdgeClient:
 
         # Step 3: LLM generates response with data context + conversation history
         try:
-            reply = self._llm_respond(text, intent_type, payload, data_context)
+            reply = self._llm_respond(text, intent_type, payload, data_context, file_info)
             # Cloud mode: bill based on actual token usage (方案C)
             if self.cloud_url:
                 self._bill_cloud_usage()
             # Save turn to conversation history (after successful response)
-            self._conversation.append({"role": "user", "content": text})
+            user_content = text
+            if file_info:
+                user_content = (text + " " if text else "") + f"📎 {file_info.get('filename', '')}"
+            self._conversation.append({"role": "user", "content": user_content})
             self._conversation.append({"role": "assistant", "content": reply})
-            # Keep last 20 turns to avoid token overflow
-            if len(self._conversation) > 40:
-                self._conversation = self._conversation[-40:]
+            # Keep last 50 turns (100 messages) — let LLM manage its own context window
+            if len(self._conversation) > self._MAX_CONVERSATION:
+                self._conversation = self._conversation[-self._MAX_CONVERSATION:]
             return reply
         except Exception:
             # Fallback to template responses if LLM fails
@@ -610,11 +618,14 @@ class EdgeClient:
         # chat / help / unknown — minimal context
         return self._gather_overview()
 
-    def _llm_respond(self, text, intent_type, payload, data_context) -> str:
-        """LLM generates the final response with data context + conversation history."""
+    def _llm_respond(self, text, intent_type, payload, data_context, file_info=None) -> str:
+        """LLM generates the final response with data context + conversation history.
+
+        If file_info is provided, builds multimodal content (file block + text).
+        """
         llm = self._get_llm()
 
-        system = """你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+        system = self._load_prompt('chat', """你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
 
 你的风格：
 - 简洁友好，像朋友在聊天
@@ -625,7 +636,7 @@ class EdgeClient:
 - 如果用户在闲聊，自然回应，可以引导到关系管理话题
 
 你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。
-对话是连续的，请结合上下文理解用户的意图。"""
+对话是连续的，请结合上下文理解用户的意图。""")
 
         prompt = f"""用户消息：{text}
 
@@ -634,7 +645,47 @@ class EdgeClient:
 
 请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。"""
 
+        # If file attached, build multimodal content instead of plain text prompt
+        if file_info and file_info.get("base64"):
+            import base64 as b64mod
+            media_type = file_info.get("media_type", "application/octet-stream")
+            is_image = file_info.get("is_image", False)
+            file_block = {
+                "type": "image" if is_image else "document",
+                "source": {"type": "base64", "media_type": media_type, "data": file_info["base64"]},
+            }
+            text_block = {"type": "text", "text": prompt}
+            # Pass messages with multimodal content, empty prompt so llm.complete doesn't append
+            messages = list(self._conversation)
+            messages.append({"role": "user", "content": [file_block, text_block]})
+            return llm.complete("", system=system, messages=messages)
+
         return llm.complete(prompt, system=system, messages=self._conversation)
+
+    def _load_prompt(self, name: str, fallback: str) -> str:
+        """Load system prompt from prompts/ directory, fall back to inline string.
+
+        Checks config/welian.yaml ai.prompts.{name} for path, then reads the file.
+        """
+        try:
+            # Find project root (parent of src/welian/)
+            root = Path(__file__).resolve().parent.parent.parent
+            # Try config file for path mapping
+            import yaml as _yaml
+            config_path = root / "config" / "welian.yaml"
+            if config_path.exists():
+                with open(config_path) as f:
+                    cfg = _yaml.safe_load(f)
+                prompt_path = cfg.get("ai", {}).get("prompts", {}).get(name)
+                if prompt_path:
+                    full_path = root / prompt_path
+                    if full_path.exists():
+                        content = full_path.read_text().strip()
+                        if content:
+                            return content
+        except Exception:
+            pass
+        return fallback
 
     def _template_respond(self, intent_type, payload, text) -> str:
         """Fallback template responses when LLM is unavailable."""
@@ -1227,18 +1278,18 @@ class EdgeClient:
         If password is provided, the data is encrypted.
         The export contains ONLY local data — no cloud dependencies.
         """
-        from .engine import CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE, USAGE_FILE
+        store = engine.get_store()
 
         data = {
             "version": "1.0",
             "exported_at": date.today().isoformat(),
-            "contacts": engine._load(CONTACTS_FILE),
-            "timeline": engine._load(TIMELINE_FILE),
-            "todos": engine._load(TODOS_FILE),
+            "contacts": store.load_contacts(),
+            "timeline": store.load_timeline(),
+            "todos": store.load_todos(),
         }
-        usage_path = USAGE_FILE
-        if usage_path.exists():
-            data["usage"] = json.loads(usage_path.read_text())
+        usage = store.load_usage()
+        if usage:
+            data["usage"] = usage
 
         if password:
             data = self._encrypt(data, password)
@@ -1252,13 +1303,12 @@ class EdgeClient:
         if not isinstance(data, dict) or "version" not in data:
             return False
 
-        from .engine import CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE, _save, USAGE_FILE
-
-        _save(CONTACTS_FILE, data.get("contacts", []))
-        _save(TIMELINE_FILE, data.get("timeline", []))
-        _save(TODOS_FILE, data.get("todos", []))
+        store = engine.get_store()
+        store.save_contacts(data.get("contacts", []))
+        store.save_timeline(data.get("timeline", []))
+        store.save_todos(data.get("todos", []))
         if "usage" in data:
-            USAGE_FILE.write_text(json.dumps(data["usage"], ensure_ascii=False, indent=2))
+            store.save_usage(data["usage"])
         return True
 
     def _encrypt(self, data: dict, password: str) -> dict:

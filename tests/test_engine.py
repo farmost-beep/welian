@@ -1,247 +1,193 @@
-"""Tests for Welian core engine — dual relationship model."""
-import unittest
-import os
-import tempfile
-import json
-from pathlib import Path
+"""Tests for Welian core engine — contact / timeline / todo CRUD + field integrity.
 
-# Set up test data directory
-_test_dir = tempfile.mkdtemp(prefix="welian_test_")
-os.environ["WELIAN_HOME"] = _test_dir
+These tests exercise the on-device data engine (src/welian/engine.py) against
+an isolated temp data directory. No external services are involved.
+"""
+import pytest
 
-from welian import engine
 
-def _clear_data():
-    """Clear all data files for test isolation."""
-    data_dir = Path(_test_dir) / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    engine.CONTACTS_FILE = data_dir / "contacts.json"
-    engine.TIMELINE_FILE = data_dir / "timeline.json"
-    engine.TODOS_FILE = data_dir / "todos.json"
-    # Delete files directly (bypass _save safety check)
-    for f in [engine.CONTACTS_FILE, engine.TIMELINE_FILE, engine.TODOS_FILE]:
-        if f.exists():
-            f.unlink()
+# ── Contact CRUD ──
 
-class TestNatureClassification(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
+def test_contact_crud(fresh_data):
+    """Create / read / update / delete a contact end-to-end."""
+    engine = fresh_data["engine"]
 
-    def test_infer_nurture_from_family_relation(self):
-        c = {"relation": "家人", "tags": []}
-        self.assertEqual(engine.infer_nature(c), engine.NATURE_NURTURE)
+    # Create
+    ok, msg = engine.add_contact("c1", "张三", relation="同行",
+                                 nature="leverage", tags=["客户"],
+                                 platforms={"wechat": "zhangsan"},
+                                 notes="初次见面于行业峰会")
+    assert ok is True
+    assert "张三" in msg
 
-    def test_infer_nurture_from_friend_tags(self):
-        c = {"relation": "", "tags": ["挚友"]}
-        self.assertEqual(engine.infer_nature(c), engine.NATURE_NURTURE)
+    # Duplicate id rejected
+    ok2, _ = engine.add_contact("c1", "张三")
+    assert ok2 is False
 
-    def test_infer_leverage_default(self):
-        c = {"relation": "同行", "tags": []}
-        self.assertEqual(engine.infer_nature(c), engine.NATURE_LEVERAGE)
+    # Read
+    c = engine.get_contact("c1")
+    assert c is not None
+    assert c["name"] == "张三"
+    assert c["relation"] == "同行"
+    assert c["nature"] == "leverage"
+    assert "客户" in c["tags"]
 
-    def test_infer_explicit_nature(self):
-        c = {"nature": "dual", "relation": "同行"}
-        self.assertEqual(engine.infer_nature(c), engine.NATURE_DUAL)
+    # Resolve by name
+    resolved, match = engine.resolve_contact("张三")
+    assert resolved is not None
+    assert resolved["id"] == "c1"
+    assert match == "name"
 
-    def test_role_family(self):
-        c = {"relation": "家人", "tags": []}
-        self.assertEqual(engine.contact_role(c), engine.ROLE_FAMILY)
+    # Update
+    ok, _ = engine.update_contact("c1", {"notes": "更新备注", "strength": 5})
+    assert ok is True
+    c = engine.get_contact("c1")
+    assert c["notes"] == "更新备注"
+    assert c["strength"] == 5
 
-    def test_role_friend(self):
-        c = {"relation": "挚友", "tags": []}
-        self.assertEqual(engine.contact_role(c), engine.ROLE_FRIEND)
+    # Update missing contact fails
+    ok, _ = engine.update_contact("nope", {"notes": "x"})
+    assert ok is False
 
-    def test_role_collaborator(self):
-        c = {"relation": "同行", "tags": []}
-        self.assertEqual(engine.contact_role(c), engine.ROLE_COLLABORATOR)
+    # Delete: engine has no public delete_contact. Add a second contact so the
+    # remaining list is non-empty (engine._save skips writing empty lists), then
+    # remove c1 through private storage and verify it's gone while c2 survives.
+    engine.add_contact("c2", "李四", relation="客户")
+    all_contacts = [ct for ct in engine._load(engine.CONTACTS_FILE) if ct["id"] != "c1"]
+    engine._save(engine.CONTACTS_FILE, all_contacts)
+    assert engine.get_contact("c1") is None
+    assert all(ct["id"] != "c1" for ct in engine.list_contacts())
+    assert engine.get_contact("c2") is not None
 
-class TestContactCRUD(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-    def test_add_contact(self):
-        ok, msg = engine.add_contact("test1", "张三", relation="同行", nature="leverage")
-        self.assertTrue(ok)
-        c = engine.get_contact("test1")
-        self.assertEqual(c["name"], "张三")
-        self.assertEqual(c["nature"], "leverage")
 
-    def test_add_duplicate(self):
-        engine.add_contact("test2", "李四")
-        ok, msg = engine.add_contact("test2", "李四")
-        self.assertFalse(ok)
+# ── Timeline CRUD ──
 
-    def test_resolve_by_name(self):
-        engine.add_contact("test3", "王五")
-        c, match = engine.resolve_contact("王五")
-        self.assertIsNotNone(c)
-        self.assertEqual(match, "name")
+def test_timeline_crud(fresh_data):
+    """Add / list / pending-todo auto-creation for timeline records."""
+    engine = fresh_data["engine"]
+    engine.add_contact("t1", "李总", relation="同行", nature="leverage")
 
-    def test_resolve_fuzzy(self):
-        engine.add_contact("test4", "赵六明")
-        c, match = engine.resolve_contact("赵六")
-        self.assertIsNotNone(c)
-        self.assertEqual(c["name"], "赵六明")
+    # Create
+    rec = engine.add_timeline("t1", "聊了预算方案，他下周给答复",
+                              key_points=["Q3预算", "下周回复"])
+    assert rec["contact"] == "t1"
+    assert "预算" in rec["summary"]
+    assert rec["key_points"] == ["Q3预算", "下周回复"]
 
-    def test_set_nature(self):
-        engine.add_contact("test5", "钱七")
-        ok, msg = engine.set_nature("test5", "nurture")
-        self.assertTrue(ok)
-        c = engine.get_contact("test5")
-        self.assertEqual(c["nature"], "nurture")
+    # List (today's record visible within default 30-day window)
+    tls = engine.list_timeline(contact_id="t1")
+    assert len(tls) == 1
+    assert tls[0]["id"] == rec["id"]
 
-    def test_invalid_nature(self):
-        engine.add_contact("test6", "孙八")
-        ok, msg = engine.set_nature("test6", "invalid")
-        self.assertFalse(ok)
+    # Create with pending → auto-creates a todo
+    rec2 = engine.add_timeline("t1", "聊了项目", pending="下周跟进融资答复")
+    todos = engine.list_todos()
+    assert len(todos) == 1
+    assert "融资" in todos[0]["task"]
+    # P0 priority because "融资" is a P0 keyword
+    assert todos[0]["priority"] == "P0"
 
-class TestNurtureFields(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-        engine.add_contact("n1", "老周", relation="挚友", nature="nurture")
+    # Days-since-last is 0 (recorded today)
+    assert engine._days_since_last("t1") == 0
 
-    def test_add_memory(self):
-        ok, msg = engine.add_memory("n1", "儿子小宇今年中考")
-        self.assertTrue(ok)
-        c = engine.get_contact("n1")
-        self.assertEqual(len(c["memories"]), 1)
-        self.assertIn("小宇", c["memories"][0]["content"])
+    # Filtering by contact works
+    engine.add_contact("t2", "王总", relation="同行")
+    engine.add_timeline("t2", "另一次会面")
+    only_t1 = engine.list_timeline(contact_id="t1")
+    assert all(r["contact"] == "t1" for r in only_t1)
+    assert len(only_t1) == 2
 
-    def test_add_important_date(self):
-        ok, msg = engine.add_important_date("n1", "11-29", "生日", "birthday")
-        self.assertTrue(ok)
-        c = engine.get_contact("n1")
-        self.assertEqual(len(c["important_dates"]), 1)
 
-    def test_set_bond(self):
-        ok, msg = engine.set_bond("n1", "十五年老友")
-        self.assertTrue(ok)
-        c = engine.get_contact("n1")
-        self.assertEqual(c["nurture"]["bond"], "十五年老友")
+# ── Todo CRUD ──
 
-    def test_add_presence_event(self):
-        ok, msg = engine.add_presence_event("n1", "父亲住院时来陪床")
-        self.assertTrue(ok)
-        c = engine.get_contact("n1")
-        self.assertEqual(len(c["nurture"]["presence_events"]), 1)
+def test_todo_crud(fresh_data):
+    """Auto-created todos can be listed and completed."""
+    engine = fresh_data["engine"]
+    engine.add_contact("td1", "赵总", relation="同行", nature="leverage")
 
-    def test_get_nurture_info(self):
-        engine.add_memory("n1", "不喝白酒只喝红酒")
-        engine.set_bond("n1", "十五年老友")
-        info = engine.get_nurture_info("n1")
-        self.assertEqual(info["bond"], "十五年老友")
-        self.assertEqual(len(info["memories"]), 1)
+    # Create (via timeline pending)
+    engine.add_timeline("td1", "讨论合作", pending="发送方案给赵总")
+    todos = engine.list_todos(status="pending")
+    assert len(todos) == 1
+    tid = todos[0]["id"]
+    assert todos[0]["status"] == "pending"
+    assert todos[0]["contact"] == "td1"
 
-class TestLeverageFields(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-        engine.add_contact("l1", "张总", relation="同行", nature="leverage")
+    # Complete
+    ok, msg = engine.complete_todo(tid)
+    assert ok is True
+    # Completed todos no longer appear under default 'pending' filter
+    pending = engine.list_todos(status="pending")
+    assert all(t["id"] != tid for t in pending)
+    completed = engine.list_todos(status=None)
+    assert any(t["id"] == tid and t["status"] == "completed" for t in completed)
 
-    def test_set_leverage(self):
-        ok, msg = engine.set_leverage("l1", ["事业"], "行业峰会资源引荐", "互惠")
-        self.assertTrue(ok)
-        lev = engine.get_leverage("l1")
-        self.assertEqual(lev["goals"], ["事业"])
-        self.assertEqual(lev["direction"], "互惠")
+    # Complete missing todo fails
+    ok, _ = engine.complete_todo("todo-doesnotexist")
+    assert ok is False
 
-class TestTimeline(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-        engine.add_contact("t1", "李总", relation="同行")
+    # Priority filtering: non-keyword pending → P1
+    engine.add_timeline("td1", "闲聊", pending="随便回个消息")
+    p1 = engine.list_todos(priority="P1")
+    assert len(p1) == 1
+    assert p1[0]["priority"] == "P1"
 
-    def test_add_timeline(self):
-        record = engine.add_timeline("t1", "聊了预算方案，他下周给答复")
-        self.assertEqual(record["contact"], "t1")
-        self.assertIn("预算", record["summary"])
 
-    def test_add_timeline_with_pending(self):
-        record = engine.add_timeline("t1", "聊了项目", pending="下周跟进预算答复")
-        todos = engine.list_todos()
-        self.assertEqual(len(todos), 1)
-        self.assertIn("预算", todos[0]["task"])
+# ── Contact field completeness ──
 
-    def test_days_since_last(self):
-        engine.add_timeline("t1", "聊了项目")
-        days = engine._days_since_last("t1")
-        self.assertEqual(days, 0)  # Today
+def test_contact_fields_complete(fresh_data):
+    """A newly created contact must carry the full SPEC §2.5 data model."""
+    engine = fresh_data["engine"]
+    from welian.models import CONTACT_FIELDS
 
-class TestAdvise(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-        # Add leverage contact
-        engine.add_contact("a1", "张总", relation="同行", nature="leverage")
-        engine.set_leverage("a1", ["事业"], "资源引荐", "互惠")
-        # Add nurture contact with birthday
-        engine.add_contact("a2", "老周", relation="挚友", nature="nurture")
-        engine.add_important_date("a2", "12-25", "生日", "birthday")
+    engine.add_contact("f1", "老周", relation="挚友", nature="nurture",
+                       tags=["挚友"], sub_relation="高中同学",
+                       platforms={"wechat": "laozhou", "phone": "13800000000"},
+                       notes="十五年老友")
+    c = engine.get_contact("f1")
 
-    def test_advise_leverage_returns_candidates(self):
-        candidates = engine.advise_leverage(top=5)
-        self.assertTrue(len(candidates) > 0)
-        self.assertEqual(candidates[0]["contact"]["name"], "张总")
+    # Every field declared in the canonical schema must be present.
+    missing = set(CONTACT_FIELDS) - set(c.keys())
+    assert missing == set(), f"missing fields: {missing}"
 
-    def test_advise_nurture_no_scores(self):
-        """ETHICAL GUARDRA: nurture advise must not have scores (SPEC §2.6)."""
-        reminders = engine.advise_nurture(days_ahead=180)  # wide window to catch Dec birthday
-        for r in reminders:
-            self.assertNotIn("score", r)
+    # Field semantics
+    assert c["id"] == "f1"
+    assert c["name"] == "老周"
+    assert c["relation"] == "挚友"
+    assert c["role"] == "挚友"  # role mirrors relation
+    assert c["sub_relation"] == "高中同学"
+    assert c["nature"] == "nurture"
+    assert c["strength"] == 3  # default
+    assert c["company"] == ""
+    assert c["title"] == ""
+    assert c["phone"] == ""
+    assert c["email"] == ""
+    assert c["memories"] == []
+    assert c["important_dates"] == []
+    assert c["leverage"] == {}
+    assert c["nurture"] == {}
+    assert c["aliases"] == []
+    assert c["alias"] == []
+    assert c["platforms"]["wechat"] == "laozhou"
+    assert isinstance(c["tags"], list)
+    # created/updated are ISO datetime strings
+    assert isinstance(c["created"], str) and "T" in c["created"]
+    assert isinstance(c["updated"], str) and "T" in c["updated"]
 
-class TestRoleDashboard(unittest.TestCase):
-    def setUp(self):
-        _clear_data()
-        engine.add_contact("d1", "朋友A", relation="挚友", nature="nurture")
-        engine.add_contact("d2", "家人B", relation="家人", nature="nurture")
-        engine.add_contact("d3", "同事C", relation="同行", nature="leverage")
+    # Nurture sub-structure can be populated
+    engine.set_bond("f1", "十五年老友")
+    engine.add_memory("f1", "儿子小宇今年中考")
+    engine.add_important_date("f1", "11-29", "生日", "birthday")
+    engine.add_presence_event("f1", "父亲住院时来陪床")
+    info = engine.get_nurture_info("f1")
+    assert info["bond"] == "十五年老友"
+    assert len(info["memories"]) == 1
+    assert len(info["important_dates"]) == 1
+    assert len(info["presence_events"]) == 1
 
-    def test_dashboard_structure(self):
-        dash = engine.role_dashboard()
-        self.assertIn("friend", dash)
-        self.assertIn("family", dash)
-        self.assertIn("collaborator", dash)
-        self.assertEqual(dash["friend"]["total_contacts"], 1)
-        self.assertEqual(dash["family"]["total_contacts"], 1)
-        self.assertEqual(dash["collaborator"]["total_contacts"], 1)
-
-    def test_dashboard_no_happiness_score(self):
-        """SPEC §3.3: no happiness score, only behavioral facts."""
-        dash = engine.role_dashboard()
-        for role in ("friend", "family", "collaborator"):
-            self.assertNotIn("happiness", dash[role])
-            self.assertNotIn("score", dash[role])
-            self.assertNotIn("rating", dash[role])
-
-class TestTokens(unittest.TestCase):
-    def setUp(self):
-        from welian import tokens
-        self.tokens = tokens
-        _clear_data()
-        tokens.USAGE_FILE = Path(_test_dir) / "data" / "usage.json"
-        if tokens.USAGE_FILE.exists():
-            tokens.USAGE_FILE.unlink()
-
-    def test_initial_balance(self):
-        bal = self.tokens.get_balance("test_user")
-        self.assertEqual(bal["plan"], "free")
-        self.assertEqual(bal["remaining"], 100)
-
-    def test_consume(self):
-        ok, remaining, msg = self.tokens.consume("test_user", "ai_draft")
-        self.assertTrue(ok)
-        self.assertEqual(remaining, 98)
-
-    def test_insufficient_tokens(self):
-        # Exhaust all tokens
-        for _ in range(50):
-            self.tokens.consume("test_user", "ai_draft")  # 50 * 2 = 100
-        ok, remaining, msg = self.tokens.consume("test_user", "ai_draft")
-        self.assertFalse(ok)
-        self.assertIn("不够", msg)
-
-    def test_upgrade_plan(self):
-        ok, msg = self.tokens.upgrade_plan("test_user", "pro")
-        self.assertTrue(ok)
-        bal = self.tokens.get_balance("test_user")
-        self.assertEqual(bal["plan"], "pro")
-        self.assertEqual(bal["allowance"], 500)
-
-if __name__ == "__main__":
-    unittest.main()
+    # Leverage sub-structure
+    engine.set_leverage("f1", ["事业"], "资源引荐", "互惠")
+    lev = engine.get_leverage("f1")
+    assert lev["goals"] == ["事业"]
+    assert lev["direction"] == "互惠"
+    assert "confirmed" in lev

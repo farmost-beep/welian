@@ -1,0 +1,6779 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Welian Cloud AI API",
+    "description": "Welian Cloud Worker API — 数据归你，智能来云。\n\nThis Cloudflare Worker receives only minimal context snippets from edge clients. It processes AI requests, manages user data in KV, handles billing, and never stores full user data.\n\n## Authentication\n\nMost endpoints require authentication via one of:\n- **Clerk JWT Bearer**: `Authorization: Bearer <clerk_jwt>`\n- **Sync Token**: `Authorization: Bearer <user_id>:<sync_secret>` or `session_token` in body\n- **Demo Token**: `demo_<scenario>:demo_secret` (simulation mode)\n\nSome endpoints accept the token in the request body as `session_token` as a fallback.",
+    "version": "2.0.0",
+    "contact": {
+      "name": "Welian",
+      "url": "https://welian.app"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.welian.app",
+      "description": "Production"
+    },
+    {
+      "url": "https://cloud-worker.welian.workers.dev",
+      "description": "Cloudflare Workers dev"
+    }
+  ],
+  "tags": [
+    {
+      "name": "AI",
+      "description": "AI-powered endpoints: draft, extract, advise, chat, reports, diagnostics"
+    },
+    {
+      "name": "Data",
+      "description": "Cloud-native data CRUD: contacts, timeline, todos, memory, goals, sessions, skills, profile"
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication: WeChat OAuth, SMS OTP, WeChat bot binding"
+    },
+    {
+      "name": "Discovery",
+      "description": "Tunnel discovery: register and lookup edge agent URLs"
+    },
+    {
+      "name": "Billing",
+      "description": "Billing, credits, orders, coupons, gifting"
+    },
+    {
+      "name": "Paddle",
+      "description": "Paddle payment integration: checkout, webhook, cancel, config"
+    },
+    {
+      "name": "System",
+      "description": "Health check and API info"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "clerkBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Clerk JWT token. Pass as `Authorization: Bearer <jwt>`. Verified via JWKS from Clerk."
+      },
+      "syncToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Sync token for edge agent / WeChat bot. Format: `Bearer <user_id>:<sync_secret>`. Secret must match WELIAN_SYNC_SECRET env var. WeChat bot tokens use `wechat_<hash>:<secret>`."
+      },
+      "sessionTokenBody": {
+        "type": "apiKey",
+        "in": "body",
+        "name": "session_token",
+        "description": "Fallback: pass token in request body as `session_token` field. Accepts Clerk JWT, sync token, or demo token."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "OkResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BillingInfo": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "pro"
+            ]
+          },
+          "used": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "allowance": {
+            "type": "number"
+          },
+          "rollover": {
+            "type": "number"
+          },
+          "purchased": {
+            "type": "number"
+          },
+          "subscription": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "Contact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "sub_relation": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "nature": {
+            "type": "string",
+            "enum": [
+              "leverage",
+              "nurture",
+              "dual"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "strength": {
+            "type": "integer"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "memories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "important_dates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "leverage": {
+            "type": "object",
+            "properties": {}
+          },
+          "nurture": {
+            "type": "object",
+            "properties": {}
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "snooze_until": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "P0",
+              "P1",
+              "P2"
+            ]
+          },
+          "due": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "done",
+              "canceled"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TimelineEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "sentiment": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Memory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "preference",
+              "context",
+              "milestone",
+              "contact_note"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "satisfied"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "abandoned"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CustomSkill": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "content": {
+            "type": "string"
+          },
+          "usage_count": {
+            "type": "integer"
+          },
+          "last_used": {
+            "type": "string",
+            "nullable": true
+          },
+          "avg_score": {
+            "type": "number",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "monitoring",
+              "disabled"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Pricing": {
+        "type": "object",
+        "properties": {
+          "points_per_1k_input": {
+            "type": "number"
+          },
+          "points_per_1k_output": {
+            "type": "number"
+          },
+          "free_monthly": {
+            "type": "number"
+          },
+          "pro_monthly": {
+            "type": "number"
+          },
+          "pro_price_usd": {
+            "type": "number"
+          },
+          "pro_price_yearly_usd": {
+            "type": "number"
+          },
+          "credit_pack_100_usd": {
+            "type": "number"
+          },
+          "credit_pack_500_usd": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "pro_price_usd_display": {
+            "type": "number"
+          },
+          "pro_price_yearly_usd_display": {
+            "type": "number"
+          },
+          "credit_pack_100_usd_display": {
+            "type": "number"
+          },
+          "credit_pack_500_usd_display": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health check",
+        "description": "Returns service status, version, and configured LLM model.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "API info",
+        "description": "Returns API name, version, and list of available endpoints.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "spec": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/draft": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Draft a message",
+        "description": "Draft a short, natural message from minimal context (name, nature, memories, last interaction). Returns the drafted message text. Auth is best-effort for usage tracking.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "nature": {
+                    "type": "string",
+                    "enum": [
+                      "nurture",
+                      "leverage"
+                    ]
+                  },
+                  "memories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "last_interaction": {
+                    "type": "string"
+                  },
+                  "user_context": {
+                    "type": "string"
+                  },
+                  "tone": {
+                    "type": "string",
+                    "default": "warm"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Drafted message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/extract": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Extract todos and key points",
+        "description": "Extract actionable items (pending tasks, key points) from interaction text using LLM. Returns JSON with pending and key_points fields.",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interaction_text": {
+                    "type": "string"
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "pending": {
+                          "type": "string"
+                        },
+                        "key_points": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/advise": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Format advise from candidate list",
+        "description": "Takes leverage and nurture candidate lists from the client, formats them into a warm, human-readable weekly advise using LLM.",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "leverage": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "days_since": {
+                          "type": "integer"
+                        },
+                        "leverage_goals": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "last_interaction": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "nurture": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "important_date",
+                            "memory_followup"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Formatted advise",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/advise_cloud": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Cloud suggestion engine",
+        "description": "Queries KV directly for contacts, timeline, and todos. Scores leverage contacts by days since last interaction, pending todos, and strength. Finds nurture reminders from important dates and memory follow-ups. Generates LLM-enhanced advise.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cloud-generated advise",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string"
+                    },
+                    "raw": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "advise_id": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/chat": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Chat with LLM (billing gateway)",
+        "description": "Forwards chat messages to LLM with Welian's wholesale API key. Checks billing balance before the call, deducts points after (with model tier multiplier). Returns reply, usage stats, and billing info. Content filter circuit breaker included.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "system": {
+                    "type": "string"
+                  },
+                  "max_tokens": {
+                    "type": "integer",
+                    "default": 1024
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "default": 0.7
+                  },
+                  "model_tier": {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "enhanced",
+                      "premium"
+                    ]
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messages"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat reply with usage and billing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reply": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "input_tokens": {
+                          "type": "integer"
+                        },
+                        "output_tokens": {
+                          "type": "integer"
+                        },
+                        "points": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "billing": {
+                      "$ref": "#/components/schemas/BillingInfo"
+                    },
+                    "content_filtered": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "messages must be a non-empty array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "联点已用完 (credits exhausted)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "LLM call failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/search": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Web search",
+        "description": "Performs a web search using Tavily > Brave > DuckDuckGo > Google > Mojeek > Sogou > Bing CN > Wikipedia fallback chain. Returns formatted search context and raw results.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "search_context": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "result_count": {
+                      "type": "integer"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "snippet": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "query required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/read_url": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Read web page as Markdown",
+        "description": "Fetches a web page and returns it as Markdown using Jina Reader API. Includes SSRF protection (blocks localhost, private IPs, non-http(s)). Content truncated to 8000 chars.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Page content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "length": {
+                      "type": "integer"
+                    },
+                    "cached": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "url required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/extract_intent": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Extract intent and execute data actions",
+        "description": "Analyzes user message to extract intent (query_contact, query_todo, record, draft, advise, report, chat, help, update_profile), keywords, and data actions (add_contact, add_timeline, add_todo, complete_todo, delete_todo, update_contact, merge_contact). Executes data write actions directly in KV. Also auto-extracts profile updates, memories, and goal evidence.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "onboarding": {
+                    "type": "boolean"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted intent and action results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "intent": {
+                      "type": "string"
+                    },
+                    "contact_name": {
+                      "type": "string"
+                    },
+                    "keywords": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    },
+                    "action_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    },
+                    "profile_updates": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "profile_updated": {
+                      "type": "boolean"
+                    },
+                    "memory_save": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "memory_saved": {
+                      "type": "boolean"
+                    },
+                    "goal_evidence": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "goal_evidence_linked": {
+                      "type": "boolean"
+                    },
+                    "needs_search": {
+                      "type": "boolean"
+                    },
+                    "search_query": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "text required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "LLM call failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/session_summary": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Generate session summary",
+        "description": "Generates a brief LLM summary (≤100 chars) of a chat session for next-day welcome. Takes session_id, loads session messages, and produces a concise summary.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "session_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "session_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/import": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Import contacts from file",
+        "description": "Accepts a base64-encoded file (vCard, CSV, PDF, image, xlsx, docx) and extracts contacts using AI (enhanced model) or direct parsers. Deduplicates against existing contacts. Deducts billing points (enhanced model ×3).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "base64": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "mime_type": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imported": {
+                      "type": "integer"
+                    },
+                    "skipped": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "文件内容为空 / 文件内容不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "description": "AI 提取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/import_batch": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Batch import pre-parsed contacts",
+        "description": "Accepts an array of pre-parsed contact objects (from client-side parsing). Deduplicates by name. No LLM call — pure data operation.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contacts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "relation": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contacts"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch import results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imported": {
+                      "type": "integer"
+                    },
+                    "skipped": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "没有联系人",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/import_chunk": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Extract contacts from text chunk",
+        "description": "LLM extracts contacts from a single text chunk. Used for chunked processing of large files. Returns extracted contacts without saving. Deducts billing (enhanced model ×3).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted contacts from chunk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contacts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "relation": {
+                            "type": "string"
+                          },
+                          "company": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "description": "AI 提取失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/proactive": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Proactive suggestion",
+        "description": "Generates 1-2 personalized tips based on full user context (stale contacts, overdue todos, upcoming dates, environment info like weather/city/holidays). Deducts billing points.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "context": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "weather": {
+                        "type": "string"
+                      },
+                      "timeSlot": {
+                        "type": "string"
+                      },
+                      "device": {
+                        "type": "string"
+                      },
+                      "holidays": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "traveling": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proactive suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/diagnostics": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Relationship behavior diagnostics",
+        "description": "Analyzes timeline data to extract interaction patterns: frequency distribution (pulse vs steady), contact concentration, procrastination patterns, tool-type vs emotional-type ratio, overdue todos. Generates recommendations.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Behavior diagnostics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "string"
+                    },
+                    "patterns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    },
+                    "recommendations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "total_interactions": {
+                          "type": "integer"
+                        },
+                        "total_contacts": {
+                          "type": "integer"
+                        },
+                        "avg_monthly": {
+                          "type": "string"
+                        },
+                        "active_months": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/skills": {
+      "get": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Get skills by intent",
+        "description": "Returns built-in skills (follow-up-strategy, reconnection-outreach, conflict-repair, gift-suggestion) and custom user skills matching the given intent. Merges custom skills from user's KV store.",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "intent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Intent to match skills against (e.g. advise, draft, chat, report)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching skills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "custom": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "intent": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/config": {
+      "get": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Get routing configuration",
+        "description": "Returns routing config (mode, timeouts) and data priority for frontend to decide Live vs Cloud mode. Also returns configured LLM model tiers.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Routing configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "routing": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string"
+                        },
+                        "live_timeout_ms": {
+                          "type": "integer"
+                        },
+                        "agent_context_timeout_ms": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "data_priority": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "tiers": {
+                      "type": "object",
+                      "properties": {
+                        "standard": {
+                          "type": "string"
+                        },
+                        "enhanced": {
+                          "type": "string"
+                        },
+                        "premium": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/meeting_prep": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Meeting prep briefing",
+        "description": "Generates a concise meeting prep briefing for a contact: last conversation recap, pending items, and 2-3 conversation tips based on memories and important dates. Deducts billing points.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact_id": {
+                    "type": "string"
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meeting prep briefing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contact": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TimelineEntry"
+                      }
+                    },
+                    "todos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Todo"
+                      }
+                    },
+                    "prep": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "points": {
+                          "type": "number"
+                        },
+                        "remaining": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "contact not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "LLM call failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/weekly_report": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Generate weekly report",
+        "description": "Generates a structured weekly relationship review (greeting, review stats, suggested contacts, upcoming dates, todo reminders, closing). Cached per day (25h TTL). Deducts billing points.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Weekly report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "report": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "raw_data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/monthly_report": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Generate monthly report",
+        "description": "Generates a structured monthly relationship dashboard (stats, role review by friends/family/collaborators, trends, achievements, suggestions). Cached per day (25h TTL). Deducts billing points.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Monthly report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "report": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "raw_data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/hn_signals": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "HN signals briefing",
+        "description": "Fetches top Hacker News stories and generates a personalized tech signal briefing. Connects HN stories to user's professional network and relationship goals. Cached per day (25h TTL). Deducts billing points.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "HN signals briefing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "report": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "raw_data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/onboarding/create_contacts": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Onboarding: batch create contacts",
+        "description": "Creates up to 10 contacts during onboarding with nature and relationship. Sends welcome email on first onboarding. Generates first advise immediately for value delivery.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "people": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "nature": {
+                          "type": "string",
+                          "enum": [
+                            "leverage",
+                            "nurture",
+                            "dual"
+                          ]
+                        },
+                        "relationship": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "people"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contacts created with first advise",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "created": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "nature": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "first_advise": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "people array required / Max 10 contacts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/push_poll": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Push poll (bot picks up queued messages)",
+        "description": "WeChat bot polls for queued push messages (e.g. weekly reports). Auth via wechat_ sync token. Returns queued messages and clears the queue.",
+        "security": [
+          {
+            "syncToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queued messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bot auth required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/billing": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Query billing balance",
+        "description": "Returns current billing status: plan, used, remaining, allowance, rollover, purchased credits, subscription info, and recent history (last 10 entries).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Billing status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan": {
+                      "type": "string"
+                    },
+                    "used": {
+                      "type": "number"
+                    },
+                    "remaining": {
+                      "type": "number"
+                    },
+                    "allowance": {
+                      "type": "number"
+                    },
+                    "rollover": {
+                      "type": "number"
+                    },
+                    "purchased": {
+                      "type": "number"
+                    },
+                    "subscription": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "recent_history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/upgrade": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Upgrade plan (mock)",
+        "description": "Directly upgrades user to Pro plan. In production, use Paddle checkout instead. Sets plan to 'pro' and creates subscription record with expiry.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "pro_monthly",
+                      "pro_yearly"
+                    ]
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "plan"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upgrade successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "plan": {
+                      "type": "string"
+                    },
+                    "subscription": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "remaining": {
+                      "type": "number"
+                    },
+                    "allowance": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "plan required / invalid plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/purchase_credits": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Purchase credits (mock)",
+        "description": "Directly adds purchased credits to user's balance. In production, use Paddle checkout or WeChat Pay orders instead.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pack": {
+                    "type": "string",
+                    "enum": [
+                      "100",
+                      "500"
+                    ]
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pack"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credits purchased",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "purchased": {
+                      "type": "number"
+                    },
+                    "remaining": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "pack required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/pricing": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get pricing info",
+        "description": "Returns points pricing configuration: cost per 1K tokens, monthly allowances, product prices (with discount applied for display).",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Pricing configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pricing"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/admin/check": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Check admin status",
+        "description": "Checks if the authenticated user is an admin (by matching email against configured admin email via Clerk API).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_admin": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/admin/pricing": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get pricing (admin)",
+        "description": "Same as GET /ai/pricing — returns current pricing configuration.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Pricing configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pricing"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Update pricing (admin only)",
+        "description": "Updates pricing configuration. Requires admin access. Allowed fields: points_per_1k_input, points_per_1k_output, free_monthly, pro_monthly, pro_price_usd, pro_price_yearly_usd, credit_pack_100_usd, credit_pack_500_usd, discount, model_multipliers.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "points_per_1k_input": {
+                    "type": "number"
+                  },
+                  "points_per_1k_output": {
+                    "type": "number"
+                  },
+                  "free_monthly": {
+                    "type": "number"
+                  },
+                  "pro_monthly": {
+                    "type": "number"
+                  },
+                  "pro_price_usd": {
+                    "type": "number"
+                  },
+                  "pro_price_yearly_usd": {
+                    "type": "number"
+                  },
+                  "credit_pack_100_usd": {
+                    "type": "number"
+                  },
+                  "credit_pack_500_usd": {
+                    "type": "number"
+                  },
+                  "discount": {
+                    "type": "number"
+                  },
+                  "model_multipliers": {
+                    "type": "object",
+                    "properties": {
+                      "standard": {
+                        "type": "number"
+                      },
+                      "enhanced": {
+                        "type": "number"
+                      },
+                      "premium": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pricing updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "pricing": {
+                      "$ref": "#/components/schemas/Pricing"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/gift_credits": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Gift credits to another user",
+        "description": "Transfers purchased credits from sender to recipient by email. Min 10, max 500 credits. Cannot gift yourself. Deducts from sender's purchased balance, adds to recipient's purchased balance.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipient_email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "points": {
+                    "type": "number"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "recipient_email",
+                  "points"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credits gifted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "gifted": {
+                      "type": "number"
+                    },
+                    "remaining": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "description": "联点不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "收件人未注册",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/create_coupon": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Create coupon code",
+        "description": "Generates a unique coupon code (WELIAN-XXXX-XXXX) with specified points. No auth required — called from frontend after completing role play. Coupon expires in 30 days.",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "points": {
+                    "type": "integer",
+                    "default": 100
+                  },
+                  "scenario": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coupon created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "points": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/redeem_coupon": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Redeem coupon code",
+        "description": "Redeems a coupon code and adds the associated points to user's purchased balance. Coupon must be valid and not previously used.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coupon redeemed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "remaining": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coupon already used",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Invalid or already used coupon",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/estimate_cost": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Estimate cost for an action",
+        "description": "Estimates the points cost for a given action (chat, draft, advise, meeting_prep, weekly, monthly) and model tier, based on average token usage and pricing config.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "chat",
+                      "draft",
+                      "advise",
+                      "meeting_prep",
+                      "weekly",
+                      "monthly"
+                    ]
+                  },
+                  "model_tier": {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "enhanced",
+                      "premium"
+                    ]
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cost estimate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "model_tier": {
+                      "type": "string"
+                    },
+                    "estimated_points": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "unknown action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/create_order": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Create WeChat Pay order",
+        "description": "Creates a pending order for WeChat Pay (personal QR code mode). Validates product type and id against pricing. Stores order in KV and indexes by user.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "upgrade",
+                      "purchase"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "type and id required / invalid product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/confirm_order": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Confirm WeChat Pay order",
+        "description": "Confirms a pending order. Applies the purchase (upgrade plan or add credits) to user's billing. Only the order owner can confirm.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "plan": {
+                      "type": "string"
+                    },
+                    "remaining": {
+                      "type": "number"
+                    },
+                    "already_confirmed": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "order_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "not your order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/list_orders": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "List user orders",
+        "description": "Returns the last 10 orders for the authenticated user.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "order_id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "confirmed_at": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/paddle/checkout": {
+      "post": {
+        "tags": [
+          "Paddle"
+        ],
+        "summary": "Get Paddle checkout info",
+        "description": "Returns Paddle price_id, discount_id (if applicable), product type, and user_id for frontend Paddle.Checkout.open(). Creates discount via Paddle API if pricing discount < 100%.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product": {
+                    "type": "string",
+                    "enum": [
+                      "pro_monthly",
+                      "pro_yearly",
+                      "credits_100",
+                      "credits_500"
+                    ]
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "product"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checkout info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "price_id": {
+                      "type": "string"
+                    },
+                    "discount_id": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "product_type": {
+                      "type": "string"
+                    },
+                    "product_id": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Paddle price ID not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/paddle/webhook": {
+      "post": {
+        "tags": [
+          "Paddle"
+        ],
+        "summary": "Paddle webhook receiver",
+        "description": "Receives Paddle webhook events (transaction.completed, subscription.created/updated/canceled, payment_succeeded). Verifies HMAC-SHA256 signature. Applies purchases (upgrade or credits), handles subscription renewals, sends receipt emails.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Webhook processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "handled": {
+                      "type": "string"
+                    },
+                    "ignored": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "plan": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Signature verification failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Webhook secret not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/paddle/cancel": {
+      "post": {
+        "tags": [
+          "Paddle"
+        ],
+        "summary": "Cancel Paddle subscription",
+        "description": "Cancels the user's active Paddle subscription via Paddle API. Falls back to local cancel if API fails. Updates billing state.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription canceled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No active subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/ai/paddle/config": {
+      "get": {
+        "tags": [
+          "Paddle"
+        ],
+        "summary": "Get Paddle configuration",
+        "description": "Returns Paddle environment (sandbox/production), client token, and available product keys for frontend Paddle initialization.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Paddle configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "environment": {
+                      "type": "string",
+                      "enum": [
+                        "sandbox",
+                        "production"
+                      ]
+                    },
+                    "client_token": {
+                      "type": "string"
+                    },
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/wechat": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Redirect to WeChat OAuth",
+        "description": "Redirects to WeChat OAuth qrconnect page. The 'redirect' query param is passed as state for post-login redirect.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "redirect",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Frontend URL to redirect back to after OAuth"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to WeChat OAuth"
+          },
+          "500": {
+            "description": "WeChat App ID not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/wechat/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "WeChat OAuth callback",
+        "description": "Handles WeChat OAuth callback: exchanges code for access_token, gets user info, finds or creates Clerk user by WeChat openid, creates session, and redirects back to frontend with session token.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "WeChat OAuth authorization code"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Original redirect URL"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to frontend with clerk_session_token"
+          },
+          "400": {
+            "description": "Missing code parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "WeChat/Clerk error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sms/send": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Send SMS OTP via Aliyun",
+        "description": "Sends a 6-digit OTP code to a Chinese phone number via Aliyun SMS API. Code stored in KV with 5-min TTL. Phone must match pattern 1[3-9]\\d{9}.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid phone number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "SMS service not configured / SMS send failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sms/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify SMS OTP, return Clerk session",
+        "description": "Verifies the SMS OTP code. On success, finds or creates Clerk user by phone number external_id, creates a session, and returns a JWT session token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "redirect": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "clerk_session_token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing phone or code / Invalid or expired code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Clerk not configured / error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/bind_wechat": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Bind WeChat user to Clerk account",
+        "description": "Binds a WeChat user ID to a Clerk user ID. Called from web after Clerk login. Stores bidirectional mapping (wechat_bind and wechat_user). Notifies WeChat user via bot. Supports both Clerk JWT and sync token auth.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "syncToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wechat_user_id": {
+                    "type": "string"
+                  },
+                  "clerk_user_id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "wechat_user_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Binding successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "wechat_user_id": {
+                      "type": "string"
+                    },
+                    "clerk_user_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "wechat_user_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/check_bind": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Check WeChat binding status",
+        "description": "Checks if a WeChat user is bound to a Clerk account. Called by the bot. Returns bound status, clerk_user_id, and user display info. Optional X-Check-Notify header to check for just-bound notifications.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wechat_user_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "wechat_user_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Binding status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bound": {
+                      "type": "boolean"
+                    },
+                    "clerk_user_id": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "just_bound": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "wechat_user_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/unbind_wechat": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Unbind WeChat user from Clerk account",
+        "description": "Removes the binding between a WeChat user and their Clerk account. Requires sync token with wechat_ prefix for auth.",
+        "security": [
+          {
+            "syncToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wechat_user_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "wechat_user_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unbinding successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "wechat_user_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/discover/register": {
+      "post": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "Register tunnel URL",
+        "description": "Registers an edge agent tunnel URL under a device_id or user_id key. TTL 24 hours. Used for tunnel discovery by the frontend.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_id": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "tunnel_url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tunnel_url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "device_id/user_id and tunnel_url required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/discover/lookup": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "Lookup tunnel URL",
+        "description": "Looks up a tunnel URL by Clerk user_id (or device_id). Tries direct lookup first, then indirect via user→device mapping.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Clerk user ID or device ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lookup result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "found": {
+                      "type": "boolean"
+                    },
+                    "tunnel_url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "user_id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/sync": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Sync data context (agent)",
+        "description": "Stores minimal data context snippet from edge agent in KV with 7-day TTL. Used for AI processing without full data sync.",
+        "security": [
+          {
+            "syncToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data_context": {
+                    "type": "string"
+                  },
+                  "sync_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "data_context",
+                  "sync_token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sync result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "synced_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid sync token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/sync_full": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Bidirectional full data sync",
+        "description": "Merges edge data (contacts, todos, timeline) with cloud data. Deduplicates by ID, keeps newer records. Returns cloud-only items for agent to merge locally.",
+        "security": [
+          {
+            "syncToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contacts": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Contact"
+                    }
+                  },
+                  "todos": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Todo"
+                    }
+                  },
+                  "timeline": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TimelineEntry"
+                    }
+                  },
+                  "sync_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sync_token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sync result with cloud-only items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "synced_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "contacts": {
+                          "type": "integer"
+                        },
+                        "todos": {
+                          "type": "integer"
+                        },
+                        "timeline": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "cloud_only": {
+                      "type": "object",
+                      "properties": {
+                        "contacts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Contact"
+                          }
+                        },
+                        "todos": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Todo"
+                          }
+                        },
+                        "timeline": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TimelineEntry"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid sync token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/search": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Search contacts in cloud KV",
+        "description": "Searches contacts by keywords or contact name. Returns detailed context for matched contacts (top 10) including timeline, todos, and important dates. If no keywords, returns data_context overview.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keywords": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data_context": {
+                      "type": "string"
+                    },
+                    "matched_count": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Failed to parse contacts data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/context": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get stored data context",
+        "description": "Returns the stored data context snippet for the authenticated user (previously synced by agent).",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data_context": {
+                      "type": "string"
+                    },
+                    "synced_at": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/pull": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Pull all datasets from cloud",
+        "description": "Returns all contacts, todos, and timeline for the authenticated user from cloud KV. Used for cloud → edge one-way pull.",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All datasets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contacts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Contact"
+                      }
+                    },
+                    "todos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Todo"
+                      }
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TimelineEntry"
+                      }
+                    },
+                    "pulled_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/push": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Push contacts to cloud",
+        "description": "Overwrites contacts in cloud KV with the provided array. One-way push from edge to cloud.",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contacts": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Contact"
+                    }
+                  }
+                },
+                "required": [
+                  "contacts"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Push result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No contacts array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/contacts": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List all contacts",
+        "description": "Returns all contacts with key fields for display (id, name, relation, nature, strength, tags, phone, email, leverage, nurture, important_dates, memories, etc.).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contacts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Contact"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Create or update a contact",
+        "description": "Creates a new contact or updates an existing one (if id is provided and found). New contacts get default fields (nature=leverage, strength=3).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "relation": {
+                    "type": "string"
+                  },
+                  "sub_relation": {
+                    "type": "string"
+                  },
+                  "nature": {
+                    "type": "string",
+                    "enum": [
+                      "leverage",
+                      "nurture",
+                      "dual"
+                    ]
+                  },
+                  "strength": {
+                    "type": "integer"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "important_dates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  },
+                  "leverage": {
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "nurture": {
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "aliases": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contact created/updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "contact": {
+                      "$ref": "#/components/schemas/Contact"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "name required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Deduplicate contacts by name",
+        "description": "Merges duplicate contacts by name, keeping the richer record. Merges tags (union), fills empty fields from the duplicate. Returns count of removed duplicates.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deduplication result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "removed": {
+                      "type": "integer"
+                    },
+                    "merged_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete a contact",
+        "description": "Deletes a contact by id. Also removes related timeline entries and todos.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "id required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/timeline": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List timeline entries",
+        "description": "Returns timeline entries sorted by date descending (max 200). Optional contact_id filter to get entries for a specific contact.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by contact ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TimelineEntry"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Add a timeline entry",
+        "description": "Creates a new timeline entry or updates an existing one (if id provided and found). Requires summary.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "type": "string"
+                  },
+                  "contact": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "sentiment": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "summary"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Timeline entry created/updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "entry": {
+                      "$ref": "#/components/schemas/TimelineEntry"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "summary required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Update a timeline entry",
+        "description": "Updates an existing timeline entry by id. Requires id and summary.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "contact_id": {
+                    "type": "string"
+                  },
+                  "contact": {
+                    "type": "string"
+                  },
+                  "sentiment": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "summary"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Timeline entry updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "entry": {
+                      "$ref": "#/components/schemas/TimelineEntry"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "id and summary required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "timeline entry not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete a timeline entry",
+        "description": "Deletes a timeline entry by id.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entry deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/todos": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List todos",
+        "description": "Returns pending todos sorted by due date. Use ?status=done to get completed todos. Also returns done_count and canceled_count. Auto-cleans empty task todos.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Set to 'done' to return only completed todos"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Todo"
+                      }
+                    },
+                    "done_count": {
+                      "type": "integer"
+                    },
+                    "canceled_count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Create or update a todo",
+        "description": "Creates a new todo or updates an existing one (if id provided). Deduplicates by normalized task + contact. Default due date is 7 days from now if not provided.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "type": "string"
+                  },
+                  "contact": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "P0",
+                      "P1",
+                      "P2"
+                    ]
+                  },
+                  "due": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "task"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo created/updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "todo": {
+                      "$ref": "#/components/schemas/Todo"
+                    },
+                    "dedup": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "task required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete a todo",
+        "description": "Deletes a todo by id.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/todos/done": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Mark todo as done",
+        "description": "Marks a todo as done by setting status='done' and done=true. Records completed_at timestamp.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo marked done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/todos/reopen": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Reopen a done todo",
+        "description": "Reverts a done todo back to pending status. Removes completed_at timestamp.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo reopened",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/todos/cancel": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Cancel a todo",
+        "description": "Marks a todo as canceled. Records canceled_at timestamp.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo canceled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/todos/postpone": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Postpone a todo",
+        "description": "Updates the due date of a todo. Tracks postpone count and previous due date.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "due": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "due"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todo postponed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "todo": {
+                      "$ref": "#/components/schemas/Todo"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "id and due required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "todo not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/profile": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get user profile",
+        "description": "Returns the user's profile (name, occupation, company, industry, location, communication style, etc.).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "occupation": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string"
+                        },
+                        "industry": {
+                          "type": "string"
+                        },
+                        "location": {
+                          "type": "string"
+                        },
+                        "communication_style": {
+                          "type": "string"
+                        },
+                        "address_habit": {
+                          "type": "string"
+                        },
+                        "focus_areas": {
+                          "type": "string"
+                        },
+                        "message_tone": {
+                          "type": "string"
+                        },
+                        "career_goal": {
+                          "type": "string"
+                        },
+                        "current_projects": {
+                          "type": "string"
+                        },
+                        "network_direction": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        },
+                        "updated": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Save user profile",
+        "description": "Saves the user's profile. All fields are optional — only provided fields are stored.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "occupation": {
+                    "type": "string"
+                  },
+                  "company": {
+                    "type": "string"
+                  },
+                  "industry": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "communication_style": {
+                    "type": "string"
+                  },
+                  "address_habit": {
+                    "type": "string"
+                  },
+                  "focus_areas": {
+                    "type": "string"
+                  },
+                  "message_tone": {
+                    "type": "string"
+                  },
+                  "career_goal": {
+                    "type": "string"
+                  },
+                  "current_projects": {
+                    "type": "string"
+                  },
+                  "network_direction": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/memory": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List memories",
+        "description": "Returns memories. Use ?q=query for token-based relevance recall (top results), or without query for most recent. Use ?limit=N to control count (max 50).",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search query for relevance recall"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Max results (default 10, max 50)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "memories": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Memory"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Save or delete a memory",
+        "description": "Action 'save': creates a new memory (type, title, content, tags). Action 'delete': removes a memory by id.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "save",
+                      "delete"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "preference",
+                      "context",
+                      "milestone",
+                      "contact_note"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Memory saved/deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "memory": {
+                      "$ref": "#/components/schemas/Memory"
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Memory not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/goals": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List goals",
+        "description": "Returns relationship goals. Optional ?status=active filter to get only active goals.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by status (active, completed, abandoned)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Goals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "goals": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Goal"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Manage goals",
+        "description": "Actions: create (title + criteria array), update_status (goal_id + status), add_evidence (goal_id + criterion_id + text), delete (id). Auto-completes goal when all criteria are satisfied.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update_status",
+                      "add_evidence",
+                      "delete"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "criteria": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "goal_id": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "completed",
+                      "abandoned"
+                    ]
+                  },
+                  "criterion_id": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Goal operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "goal": {
+                      "$ref": "#/components/schemas/Goal"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "title required / criteria required / invalid status / unknown action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "goal/criterion not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/sessions": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List sessions or get one",
+        "description": "Without ?id: returns session metadata list (no messages). With ?id=xxx: returns full session with messages.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID to get full session with messages"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessions or single session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "message_count": {
+                            "type": "integer"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "session": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Manage sessions",
+        "description": "Actions: create (title), append (session_id + user_message + assistant_message), delete (session_id), clear. Auto-creates session if append target not found. Auto-titles from first user message.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "append",
+                      "delete",
+                      "clear"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "session_id": {
+                    "type": "string"
+                  },
+                  "user_message": {
+                    "type": "string"
+                  },
+                  "assistant_message": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "session": {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "unknown action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/skills": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "List custom skills",
+        "description": "Returns all custom skills for the user.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom skills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomSkill"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Manage custom skills",
+        "description": "Actions: create (name + triggers + content), update (skill_id + fields), delete (skill_id), record_use (skill_id + score). Auto-degrades to 'monitoring' status if avg score < 2.5 after 5+ uses.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "update",
+                      "delete",
+                      "record_use"
+                    ]
+                  },
+                  "skill_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "triggers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "skill": {
+                      "$ref": "#/components/schemas/CustomSkill"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "unknown action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "skill not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete a custom skill",
+        "description": "Deletes a custom skill by skill_id. Same as POST with action=delete.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skill_id": {
+                    "type": "string"
+                  },
+                  "session_token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "skill_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/calendar/feed": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "iCal feed",
+        "description": "Returns an iCalendar (.ics) feed of pending todos (with due dates) and contact important dates (yearly recurrence). Auth via token query param (user_id:sync_secret). No Clerk auth.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Auth token: user_id:sync_secret"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "iCalendar feed",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/calendar/token": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get calendar sync token",
+        "description": "Returns the iCal feed URL with a long-lived token (user_id:sync_secret) for calendar subscription. Requires Clerk auth.",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calendar feed URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "feed_url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/delete_account": {
+      "post": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Delete account (注销即焚)",
+        "description": "Permanently deletes all user data: contacts, timeline, todos, billing, orders, WeChat binding, chat sessions, report caches. Also deletes the Clerk user account via Backend API.",
+        "security": [
+          {
+            "clerkBearer": []
+          },
+          {
+            "sessionTokenBody": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "session_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    },
+                    "clerk_deleted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/data/metrics": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "summary": "Get metrics (North Star + adoption)",
+        "description": "Returns weekly action counters (advise_generated, todo_completed, interaction_recorded, draft_generated), adoption events, adoption rate (last 30 days), and North Star metric for this week.",
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "north_star_this_week": {
+                      "type": "integer"
+                    },
+                    "weekly": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "adoptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {}
+                      }
+                    },
+                    "adoption_rate_30d": {
+                      "type": "number"
+                    },
+                    "total_advise_30d": {
+                      "type": "integer"
+                    },
+                    "total_adoptions_30d": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  }
+}

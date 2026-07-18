@@ -6,7 +6,7 @@ import json
 import math
 from datetime import date, timedelta
 from pathlib import Path
-from .engine import _load, _save, USAGE_FILE
+from .engine import get_store
 
 # Token costs per feature (SPEC §6.2)
 TOKEN_COSTS = {
@@ -35,9 +35,17 @@ POINTS_PER_1K_OUTPUT = 2  # 1000 output tokens = 2 point（output贵因为LLM生
 def _get_month_key():
     return date.today().strftime("%Y-%m")
 
+def _load_usage_data():
+    """Load the full usage dict from the active store."""
+    return get_store().load_usage()
+
+def _save_usage_data(data):
+    """Save the full usage dict to the active store."""
+    get_store().save_usage(data)
+
 def get_usage(user_id="default"):
     """Get usage record for a user."""
-    data = _load(USAGE_FILE) if USAGE_FILE.exists() else {}
+    data = _load_usage_data()
     if isinstance(data, list):
         data = {}
     return data.get(user_id, {
@@ -49,11 +57,11 @@ def get_usage(user_id="default"):
     })
 
 def _save_usage(user_id, usage):
-    data = _load(USAGE_FILE) if USAGE_FILE.exists() else {}
+    data = _load_usage_data()
     if isinstance(data, list):
         data = {}
     data[user_id] = usage
-    _save(USAGE_FILE, data)
+    _save_usage_data(data)
 
 def consume(user_id, feature, count=1):
     """Consume tokens for a feature. Returns (success, remaining, message)."""

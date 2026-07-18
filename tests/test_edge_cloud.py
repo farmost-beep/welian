@@ -17,17 +17,21 @@ _test_dir = tempfile.mkdtemp(prefix="welian_edge_test_")
 os.environ["WELIAN_HOME"] = _test_dir
 
 from welian import engine
+from welian.datastore import DataStore
 from welian.edge import EdgeClient
 
 def _clear_data():
     data_dir = Path(_test_dir) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    engine.CONTACTS_FILE = data_dir / "contacts.json"
-    engine.TIMELINE_FILE = data_dir / "timeline.json"
-    engine.TODOS_FILE = data_dir / "todos.json"
-    for f in [engine.CONTACTS_FILE, engine.TIMELINE_FILE, engine.TODOS_FILE]:
-        if f.exists():
-            f.unlink()
+    store = DataStore(data_dir)
+    engine.set_store(store)
+    # Clear all tables
+    db = store.db
+    db.conn.execute("DELETE FROM contacts")
+    db.conn.execute("DELETE FROM timeline")
+    db.conn.execute("DELETE FROM todos")
+    db.conn.execute("DELETE FROM usage")
+    db.conn.commit()
 
 class TestEdgeClientLocal(unittest.TestCase):
     """Edge client must handle all data operations locally."""

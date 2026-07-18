@@ -1,14 +1,24 @@
 """Payment module — 支付占位 (SPEC §6.3 BUSINESS_MODEL).
 
-当前为占位实现，返回 mock 数据。预留 WeChat Pay 和 Stripe 两个接口。
-价格：月度Pro ¥29/月，年度Pro ¥299/年。
+当前为占位实现，返回 mock 数据。预留 WeChat Pay、Stripe、Paddle 三个接口。
+价格：月度Pro ¥29/月（$4.99/mo），年度Pro ¥299/年（$49/yr）。
+Paddle 用于全球用户 USD 支付，实际 checkout + webhook 在 Cloudflare Worker 处理。
 
 接入真实支付时，替换 _wechat_pay_create / _stripe_create / 签名验证即可。
 """
 import uuid
 from datetime import datetime
 from . import tokens
-from .engine import _load, _save, USAGE_FILE
+from .engine import get_store
+
+
+def _load_usage_data():
+    """Load the full usage dict from the active store."""
+    return get_store().load_usage()
+
+def _save_usage_data(data):
+    """Save the full usage dict to the active store."""
+    get_store().save_usage(data)
 
 # ── 价格表 (SPEC §6.3) ──
 PLAN_PRICES = {
@@ -16,6 +26,7 @@ PLAN_PRICES = {
         "plan": "pro",
         "billing": "monthly",
         "amount": 29,           # ¥29/月
+        "amount_usd": 4.99,     # $4.99/mo (Paddle)
         "currency": "CNY",
         "label": "Pro 月度",
     },
@@ -23,6 +34,7 @@ PLAN_PRICES = {
         "plan": "pro",
         "billing": "annual",
         "amount": 299,          # ¥299/年
+        "amount_usd": 49,       # $49/yr (Paddle)
         "currency": "CNY",
         "label": "Pro 年度",
     },
@@ -31,6 +43,7 @@ PLAN_PRICES = {
 # 支付渠道
 PAYMENT_CHANNEL_WECHAT = "wechat"
 PAYMENT_CHANNEL_STRIPE = "stripe"
+PAYMENT_CHANNEL_PADDLE = "paddle"
 
 # 订单状态
 ORDER_STATUS_PENDING = "pending"
@@ -39,20 +52,20 @@ ORDER_STATUS_FAILED = "failed"
 
 
 def _get_orders():
-    """Load orders from usage file (stored alongside token usage)."""
-    data = _load(USAGE_FILE) if USAGE_FILE.exists() else {}
+    """Load orders from usage data (stored alongside token usage)."""
+    data = _load_usage_data()
     if isinstance(data, list):
         data = {}
     return data.get("_orders", {})
 
 
 def _save_orders(orders):
-    """Save orders to usage file."""
-    data = _load(USAGE_FILE) if USAGE_FILE.exists() else {}
+    """Save orders to usage data."""
+    data = _load_usage_data()
     if isinstance(data, list):
         data = {}
     data["_orders"] = orders
-    _save(USAGE_FILE, data)
+    _save_usage_data(data)
 
 
 def _gen_order_id():
@@ -245,3 +258,82 @@ def stripe_webhook(payload, signature):
     """
     # TODO: 验证 Stripe-Signature，解析 event
     return handle_callback(payload)
+
+
+# ── Paddle 接口（预留）──
+# Paddle checkout + webhook 实际在 Cloudflare Worker (worker.js) 中实现，
+# 这里仅保留 Python 端接口预留，供 CLI 或本地 agent 调用。
+
+PADDLE_PRODUCTS = {
+    "pro_monthly":   {"type": "upgrade",  "id": "pro_monthly", "usd": 4.99},
+    "pro_yearly":    {"type": "upgrade",  "id": "pro_yearly",  "usd": 49},
+    "credits_100":   {"type": "purchase", "id": "100",         "usd": 1.99},
+    "credits_500":   {"type": "purchase", "id": "500",         "usd": 7.99},
+}
+
+
+def paddle_checkout_url(cloud_url, session_token, product):
+    """获取 Paddle checkout URL（通过 Cloudflare Worker）.
+
+    Args:
+        cloud_url: Worker 基地址（如 https://api.welian.app）
+        session_token: Clerk session token
+        product: PADDLE_PRODUCTS key
+
+    Returns:
+        dict: {ok, checkout_url, order_id} 或 {ok: False, error}
+    """
+    import requests
+    try:
+        resp = requests.post(
+            f"{cloud_url}/ai/paddle/checkout",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {session_token}",
+            },
+            json={"product": product, "session_token": session_token},
+            timeout=15,
+        )
+        data = resp.json()
+        if resp.ok and data.get("checkout_url"):
+            return {"ok": True, "checkout_url": data["checkout_url"], "order_id": data.get("order_id")}
+        return {"ok": False, "error": data.get("error", "unknown")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def paddle_webhook_verify(raw_body, signature_header, webhook_secret):
+    """验证 Paddle webhook 签名（HMAC-SHA256）.
+
+    Paddle 签名格式: "ts=<timestamp>;h1=<hex_digest>"
+    消息: "<timestamp>:<raw_body>"
+
+    Args:
+        raw_body: 原始请求体字符串
+        signature_header: Paddle-Signature header 值
+        webhook_secret: Paddle webhook signing secret
+
+    Returns:
+        bool: 签名是否有效
+    """
+    import hmac
+    import hashlib
+
+    parts = {}
+    for part in signature_header.split(";"):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            parts[k] = v
+
+    ts = parts.get("ts")
+    h1 = parts.get("h1")
+    if not ts or not h1:
+        return False
+
+    computed = hmac.new(
+        webhook_secret.encode(),
+        f"{ts}:{raw_body}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(computed, h1)

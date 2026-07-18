@@ -208,6 +208,16 @@ def main():
     p_classify.add_argument("--apply", action="store_true", help="Apply suggestions (default: dry run)")
     p_classify.add_argument("--init-nurture", action="store_true", help="Also initialize nurture fields")
 
+    # Calendar sync — inject todos into macOS Calendar
+    p_sync = sub.add_parser("sync-calendar", help="Sync pending todos to macOS Calendar")
+    p_sync.add_argument("--days", type=int, default=7, help="Look ahead N days (default: 7)")
+    p_sync.add_argument("--dry-run", action="store_true", help="Preview without creating events")
+    p_sync.add_argument("--clean", action="store_true", help="Remove calendar events for completed todos")
+
+    sub.add_parser("sync-calendar-install", help="Install calendar sync as launchd cron (daily 8am)")
+    sub.add_parser("sync-calendar-uninstall", help="Uninstall calendar sync launchd cron")
+    sub.add_parser("sync-calendar-status", help="Check calendar sync launchd cron status")
+
     args = parser.parse_args()
 
     # ── Edge commands ──
@@ -526,6 +536,46 @@ def main():
                     print(f"  {name} [{nature}]")
                 if not args.apply:
                     print(f"\n加 --apply 应用")
+
+    elif args.command == "sync-calendar":
+        from . import calendar_sync
+        if args.dry_run:
+            print("📅 Calendar sync (DRY RUN)\n")
+        result = calendar_sync.sync_todos_to_calendar(
+            dry_run=args.dry_run, days_ahead=args.days, clean=args.clean,
+        )
+        print(result)
+
+    elif args.command == "sync-calendar-install":
+        from . import calendar_sync
+        ok, info = calendar_sync.install_cron()
+        if ok:
+            print("✓ Calendar sync installed as launchd cron")
+            print(f"  Plist: {info}")
+            print("  Schedule: Every day at 08:00")
+            print("  Logs: ~/.welian/logs/calendar-sync-stdout.log")
+            print("  Manual: welian sync-calendar")
+        else:
+            print(info)
+
+    elif args.command == "sync-calendar-uninstall":
+        from . import calendar_sync
+        calendar_sync.uninstall_cron()
+        print("✓ Calendar sync cron uninstalled")
+
+    elif args.command == "sync-calendar-status":
+        import subprocess
+        result = subprocess.run(["launchctl", "list", "com.welian.calendar-sync"], capture_output=True)
+        if result.returncode == 0:
+            print("✓ Calendar sync cron is installed")
+            output = result.stdout.decode()
+            for line in output.strip().split("\n"):
+                if any(k in line for k in ["PID", "Status", "LastExit"]):
+                    print(f"  {line.strip()}")
+            print("  Schedule: Every day at 08:00")
+        else:
+            print("✗ Calendar sync cron is not installed")
+            print("  Install with: welian sync-calendar-install")
 
     elif args.command == "doctor":
         _run_doctor()

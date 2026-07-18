@@ -23,12 +23,121 @@ Usage:
 """
 import json
 import os
+import uuid
 import asyncio
 import secrets
+from datetime import datetime
 from typing import Optional
 
 from . import engine, intent, ai, tokens
 from .edge import EdgeClient
+
+def _load_agent_config():
+    """Load agent config from config/welian.yaml. Returns dict with defaults."""
+    cfg = {"engine": "edge", "devin": {"model": "", "permission_mode": "dangerous", "max_turns": 50, "timeout": 600, "work_dir": ""}}
+    try:
+        import yaml as _yaml
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent.parent
+        config_path = root / "config" / "welian.yaml"
+        if config_path.exists():
+            with open(config_path) as f:
+                full = _yaml.safe_load(f)
+            agent_cfg = full.get("agent", {})
+            if agent_cfg.get("engine"):
+                cfg["engine"] = agent_cfg["engine"]
+            if agent_cfg.get("devin"):
+                cfg["devin"] = {**cfg["devin"], **agent_cfg["devin"]}
+    except Exception:
+        pass
+    return cfg
+
+
+def _merge_agent_config(current: dict, updates: dict) -> dict:
+    """Merge updates into current agent config. Returns new dict."""
+    result = {**current}
+    if "engine" in updates:
+        result["engine"] = updates["engine"]
+    if "devin" in updates and isinstance(updates["devin"], dict):
+        result["devin"] = {**result.get("devin", {}), **updates["devin"]}
+    return result
+
+
+def _apply_devin_env(devin_cfg: dict):
+    """Apply devin config to agent_bridge module-level variables (runtime override)."""
+    try:
+        from . import agent_bridge
+        if devin_cfg.get("permission_mode"):
+            agent_bridge.DEFAULT_PERMISSION = devin_cfg["permission_mode"]
+        if devin_cfg.get("max_turns"):
+            agent_bridge.MAX_TURN_REQUESTS = int(devin_cfg["max_turns"])
+        if devin_cfg.get("timeout"):
+            agent_bridge.DEFAULT_TIMEOUT = int(devin_cfg["timeout"])
+        if devin_cfg.get("work_dir"):
+            agent_bridge.DEFAULT_WORK_DIR = devin_cfg["work_dir"]
+        if devin_cfg.get("model"):
+            agent_bridge.DEVIN_MODEL = devin_cfg["model"]
+        else:
+            agent_bridge.DEVIN_MODEL = ""
+    except Exception:
+        pass
+
+
+def _save_agent_config(cfg: dict):
+    """Persist agent config back to config/welian.yaml (agent section only)."""
+    try:
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent.parent
+        config_path = root / "config" / "welian.yaml"
+        if not config_path.exists():
+            return
+        text = config_path.read_text("utf-8")
+        lines = text.split("\n")
+        # Find agent section and replace it
+        out = []
+        in_agent = False
+        agent_done = False
+        for line in lines:
+            if line.startswith("agent:"):
+                in_agent = True
+                out.append(line)
+                # Write new agent section
+                out.append(f'  engine: "{cfg.get("engine", "edge")}"')
+                devin = cfg.get("devin", {})
+                out.append('  devin:')
+                out.append(f'    model: "{devin.get("model", "")}"')
+                out.append(f'    permission_mode: "{devin.get("permission_mode", "dangerous")}"')
+                out.append(f'    max_turns: {devin.get("max_turns", 50)}')
+                out.append(f'    timeout: {devin.get("timeout", 600)}')
+                out.append(f'    work_dir: "{devin.get("work_dir", "")}"')
+                out.append('  edge:')
+                out.append(f'    model: ""')
+                agent_done = True
+                continue
+            if in_agent:
+                # Skip old agent section lines (indented under agent:)
+                if line.startswith("  ") and not line.startswith("    "):
+                    # Could be a subsection like "  devin:" — skip old content
+                    continue
+                if line.startswith("    "):
+                    continue
+                # Non-indented line = end of agent section
+                in_agent = False
+            out.append(line)
+        if not agent_done:
+            # No agent section found, append at end
+            out.append("agent:")
+            out.append(f'  engine: "{cfg.get("engine", "edge")}"')
+            out.append('  devin:')
+            devin = cfg.get("devin", {})
+            out.append(f'    model: "{devin.get("model", "")}"')
+            out.append(f'    permission_mode: "{devin.get("permission_mode", "dangerous")}"')
+            out.append(f'    max_turns: {devin.get("max_turns", 50)}')
+            out.append(f'    timeout: {devin.get("timeout", 600)}')
+            out.append(f'    work_dir: "{devin.get("work_dir", "")}"')
+        config_path.write_text("\n".join(out), "utf-8")
+    except Exception as e:
+        print(f"  ⚠ Failed to save agent config: {e}")
 
 # ── Page HTML (served at http://host:PORT/) ──
 # Dual mode:
@@ -95,6 +204,7 @@ body{font-family:-apple-system,Inter,sans-serif;background:var(--bg);color:var(-
 
 <script>
 const PAIRING_TOKEN = "__PAIRING_TOKEN__";
+const CLERK_USER_ID = new URLSearchParams(location.search).get('clerk_uid') || "";
 const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsUrl = `${wsProto}//${location.host}/ws`;
 let ws = null;
@@ -122,9 +232,11 @@ function notifyParent(type,data){
 
 function connect(){
   ws=new WebSocket(wsUrl);
-  ws.onopen=()=>{ws.send(JSON.stringify({type:'auth',token:PAIRING_TOKEN}))};
+  ws.onopen=()=>{ws.send(JSON.stringify({type:'auth',token:PAIRING_TOKEN,clerk_uid:CLERK_USER_ID}))};
   ws.onmessage=(e)=>{
     const data=JSON.parse(e.data);
+    // Auto-reply pong to server ping (keepalive for long tasks)
+    if(data.type==='ping'){ws.send(JSON.stringify({type:'pong'}));return}
     notifyParent('ws-message',data);
     if(data.type==='auth_ok'){
       onConnected();
@@ -201,6 +313,10 @@ class LocalAgent:
         self.tunnel = tunnel
         self.tunnel_url = ""
         self.device_id = self._get_device_id()
+        self.agent_config = _load_agent_config()
+        self._devin_bridge = None  # lazy-init Devin bridge when engine=devin
+        self._ws_loop = None  # asyncio loop for cross-thread WS sends (set in start())
+        self.clerk_user_id = None  # set from browser WS auth (dynamic, per-session)
 
     def _generate_token(self) -> str:
         return secrets.token_urlsafe(16)
@@ -281,16 +397,432 @@ class LocalAgent:
         except Exception as e:
             print(f"  ⚠ Tunnel error: {e}")
 
-    async def process_command(self, msg: dict) -> dict:
-        """Process a command from the browser and return a response."""
+    def _get_cloud_user_id(self) -> str:
+        """Get user_id for cloud ops: prefer browser Clerk login, fallback to env."""
+        if self.clerk_user_id:
+            return self.clerk_user_id
+        from .cli import _get_user_id
+        return _get_user_id() or os.environ.get("WELIAN_USER_TOKEN", "")
+
+    def _fetch_cloud_contacts(self) -> list:
+        """Fetch contacts from cloud KV."""
+        import urllib.request
+
+        cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
+        user_id = self._get_cloud_user_id()
+        sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+        if not user_id or not sync_secret:
+            return []
+
+        sync_token = f"{user_id}:{sync_secret}"
+        req = urllib.request.Request(
+            f"{cloud_url}/data/pull",
+            headers={"Authorization": f"Bearer {sync_token}", "User-Agent": "welian-agent/1.0"},
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+        return data.get("contacts", [])
+
+    def _push_cloud_contacts(self, contacts: list):
+        """Push contacts to cloud KV."""
+        import urllib.request
+
+        cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
+        user_id = self._get_cloud_user_id()
+        sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+        if not user_id or not sync_secret:
+            print("  Cloud push skipped — no credentials")
+            return
+
+        sync_token = f"{user_id}:{sync_secret}"
+        payload = json.dumps({"contacts": contacts}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{cloud_url}/data/push",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {sync_token}",
+                "Content-Type": "application/json",
+                "User-Agent": "welian-agent/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            json.loads(resp.read())
+        print(f"  Cloud push: {len(contacts)} contacts → cloud ({user_id})")
+
+    def _xlsx_to_csv(self, file_path: str, filename: str) -> str:
+        """Convert xlsx/xls to CSV file. Returns new file path."""
+        import tempfile
+        from pathlib import Path
+
+        tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-import"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        csv_path = tmp_dir / f"converted-{uuid.uuid4().hex[:8]}.csv"
+
+        lower = filename.lower()
+        if lower.endswith('.xlsx'):
+            import openpyxl
+            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+            ws = wb.active
+            with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
+                import csv
+                writer = csv.writer(f)
+                for row in ws.iter_rows(values_only=True):
+                    writer.writerow(['' if c is None else str(c) for c in row])
+            wb.close()
+        elif lower.endswith('.xls'):
+            import xlrd
+            wb = xlrd.open_workbook(file_path)
+            ws = wb.sheet_by_index(0)
+            with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
+                import csv
+                writer = csv.writer(f)
+                for row_idx in range(ws.nrows):
+                    writer.writerow([str(ws.cell_value(row_idx, col_idx)) for col_idx in range(ws.ncols)])
+        else:
+            return file_path
+
+        return str(csv_path)
+
+    def _import_via_devin(self, file_path: str, filename: str) -> dict:
+        """Use Devin CLI (GLM) to extract contacts from an uploaded file.
+
+        Converts xlsx/xls to CSV first (Devin reads text, not binary).
+        Returns {"contacts": [...]} or {"error": "..."}.
+        """
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        # Convert spreadsheet files to CSV (Devin reads text, not binary)
+        lower_name = filename.lower()
+        is_image = lower_name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'))
+
+        devin_cfg = self.agent_config.get("devin", {})
+        work_dir = devin_cfg.get("work_dir") or str(Path.home())
+        permission = devin_cfg.get("permission_mode", "dangerous")
+        model = devin_cfg.get("model", "")
+        timeout = int(devin_cfg.get("timeout", 600))
+
+        if is_image:
+            prompt = f"""请识别这张名片图片中的联系人信息。
+
+文件路径：{file_path}
+
+要求：
+1. 用 read 工具读取图片，识别名片上的文字信息
+2. 提取以下字段（有就填，没有留空）：
+   - name: 姓名（必须有，否则跳过）
+   - company: 公司
+   - title: 职位
+   - phone: 电话
+   - email: 邮箱
+   - notes: 备注（地址、行业等其他信息）
+3. 只输出 JSON 数组，不要其他文字
+4. 格式：[{{"name":"张三","company":"腾讯","title":"产品经理","phone":"13800138000","email":"zhangsan@qq.com","notes":"深圳市南山区"}}]"""
+        else:
+            prompt = f"""请解析文件 {filename}，提取其中的所有联系人信息。
+
+文件路径：{file_path}
+
+要求：
+1. 用 read 工具读取文件内容。如果是 xlsx/xls 等表格文件，可以用 shell 工具（如 python3 + openpyxl）读取
+2. 每个联系人提取以下字段（有就填，没有留空）：
+   - name: 姓名（必须有，否则跳过）
+   - relation: 关系
+   - company: 公司
+   - title: 职位
+   - phone: 电话
+   - email: 邮箱
+   - notes: 备注
+3. 跳过表头、空行、明显不是联系人的行
+4. 只输出 JSON 数组，不要其他文字
+5. 格式：[{{"name":"张三","relation":"同事","company":"腾讯","title":"产品经理","phone":"13800138000","email":"zhangsan@qq.com","notes":""}}]"""
+
+        tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-import"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file = tmp_dir / f"prompt-{uuid.uuid4().hex[:8]}.txt"
+        prompt_file.write_text(prompt, encoding="utf-8")
+        export_file = tmp_dir / f"export-{uuid.uuid4().hex[:8]}.json"
+
+        cmd = [
+            "devin",
+            "--permission-mode", permission,
+            "-p",
+            "--prompt-file", str(prompt_file),
+            "--export", str(export_file),
+        ]
+        if model:
+            cmd.extend(["--model", model])
+
+        try:
+            result = subprocess.run(
+                cmd, cwd=work_dir, capture_output=True, text=True,
+                timeout=timeout, env={**os.environ, "NO_AUTO_UPDATE": "true"},
+            )
+            reply = result.stdout.strip() if result.stdout else ""
+            if result.returncode != 0 and not reply:
+                return {"error": f"Devin CLI 错误：{result.stderr.strip()[:300]}"}
+        except subprocess.TimeoutExpired:
+            return {"error": f"Devin CLI 执行超时（{timeout}s）"}
+        except FileNotFoundError:
+            return {"error": "未找到 devin 命令"}
+        except Exception as e:
+            return {"error": f"执行出错：{str(e)[:200]}"}
+        finally:
+            prompt_file.unlink(missing_ok=True)
+            export_file.unlink(missing_ok=True)
+
+        # Extract JSON array from reply
+        import re
+        json_match = re.search(r'\[[\s\S]*\]', reply)
+        if json_match:
+            try:
+                contacts = json.loads(json_match.group(0))
+                if isinstance(contacts, list):
+                    return {"contacts": contacts}
+            except json.JSONDecodeError:
+                pass
+        return {"error": f"未能从 Devin 输出中提取联系人 JSON。输出前500字：{reply[:500]}"}
+
+    def _chat_via_devin(self, text: str) -> str:
+        """Route chat through Devin CLI directly (not via agent_bridge).
+
+        Calls `devin` CLI with Welian chat prompt from prompts/chat.md.
+        No WeChat bot prompt injection — clean Devin CLI invocation.
+        Config from agent.devin section of welian.yaml.
+        """
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        devin_cfg = self.agent_config.get("devin", {})
+        work_dir = devin_cfg.get("work_dir") or str(Path.home())
+        permission = devin_cfg.get("permission_mode", "dangerous")
+        model = devin_cfg.get("model", "")
+        timeout = int(devin_cfg.get("timeout", 3600))  # default 60 min for long tasks
+
+        # Load Welian chat prompt (same as edge.py)
+        system_prompt = self.edge._load_prompt("chat", "")
+        full_prompt = f"{system_prompt}\n\n用户消息：{text}" if system_prompt else text
+
+        # Write prompt to temp file (Devin CLI reads from --prompt-file)
+        tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-direct"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file = tmp_dir / f"prompt-{uuid.uuid4().hex[:8]}.txt"
+        prompt_file.write_text(full_prompt, encoding="utf-8")
+        export_file = tmp_dir / f"export-{uuid.uuid4().hex[:8]}.json"
+
+        cmd = [
+            "devin",
+            "--permission-mode", permission,
+            "-p",
+            "--prompt-file", str(prompt_file),
+            "--export", str(export_file),
+        ]
+        if model:
+            cmd.extend(["--model", model])
+
+        # Resume previous session if exists
+        if hasattr(self, "_devin_direct_session_id") and self._devin_direct_session_id:
+            cmd.extend(["-r", self._devin_direct_session_id])
+
+        try:
+            result = subprocess.run(
+                cmd, cwd=work_dir, capture_output=True, text=True,
+                timeout=timeout, env={**os.environ, "NO_AUTO_UPDATE": "true"},
+            )
+            reply = result.stdout.strip() if result.stdout else ""
+            if result.returncode != 0 and not reply:
+                reply = f"Devin CLI 错误：{result.stderr.strip()[:200]}"
+        except subprocess.TimeoutExpired:
+            reply = f"⏰ Devin CLI 执行超时（{timeout}s）"
+        except FileNotFoundError:
+            reply = "❌ 未找到 devin 命令，请确认已安装并在 PATH 中"
+        except Exception as e:
+            reply = f"❌ 执行出错：{str(e)[:200]}"
+        finally:
+            # Save session ID for resume
+            try:
+                if export_file.exists():
+                    export_data = json.loads(export_file.read_text("utf-8"))
+                    sid = export_data.get("session_id", "")
+                    if sid:
+                        self._devin_direct_session_id = sid
+            except Exception:
+                pass
+            prompt_file.unlink(missing_ok=True)
+            export_file.unlink(missing_ok=True)
+
+        if len(reply) > 3000:
+            reply = reply[:2990] + "\n…(截断)"
+        return reply
+
+    def _devin_direct(self, text: str, websocket=None, req_id: str = "", file_info=None) -> str:
+        """Direct Devin CLI passthrough — user message goes to Devin as-is.
+
+        No Welian system prompt, no intent parsing, no data context.
+        Pure terminal-like Devin CLI invocation.
+
+        If file_info is provided, saves file to temp path and includes it in prompt.
+        If websocket is provided, streams output chunks in real-time:
+        sends {type: 'stream', id: req_id, chunk: '...'} for each chunk.
+        Final return value is the complete reply.
+        """
+        import subprocess
+        import tempfile
+        import threading
+        import base64 as b64mod
+        from pathlib import Path
+
+        devin_cfg = self.agent_config.get("devin", {})
+        work_dir = devin_cfg.get("work_dir") or str(Path.home())
+        permission = devin_cfg.get("permission_mode", "dangerous")
+        model = devin_cfg.get("model", "")
+        timeout = int(devin_cfg.get("timeout", 3600))  # default 60 min for long tasks
+
+        tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-direct"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save attached file to temp dir
+        saved_file_path = None
+        if file_info and file_info.get("base64"):
+            try:
+                safe_name = (file_info.get("filename") or "upload").replace("/", "_").replace("\\", "_")
+                saved_file_path = tmp_dir / f"file-{uuid.uuid4().hex[:8]}-{safe_name}"
+                saved_file_path.write_bytes(b64mod.b64decode(file_info["base64"]))
+                print(f"  Saved attached file: {saved_file_path} ({saved_file_path.stat().st_size} bytes)")
+            except Exception as e:
+                print(f"  File save error: {e}")
+                saved_file_path = None
+
+        # Build prompt: include file reference if attached
+        prompt_text = text
+        if saved_file_path:
+            file_hint = f"\n\n[附件] 文件路径：{saved_file_path}\n请用 read 工具读取这个文件的内容，然后根据用户的消息处理。"
+            prompt_text = (text + file_hint) if text else f"请读取文件 {saved_file_path} 的内容并分析。"
+
+        prompt_file = tmp_dir / f"prompt-{uuid.uuid4().hex[:8]}.txt"
+        prompt_file.write_text(prompt_text, encoding="utf-8")
+        export_file = tmp_dir / f"export-{uuid.uuid4().hex[:8]}.json"
+
+        cmd = [
+            "devin",
+            "--permission-mode", permission,
+            "-p",
+            "--prompt-file", str(prompt_file),
+            "--export", str(export_file),
+        ]
+        if model:
+            cmd.extend(["--model", model])
+
+        # Use a separate session ID namespace for direct mode
+        if hasattr(self, "_devin_passthrough_session_id") and self._devin_passthrough_session_id:
+            cmd.extend(["-r", self._devin_passthrough_session_id])
+
+        # Stream chunks via websocket (thread-safe send)
+        loop = asyncio.new_event_loop() if websocket else None
+
+        def send_chunk(chunk):
+            if not websocket or not chunk:
+                return
+            try:
+                msg = json.dumps({"type": "stream", "id": req_id, "chunk": chunk}, ensure_ascii=False)
+                if hasattr(websocket, 'send'):
+                    # websockets library (async)
+                    asyncio.run_coroutine_threadsafe(websocket.send(msg), self._ws_loop)
+                elif hasattr(websocket, 'send_json'):
+                    # aiohttp WebSocketResponse (sync in aiohttp context)
+                    websocket.send_json(json.loads(msg))
+            except Exception:
+                pass
+
+        try:
+            proc = subprocess.Popen(
+                cmd, cwd=work_dir,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, env={**os.environ, "NO_AUTO_UPDATE": "true"},
+            )
+
+            chunks = []
+            try:
+                while True:
+                    line = proc.stdout.readline()
+                    if not line and proc.poll() is not None:
+                        break
+                    if line:
+                        chunks.append(line)
+                        send_chunk(line)
+            except Exception:
+                pass
+
+            try:
+                proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                timeout_msg = f"\n⏰ Devin CLI 执行超时（{timeout}s），已中断"
+                chunks.append(timeout_msg)
+                send_chunk(timeout_msg)
+
+            reply = "".join(chunks).strip()
+            if proc.returncode != 0 and not reply:
+                stderr = proc.stderr.read().strip() if proc.stderr else ""
+                reply = f"Devin CLI 错误：{stderr[:200]}"
+        except FileNotFoundError:
+            reply = "❌ 未找到 devin 命令，请确认已安装并在 PATH 中"
+        except Exception as e:
+            reply = f"❌ 执行出错：{str(e)[:200]}"
+        finally:
+            try:
+                if export_file.exists():
+                    export_data = json.loads(export_file.read_text("utf-8"))
+                    sid = export_data.get("session_id", "")
+                    if sid:
+                        self._devin_passthrough_session_id = sid
+            except Exception:
+                pass
+            prompt_file.unlink(missing_ok=True)
+            export_file.unlink(missing_ok=True)
+            if saved_file_path:
+                saved_file_path.unlink(missing_ok=True)
+
+        if len(reply) > 20000:
+            # Keep head + tail to preserve file paths that often appear at the end
+            reply = reply[:15000] + "\n…(中间截断)…\n" + reply[-4990:]
+        return reply
+
+    async def process_command(self, msg: dict, websocket=None) -> dict:
+        """Process a command from the browser and return a response.
+
+        If websocket is provided and command supports streaming,
+        intermediate chunks are sent via websocket during execution.
+        """
         cmd = msg.get("cmd")
         req_id = msg.get("id", "")
 
         try:
             if cmd == "chat":
                 text = msg.get("text", "")
+                file_info = msg.get("file")  # {base64, filename, media_type, is_image}
+                engine = self.agent_config.get("engine", "edge")
+                if engine == "devin":
+                    # engine=devin: stream Devin CLI output chunks via websocket
+                    reply = await asyncio.get_event_loop().run_in_executor(
+                        None, self._devin_direct, text, websocket, req_id, file_info)
+                else:
+                    reply = await asyncio.get_event_loop().run_in_executor(
+                        None, self.edge.chat, text, file_info)
+                return {"type": "response", "id": req_id, "reply": reply}
+
+            elif cmd == "devin_direct":
+                # Direct Devin CLI passthrough — no Welian prompt, no intent, no data context
+                # User's message goes straight to Devin CLI as-is
+                text = msg.get("text", "")
+                file_info = msg.get("file")
                 reply = await asyncio.get_event_loop().run_in_executor(
-                    None, self.edge.chat, text)
+                    None, self._devin_direct, text, websocket, req_id, file_info)
                 return {"type": "response", "id": req_id, "reply": reply}
 
             elif cmd == "context":
@@ -308,6 +840,29 @@ class LocalAgent:
                 ctx = await asyncio.get_event_loop().run_in_executor(
                     None, self.edge.search_contacts, keywords, contact_name, intent)
                 return {"type": "response", "id": req_id, "data": ctx}
+
+            elif cmd == "read_file":
+                # Read a local file and return as base64 (for PDF download from chat)
+                import base64 as _b64
+                from pathlib import Path
+                file_path = msg.get("path", "")
+                if not file_path:
+                    return {"type": "error", "id": req_id, "message": "missing path"}
+                try:
+                    p = Path(file_path).expanduser()
+                    if not p.exists():
+                        return {"type": "error", "id": req_id, "message": f"file not found: {file_path}"}
+                    if p.stat().st_size > 50 * 1024 * 1024:
+                        return {"type": "error", "id": req_id, "message": "file too large (>50MB)"}
+                    content = p.read_bytes()
+                    return {
+                        "type": "response", "id": req_id,
+                        "content": _b64.b64encode(content).decode("ascii"),
+                        "filename": p.name,
+                        "size": len(content),
+                    }
+                except Exception as e:
+                    return {"type": "error", "id": req_id, "message": str(e)[:200]}
 
             elif cmd == "save_turn":
                 # Save conversation turn after web-side LLM generates reply
@@ -361,6 +916,63 @@ class LocalAgent:
             elif cmd == "ping":
                 return {"type": "response", "id": req_id, "pong": True}
 
+            elif cmd == "pdf":
+                # Generate PDF directly via pdf-sandbox module (no HTTP service needed)
+                # msg: {cmd: 'pdf', type: 'weekly|monthly|signals', report: {...}}
+                import base64 as _b64
+                import importlib
+                import sys as _sys
+                from pathlib import Path
+
+                report_type = msg.get("type", "")
+                report = msg.get("report", {})
+                if not report:
+                    return {"type": "error", "id": req_id, "message": "missing report"}
+
+                try:
+                    # Import pdf-sandbox server module directly
+                    pdf_sandbox_dir = Path.home() / "devin" / "pdf-sandbox"
+                    if str(pdf_sandbox_dir) not in _sys.path:
+                        _sys.path.insert(0, str(pdf_sandbox_dir))
+                    server = importlib.import_module("server")
+                    styles = server._build_styles()
+
+                    if report_type == "weekly":
+                        pdf_bytes = server.build_weekly_pdf(report, styles)
+                    elif report_type == "monthly":
+                        pdf_bytes = server.build_monthly_pdf(report, styles)
+                    elif report_type == "signals":
+                        pdf_bytes = server.build_signals_pdf(report, styles)
+                    else:
+                        return {"type": "error", "id": req_id, "message": f"unknown type: {report_type}"}
+
+                    return {
+                        "type": "response", "id": req_id,
+                        "pdf": _b64.b64encode(pdf_bytes).decode("ascii"),
+                        "filename": f"welian_{report_type}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    }
+                except ImportError as e:
+                    return {"type": "error", "id": req_id, "message": f"pdf-sandbox module not found: {e}"}
+                except Exception as e:
+                    return {"type": "error", "id": req_id, "message": f"PDF error: {e}"}
+
+            elif cmd == "agent_config":
+                # Get or set agent engine config (edge | devin + devin params)
+                action = msg.get("action", "get")
+                if action == "get":
+                    return {"type": "response", "id": req_id, "data": self.agent_config}
+                elif action == "set":
+                    updates = msg.get("config", {})
+                    self.agent_config = _merge_agent_config(self.agent_config, updates)
+                    # Persist to config/welian.yaml so it survives restarts
+                    _save_agent_config(self.agent_config)
+                    # Apply to agent_bridge if loaded
+                    if self._devin_bridge is not None:
+                        _apply_devin_env(self.agent_config.get("devin", {}))
+                    return {"type": "response", "id": req_id, "ok": True, "data": self.agent_config}
+                else:
+                    return {"type": "error", "id": req_id, "message": f"Unknown action: {action}"}
+
             else:
                 return {"type": "error", "id": req_id, "message": f"Unknown command: {cmd}"}
 
@@ -400,6 +1012,17 @@ class LocalAgent:
         self.connected_clients.add(websocket)
         print(f"✓ Browser connected ({len(self.connected_clients)} active)")
 
+        # Heartbeat task — sends ping every 30s to keep connection alive during long tasks
+        async def heartbeat():
+            try:
+                while True:
+                    await asyncio.sleep(30)
+                    await websocket.send(json.dumps({"type": "ping"}))
+            except (websockets.exceptions.ConnectionClosed, asyncio.CancelledError):
+                pass
+
+        heartbeat_task = asyncio.create_task(heartbeat())
+
         try:
             async for raw in websocket:
                 try:
@@ -410,11 +1033,15 @@ class LocalAgent:
                         "message": "Invalid JSON"
                     }))
                     continue
-                response = await self.process_command(msg)
+                # Ignore pong replies from browser
+                if msg.get("type") == "pong":
+                    continue
+                response = await self.process_command(msg, websocket=websocket)
                 await websocket.send(json.dumps(response, ensure_ascii=False))
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
+            heartbeat_task.cancel()
             self.connected_clients.discard(websocket)
             print(f"  Browser disconnected ({len(self.connected_clients)} active)")
 
@@ -422,6 +1049,25 @@ class LocalAgent:
         """Start HTTP + WebSocket server."""
         from aiohttp import web
         import socket
+
+        # ── Sentry monitoring (opt-in via SENTRY_DSN env var) ──
+        sentry_dsn = os.environ.get("SENTRY_DSN", "")
+        if sentry_dsn:
+            try:
+                import sentry_sdk
+                sentry_sdk.init(
+                    dsn=sentry_dsn,
+                    environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+                    traces_sample_rate=0.0,  # disable performance tracing (local agent)
+                    attach_stack_trace=True,
+                )
+                print(f"  Sentry: enabled (env={os.environ.get('SENTRY_ENVIRONMENT', 'production')})")
+            except ImportError:
+                print("  ⚠ Sentry DSN set but sentry-sdk not installed — pip install sentry-sdk")
+            except Exception as e:
+                print(f"  ⚠ Sentry init failed: {e}")
+
+        self._ws_loop = asyncio.get_event_loop()  # for cross-thread WS sends
 
         # Get LAN IP for mobile access
         try:
@@ -484,6 +1130,12 @@ class LocalAgent:
                     await ws_server.close()
                     return ws_server
 
+                # Save Clerk user_id from browser for cloud operations
+                clerk_uid = msg.get("clerk_uid", "")
+                if clerk_uid:
+                    self.clerk_user_id = clerk_uid
+                    print(f"✓ Clerk user: {clerk_uid}")
+
                 await ws_server.send_json({
                     "type": "auth_ok",
                     "message": "Connected to Welian local agent"
@@ -506,7 +1158,7 @@ class LocalAgent:
                             "message": "Invalid JSON"
                         })
                         continue
-                    response = await self.process_command(msg)
+                    response = await self.process_command(msg, websocket=ws_server)
                     await ws_server.send_json(response)
             except Exception as e:
                 print(f"  WS error: {e}")
@@ -516,10 +1168,122 @@ class LocalAgent:
 
             return ws_server
 
-        app = web.Application()
+        async def import_handler(request):
+            """POST /ai/import — file upload, Devin CLI (GLM) extracts contacts."""
+            import base64 as b64mod
+            import tempfile
+            from pathlib import Path
+
+            CORS_HDR = {"Access-Control-Allow-Origin": "*"}
+
+            try:
+                body = await request.json()
+            except Exception:
+                return web.json_response({"error": "Invalid JSON"}, status=400)
+
+            base64_data = body.get("base64", "")
+            filename = body.get("filename", "upload")
+            if not base64_data:
+                return web.json_response({"error": "No file data"}, status=400)
+
+            # Save uploaded file to temp dir
+            tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-import"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            safe_name = filename.replace("/", "_").replace("\\", "_")
+            file_path = tmp_dir / f"upload-{uuid.uuid4().hex[:8]}-{safe_name}"
+
+            try:
+                file_path.write_bytes(b64mod.b64decode(base64_data))
+            except Exception as e:
+                return web.json_response({"error": f"File decode error: {e}"}, status=400)
+
+            print(f"  Import request: {filename} ({file_path.stat().st_size} bytes)")
+
+            # Run Devin CLI in thread (blocking subprocess)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, self._import_via_devin, str(file_path), filename
+            )
+
+            # Clean up temp file
+            file_path.unlink(missing_ok=True)
+
+            if "error" in result:
+                print(f"  Import failed: {result['error'][:100]}")
+                return web.json_response(result, status=500)
+
+            contacts = result.get("contacts", [])
+            print(f"  Import extracted {len(contacts)} contacts")
+
+            # Dedup + save to CLOUD (not local) — cloud is source of truth
+            loop = asyncio.get_event_loop()
+            existing = await loop.run_in_executor(None, self._fetch_cloud_contacts)
+
+            existing_names = {c.get("name", "") for c in existing}
+            imported = 0
+            skipped = 0
+            for c in contacts:
+                name = (c.get("name", "") or "").strip()
+                if not name:
+                    skipped += 1
+                    continue
+                if name in existing_names:
+                    skipped += 1
+                    continue
+                from .models import create_contact
+                notes_parts = [c.get("notes", "")]
+                if c.get("phone"): notes_parts.append(f"📱 {c['phone']}")
+                if c.get("email"): notes_parts.append(f"✉️ {c['email']}")
+                existing.append(create_contact(
+                    name=name,
+                    relation=c.get("relation", ""),
+                    company=c.get("company", ""),
+                    title=c.get("title", ""),
+                    notes="\n".join(filter(None, notes_parts)) or "",
+                ))
+                existing_names.add(name)
+                imported += 1
+
+            if imported > 0:
+                await loop.run_in_executor(None, self._push_cloud_contacts, existing)
+
+            return web.json_response({"imported": imported, "skipped": skipped, "total": len(contacts), "extracted_names": [c.get("name","") for c in contacts[:5]]})
+
+        async def cors_options_handler(request):
+            """Handle CORS preflight for all routes."""
+            return web.Response(headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            })
+
+        @web.middleware
+        async def cors_middleware(request, handler):
+            """Add CORS headers + capture exceptions to Sentry."""
+            if request.method == "OPTIONS":
+                return web.Response(headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                })
+            try:
+                response = await handler(request)
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                return response
+            except Exception as e:
+                # Capture in Sentry (no-op if not initialized)
+                try:
+                    import sentry_sdk
+                    sentry_sdk.capture_exception(e)
+                except ImportError:
+                    pass
+                raise
+
+        app = web.Application(middlewares=[cors_middleware])
         app.router.add_get("/", index_handler)
         app.router.add_get("/health", health_handler)
         app.router.add_get("/ws", ws_handler)
+        app.router.add_post("/ai/import", import_handler)
 
         runner = web.AppRunner(app)
         await runner.setup()
@@ -532,100 +1296,56 @@ class LocalAgent:
         await asyncio.Future()  # run forever
 
     async def _sync_loop(self):
-        """Periodically sync full edge data to cloud KV for full cloud mode.
+        """Periodically pull cloud data to local (one-way: cloud → edge).
 
-        Syncs: contacts, todos, timeline (complete datasets, not summaries).
-        Cloud worker can then search and build data_context without agent.
-
-        Uses sync_token for auth: "<clerk_user_id>:<WELIAN_SYNC_SECRET>"
+        Uses clerk_uid from browser WS auth (dynamic), falls back to env.
         """
         import urllib.request
-        from .cli import _get_user_id
-        from .engine import CONTACTS_FILE, TIMELINE_FILE, TODOS_FILE
+        from .engine import get_store
 
         cloud_url = os.environ.get("WELIAN_CLOUD_URL", "https://api.welian.app")
-        user_id = _get_user_id() or os.environ.get("WELIAN_USER_TOKEN")
         sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
 
-        if not user_id or len(user_id) < 10:
-            print("  ⚠ Cloud sync skipped — no valid user_id (run 'welian login')")
-            return
         if not sync_secret:
-            print("  ⚠ Cloud sync skipped — WELIAN_SYNC_SECRET not set")
+            print("  ⚠ Cloud pull skipped — WELIAN_SYNC_SECRET not set")
             return
 
-        sync_token = f"{user_id}:{sync_secret}"
-
-        def _load_and_sync():
-            """Load all data files and sync to cloud. Runs in thread executor.
-            After sync, merge cloud-only items back to local (bidirectional)."""
-            # Load all local data
-            datasets = {}
-            for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
-                try:
-                    with open(fpath, "r", encoding="utf-8") as f:
-                        datasets[name] = json.load(f)
-                except Exception:
-                    datasets[name] = []
-
-            # Build sync payload with sync_token
-            payload = json.dumps({
-                "sync_token": sync_token,
-                "contacts": datasets["contacts"],
-                "todos": datasets["todos"],
-                "timeline": datasets["timeline"],
-            }, ensure_ascii=False)
-
-            # Sync to cloud (merge mode — cloud returns cloud_only items)
-            data = payload.encode("utf-8")
+        def _pull_from_cloud(uid, token):
+            """Pull full datasets from cloud and overwrite local files."""
             req = urllib.request.Request(
-                f"{cloud_url}/data/sync_full",
-                data=data,
-                headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
-                method="POST",
+                f"{cloud_url}/data/pull",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "User-Agent": "welian-agent/1.0",
+                },
+                method="GET",
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
-                result = json.loads(resp.read())
+                data = json.loads(resp.read())
 
-            # Merge cloud-only items back to local (bidirectional sync)
-            cloud_only = result.get("cloud_only", {})
-            merged_count = 0
-            for name, fpath in [("contacts", CONTACTS_FILE), ("timeline", TIMELINE_FILE), ("todos", TODOS_FILE)]:
-                cloud_items = cloud_only.get(name, [])
-                if cloud_items:
-                    local_ids = {item.get("id") for item in datasets[name]}
-                    new_items = [item for item in cloud_items if item.get("id") not in local_ids]
-                    if new_items:
-                        datasets[name].extend(new_items)
-                        with open(fpath, "w", encoding="utf-8") as f:
-                            json.dump(datasets[name], f, ensure_ascii=False, indent=2)
-                        merged_count += len(new_items)
+            store = get_store()
+            for name in ("contacts", "timeline", "todos"):
+                items = data.get(name, [])
+                if items:
+                    store.save(name, items)
 
-            # Also sync summary data_context (for quick overview without search)
-            ctx = self.edge.get_context("")
-            summary = json.dumps({
-                "sync_token": sync_token,
-                "data_context": ctx.get("data_context", ""),
-            }).encode()
-            req2 = urllib.request.Request(
-                f"{cloud_url}/data/sync",
-                data=summary,
-                headers={"Content-Type": "application/json", "User-Agent": "welian-agent/1.0"},
-                method="POST",
-            )
-            urllib.request.urlopen(req2, timeout=30)
+            return len(data.get("contacts", [])), len(data.get("todos", [])), len(data.get("timeline", []))
 
-            return result, len(datasets["contacts"]), len(datasets["todos"]), len(datasets["timeline"]), merged_count
-
-        # Sync immediately on startup, then every 5 minutes
+        # Pull immediately on startup, then every 30 minutes
         while True:
+            user_id = self._get_cloud_user_id()
+            if not user_id or len(user_id) < 10:
+                print("  ⚠ Cloud pull skipped — no user_id (waiting for browser login)")
+                await asyncio.sleep(60)
+                continue
+
+            sync_token = f"{user_id}:{sync_secret}"
             try:
-                result, nc, nt, ntl, merged = await asyncio.get_event_loop().run_in_executor(
-                    None, _load_and_sync)
-                msg = f"  ☁ Cloud sync: {nc} contacts, {nt} todos, {ntl} timeline → {result.get('ok')}"
-                if merged > 0:
-                    msg += f" | ← merged {merged} cloud-only items to local"
-                print(msg)
+                nc, nt, ntl = await asyncio.get_event_loop().run_in_executor(
+                    None, _pull_from_cloud, user_id, sync_token)
+                print(f"  ☁ Cloud pull ({user_id[:20]}): {nc} contacts, {nt} todos, {ntl} timeline → local")
             except Exception as e:
-                print(f"  ⚠ Cloud sync failed: {e}")
-            await asyncio.sleep(300)  # 5 minutes
+                print(f"  ⚠ Cloud pull failed: {e}")
+            await asyncio.sleep(1800)  # 30 minutes
+
+

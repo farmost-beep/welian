@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>定价 — Welian</title>
+<meta name="description" content="Welian 定价方案 — 免费开始，Pro 每月 $4.99。">
+<meta name="theme-color" content="#F5F4EE">
+<link rel="canonical" href="https://welian.app/pricing.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Welian 定价 — 免费开始">
+<meta property="og:description" content="AI 关系管理助手，免费开始，Pro 每月 $4.99。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#4A6741;--bg:#F5F4EE;--surface:#FAFAF7;--border:#E0E0E0;--text:#2C2C2C;--dim:#8B8B8B;--dimmer:#B0B0B0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+a{color:var(--accent);text-decoration:none}
+nav{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border)}
+nav .brand{font-family:'Newsreader',serif;font-size:1.3em;font-weight:600;color:var(--accent)}
+nav .brand .inf{color:var(--accent);font-size:1em}
+nav .links{display:flex;gap:16px;align-items:center;font-size:.85em}
+nav .links a{color:var(--dim)}
+nav .cta{padding:8px 20px;background:var(--accent);color:#fff;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:.9em;text-decoration:none}
+.pricing-hero{text-align:center;padding:48px 24px 32px}
+.pricing-hero h1{font-family:'Newsreader',serif;font-size:2.2em;font-weight:600;color:var(--text);margin-bottom:8px}
+.pricing-hero p{color:var(--dim);font-size:1.05em}
+.pricing-grid{display:flex;gap:20px;justify-content:center;padding:24px;flex-wrap:wrap;max-width:900px;margin:0 auto}
+.plan-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:280px;display:flex;flex-direction:column;gap:12px;transition:.2s}
+.plan-card:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(74,103,65,.08)}
+.plan-card.featured{border-color:var(--accent);border-width:2px;position:relative}
+.plan-card.featured::before{content:'推荐';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:3px 14px;border-radius:12px;font-size:.7em;font-weight:600}
+.plan-name{font-size:1.1em;font-weight:600;color:var(--text)}
+.plan-price{font-family:'Newsreader',serif;font-size:2.4em;font-weight:600;color:var(--accent)}
+.plan-price small{font-size:.4em;color:var(--dim);font-weight:400;font-family:'Inter',sans-serif}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:.85em;color:var(--text);flex:1}
+.plan-features li{padding-left:22px;position:relative}
+.plan-features li::before{content:'✓';position:absolute;left:0;color:var(--accent);font-weight:700}
+.plan-features li.muted{color:var(--dimmer)}
+.plan-features li.muted::before{content:'—';color:var(--dimmer)}
+.plan-btn{display:block;text-align:center;padding:10px;border-radius:10px;font-size:.9em;font-weight:500;cursor:pointer;text-decoration:none;transition:.2s}
+.plan-btn.primary{background:var(--accent);color:#fff}
+.plan-btn.primary:hover{opacity:.9}
+.plan-btn.secondary{background:none;border:1px solid var(--border);color:var(--text)}
+.plan-btn.secondary:hover{border-color:var(--accent);color:var(--accent)}
+.pricing-faq{max-width:680px;margin:32px auto;padding:0 24px}
+.pricing-faq h2{font-family:'Newsreader',serif;font-size:1.4em;margin-bottom:16px;color:var(--text)}
+.faq-item{border-bottom:1px solid var(--border);padding:12px 0}
+.faq-item summary{cursor:pointer;font-size:.9em;font-weight:500;color:var(--text)}
+.faq-item p{margin-top:8px;font-size:.82em;color:var(--dim);line-height:1.6}
+footer{border-top:1px solid var(--border);padding:16px 24px;text-align:center;font-size:.75em;color:var(--dim);margin-top:auto}
+footer a{color:var(--dim)}
+@media(max-width:680px){.pricing-grid{flex-direction:column;align-items:center}.plan-card{width:100%;max-width:320px}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="brand">Welian<span class="inf">∞</span></a>
+  <div class="links">
+    <a href="/pricing.html">定价</a>
+    <a href="/" class="cta">开始使用</a>
+  </div>
+</nav>
+
+<div class="pricing-hero">
+  <h1>简单透明的定价</h1>
+  <p>免费开始，按需升级</p>
+</div>
+
+<div class="pricing-grid">
+  <div class="plan-card">
+    <div class="plan-name">Free</div>
+    <div class="plan-price">¥0</div>
+    <ul class="plan-features">
+      <li>管理最多 50 个联系人</li>
+      <li>互动记录与待办</li>
+      <li>每周 50 联点 AI 额度</li>
+      <li>周报 / 月报</li>
+      <li class="muted">深度研究 PDF</li>
+      <li class="muted">Devin CLI 引擎</li>
+    </ul>
+    <a href="/" class="plan-btn secondary">免费开始</a>
+  </div>
+
+  <div class="plan-card featured">
+    <div class="plan-name">Pro</div>
+    <div class="plan-price">$4.99<small>/月</small></div>
+    <ul class="plan-features">
+      <li>无限联系人</li>
+      <li>互动记录与待办</li>
+      <li>每月 500 联点 AI 额度</li>
+      <li>周报 / 月报 / 信号</li>
+      <li>深度研究 PDF 生成</li>
+      <li>Devin CLI 引擎支持</li>
+    </ul>
+    <a href="/" class="plan-btn primary">升级 Pro</a>
+  </div>
+
+  <div class="plan-card">
+    <div class="plan-name">Pro 年付</div>
+    <div class="plan-price">$49<small>/年</small></div>
+    <ul class="plan-features">
+      <li>Pro 全部功能</li>
+      <li>每月 500 联点 AI 额度</li>
+      <li>省 17%（相当于 2 个月免费）</li>
+      <li>优先邮件支持</li>
+    </ul>
+    <a href="/" class="plan-btn secondary">选择年付</a>
+  </div>
+</div>
+
+<div class="pricing-faq">
+  <h2>常见问题</h2>
+  <details class="faq-item"><summary>联点是什么？</summary><p>联点是 AI 处理消息的计量单位。每次对话消耗的联点取决于消息长度和 AI 回复复杂度。一般一次对话消耗 1-5 联点。</p></details>
+  <details class="faq-item"><summary>免费额度用完了怎么办？</summary><p>免费额度每月自动刷新。如果不够用，可以升级 Pro 或单独购买联点包（100 联点 $1.99 / 500 联点 $7.99）。</p></details>
+  <details class="faq-item"><summary>可以随时取消吗？</summary><p>可以。Pro 订阅可随时取消，取消后当前计费周期内继续有效，到期后自动降为 Free。</p></details>
+  <details class="faq-item"><summary>数据安全吗？</summary><p>数据存储在 Cloudflare 全球边缘网络，加密传输。使用本地 Agent 模式时数据保存在你的电脑上。详见 <a href="/privacy.html">隐私政策</a>。</p></details>
+  <details class="faq-item"><summary>支持微信支付吗？</summary><p>目前支持信用卡、Apple Pay、Google Pay（通过 Paddle）。微信支付暂不支持。</p></details>
+</div>
+
+<footer>
+  <span>© 2026 Welian ∞ · <a href="/privacy.html">隐私政策</a> · <a href="/terms.html">服务条款</a> · <a href="/">welian.app</a></span>
+</footer>
+</body>
+</html>

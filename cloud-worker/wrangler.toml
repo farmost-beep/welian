@@ -10,6 +10,15 @@ routes = [
 [vars]
 LLM_MODEL = "MiniMax-M3"
 LLM_BASE_URL = "https://api.minimaxi.com/anthropic"
+LLM_MODEL_ENHANCED = "MiniMax-M3"
+LLM_BASE_URL_ENHANCED = "https://api.minimaxi.com/anthropic"
+LLM_MODEL_PREMIUM = "MiniMax-M3"
+LLM_BASE_URL_PREMIUM = "https://api.minimaxi.com/anthropic"
+PADDLE_ENVIRONMENT = "production"
+# Model tier differentiation: all tiers use MiniMax-M3 (only flagship available).
+# Enhanced (x3): same model, higher multiplier = more budget for complex prompts.
+# Premium (x10): same model + service_tier=priority (1.5x cost, faster + more reliable).
+# When Anthropic API key is added, set LLM_MODEL_ENHANCED=claude-sonnet-4-20250514 etc.
 
 # KV namespace for device discovery (tunnel URL registry)
 [[kv_namespaces]]
@@ -24,3 +33,18 @@ id = "98c045b73d874a869493706dc585bafb"
 preview_id = "98c045b73d874a869493706dc585bafb"
 
 # Set LLM_API_KEY via: wrangler secret put LLM_API_KEY
+
+# ── Paddle (global payments, USD) ──
+# Set via: wrangler secret put <NAME>
+# PADDLE_API_KEY           — Paddle API key (paddle_...)
+# PADDLE_WEBHOOK_SECRET    — Webhook signing secret (whsec_...)
+# PADDLE_ENVIRONMENT       — "sandbox" or "production" (set in [vars] below)
+# PADDLE_PRICE_PRO_MONTHLY — price_id for Pro Monthly ($4.99/mo)
+# PADDLE_PRICE_PRO_YEARLY  — price_id for Pro Yearly ($49/yr)
+# PADDLE_PRICE_CREDITS_100 — price_id for 100 credits ($1.99)
+# PADDLE_PRICE_CREDITS_500 — price_id for 500 credits ($7.99)
+# Paddle webhook URL: https://api.welian.app/ai/paddle/webhook
+
+# Cron: weekly report push every Monday 09:00 CST (01:00 UTC)
+[triggers]
+crons = ["0 1 * * 1"]

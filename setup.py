@@ -17,6 +17,7 @@ setup(
         "fastapi>=0.100",
         "uvicorn>=0.23",
         "websockets>=11.0",
+        "sentry-sdk>=2.0",
     ],
     entry_points={
         "console_scripts": [

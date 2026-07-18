@@ -285,10 +285,18 @@ class IlinkApi:
 # ── Per-user session management ──
 
 class SessionManager:
-    """Manages per-WeChat-user EdgeClient instances with data isolation."""
+    """Manages per-WeChat-user EdgeClient instances with data isolation.
+
+    Multi-user mode (WELIAN_MULTI_USER=1): each user gets an isolated
+    DataStore at ~/.welian/users/<hash>/data/. The active store is switched
+    via engine.set_store() before processing each user's message.
+
+    Single-user mode (default): all users share ~/.welian/data/.
+    """
 
     def __init__(self):
         self._clients: Dict[str, EdgeClient] = {}
+        self._stores: Dict[str, object] = {}  # user_id → DataStore
         self._local_mode: Dict[str, bool] = {}  # user_id → True if in local agent mode
         self._lock = asyncio.Lock()
 
@@ -302,34 +310,51 @@ class SessionManager:
         multi_user = os.environ.get("WELIAN_MULTI_USER", "")
         if multi_user.lower() in ("1", "true", "yes"):
             h = hashlib.sha256(wechat_user_id.encode()).hexdigest()[:16]
-            d = WELIAN_HOME / "users" / h
+            d = WELIAN_HOME / "users" / h / "data"
             d.mkdir(parents=True, exist_ok=True)
             return d
         # Single-user mode: use main data directory
-        return WELIAN_HOME
+        return WELIAN_HOME / "data"
+
+    def _get_or_create_store(self, wechat_user_id: str):
+        """Get or create a DataStore for this user."""
+        if wechat_user_id not in self._stores:
+            from ..datastore import DataStore
+            data_dir = self._user_data_dir(wechat_user_id)
+            self._stores[wechat_user_id] = DataStore(data_dir)
+        return self._stores[wechat_user_id]
 
     async def get_client(self, wechat_user_id: str) -> EdgeClient:
         async with self._lock:
             if wechat_user_id not in self._clients:
-                data_dir = self._user_data_dir(wechat_user_id)
-                if str(data_dir) != str(WELIAN_HOME):
-                    os.environ["WELIAN_HOME"] = str(data_dir)
-                    from .. import engine
-                    engine._init_paths()
-                else:
-                    # Reset to main WELIAN_HOME if it was changed
-                    os.environ["WELIAN_HOME"] = str(WELIAN_HOME)
-                    from .. import engine
-                    engine._init_paths()
+                # Switch to this user's data store (no os.environ hack)
+                store = self._get_or_create_store(wechat_user_id)
+                from .. import engine
+                engine.set_store(store)
                 client = EdgeClient(cloud_url=CLOUD_URL, user_id=wechat_user_id, user_token=USER_TOKEN)
                 self._clients[wechat_user_id] = client
-                logger.info(f"User session: {wechat_user_id[:12]}... → {data_dir}")
+                logger.info(f"User session: {wechat_user_id[:12]}... → {store.data_dir}")
             return self._clients[wechat_user_id]
+
+    def activate_store(self, wechat_user_id: str):
+        """Switch the engine's active DataStore to this user's store.
+
+        Called before processing each user's message to ensure
+        data isolation. In single-user mode this is a no-op
+        (all users share the same store).
+        """
+        multi_user = os.environ.get("WELIAN_MULTI_USER", "")
+        if multi_user.lower() not in ("1", "true", "yes"):
+            return  # single-user mode: no switching needed
+        store = self._get_or_create_store(wechat_user_id)
+        from .. import engine
+        engine.set_store(store)
 
     def reset(self, wechat_user_id: str):
         if wechat_user_id in self._clients:
             del self._clients[wechat_user_id]
             logger.info(f"Reset session: {wechat_user_id[:12]}...")
+        self._stores.pop(wechat_user_id, None)
         self._local_mode.pop(wechat_user_id, None)
 
     def is_local_mode(self, wechat_user_id: str) -> bool:
@@ -554,7 +579,11 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
     logger.info(f"Command from {user_id[:12]}...: {cmd}")
 
     if cmd in ("/help", "/h", "/？", "/?"):
-        api.send_message(user_id,
+        # Build help text with YAML commands
+        from .yaml_commands import get_help_text as get_yaml_help
+        yaml_help = get_yaml_help()
+
+        help_text = (
             "Welian 命令：\n"
             "  /login — 绑定 / 查看绑定\n"
             "  /logout — 解除绑定\n"
@@ -562,20 +591,49 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             "  /status — 查看状态\n"
             "  /who — 该联系谁\n"
             "  /stop — 停止当前任务\n"
-            "  /reset — 重置会话\n"
+            "  /reset — 重置会话\n\n"
             "  /local — 切换到本地 Agent（编码模式）\n"
             "  /local claude — 用 Claude Code\n"
             "  /local devin — 用 Devin CLI\n"
             "  /local status — 查看 Agent 状态\n"
             "  /social — 切回社交 AI 模式\n\n"
-            "社交模式（默认）：\n"
+            "Agent 工作流命令：\n"
+            "  /commit — 提交+推送+创建PR\n"
+            "  /review — 多维度代码审查\n"
+            "  /dev <描述> — 7阶段结构化开发\n"
+            "  /loop <任务> — 自主循环直到完成\n"
+            "  /learn — 教育型输出模式\n"
+            "  /design — 前端设计原则模式\n\n"
+            "  /permission — 查看/设置权限模式\n"
+            "  /permission strict — 每步需确认\n"
+            "  /permission lax — 自动执行(默认)\n"
+            "  /mode — 查看当前模式\n"
+            "  /mode off — 关闭特殊模式\n"
+            "  /caps — 查看调用上限使用情况\n"
+            "  /yaml — 管理 CLI 工具命令\n"
+            "  /reload — 重新加载 YAML 配置\n"
+            "  /model — 查看/切换 AI 模型\n"
+            "  /sessions — 管理会话（列表/续接/删除）\n"
+            "  /compact — 压缩上下文（重置会话）\n"
+            "  /hooks — 查看活跃 hook 列表\n"
+            "  /context — 查看上下文 token 用量\n"
+            "  /usage — 查看本次会话 API 用量\n"
+            "  /attribution — 控制 commit 归因\n"
+            "  /proxy — 配置代理\n"
+        )
+        if yaml_help:
+            help_text += "\n" + yaml_help + "\n"
+        help_text += (
+            "\n社交模式（默认）：\n"
             "  · \"记一下：和张总聊了预算\"\n"
             "  · \"该联系谁\"\n"
             "  · \"给张总拟条消息\"\n"
             "  · \"月度回顾\"\n\n"
             "本地 Agent 模式：\n"
             "  · 直接发消息，转给本地 AI agent\n"
-            "  · 适合编码、文件操作、系统管理",
+            "  · 适合编码、文件操作、系统管理"
+        )
+        api.send_message(user_id, help_text,
             context_token,
         )
     elif cmd in ("/login", "/bind", "/登录", "/绑定"):
@@ -657,12 +715,16 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
         if agent_arg in ("status", "st"):
             st = bridge.get_status(user_id)
             mode = "local" if sessions.is_local_mode(user_id) else "social"
+            active_mode = st.get("mode")
+            mode_str = f"  特殊模式：{active_mode}\n" if active_mode else ""
             api.send_message(user_id,
                 f"🔧 Agent 桥接状态\n"
                 f"  当前模式：{'本地 Agent' if mode == 'local' else '社交 AI'}\n"
                 f"  Agent：{st['agent']}\n"
                 f"  会话：{st['session_id'] or '未创建'}\n"
                 f"  工作目录：{st.get('work_dir', '~')}\n"
+                f"  权限：{st.get('permission', 'lax')}\n"
+                f"{mode_str}"
                 f"  支持：{', '.join(SUPPORTED_AGENTS)}",
                 context_token,
             )
@@ -705,10 +767,585 @@ async def handle_command(text: str, user_id: str, api: IlinkApi, context_token: 
             "发 /local 切回本地 Agent。",
             context_token,
         )
+
+    # ── Agent workflow commands (borrowed from claude-code) ──
+    elif cmd == "/commit":
+        await _run_command_template("commit", "", user_id, api, context_token)
+
+    elif cmd.startswith("/review"):
+        args = text.strip()[7:] if len(text) > 7 else ""
+        await _run_command_template("review", args, user_id, api, context_token)
+
+    elif cmd.startswith("/dev "):
+        args = text.strip()[5:]
+        await _run_command_template("dev", args, user_id, api, context_token)
+
+    elif cmd.startswith("/loop "):
+        args = text.strip()[6:]
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        bridge.set_mode(user_id, "loop")
+        sessions.set_local_mode(user_id, True)
+        await _run_command_template("loop", args, user_id, api, context_token)
+
+    elif cmd == "/learn":
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        current_mode = bridge.get_mode(user_id)
+        if current_mode == "learn":
+            bridge.set_mode(user_id, None)
+            api.send_message(user_id, "📖 教育型输出模式已关闭", context_token)
+        else:
+            bridge.set_mode(user_id, "learn")
+            sessions.set_local_mode(user_id, True)
+            api.send_message(user_id,
+                "📖 教育型输出模式已激活 ✅\n"
+                "Agent 在完成任务的同时会解释实现选择和代码库模式。\n"
+                "再次发送 /learn 可关闭。",
+                context_token,
+            )
+
+    elif cmd == "/design":
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        current_mode = bridge.get_mode(user_id)
+        if current_mode == "design":
+            bridge.set_mode(user_id, None)
+            api.send_message(user_id, "🎨 前端设计模式已关闭", context_token)
+        else:
+            bridge.set_mode(user_id, "design")
+            sessions.set_local_mode(user_id, True)
+            api.send_message(user_id,
+                "🎨 前端设计模式已激活 ✅\n"
+                "Agent 会遵循设计原则，避免通用 AI 美学，做出有意识的设计选择。\n"
+                "再次发送 /design 可关闭。",
+                context_token,
+            )
+
+    elif cmd == "/mode":
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        mode = bridge.get_mode(user_id)
+        if mode:
+            api.send_message(user_id, f"当前模式：{mode}\n发 /mode off 关闭", context_token)
+        else:
+            api.send_message(user_id, "当前无特殊模式\n可用：/learn /design /loop", context_token)
+
+    elif cmd == "/caps":
+        from .call_caps import get_call_caps
+        caps = get_call_caps()
+        counts = caps.get_counts(user_id)
+        if not counts:
+            api.send_message(user_id,
+                "📊 调用上限监控\n无调用记录\n\n"
+                "默认限制：\n"
+                "  git push: 10次/会话\n"
+                "  gh pr create: 3次/会话\n"
+                "  npm publish: 1次/会话\n"
+                "  git push --force: 禁止\n"
+                "  gh pr merge: 禁止",
+                context_token,
+            )
+        else:
+            summary = caps.summary(user_id)
+            api.send_message(user_id, f"📊 调用上限监控\n{summary}", context_token)
+
+    elif cmd == "/mode off":
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        bridge.set_mode(user_id, None)
+        api.send_message(user_id, "✅ 已关闭所有特殊模式", context_token)
+
+    elif cmd == "/reload":
+        # Hot-reload YAML commands
+        from .yaml_commands import get_config
+        config = get_config()
+        config.reload()
+        cmds = config.list_commands()
+        api.send_message(user_id,
+            f"✅ YAML 命令已重新加载（{len(cmds)} 个）\n" +
+            ("命令: " + ", ".join(f"/{c}" for c in cmds) if cmds else "（无命令）"),
+            context_token,
+        )
+
+    elif cmd.startswith("/yaml"):
+        # YAML command management: /yaml add <name> <exec> -d <desc> -t <timeout>
+        # /yaml remove <name>, /yaml list
+        from .yaml_commands import get_config
+        config = get_config()
+        parts = cmd.split(maxsplit=2)
+        sub = parts[1] if len(parts) > 1 else "list"
+
+        if sub == "list":
+            cmds = config.list_commands()
+            if not cmds:
+                api.send_message(user_id, "YAML 命令：无（用 /yaml add 添加）", context_token)
+            else:
+                lines = [f"YAML 命令（{len(cmds)} 个）："]
+                for name in cmds:
+                    cmd_obj = config.get_command(name)
+                    desc = cmd_obj.description if cmd_obj else ""
+                    lines.append(f"  /{name} — {desc}")
+                api.send_message(user_id, "\n".join(lines), context_token)
+
+        elif sub == "add" and len(parts) > 2:
+            # Parse: /yaml add <name> "<exec>" -d "desc" -t 10
+            import shlex
+            try:
+                tokens = shlex.split(parts[2])
+            except ValueError:
+                api.send_message(user_id, "参数解析失败，检查引号", context_token)
+                return True
+            if len(tokens) < 2:
+                api.send_message(user_id, "用法: /yaml add <name> <exec> [-d desc] [-t timeout]", context_token)
+                return True
+            name = tokens[0]
+            exec_cmd = tokens[1]
+            desc = ""
+            timeout = 30
+            i = 2
+            while i < len(tokens):
+                if tokens[i] == "-d" and i + 1 < len(tokens):
+                    desc = tokens[i + 1]
+                    i += 2
+                elif tokens[i] == "-t" and i + 1 < len(tokens):
+                    timeout = int(tokens[i + 1])
+                    i += 2
+                else:
+                    i += 1
+            config.add_command(name, exec_cmd, desc, timeout)
+            api.send_message(user_id, f"✅ 已添加命令 /{name}", context_token)
+
+        elif sub == "remove" and len(parts) > 2:
+            name = parts[2].strip()
+            if config.remove_command(name):
+                api.send_message(user_id, f"✅ 已删除命令 /{name}", context_token)
+            else:
+                api.send_message(user_id, f"命令 /{name} 不存在", context_token)
+
+        else:
+            api.send_message(user_id,
+                "YAML 命令管理：\n"
+                "  /yaml list — 查看所有命令\n"
+                "  /yaml add <name> \"<exec>\" -d \"描述\" -t 10 — 添加命令\n"
+                "  /yaml remove <name> — 删除命令\n"
+                "  /reload — 重新加载配置文件",
+                context_token,
+            )
+
+    elif cmd == "/permission" or cmd.startswith("/permission "):
+        from ..agent_bridge import get_bridge, VALID_PERMISSIONS
+        bridge = get_bridge()
+        parts = cmd.split(maxsplit=1)
+        mode_arg = parts[1].strip() if len(parts) > 1 else ""
+
+        if not mode_arg:
+            current = bridge.get_permission(user_id)
+            # Also show deny/ask/allow rules from config
+            from .config import get_permission_rules
+            rules = get_permission_rules()
+            rules_text = ""
+            if rules:
+                rules_text = "\n\n权限规则（deny > ask > allow）："
+                for category in ("deny", "ask", "allow"):
+                    rule_list = rules.get(category, [])
+                    if rule_list:
+                        rules_text += f"\n  {category}: {', '.join(rule_list[:5])}"
+                        if len(rule_list) > 5:
+                            rules_text += f" ... (+{len(rule_list)-5})"
+            api.send_message(user_id,
+                f"当前权限模式：{current}\n"
+                f"可选：{', '.join(VALID_PERMISSIONS)}\n"
+                f"  strict — 每个危险操作需确认\n"
+                f"  lax — 自动执行，拦截危险命令（默认）\n"
+                f"  sandbox — 沙箱模式（开发中）"
+                f"{rules_text}\n\n"
+                f"细粒度规则：\n"
+                f"  /permission deny <规则> — 添加拒绝规则\n"
+                f"  /permission ask <规则> — 添加确认规则\n"
+                f"  /permission allow <规则> — 添加允许规则\n"
+                f"  规则格式：Exec(git push *) / Exec(rm -rf) / Write(src/**)",
+                context_token,
+            )
+        elif mode_arg in VALID_PERMISSIONS:
+            msg = bridge.set_permission(user_id, mode_arg)
+            api.send_message(user_id, msg, context_token)
+        elif mode_arg.startswith(("deny ", "ask ", "allow ")):
+            # Add a permission rule: /permission deny Exec(rm -rf)
+            sub_parts = mode_arg.split(maxsplit=1)
+            category = sub_parts[0]  # deny/ask/allow
+            rule = sub_parts[1] if len(sub_parts) > 1 else ""
+            if not rule:
+                api.send_message(user_id, f"用法: /permission {category} Exec(命令模式)", context_token)
+            else:
+                from .config import get_permission_rules, update_user_config
+                rules = get_permission_rules()
+                rules.setdefault(category, []).append(rule)
+                update_user_config("permissions", rules)
+                api.send_message(user_id, f"✅ 已添加 {category} 规则：{rule}", context_token)
+        else:
+            api.send_message(user_id,
+                f"无效权限模式：{mode_arg}\n可选：{', '.join(VALID_PERMISSIONS)}\n"
+                f"或用 /permission deny/ask/allow <规则> 添加细粒度规则",
+                context_token,
+            )
+
+    elif cmd == "/model" or cmd.startswith("/model "):
+        # Model switching: /model, /model claude, /model openai, /model list
+        from ..llm.router import list_providers, reset_client, get_client
+        from .config import get_model_config, set_engine, set_model
+
+        parts = cmd.split(maxsplit=1)
+        arg = parts[1].strip() if len(parts) > 1 else ""
+
+        if not arg:
+            # Show current model
+            config = get_model_config()
+            current_engine = config.get("engine", "claude")
+            current_model = config.get("model", "default")
+            try:
+                client = get_client()
+                actual_model = getattr(client, "model", "unknown")
+            except Exception:
+                actual_model = "unavailable"
+
+            providers = list_providers()
+            api.send_message(user_id,
+                f"当前 AI 配置：\n"
+                f"  引擎：{current_engine}\n"
+                f"  模型：{actual_model}\n\n"
+                f"可用引擎：{', '.join(providers)}\n\n"
+                f"切换：\n"
+                f"  /model claude — 切到 Claude\n"
+                f"  /model openai — 切到 OpenAI 兼容（MiniMax 等）\n"
+                f"  /model adaptive — 智能路由（简单走便宜模型，复杂走强模型）\n"
+                f"  /model <引擎> <模型名> — 同时指定引擎和模型",
+                context_token,
+            )
+        elif arg == "list":
+            providers = list_providers()
+            api.send_message(user_id, f"可用引擎：{', '.join(providers)}", context_token)
+        else:
+            # Parse: /model <engine> [model_name]
+            sub_parts = arg.split(maxsplit=1)
+            engine = sub_parts[0].lower()
+            model_name = sub_parts[1].strip() if len(sub_parts) > 1 else ""
+
+            providers = list_providers()
+            # "adaptive" is a virtual engine, not in _PROVIDERS
+            valid_engines = providers + ["adaptive"]
+            if engine not in valid_engines:
+                api.send_message(user_id,
+                    f"未知引擎：{engine}\n可用：{', '.join(valid_engines)}",
+                    context_token,
+                )
+            else:
+                set_engine(engine)
+                if model_name:
+                    set_model(model_name)
+                # Reset LLM client singleton so next call picks up new config
+                reset_client()
+                api.send_message(user_id,
+                    f"✅ 已切换到 {engine}" + (f"（模型：{model_name}）" if model_name else ""),
+                    context_token,
+                )
+
+    elif cmd == "/sessions" or cmd.startswith("/sessions "):
+        # Session management: /sessions, /sessions resume <id>, /sessions rm <id>
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+
+        parts = cmd.split(maxsplit=2)
+        sub = parts[1] if len(parts) > 1 else "list"
+
+        if sub == "list":
+            # List all sessions
+            all_sessions = bridge._sessions
+            if not all_sessions:
+                api.send_message(user_id, "当前没有活跃的 Agent 会话", context_token)
+            else:
+                lines = [f"Agent 会话（{len(all_sessions)} 个）："]
+                for uid, sess in all_sessions.items():
+                    agent = sess.get("agent", "?")
+                    sid = sess.get("session_id", "?")[:8]
+                    devin_sid = sess.get("devin_session_id")
+                    sid_display = devin_sid[:8] + "..." if devin_sid else sid + "..."
+                    lines.append(f"  [{uid[:12]}] {agent} session={sid_display}")
+                api.send_message(user_id, "\n".join(lines), context_token)
+
+        elif sub == "resume" and len(parts) > 2:
+            # Resume a specific session by ID prefix
+            target_id = parts[2].strip()
+            found = False
+            for uid, sess in bridge._sessions.items():
+                sid = sess.get("session_id", "")
+                devin_sid = sess.get("devin_session_id", "")
+                if sid.startswith(target_id) or (devin_sid and devin_sid.startswith(target_id)):
+                    # Mark as resumable — next chat will use this session
+                    sess["started"] = True
+                    api.send_message(user_id,
+                        f"✅ 会话 {target_id}... 已标记为续接\n下次发消息将续接此会话",
+                        context_token,
+                    )
+                    found = True
+                    break
+            if not found:
+                api.send_message(user_id, f"未找到会话 ID：{target_id}", context_token)
+
+        elif sub in ("rm", "remove", "delete") and len(parts) > 2:
+            target_id = parts[2].strip()
+            for uid, sess in list(bridge._sessions.items()):
+                sid = sess.get("session_id", "")
+                if sid.startswith(target_id):
+                    bridge._sessions.pop(uid, None)
+                    api.send_message(user_id, f"✅ 已删除会话 {target_id}...", context_token)
+                    return True
+            api.send_message(user_id, f"未找到会话 ID：{target_id}", context_token)
+
+        else:
+            api.send_message(user_id,
+                "会话管理：\n"
+                "  /sessions — 列出所有会话\n"
+                "  /sessions resume <id> — 续接指定会话\n"
+                "  /sessions rm <id> — 删除指定会话",
+                context_token,
+            )
+
+    elif cmd == "/compact":
+        # Force context compaction — reset session to free context window
+        from ..agent_bridge import get_bridge, COMPACTION_CONTEXT
+        bridge = get_bridge()
+
+        # Check if user is in local mode
+        if not sessions.is_local_mode(user_id):
+            api.send_message(user_id,
+                "ℹ️ /compact 仅在本地 Agent 模式下有效\n"
+                "发 /local 切换到本地 Agent 后再使用",
+                context_token,
+            )
+        else:
+            agent_type = bridge._get_user_agent(user_id)
+            old_session = bridge._sessions.get(user_id, {})
+            old_sid = old_session.get("session_id", "?")[:8]
+            # Save last task context for re-injection
+            last_text = old_session.get("last_text", "")
+            bridge.reset_session(user_id)
+            # Mark that next message should include compaction context
+            bridge._compaction_pending[user_id] = True
+            api.send_message(user_id,
+                f"✅ 上下文已压缩\n"
+                f"  旧会话：{old_sid}...\n"
+                f"  新会话将在下次发消息时创建\n"
+                f"  关键上下文会自动恢复" + (f"\n  上次任务：{last_text[:40]}..." if last_text else ""),
+                context_token,
+            )
+
+    elif cmd == "/hooks":
+        # List all active hooks
+        from .hooks import get_hook_manager
+        hm = get_hook_manager()
+        lines = ["Hook 列表："]
+        total = 0
+        for event in ("PreToolUse", "PostToolUse", "Stop", "SessionStart", "UserPromptSubmit"):
+            hooks = hm._hooks.get(event, [])
+            if hooks:
+                lines.append(f"\n  {event} ({len(hooks)} 个):")
+                for h in hooks:
+                    lines.append(f"    • matcher={h.matcher} cmd={h.command[:50]}...")
+                total += len(hooks)
+        # Also show built-in hooks
+        lines.append(f"\n  内置：validator（危险命令拦截）+ call_caps（调用上限）")
+        lines.append(f"\n总计：{total} 个自定义 hook + 2 个内置")
+        api.send_message(user_id, "\n".join(lines), context_token)
+
+    elif cmd == "/context":
+        # Show context window usage estimate
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        session = bridge._sessions.get(user_id, {})
+
+        if not session:
+            api.send_message(user_id,
+                "当前没有活跃会话\n上下文用量：0%（无会话）",
+                context_token,
+            )
+        else:
+            # Estimate context usage from session history
+            agent = session.get("agent", "?")
+            sid = session.get("session_id", "?")[:8]
+            msg_count = session.get("msg_count", 0)
+            est_tokens = msg_count * 800  # rough estimate: ~800 tokens per message pair
+
+            # Claude context window: ~200K tokens
+            if agent == "claude":
+                max_tokens = 200000
+            else:
+                max_tokens = 128000  # Devin default
+
+            pct = min(100, int(est_tokens / max_tokens * 100))
+            status = "🟢 充裕" if pct < 50 else ("🟡 接近上限" if pct < 80 else "🔴 建议压缩")
+
+            api.send_message(user_id,
+                f"上下文用量：\n"
+                f"  Agent：{agent}\n"
+                f"  会话：{sid}...\n"
+                f"  消息数：{msg_count}\n"
+                f"  估算 token：~{est_tokens:,} / {max_tokens:,}\n"
+                f"  使用率：{pct}% {status}\n\n"
+                f"  /compact — 压缩上下文（重置会话）",
+                context_token,
+            )
+
+    elif cmd == "/usage":
+        # Show API usage tracking for this session
+        from ..agent_bridge import get_bridge
+        from .call_caps import get_call_caps
+        bridge = get_bridge()
+        caps = get_call_caps()
+
+        session = bridge._sessions.get(user_id, {})
+        msg_count = session.get("msg_count", 0)
+
+        # Get call cap usage
+        user_caps = caps._counts.get(user_id, {})
+        cap_summary = []
+        for cmd_name, count in sorted(user_caps.items()):
+            cap_summary.append(f"  {cmd_name}: {count} 次")
+
+        api.send_message(user_id,
+            f"本次会话用量：\n"
+            f"  消息数：{msg_count}\n"
+            f"  API 调用：{msg_count} 次（每条消息一次 agent 调用）\n"
+            f"  估算费用：~¥{msg_count * 0.05:.2f}（按 Claude Sonnet 估算）\n\n"
+            f"命令调用统计：\n"
+            + ("\n".join(cap_summary[:15]) if cap_summary else "  （无命令调用记录）")
+            + (f"\n  ... (+{len(cap_summary)-15})" if len(cap_summary) > 15 else ""),
+            context_token,
+        )
+
+    elif cmd == "/attribution" or cmd.startswith("/attribution "):
+        # Control commit attribution
+        from .config import get_attribution, update_user_config
+        parts = cmd.split(maxsplit=1)
+        arg = parts[1].strip().lower() if len(parts) > 1 else ""
+
+        current = get_attribution()
+        if not arg:
+            api.send_message(user_id,
+                f"提交归因：{'开启（默认）' if current else '关闭'}\n\n"
+                f"  /attribution off — 关闭（不加 'Generated with Devin'）\n"
+                f"  /attribution on — 开启",
+                context_token,
+            )
+        elif arg in ("off", "false", "no"):
+            update_user_config("attribution", False)
+            api.send_message(user_id, "✅ 提交归因已关闭", context_token)
+        elif arg in ("on", "true", "yes"):
+            update_user_config("attribution", True)
+            api.send_message(user_id, "✅ 提交归因已开启", context_token)
+        else:
+            api.send_message(user_id, "用法: /attribution on|off", context_token)
+
+    elif cmd == "/proxy" or cmd.startswith("/proxy "):
+        # Proxy configuration
+        from .config import get_proxy_config, update_user_config, apply_proxy_env
+        parts = cmd.split(maxsplit=1)
+        arg = parts[1].strip() if len(parts) > 1 else ""
+
+        if not arg:
+            proxy = get_proxy_config()
+            mode = proxy.get("mode", "off")
+            url = proxy.get("url", "")
+            api.send_message(user_id,
+                f"代理配置：\n"
+                f"  模式：{mode}\n"
+                f"  URL：{url or '（未设置）'}\n\n"
+                f"设置：\n"
+                f"  /proxy manual http://127.0.0.1:7897 — 手动代理\n"
+                f"  /proxy off — 关闭代理\n"
+                f"  /proxy system — 使用系统代理",
+                context_token,
+            )
+        elif arg.startswith("manual "):
+            url = arg[7:].strip()
+            update_user_config("proxy", {"mode": "manual", "url": url, "no_proxy": "localhost,127.0.0.1"})
+            apply_proxy_env()
+            api.send_message(user_id, f"✅ 代理已设置：{url}", context_token)
+        elif arg == "off":
+            update_user_config("proxy", {"mode": "off"})
+            apply_proxy_env()
+            api.send_message(user_id, "✅ 代理已关闭", context_token)
+        elif arg == "system":
+            update_user_config("proxy", {"mode": "system"})
+            apply_proxy_env()
+            api.send_message(user_id, "✅ 代理设为系统模式", context_token)
+        else:
+            api.send_message(user_id, "用法: /proxy manual <url> | off | system", context_token)
+
+    # ── Markdown command loader: check for custom commands ──
+    elif cmd.startswith("/"):
+        cmd_name = cmd[1:].split()[0]  # strip "/" and take first word
+        args = text.strip()[len(cmd_name)+1:].strip() if len(text) > len(cmd_name)+1 else ""
+
+        # Try YAML commands first (lightweight CLI tools, no AI)
+        from .yaml_commands import is_yaml_command, exec_command
+        if is_yaml_command(cmd_name):
+            logger.info(f"YAML command /{cmd_name} {args} from {user_id[:12]}...")
+            result = await asyncio.to_thread(exec_command, cmd_name, args)
+            api.send_message(user_id, result, context_token)
+            return True
+
+        # Try loading from markdown command files (AI workflow commands)
+        from .cmd_loader import get_command
+        cmd_def = get_command(cmd_name)
+        if cmd_def:
+            await _run_command_template(cmd_name, args, user_id, api, context_token)
+        else:
+            api.send_message(user_id, f"未知命令：{cmd}\n输入 /help 查看可用命令", context_token)
     else:
         api.send_message(user_id, f"未知命令：{cmd}\n输入 /help 查看可用命令", context_token)
 
     return True
+
+
+async def _run_command_template(cmd_name: str, args: str, user_id: str,
+                                 api: IlinkApi, context_token: str):
+    """Run a markdown command template through the local agent.
+
+    Loads the command definition, renders it with shell injections and
+    arguments, then sends to the agent in local mode.
+    """
+    from .cmd_loader import get_command
+    from ..agent_bridge import get_bridge
+
+    cmd_def = get_command(cmd_name)
+    if not cmd_def:
+        api.send_message(user_id, f"命令 /{cmd_name} 未找到", context_token)
+        return
+
+    # Ensure we're in local agent mode
+    sessions.set_local_mode(user_id, True)
+
+    # Get work directory for shell injections
+    bridge = get_bridge()
+    session = bridge._sessions.get(user_id, {})
+    work_dir = session.get("work_dir", os.environ.get("WELIAN_AGENT_WORK_DIR", os.path.expanduser("~")))
+
+    # Render template (this runs shell injections like !`git status`)
+    api.send_message(user_id, f"⚙️ 执行 /{cmd_name}...", context_token)
+
+    try:
+        prompt = await asyncio.to_thread(cmd_def.render, args, work_dir)
+    except Exception as e:
+        api.send_message(user_id, f"命令渲染失败：{str(e)[:100]}", context_token)
+        return
+
+    if not prompt.strip():
+        api.send_message(user_id, f"命令 /{cmd_name} 生成了空提示", context_token)
+        return
+
+    # Send the rendered prompt to the agent with streaming
+    await _process_local_agent(user_id, prompt, api, context_token)
 
 
 def _check_bind(wechat_uid: str) -> dict:
@@ -842,12 +1479,13 @@ _active_tasks: Dict[str, asyncio.Task] = {}  # user_id → running processing ta
 _message_queues: Dict[str, list] = {}  # user_id → queued (text, context_token) pairs
 
 
-async def process_message(user_id: str, text: str, api: IlinkApi, context_token: str = ""):
+async def process_message(user_id: str, text: str, api: IlinkApi, context_token: str = "",
+                          trace_id: str = ""):
     """Process a user message with streaming, typing, and silence watchdog."""
     if await handle_command(text, user_id, api, context_token):
         return
 
-    logger.info(f"Message from {user_id[:12]}...: {text[:60]}...")
+    logger.info(f"[trace:{trace_id}] Message from {user_id[:12]}...: {text[:60]}...")
 
     # Save user ID for weekly report push
     _save_user_id(user_id)
@@ -864,6 +1502,8 @@ async def process_message(user_id: str, text: str, api: IlinkApi, context_token:
     # Start typing keepalive for social mode too
     typing_stop = await start_typing_keepalive(api, user_id, context_token)
     try:
+        # Activate this user's data store (multi-user isolation)
+        sessions.activate_store(user_id)
         client = await sessions.get_client(user_id)
         reply = await asyncio.to_thread(client.cloud_chat, text)
         if reply:
@@ -885,6 +1525,9 @@ async def _process_local_agent(user_id: str, text: str, api: IlinkApi, context_t
     """Process a message in local agent mode with streaming output."""
     from ..agent_bridge import get_bridge
 
+    # Activate this user's data store (multi-user isolation)
+    sessions.activate_store(user_id)
+
     bridge = get_bridge()
 
     # Send immediate acknowledgment
@@ -897,14 +1540,34 @@ async def _process_local_agent(user_id: str, text: str, api: IlinkApi, context_t
     last_output_time = [time.time()]
     silence_stop = await silence_watchdog(api, user_id, context_token, last_output_time)
 
-    # Streaming buffer — accumulate chunks and flush at paragraph boundaries
+    # Streaming buffer — accumulate chunks and flush to WeChat in real-time
     text_buffer = []
-    MIN_FLUSH_LEN = 30
+    flushed_len = 0  # total characters already sent to WeChat
+    MIN_FLUSH_LEN = 200  # flush when buffer exceeds this length
     SOFT_FLUSH_LIMIT = 1800  # leave headroom under MAX_MSG_LEN
 
     def on_chunk(chunk: str):
         text_buffer.append(chunk)
         last_output_time[0] = time.time()
+
+        # Flush buffered content to WeChat when enough has accumulated
+        buffered = "".join(text_buffer)
+        unflushed = buffered[flushed_len:]
+        if len(unflushed) >= MIN_FLUSH_LEN:
+            # Find a safe split point (paragraph or newline boundary)
+            flush_text = unflushed
+            if len(flush_text) > SOFT_FLUSH_LIMIT:
+                # Split at last newline within limit
+                split_at = flush_text.rfind("\n", 0, SOFT_FLUSH_LIMIT)
+                if split_at > MIN_FLUSH_LEN:
+                    flush_text = flush_text[:split_at]
+                else:
+                    flush_text = flush_text[:SOFT_FLUSH_LIMIT]
+            try:
+                api.send_message(user_id, flush_text.strip(), context_token)
+                flushed_len += len(flush_text)
+            except Exception as e:
+                logger.warning(f"Stream flush error: {e}")
 
     # Run agent in thread with streaming callback
     try:
@@ -916,23 +1579,23 @@ async def _process_local_agent(user_id: str, text: str, api: IlinkApi, context_t
         silence_stop.set()
         typing_stop.set()
 
-        # Flush any buffered content
-        buffered = "".join(text_buffer).strip()
-        if buffered and not reply:
-            # Streaming produced content but chat_stream returned empty — use buffered
-            reply = buffered
+        # Send any remaining unflushed content
+        buffered = "".join(text_buffer)
+        unflushed = buffered[flushed_len:].strip()
 
-        if reply:
-            # Check if content was already streamed (buffer was flushed during streaming)
-            # For now, send the full reply if it's substantially different from what was streamed
-            # Simple approach: if we accumulated chunks, they were already sent via on_chunk
-            # But since we're not flushing during streaming yet, send the full reply
+        if unflushed:
+            # Send remaining content that wasn't flushed during streaming
+            await send_long_message(api, user_id, unflushed, context_token)
+            reply = unflushed  # for auto-push file scanning
+        elif reply and flushed_len == 0:
+            # Nothing was flushed and chat_stream returned content — send full reply
             await send_long_message(api, user_id, reply, context_token)
-
-            # Auto-push files mentioned in agent response
-            await _auto_push_files(api, user_id, reply, context_token)
-        else:
+        elif not reply and flushed_len == 0:
             api.send_message(user_id, "（Agent 没有返回内容，请重试）", context_token)
+
+        # Auto-push files mentioned in agent response
+        if reply:
+            await _auto_push_files(api, user_id, reply, context_token)
 
     except asyncio.CancelledError:
         logger.info(f"Local agent task cancelled for {user_id[:12]}...")
@@ -1088,6 +1751,17 @@ class WelianBot:
         self._should_run = True
         logger.info("=== Welian Bot starting ===")
         logger.info(f"  ilink: {ILINK_BASE_URL}")
+
+        # Apply proxy config from config.json
+        try:
+            from .config import apply_proxy_env, get_proxy_config
+            apply_proxy_env()
+            proxy = get_proxy_config()
+            if proxy.get("mode", "off") != "off":
+                logger.info(f"  Proxy: {proxy.get('mode')} {proxy.get('url', '')[:30]}")
+        except Exception:
+            pass
+
         # Show actual LLM status
         try:
             from ..llm.router import get_client
@@ -1115,8 +1789,32 @@ class WelianBot:
                 break
             except Exception as e:
                 self._fail_count += 1
+                # Exponential backoff: 3s, 6s, 12s, 24s, 48s, 60s, 60s...
                 wait = min(RECONNECT_DELAY * (2 ** min(self._fail_count - 1, 5)), 60)
-                logger.warning(f"Poll error ({e}), retrying in {wait}s (fail #{self._fail_count})")
+                err_str = str(e)
+
+                # SSL EOF errors — common with proxy interference, retry faster
+                if "EOF" in err_str or "ssl" in err_str.lower():
+                    wait = min(wait, 10)
+                    logger.warning(f"SSL error (fail #{self._fail_count}), retrying in {wait}s")
+
+                # Connection refused — likely network down, longer wait
+                elif "Connection refused" in err_str or "Connection refused" in err_str:
+                    wait = max(wait, 30)
+                    logger.warning(f"Connection refused (fail #{self._fail_count}), retrying in {wait}s")
+
+                else:
+                    logger.warning(f"Poll error ({e}), retrying in {wait}s (fail #{self._fail_count})")
+
+                # After 10 consecutive failures, log critical and send alert
+                if self._fail_count == 10:
+                    logger.error("⚠️ 10 次连续失败，可能需要检查网络或重新扫码绑定")
+
+                # After 20 consecutive failures, force long backoff (5 min)
+                if self._fail_count >= 20:
+                    wait = 300
+                    logger.error(f"⚠️ {self._fail_count} 次连续失败，5 分钟后重试")
+
                 await asyncio.sleep(wait)
 
         logger.info("Bot stopped.")
@@ -1176,6 +1874,11 @@ class WelianBot:
         if not text and not media:
             return
 
+        # Generate trace_id for end-to-end tracking
+        import uuid as _uuid
+        trace_id = _uuid.uuid4().hex[:12]
+        logger.info(f"[trace:{trace_id}] msg from {user_id[:12]}...: {(text or '')[:60]}")
+
         # /stop and /clear bypass the queue — handle immediately
         if text and text.strip().lower() in ("/stop",):
             task = _active_tasks.get(user_id)
@@ -1196,9 +1899,10 @@ class WelianBot:
             return
 
         # Process now
-        await self._process_with_queue(user_id, text, context_token, media)
+        await self._process_with_queue(user_id, text, context_token, media, trace_id)
 
-    async def _process_with_queue(self, user_id: str, text: str, context_token: str, media: dict = None):
+    async def _process_with_queue(self, user_id: str, text: str, context_token: str,
+                                  media: dict = None, trace_id: str = ""):
         """Process a message, then drain the user's queue."""
         self._user_busy[user_id] = True
 
@@ -1216,7 +1920,7 @@ class WelianBot:
 
         # Create task and track it for /stop
         task = asyncio.ensure_future(
-            self._process_with_timeout(user_id, effective_text, context_token)
+            self._process_with_timeout(user_id, effective_text, context_token, trace_id)
         )
         _active_tasks[user_id] = task
 
@@ -1258,16 +1962,19 @@ class WelianBot:
 
         _message_queues.pop(user_id, None)
 
-    async def _process_with_timeout(self, user_id: str, text: str, context_token: str):
+    async def _process_with_timeout(self, user_id: str, text: str, context_token: str, trace_id: str = ""):
         """Process a message with timeout."""
         try:
             await asyncio.wait_for(
-                process_message(user_id, text, self.api, context_token),
+                process_message(user_id, text, self.api, context_token, trace_id),
                 timeout=600,  # 10 min for agent tasks
             )
         except asyncio.TimeoutError:
-            logger.error(f"Processing timeout for {user_id[:12]}...")
+            logger.error(f"[trace:{trace_id}] Processing timeout for {user_id[:12]}...")
             self.api.send_message(user_id, "⏱ 处理超时", context_token)
+        finally:
+            if trace_id:
+                logger.info(f"[trace:{trace_id}] completed")
 
 
 # ── Entry point ──
