@@ -41,8 +41,9 @@ def md_to_sections(md_text):
                 if current:
                     code_text = '\n'.join(code_lines)
                     code_text = code_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    # Use CJK font (not Courier) to support Chinese + box-drawing chars
                     current.setdefault('paragraphs', []).append(
-                        f'<font face="Courier" size="7">{code_text.replace(chr(10), "<br/>")}</font>'
+                        f'<font face="WelianCJK" size="7">{code_text.replace(chr(10), "<br/>")}</font>'
                     )
                 in_code_block = False
                 code_lines = []
@@ -150,6 +151,24 @@ def main():
     print(f"📝 Converting Markdown → PDF sections...")
     sections = md_to_sections(md)
     print(f"   {len(sections)} sections extracted")
+
+    # Inject architecture diagram image into the "系统架构" section
+    arch_png = Path("/tmp/welian_arch_diagram.png")
+    if arch_png.exists():
+        for sec in sections:
+            if "系统架构" in sec.get("heading", ""):
+                sec["image"] = str(arch_png)
+                print(f"   ↳ Architecture diagram injected into '{sec['heading']}'")
+                break
+        else:
+            # Insert as a standalone section before 系统架构
+            arch_sec = {"heading": "系统架构图", "image": str(arch_png), "paragraph": "", "bullets": []}
+            # Find index of 系统架构 section
+            for i, sec in enumerate(sections):
+                if "系统架构" in sec.get("heading", ""):
+                    sections.insert(i, arch_sec)
+                    print("   ↳ Architecture diagram inserted as standalone section")
+                    break
 
     # Build JSON for welian_pdf.py
     report_json = {

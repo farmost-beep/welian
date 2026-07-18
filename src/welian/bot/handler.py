@@ -208,7 +208,8 @@ class IlinkApi:
         return False
 
     def send_file_message(self, to_user_id: str, file_path: str, context_token: str = "") -> bool:
-        """Upload and send a file to a user. Images display inline, others as attachments."""
+        """Upload and send a file to a user. Images display inline, others as attachments.
+        Rate-limited per user with exponential backoff retry (same as send_message)."""
         from .cdn import upload_file, IMAGE_EXTENSIONS
         from pathlib import Path
         import base64
@@ -217,6 +218,14 @@ class IlinkApi:
         if not path.exists():
             self.send_message(to_user_id, f"文件不存在: {file_path}", context_token)
             return False
+
+        # Rate limiting (client-side pre-check, same as send_message)
+        now = time.time()
+        next_available = self._next_send.get(to_user_id, 0)
+        if now < next_available:
+            delay = next_available - now
+            logger.debug(f"Rate limit: waiting {delay:.1f}s for {to_user_id[:12]}... (file)")
+            time.sleep(delay)
 
         try:
             media = upload_file(self, to_user_id, str(path))
@@ -260,9 +269,29 @@ class IlinkApi:
                     "item_list": [item],
                 }
             }
-            resp = self._request("ilink/bot/sendmessage", body, timeout=15)
-            ret = resp.get("ret", 0)
-            return ret == 0 or ret is None
+
+            # Exponential backoff retry on rate-limit (ret:-2), same as send_message
+            max_retries = 2
+            delay = 3.0
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = self._request("ilink/bot/sendmessage", body, timeout=15)
+                    ret = resp.get("ret", 0)
+                    if ret == -2:
+                        if attempt < max_retries:
+                            self._next_send[to_user_id] = time.time() + delay + SEND_INTERVAL
+                            logger.warning(f"Server rate-limited (ret:-2), file retry {attempt+1}/{max_retries} in {delay}s")
+                            time.sleep(delay)
+                            delay = min(delay * 2, 15.0)
+                            continue
+                        logger.warning(f"sendFile rate-limited after {max_retries} retries")
+                        return False
+                    self._next_send[to_user_id] = time.time() + SEND_INTERVAL
+                    return ret == 0 or ret is None
+                except Exception as e:
+                    logger.error(f"Send file failed to {to_user_id[:12]}...: {e}")
+                    return False
+            return False
         except Exception as e:
             logger.error(f"send_file failed: {e}")
             if "rate-limited" not in str(e):

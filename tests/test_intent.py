@@ -12,7 +12,8 @@ class TestIntentParse(unittest.TestCase):
     def test_record_chinese(self):
         i, p = intent.parse("记一下：和张总聊了预算方案")
         self.assertEqual(i, intent.INTENT_RECORD)
-        self.assertIn("张总", p.get("summary", ""))
+        # contact field holds the name, summary holds the action
+        self.assertIn("张总", p.get("contact", "") or p.get("summary", ""))
 
     def test_record_english(self):
         i, p = intent.parse("note: met with Sarah about Q3 plan")

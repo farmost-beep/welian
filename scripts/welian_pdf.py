@@ -41,7 +41,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image,
 )
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -239,6 +239,18 @@ def build_pdf(doc_data: dict) -> bytes:
                 ("BOTTOMPADDING", (0,0), (-1,-1), 6),
             ]))
             story.append(t)
+            story.append(Spacer(1, 8))
+
+        # Image
+        img_path = sec.get("image", "")
+        if img_path and Path(img_path).exists():
+            from reportlab.lib.utils import ImageReader
+            ir = ImageReader(img_path)
+            iw, ih = ir.getSize()
+            max_w = 170 * mm
+            max_h = 120 * mm
+            ratio = min(max_w / iw, max_h / ih)
+            story.append(Image(img_path, width=iw * ratio, height=ih * ratio))
             story.append(Spacer(1, 8))
 
         # Page break if requested

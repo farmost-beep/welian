@@ -953,12 +953,18 @@ class EdgeClient:
     def _gather_report(self) -> str:
         """Gather dashboard report data for LLM formatting."""
         dash = engine.role_dashboard()
-        parts = ["角色仪表盘："]
-        for role, data in dash.items():
-            parts.append(f"  {role}: {data.get('count', 0)}人")
-            if data.get('highlights'):
-                for h in data['highlights'][:3]:
-                    parts.append(f"    · {h}")
+        parts = [f"角色仪表盘（{dash.get('month', '')}）："]
+        for role in ("friend", "family", "collaborator"):
+            data = dash.get(role, {})
+            if not isinstance(data, dict):
+                continue
+            names = data.get("names", [])
+            parts.append(f"  {role}: {data.get('total_contacts', 0)}人，"
+                         f"{data.get('interactions', 0)}次互动，"
+                         f"{data.get('meaningful_interactions', 0)}次重要互动，"
+                         f"{data.get('completed_todos', 0)}个已完成待办")
+            if names:
+                parts.append(f"    成员：{', '.join(names[:5])}")
         return "\n".join(parts)
 
     def _gather_alias(self, payload) -> str:
