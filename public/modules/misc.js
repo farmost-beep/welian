@@ -435,7 +435,11 @@ export async function loadSettingsTab() {
       <div class="section-divider">
         <div class="label-muted">${zh ? '新建技能' : 'New skill'}</div>
         <input id="skillName" placeholder="${zh ? '技能名称（如：我的破冰方法论）' : 'Skill name'}" class="input-field-lg">
-        <div class="label-muted-sm">${zh ? '触发意图（逗号分隔：greeting,congratulate,ask_for_help）' : 'Triggers (comma-separated)'}'}</div>
+        <div class="label-muted-sm">${zh ? '触发意图（逗号分隔：greeting,congratulate,ask_for_help）' : 'Triggers (comma-separated)'}</div>
+      </div>
+    </div>
+  `;
+}
 
 export async function loadCalendarFeedUrl() {
   const zh = currentLang === 'zh';
