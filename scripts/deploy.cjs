@@ -71,6 +71,22 @@ async function walk(dir, baseDir = dir) {
 }
 
 async function main() {
+  // ── Pre-deploy gate: run journey tests (L0-L2) ──
+  // Fail fast if user journey is broken — don't deploy a broken frontend
+  console.log('Running journey tests (L0-L2) before deploy...');
+  try {
+    execSync('npx playwright test --project=journey --reporter=line', {
+      cwd: REPO_DIR,
+      stdio: 'inherit',
+      timeout: 60000,
+    });
+    console.log('✅ Journey tests passed');
+  } catch (e) {
+    console.error('❌ Journey tests FAILED — aborting deploy');
+    console.error('Fix the failing tests before deploying.');
+    process.exit(1);
+  }
+
   // Sync AGENTS.md from project root to public/ (single source of truth)
   const { copyFileSync } = require('fs');
   try {

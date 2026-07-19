@@ -184,14 +184,13 @@ test('L2 记: "记一下：和张总聊了预算方案" creates timeline entry',
     });
   });
 
-  // Mock /ai/chat for the LLM response
+  // Mock /ai/chat — must return {reply: ...} (cloudChat reads data.reply)
   page.route('**/ai/chat', route => {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        content: [{ type: 'text', text: '记下了 ✅ 和张总聊了预算方案' }],
-        result: '记下了 ✅ 和张总聊了预算方案',
+        reply: '记下了 ✅ 和张总聊了预算方案',
         usage: { input_tokens: 100, output_tokens: 50 },
       }),
     });
@@ -203,19 +202,24 @@ test('L2 记: "记一下：和张总聊了预算方案" creates timeline entry',
   await page.fill('#input', '记一下：和张总聊了预算方案');
   await page.click('#sendBtn');
 
-  // Wait for AI response in chat
+  // Wait for AI REPLY to appear — "记下了" is from AI, not user input
   await page.waitForFunction(
     () => {
       const log = document.getElementById('chatBody');
-      return log && log.innerText.includes('张总');
+      if (!log) return false;
+      return log.innerText.includes('记下了');
     },
-    { timeout: 10000 }
+    { timeout: 15000 }
   );
 
   // Verify extract_intent was called with correct text
   expect(extractIntentBody).not.toBeNull();
   expect(extractIntentBody.text).toContain('张总');
   expect(extractIntentBody.text).toContain('预算方案');
+
+  // Verify AI reply content appeared
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('记下了');
 });
 
 // ── 问 (Query) ──
@@ -243,8 +247,7 @@ test('L2 问: "明天见李总，上次聊到哪了？" retrieves contact contex
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        content: [{ type: 'text', text: '上次和李总聊了项目融资的事，他提到下周给反馈。建议跟进融资进展。' }],
-        result: '上次和李总聊了项目融资的事，他提到下周给反馈。建议跟进融资进展。',
+        reply: '上次和李总聊了项目融资的事，他提到下周给反馈。建议跟进融资进展。',
         usage: { input_tokens: 200, output_tokens: 100 },
       }),
     });
@@ -255,29 +258,28 @@ test('L2 问: "明天见李总，上次聊到哪了？" retrieves contact contex
   await page.fill('#input', '明天见李总，上次聊到哪了？');
   await page.click('#sendBtn');
 
-  // Wait for AI response — either the mock reply or an error message
-  // The key assertion is that the user sees SOMETHING in chat after asking
+  // Wait for AI REPLY to appear (not just user's message)
+  // The mock returns "上次和李总聊了项目融资" — verify this specific text appears
   await page.waitForFunction(
     () => {
       const log = document.getElementById('chatBody');
       if (!log) return false;
-      const text = log.innerText;
-      // User message should appear
-      return text.includes('李总') && text.length > 30;
+      // Look for AI reply content, not user input
+      return log.innerText.includes('项目融资') || log.innerText.includes('建议跟进');
     },
     { timeout: 15000 }
   );
 
-  // chatCalled may be false if cloudChat fell back to error path
-  // The important thing is the user's question appeared and got some response
+  expect(chatCalled).toBe(true);
   const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
-  expect(chatBodyText).toContain('李总');
+  // Verify AI reply content appeared (not just user's question)
+  expect(chatBodyText).toContain('项目融资');
 });
 
 // ── 拟 (Draft) ──
 
 test('L2 拟: "给老许拟条消息" generates draft', async ({ page }) => {
-  let draftRequestBody = null;
+  let chatCalled = false;
 
   page.route('**/ai/extract_intent', route => {
     route.fulfill({
@@ -293,25 +295,13 @@ test('L2 拟: "给老许拟条消息" generates draft', async ({ page }) => {
     });
   });
 
-  page.route('**/ai/draft', route => {
-    draftRequestBody = JSON.parse(route.request().postData() || '{}');
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        result: '老许你好，好久没联系了！最近项目怎么样？有空聊聊。',
-      }),
-    });
-  });
-
-  // Also mock /ai/chat in case the flow routes through it
   page.route('**/ai/chat', route => {
+    chatCalled = true;
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        content: [{ type: 'text', text: '老许你好，好久没联系了！最近项目怎么样？有空聊聊。' }],
-        result: '老许你好，好久没联系了！最近项目怎么样？有空聊聊。',
+        reply: '老许你好，好久没联系了！最近项目怎么样？有空聊聊。',
         usage: { input_tokens: 100, output_tokens: 80 },
       }),
     });
@@ -322,18 +312,20 @@ test('L2 拟: "给老许拟条消息" generates draft', async ({ page }) => {
   await page.fill('#input', '给老许拟条消息');
   await page.click('#sendBtn');
 
-  // Wait for draft to appear in chat
+  // Wait for AI-generated draft content to appear (not just user's "给老许拟条消息")
   await page.waitForFunction(
     () => {
       const log = document.getElementById('chatBody');
-      return log && log.innerText.includes('老许');
+      if (!log) return false;
+      // "好久没联系" is from the AI reply, not the user's input
+      return log.innerText.includes('好久没联系') || log.innerText.includes('最近项目怎么样');
     },
-    { timeout: 10000 }
+    { timeout: 15000 }
   );
 
-  // Verify draft endpoint was called (if the flow uses /ai/draft)
-  // Note: the actual flow may route through cloudChat → extract_intent → chat
-  // The important thing is the user sees a draft message
+  expect(chatCalled).toBe(true);
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('好久没联系');
 });
 
 // ── 报 (Report) ──
@@ -371,8 +363,7 @@ test('L2 报: weekly report shows contacts and todos', async ({ page }) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        content: [{ type: 'text', text: '📊 本周回顾\n\n✅ 记录了2次互动\n⏳ 1个待办：跟进老许的项目\n\n💡 这周值得联系：\n⚪ 老许 — 15天没联系了\n⚪ 张总 — 建议聊聊近况' }],
-        result: '📊 本周回顾\n\n✅ 记录了2次互动\n⏳ 1个待办：跟进老许的项目',
+        reply: '📊 本周回顾\n\n✅ 记录了2次互动\n⏳ 1个待办：跟进老许的项目\n\n💡 这周值得联系：\n⚪ 老许 — 15天没联系了\n⚪ 张总 — 建议聊聊近况',
         usage: { input_tokens: 300, output_tokens: 150 },
       }),
     });
@@ -383,21 +374,19 @@ test('L2 报: weekly report shows contacts and todos', async ({ page }) => {
   await page.fill('#input', '这周怎么样');
   await page.click('#sendBtn');
 
-  // Wait for some AI response in chat — either the report or an error fallback
+  // Wait for AI-generated report content (not just user's "这周怎么样")
   await page.waitForFunction(
     () => {
       const log = document.getElementById('chatBody');
       if (!log) return false;
-      const text = log.innerText;
-      // User message "这周怎么样" should appear + some AI response
-      return text.includes('这周') && text.length > 30;
+      // "本周回顾" and "跟进老许" are from AI reply, not user input
+      return log.innerText.includes('本周回顾') || log.innerText.includes('跟进老许');
     },
     { timeout: 15000 }
   );
 
-  // Verify user's question appeared
   const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
-  expect(chatBodyText).toContain('这周');
+  expect(chatBodyText).toContain('本周回顾');
 });
 
 // ── Error handling ──
