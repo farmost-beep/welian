@@ -522,7 +522,8 @@ export async function cloudChat(text, attachedFile) {
   }
 
   // In Devin CLI passthrough mode, all other messages go straight to Devin
-  if (window._agentEngine === 'devin' && shouldUseLive()) {
+  // Skip for file attachments — base64 exceeds WebSocket message limit
+  if (window._agentEngine === 'devin' && shouldUseLive() && !attachedFile) {
     console.log('[cloudChat] Devin CLI passthrough — forwarding all text to Devin');
     // Data flywheel: still run extract_intent async to capture contacts/todos/timeline
     extractIntent(text).then(intent => {
@@ -574,7 +575,9 @@ export async function cloudChat(text, attachedFile) {
   }
 
   // Live mode: route through local agent (edge LLM only — devin handled above)
-  if (shouldUseLive()) {
+  // Skip agent for file attachments — base64 payload exceeds Cloudflare WebSocket
+  // 1MB message limit, causing ws-close. Cloud LLM handles multimodal via fetch.
+  if (shouldUseLive() && !attachedFile) {
     console.log('[cloudChat] Routing via local agent (edge LLM)');
     // Data flywheel: still run extract_intent async to capture contacts/todos/timeline
     extractIntent(text).then(intent => {
