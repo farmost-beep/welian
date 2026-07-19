@@ -2005,7 +2005,7 @@ ${existingContext || '无已有联系人'}
 只返回JSON，不要其他文字。`;
 
   const result = await callLLM('请生成会后复盘建议。', system, env, {
-    max_tokens: 1024,
+    max_tokens: 2048,
     temperature: 0.5,
   });
 
@@ -2018,7 +2018,17 @@ ${existingContext || '无已有联系人'}
     const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     review = JSON.parse(jsonText);
   } catch (e) {
-    return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+    // Try to extract the first { ... } block as a fallback
+    try {
+      const match = result.text.match(/\{[\s\S]*\}/);
+      if (match) {
+        review = JSON.parse(match[0]);
+      } else {
+        return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+      }
+    } catch (e2) {
+      return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+    }
   }
 
   // Auto-create new contacts
