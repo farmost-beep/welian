@@ -492,10 +492,10 @@ describe("/ai/meeting_prep (mocked LLM)", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns prep for existing contact (or 402/500 on LLM/billing issues)", async () => {
+  it("returns prep for existing contact (fallback when LLM unavailable)", async () => {
     // Seed a contact
     await worker.fetch(jsonReq("/data/contacts", {
-      body: { name: "老许", relation: "合作者" },
+      body: { name: "老许", relation: "合作者", company: "腾讯" },
       headers: authHeader(),
     }), env, mockCtx);
 
@@ -504,8 +504,15 @@ describe("/ai/meeting_prep (mocked LLM)", () => {
       headers: authHeader(),
     });
     const res = await worker.fetch(req, env, mockCtx);
-    // 200 (success), 402 (billing), or 500 (LLM fetch failure / body double-read)
-    expect([200, 402, 500]).toContain(res.status);
+    // Should return 200 with fallback prep (not 500 — bug was fixed)
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.contact).toBeTruthy();
+    expect(data.prep).toBeTruthy();
+    // Fallback mode should have the fallback flag
+    if (data.usage && data.usage.fallback) {
+      expect(data.prep).toContain("离线模式");
+    }
   });
 
   it("requires auth (401)", async () => {

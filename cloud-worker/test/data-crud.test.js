@@ -31,6 +31,7 @@ describe("/data/contacts CRUD", () => {
     const found = listData.contacts.find(c => c.name === "张三");
     expect(found).toBeTruthy();
     expect(found.relation).toBe("合作者");
+    expect(found.company).toBe("腾讯");  // company field now stored (bug fixed)
   });
 
   it("POST rejects missing name with 400", async () => {

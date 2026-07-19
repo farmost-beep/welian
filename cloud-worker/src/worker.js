@@ -1710,7 +1710,27 @@ async function handleMeetingPrep(req, env) {
 
   const result = await callLLM(userMsg, system, env, { max_tokens: 512, temperature: 0.5, messages: [{ role: 'user', content: userMsg }] });
 
-  if (!result) return { status: 500, data: { error: 'LLM call failed' } };
+  // LLM fallback: if call fails, return raw context data with a default prep message
+  // so the user still gets useful meeting info instead of a 500 error
+  if (!result) {
+    const lastInteraction = contactTimeline.length > 0
+      ? `${contactTimeline[0].date}: ${contactTimeline[0].summary || contactTimeline[0].action || ''}`
+      : '暂无互动记录';
+    const pendingTodos = contactTodos.length > 0
+      ? contactTodos.map(t => `• ${t.task}`).join('\n')
+      : '暂无待办';
+    const fallbackPrep = `📋 会前准备（离线模式）\n\n上次互动：${lastInteraction}\n\n待跟进事项：\n${pendingTodos}`;
+    return {
+      status: 200,
+      data: {
+        contact: { name: contact.name, relation: contact.relation, nature: contact.nature },
+        timeline: contactTimeline,
+        todos: contactTodos,
+        prep: fallbackPrep,
+        usage: { points: 0, remaining: 0, fallback: true },
+      },
+    };
+  }
 
   // Billing (unified)
   const { billing, points } = await deductBilling(
@@ -3606,6 +3626,8 @@ async function handleContactsCRUD(req, env, method) {
       name,
       relation: body.relation || '',
       sub_relation: body.sub_relation || '',
+      company: body.company || '',
+      title: body.title || '',
       role: body.relation || '',
       nature: body.nature || 'leverage',
       strength: body.strength || 3,
@@ -3620,6 +3642,7 @@ async function handleContactsCRUD(req, env, method) {
       nurture: body.nurture || {},
       aliases: body.aliases || [],
       alias: body.alias || [],
+      snooze_until: body.snooze_until || '',
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
     };
