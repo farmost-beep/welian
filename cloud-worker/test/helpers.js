@@ -10,6 +10,18 @@ export function mockKV(initial = {}) {
     async put(key, value) {
       store.set(key, value);
     },
+    async delete(key) {
+      store.delete(key);
+    },
+    async list({ prefix, cursor } = {}) {
+      const keys = [];
+      for (const key of store.keys()) {
+        if (!prefix || key.startsWith(prefix)) {
+          keys.push({ name: key });
+        }
+      }
+      return { keys, list_complete: true };
+    },
     // test-only: inspect stored state
     _store: store,
   };

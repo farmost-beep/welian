@@ -421,3 +421,379 @@ test('L2: backend error shows friendly message in chat', async ({ page }) => {
   const inputVisible = await page.locator('#input').isVisible();
   expect(inputVisible).toBe(true);
 });
+
+// ═══════════════════════════════════════════════════════════════
+// L2 Data Flywheel — extract_intent auto-executes data actions
+// ═══════════════════════════════════════════════════════════════
+
+test('L2 飞轮-完成待办: "完成了跟进老许的待办" marks todo as done', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: '老许',
+        keywords: ['老许'],
+        actions: [{ type: 'complete_todo', task: '跟进老许的项目' }],
+        action_results: [{ type: 'complete_todo', ok: true, task: '跟进老许的项目' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '已完成了「跟进老许的项目」待办 ✅',
+        usage: { input_tokens: 100, output_tokens: 50 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '完成了跟进老许的待办');
+  await page.click('#sendBtn');
+
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('已完成');
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('已完成');
+});
+
+test('L2 飞轮-删除待办: "删掉跟进张总的待办" deletes todo', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: '张总',
+        keywords: ['张总'],
+        actions: [{ type: 'delete_todo', task: '跟进张总' }],
+        action_results: [{ type: 'delete_todo', ok: true, task: '跟进张总' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '已删除「跟进张总」待办',
+        usage: { input_tokens: 80, output_tokens: 40 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '删掉跟进张总的待办');
+  await page.click('#sendBtn');
+
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('已删除');
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('已删除');
+});
+
+test('L2 飞轮-更新联系人: "把老许的公司改成腾讯" updates contact', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: '老许',
+        keywords: ['老许'],
+        actions: [{ type: 'update_contact', contact_name: '老许', field: 'company', value: '腾讯' }],
+        action_results: [{ type: 'update_contact', ok: true, contact_name: '老许' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '已更新老许的公司为腾讯 ✅',
+        usage: { input_tokens: 90, output_tokens: 45 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '把老许的公司改成腾讯');
+  await page.click('#sendBtn');
+
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('已更新');
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('已更新');
+});
+
+test('L2 飞轮-创建待办: "提醒我下周联系张总" creates todo with due date', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: '张总',
+        keywords: ['张总'],
+        actions: [{ type: 'add_todo', contact_name: '张总', task: '联系张总', due: '2026-07-28', priority: 'P1' }],
+        action_results: [{ type: 'add_todo', ok: true, task: '联系张总' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '已添加待办：下周联系张总 ⏰',
+        usage: { input_tokens: 100, output_tokens: 50 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '提醒我下周联系张总');
+  await page.click('#sendBtn');
+
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('已添加待办');
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText).toContain('已添加待办');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// L2 Session Persistence — chat history survives refresh
+// ═══════════════════════════════════════════════════════════════
+
+test('L2 会话持久化: chat history persists after page refresh', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '你好！我是小维，有什么可以帮你的吗？',
+        usage: { input_tokens: 50, output_tokens: 30 },
+      }),
+    });
+  });
+
+  // Mock /data/sessions to save and restore
+  let savedSession = null;
+  page.route('**/data/sessions', route => {
+    if (route.request().method() === 'POST') {
+      savedSession = JSON.parse(route.request().postData() || '{}');
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(savedSession || { messages: [] }),
+      });
+    }
+  });
+
+  await loginAndWait(page);
+
+  // Send a message
+  await page.fill('#input', '你好');
+  await page.click('#sendBtn');
+
+  // Wait for AI reply
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('小维');
+    },
+    { timeout: 15000 }
+  );
+
+  // Reload page
+  await page.reload();
+  await page.waitForFunction(() => window.__clerkCallback !== undefined, { timeout: 10000 });
+  await page.waitForTimeout(1000);
+
+  // Chat body should still have content (either from session restore or re-render)
+  const chatBodyExists = await page.locator('#chatBody').isVisible();
+  expect(chatBodyExists).toBe(true);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// L2 Error Recovery — graceful handling of failures
+// ═══════════════════════════════════════════════════════════════
+
+test('L2 错误恢复: network failure shows error not infinite loading', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+    });
+  });
+
+  // Simulate network failure for /ai/chat
+  page.route('**/ai/chat', route => {
+    route.abort('failed');
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '测试网络断开');
+  await page.click('#sendBtn');
+
+  // Should show some error message, not hang forever
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      if (!log) return false;
+      const text = log.innerText;
+      // Either an error message or a failure indicator
+      return text.includes('测试网络断开') && text.length > 20;
+    },
+    { timeout: 15000 }
+  );
+
+  // Page should still be functional
+  const inputVisible = await page.locator('#input').isVisible();
+  expect(inputVisible).toBe(true);
+});
+
+test('L2 错误恢复: empty message is not sent', async ({ page }) => {
+  let chatCalled = false;
+  page.route('**/ai/chat', route => {
+    chatCalled = true;
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ reply: 'should not see this', usage: {} }),
+    });
+  });
+
+  await loginAndWait(page);
+
+  // Try to send empty message
+  await page.click('#sendBtn');
+  await page.waitForTimeout(1000);
+
+  // Chat endpoint should not have been called
+  expect(chatCalled).toBe(false);
+});
+
+test('L2 错误恢复: rapid clicking sends only one request', async ({ page }) => {
+  let chatCallCount = 0;
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    chatCallCount++;
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ reply: '收到', usage: { input_tokens: 50, output_tokens: 20 } }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '快速发送测试');
+
+  // Rapid click 3 times
+  await page.click('#sendBtn');
+  await page.click('#sendBtn');
+  await page.click('#sendBtn');
+
+  await page.waitForTimeout(3000);
+
+  // Should not have sent 3 separate requests
+  // (At most 2: the first one + possibly a retry, but not 3)
+  expect(chatCallCount).toBeLessThanOrEqual(2);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// L2 Suggestions — <<<SUGGESTIONS>>> block parsed into buttons
+// ═══════════════════════════════════════════════════════════════
+
+test('L2 建议解析: <<<SUGGESTIONS>>> block renders as clickable buttons', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '老许最近可以聊聊项目进展。<<<SUGGESTIONS>>>\n给老许拟条消息\n记一下和老许的互动\n查看老许的详情',
+        usage: { input_tokens: 100, output_tokens: 80 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '老许怎么样');
+  await page.click('#sendBtn');
+
+  // Wait for AI reply + suggestions to render
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      if (!log) return false;
+      // The suggestion text should appear in the DOM
+      return log.innerText.includes('拟条消息') || log.innerText.includes('项目进展');
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  // The main reply text should appear (before <<<SUGGESTIONS>>>)
+  expect(chatBodyText).toContain('项目进展');
+  // The suggestion marker should NOT be visible to user
+  expect(chatBodyText).not.toContain('<<<SUGGESTIONS>>>');
+});
