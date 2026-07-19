@@ -127,8 +127,6 @@ test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meeting CRUD create and list', async ({ page }) => {
-  await loginAndWait(page);
-
   page.__meetingsData = { meetings: [{
     id: 'mtg-test-1',
     title: '测试会议',
@@ -140,6 +138,7 @@ test('L2 会议: meeting CRUD create and list', async ({ page }) => {
     photos: [],
   }], total: 1 };
 
+  await loginAndWait(page);
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
@@ -155,8 +154,6 @@ test('L2 会议: meeting CRUD create and list', async ({ page }) => {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meeting detail renders sections', async ({ page }) => {
-  await loginAndWait(page);
-
   page.__meetingsData = { meetings: [{
     id: 'mtg-detail-1',
     title: '行业峰会2026',
@@ -175,6 +172,7 @@ test('L2 会议: meeting detail renders sections', async ({ page }) => {
     photos: [],
   }], total: 1 };
 
+  await loginAndWait(page);
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
@@ -217,8 +215,6 @@ test('L2 会议: meeting review shows AI-generated insights', async ({ page }) =
     photos: [],
   };
 
-  await loginAndWait(page);
-
   page.__meetingsData = { meetings: [testMeeting], total: 1 };
   page.__meetingReviewData = {
     status: 'ok',
@@ -234,6 +230,7 @@ test('L2 会议: meeting review shows AI-generated insights', async ({ page }) =
     usage: { points: 10, remaining: 90 },
   };
 
+  await loginAndWait(page);
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
