@@ -103,7 +103,7 @@ async function loginAndWait(page) {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
-  // page.__meetingsData defaults to empty — no need to set
+  page.__meetingsData = { meetings: [], total: 0 };
   await loginAndWait(page);
 
   // Open mine panel
