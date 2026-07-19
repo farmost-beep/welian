@@ -608,7 +608,7 @@ async function handleDraft(req, env) {
   try {
     const userId = await getVerifiedUserId(req, env, body);
     if (userId) await trackAction(env, userId, 'draft_generated', { draft_recipient: name });
-  } catch {}
+  } catch (e) { /* best-effort tracking, don't block draft response */ }
 
   return { result };
 }
@@ -2261,7 +2261,7 @@ ${isOnboarding ? `【引导模式特殊规则】这是新用户引导场景，�
           timelineDirty = true;
           actionResults.push({ type: 'add_timeline', ok: true, summary: action.summary, contact_name: action.contact_name || '' });
           // P0-1: Track interaction recording (North Star metric)
-          trackAction(env, userId, 'interaction_recorded', { contact_name: action.contact_name || '' });
+          trackAction(env, userId, 'interaction_recorded', { contact_name: action.contact_name || '' }).catch(() => {});
         }
 
         if (action.type === 'add_todo' && action.task) {
@@ -2336,7 +2336,7 @@ ${isOnboarding ? `【引导模式特殊规则】这是新用户引导场景，�
             todosDirty = true;
             actionResults.push({ type: 'complete_todo', ok: true, task: todo.task, contact_name: action.contact_name || '' });
             // P0-1: Track todo completion (North Star metric)
-            trackAction(env, userId, 'todo_completed', { contact_name: action.contact_name || '', task: todo.task });
+            trackAction(env, userId, 'todo_completed', { contact_name: action.contact_name || '', task: todo.task }).catch(() => {});
           } else {
             actionResults.push({ type: 'complete_todo', ok: false, reason: 'no matching pending todo' });
           }
@@ -3490,10 +3490,13 @@ async function saveMetrics(env, userId, metrics) {
 
 function getWeekKey(dateStr) {
   const d = new Date(dateStr);
-  const year = d.getFullYear();
-  const start = new Date(year, 0, 1);
-  const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
-  return `${year}-${String(week).padStart(2, '0')}`;
+  // ISO 8601 week calculation
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return `${date.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
 }
 
 // Track a relationship action event (North Star metric)
@@ -5269,13 +5272,20 @@ export default {
         const userId = await getVerifiedUserId(request, env, {});
         if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
         const metrics = await loadMetrics(env, userId);
-        // Compute adoption rate: adoptions / advise_generated (last 30 days)
+        // Compute adoption rate: adoptions / advise_generated (last 30 days ≈ 5 weeks)
         const thirtyDaysAgo = Date.now() - 30 * 86400000;
         const recentAdoptions = (metrics.adoptions || []).filter(a => new Date(a.ts).getTime() >= thirtyDaysAgo);
-        const totalAdvise = Object.entries(metrics.weekly || {})
-          .filter(([wk]) => new Date(wk + '-1').getTime() >= thirtyDaysAgo)
-          .reduce((sum, [, w]) => sum + (w.advise_generated || 0), 0);
-        const adoptionRate = totalAdvise > 0 ? (recentAdoptions.length / totalAdvise) : 0;
+        // Sum advise_generated for last ~5 weeks (covers 30+ days)
+        const recentWeekKeys = [];
+        for (let i = 0; i < 5; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i * 7);
+          recentWeekKeys.push(getWeekKey(d.toISOString()));
+        }
+        const totalAdvise30d = recentWeekKeys.reduce((sum, wk) => {
+          return sum + ((metrics.weekly?.[wk]?.advise_generated) || 0);
+        }, 0);
+        const adoptionRate = totalAdvise30d > 0 ? (recentAdoptions.length / totalAdvise30d) : 0;
         // North Star: this week's total actions
         const thisWk = getWeekKey(new Date().toISOString());
         const thisWeekActions = metrics.weekly?.[thisWk] || {};
@@ -5285,7 +5295,7 @@ export default {
           weekly: metrics.weekly,
           adoptions: metrics.adoptions,
           adoption_rate_30d: adoptionRate,
-          total_advise_30d: totalAdvise,
+          total_advise_30d: totalAdvise30d,
           total_adoptions_30d: recentAdoptions.length,
         });
       }

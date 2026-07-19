@@ -1,9 +1,10 @@
 /**
  * Playwright config for browser E2E tests.
  *
- * Two test projects:
+ * Test projects:
  * 1. mock-clerk  — mock window.Clerk, test UI logic (fast, no external deps)
  * 2. real-clerk  — real Clerk with testing token (needs CLERK_SECRET_KEY)
+ * 3. journey     — L0/L1/L2 user journey tests (mock backend, cross frontend-backend)
  */
 import { defineConfig, devices } from '@playwright/test';
 
@@ -29,6 +30,11 @@ export default defineConfig({
       name: 'real-clerk',
       use: { ...devices['Desktop Chrome'] },
       testMatch: 'real.*.spec.js',
+    },
+    {
+      name: 'journey',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: 'l*.spec.js',
     },
   ],
   webServer: {

@@ -1,0 +1,60 @@
+# L3: Multi-agent code review on PRs
+# Runs 4 parallel LLM agents to review PR diffs, scores confidence, posts high-signal issues.
+# Inspired by Anthropic's Code Review Plugin (Swiss Cheese Model — Layer 3).
+#
+# Triggers on:
+#   - Pull request opened/synchronized (code changes)
+#   - Manual dispatch
+#
+# Requires secrets:
+#   - ANTHROPIC_API_KEY (or LLM_API_KEY + LLM_BASE_URL for compatible API)
+#   - LLM_MODEL (optional, defaults to claude-sonnet-4-20250514)
+
+name: Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for git diff
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update && sudo apt install gh -y
+
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Run multi-agent code review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          ANTHROPIC_MODEL_STRONG: ${{ secrets.ANTHROPIC_MODEL }}
+        run: |
+          PR_NUM="${{ inputs.pr_number || github.event.pull_request.number }}"
+          echo "Reviewing PR #$PR_NUM..."
+          node scripts/code-review.mjs --pr "$PR_NUM" --comment

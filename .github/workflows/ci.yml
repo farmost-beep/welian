@@ -50,7 +50,7 @@ jobs:
         run: pytest tests/e2e/ -v --tb=short
         timeout-minutes: 5
 
-  # ── Browser tests (Playwright, mock + real Clerk) ──
+  # ── Browser tests (Playwright: L0-L2 journey + mock/real Clerk auth) ──
   browser:
     runs-on: ubuntu-latest
     steps:
@@ -60,12 +60,12 @@ jobs:
           node-version: "20"
       - run: npm install
       - run: npx playwright install --with-deps chromium
-      - name: Run Playwright tests (mock + real Clerk)
+      - name: Run Playwright tests (journey + mock + real Clerk)
         env:
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: npx playwright test --reporter=line
-        timeout-minutes: 3
+        timeout-minutes: 5
 
   # ── Deploy (only on main push, after all tests pass) ──
   deploy:
