@@ -119,17 +119,15 @@ describe("/data/memory", () => {
     expect(data.memories).toBeDefined();
   });
 
-  it("POST saves a memory (may 400 due to body double-read in handler)", async () => {
-    // Note: handleMemory reads req.json() twice (once for auth, once for body)
-    // This is a known worker bug — the second read returns {} → save fails
-    // Test verifies the endpoint doesn't crash and returns a valid HTTP response
+  it("POST saves a memory", async () => {
     const req = jsonReq("/data/memory", {
       body: { action: "save", type: "preference", title: "用户偏好", content: "喜欢简洁回复" },
       headers: authHeader(),
     });
     const res = await worker.fetch(req, env, {});
-    // Accept 200 (if body caching works) or 400 (if double-read fails)
-    expect([200, 400]).toContain(res.status);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
   });
 
   it("requires auth (401)", async () => {
@@ -159,28 +157,29 @@ describe("/data/goals", () => {
     expect(data.goals).toBeDefined();
   });
 
-  it("POST creates a goal (may 500 due to body double-read in handler)", async () => {
+  it("POST creates a goal", async () => {
     const req = jsonReq("/data/goals", {
       body: {
         action: "create",
         title: "加深与老许的合作",
-        criteria: [{ id: "cr-1", text: "每月至少一次深度交流" }],
+        criteria: ["每月至少一次深度交流"],
       },
       headers: authHeader(),
     });
     const res = await worker.fetch(req, env, mockCtx);
-    // Accept 200 (success) or 500 (known body double-read bug)
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.goal).toBeTruthy();
   });
 
-  it("POST create rejects missing title (may 500 due to body double-read)", async () => {
+  it("POST create rejects missing title", async () => {
     const req = jsonReq("/data/goals", {
-      body: { action: "create", criteria: [{ id: "cr-1", text: "test" }] },
+      body: { action: "create", criteria: ["test criterion"] },
       headers: authHeader(),
     });
     const res = await worker.fetch(req, env, mockCtx);
-    // Accept 400 (validation) or 500 (known body double-read bug)
-    expect([400, 500]).toContain(res.status);
+    expect(res.status).toBe(400);
   });
 
   it("POST create rejects empty criteria", async () => {

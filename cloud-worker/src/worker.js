@@ -3779,7 +3779,9 @@ async function deleteMemory(env, userId, memId) {
 // GET /data/memory — list memories (optional ?q=query for recall)
 // POST /data/memory — {action: save|delete, type, title, content, tags, id}
 async function handleMemory(req, env, method) {
-  const userId = await getVerifiedUserId(req, env, method === 'GET' ? null : await req.json().catch(() => ({})));
+  // Read body once for both auth and POST logic (avoids double-read bug)
+  const body = method === 'GET' ? null : await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
   if (method === 'GET') {
@@ -3796,7 +3798,6 @@ async function handleMemory(req, env, method) {
   }
 
   if (method === 'POST') {
-    const body = await req.json().catch(() => ({}));
     const action = body.action || 'save';
     if (action === 'delete') {
       const ok = await deleteMemory(env, userId, body.id);
