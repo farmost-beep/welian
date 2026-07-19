@@ -1126,20 +1126,22 @@ export function onBridgeMessage(e) {
     // No other ws-message types expected in cloud-first mode
     console.log('Bridge ws-message (unhandled):', data.type, data.id);
   } else if (msg.type === 'ws-close') {
-    console.log('Bridge ws-close — falling back to cloud-only mode');
+    console.log('Bridge ws-close — falling back to cloud-only mode (silent)');
     setIsLive(false);
     setBridgeReady(false);
     removeBridge();
-    // Restore cloud mode so user can still chat (fix: was leaving isCloud=false + isLive=false)
+    // Restore cloud mode so user can still chat
     if (!isCloud && isAuthed) {
       setIsCloud(true);
       statusDot.className = 'status-dot online';
       statusText.textContent = I18N[currentLang].cloud_status;
       if (modeBadge) { modeBadge.textContent = 'Cloud'; modeBadge.className = 'mode-badge live'; }
     }
-    if (isCloud) {
-      addSystemMsg(I18N[currentLang].cloud_status + ' (agent offline)');
-    }
+    // Silent fallback: do NOT show "agent offline" system message to user.
+    // The ws-close can be triggered by cloudflared tunnel idle timeout or
+    // network fluctuation during normal chat. Showing a system message
+    // interrupts the user's conversation. Cloud mode auto-takes over,
+    // auto-reconnect runs in background. User doesn't need to know.
     // Auto-retry: attempt to reconnect bridge every 15s, restore engine on success
     // Uses setTimeout recursion (not setInterval) to avoid overlapping attempts
     if (!window._bridgeReconnectTimer) {

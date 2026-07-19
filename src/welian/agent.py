@@ -283,7 +283,15 @@ window.addEventListener('message',(e)=>{
   const msg=e.data;
   if(!msg||msg.source!=='welian-parent')return;
   parentOrigin=e.origin;
-  if(msg.type==='send'&&ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(msg.payload))}
+  if(msg.type==='send'){
+    if(ws&&ws.readyState===WebSocket.OPEN){
+      ws.send(JSON.stringify(msg.payload));
+    } else {
+      // ws not open — notify parent so it can fallback to cloud immediately
+      // instead of waiting for agentChat timeout
+      notifyParent('ws-close',{reason:'ws_not_open',readyState:ws?ws.readyState:0});
+    }
+  }
 });
 
 // Notify parent if in iframe, then auto-connect
