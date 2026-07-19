@@ -75,10 +75,10 @@ async function main() {
   // Fail fast if user journey is broken — don't deploy a broken frontend
   console.log('Running journey tests (L0-L2) before deploy...');
   try {
-    execSync('npx playwright test --project=journey --reporter=line', {
+    execSync('npx playwright test --project=journey --workers=1 --reporter=line', {
       cwd: REPO_DIR,
       stdio: 'inherit',
-      timeout: 60000,
+      timeout: 300000,
     });
     console.log('✅ Journey tests passed');
   } catch (e) {

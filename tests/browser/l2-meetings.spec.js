@@ -24,6 +24,7 @@ window.loadClerkUI = async (key) => { window.__internal_ClerkUICtor = function()
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', err => { throw err; });
 
+  // Intercept CDN (awaited like core-loop)
   await page.route('**/clerk.browser.js*', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: '// mock' }));
   await page.route('**/ui.browser.js*', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: '// mock' }));
   await page.route('**/sentry-cdn.com/**', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: '// mock' }));
@@ -39,35 +40,46 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem('welian_cookie_ok', '1');
   `);
 
-  // Mock data endpoints
-  page.route('**/data/contacts', route => {
+  // Mock data endpoints (awaited for parallel mode safety)
+  await page.route('**/data/contacts', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ contacts: [{ id: 'c1', name: '老许', company: '腾讯', relation: '同行', nature: 'leverage' }] }) });
   });
-  page.route('**/data/pull', route => {
+  await page.route('**/data/pull', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ contacts: [], todos: [], timeline: [], pulled_at: new Date().toISOString() }) });
   });
-  page.route('**/ai/billing', route => {
+  await page.route('**/ai/billing', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: 'free', allowance: 100, remaining: 100, used: 0 }) });
   });
-  page.route('**/data/sessions', route => {
+  await page.route('**/data/sessions', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
-  page.route('**/ai/config', route => {
+  await page.route('**/ai/config', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ mode: 'cloud', dataPriority: ['cloud_kv'] }) });
   });
-  page.route('**/data/todos', route => {
+  await page.route('**/data/todos', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ todos: [] }) });
   });
-
-  // Default mock: empty meetings (tests can override)
-  page.route('**/data/meetings', route => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meetings: [], total: 0 }) });
+  // Meetings routes — default empty; tests override via page.__meetingsData etc.
+  await page.route(/.*\/data\/meetings(\?.*)?$/, route => {
+    const method = route.request().method();
+    const data = page.__meetingsData || { meetings: [], total: 0 };
+    if (method === 'GET') {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    } else if (method === 'POST') {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, meeting: data.meetings?.[0] || {} }) });
+    } else if (method === 'DELETE') {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    } else {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    }
   });
-  page.route('**/ai/meeting_photo', route => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', photo_type: 'agenda', extracted: {}, usage: { points: 5, remaining: 95 } }) });
+  await page.route(/.*\/ai\/meeting_photo$/, route => {
+    const data = page.__meetingPhotoData || { status: 'ok', photo_type: 'agenda', extracted: {}, usage: { points: 5, remaining: 95 } };
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
-  page.route('**/ai/meeting_review', route => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', review: {}, meeting: {}, usage: { points: 10, remaining: 90 } }) });
+  await page.route(/.*\/ai\/meeting_review$/, route => {
+    const data = page.__meetingReviewData || { status: 'ok', review: {}, meeting: {}, usage: { points: 10, remaining: 90 } };
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
 });
 
@@ -91,6 +103,7 @@ async function loginAndWait(page) {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
+  // page.__meetingsData defaults to empty — no need to set
   await loginAndWait(page);
 
   // Open mine panel
@@ -106,7 +119,6 @@ test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
   // Should show empty state or meeting list
   await page.waitForTimeout(2000);
   const content = await page.evaluate(() => document.getElementById('mineContent')?.innerText || '');
-  // Should have "新建会议" button or empty state text
   expect(content).toMatch(/会议|Meeting|新建|New Meeting/);
 });
 
@@ -115,9 +127,9 @@ test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meeting CRUD create and list', async ({ page }) => {
-  // Override default empty mock
-  page.unroute('**/data/meetings');
-  const meetingsStore = [{
+  await loginAndWait(page);
+
+  page.__meetingsData = { meetings: [{
     id: 'mtg-test-1',
     title: '测试会议',
     date: '2026-07-20',
@@ -126,43 +138,8 @@ test('L2 会议: meeting CRUD create and list', async ({ page }) => {
     attendees: [{ name: '老许', company: '腾讯', is_existing: true }],
     opportunities: [],
     photos: [],
-  }];
+  }], total: 1 };
 
-  page.route('**/data/meetings', route => {
-    const method = route.request().method();
-    if (method === 'GET') {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meetings: meetingsStore, total: meetingsStore.length }) });
-    } else if (method === 'POST') {
-      const body = route.request().postDataJSON();
-      const m = { ...body, id: body.id || `mtg-test-${Date.now()}`, created: new Date().toISOString() };
-      if (body.id) {
-        const idx = meetingsStore.findIndex(x => x.id === body.id);
-        if (idx >= 0) meetingsStore[idx] = { ...meetingsStore[idx], ...m };
-      } else {
-        meetingsStore.push(m);
-      }
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, meeting: m }) });
-    } else if (method === 'DELETE') {
-      const url = new URL(route.request().url());
-      const id = url.searchParams.get('id');
-      const idx = meetingsStore.findIndex(m => m.id === id);
-      if (idx >= 0) meetingsStore.splice(idx, 1);
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
-    }
-  });
-
-  page.route('**/ai/meeting_photo', route => {
-    route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({
-        status: 'ok', photo_type: 'agenda',
-        extracted: { title: 'AI行业峰会2026', date: '2026-07-25', location: '上海', purpose: 'AI+金融', agenda: [{ topic: '开场', time: '09:00' }] },
-        usage: { points: 5, remaining: 95 },
-      }),
-    });
-  });
-
-  await loginAndWait(page);
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
@@ -170,7 +147,7 @@ test('L2 会议: meeting CRUD create and list', async ({ page }) => {
   // Verify meeting appears in list
   const content = await page.evaluate(() => document.getElementById('mineContent')?.innerText || '');
   expect(content).toContain('测试会议');
-  expect(content).toContain('1人');  // attendee count shown in list
+  expect(content).toContain('1人');
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -178,9 +155,9 @@ test('L2 会议: meeting CRUD create and list', async ({ page }) => {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meeting detail renders sections', async ({ page }) => {
-  // Override default empty mock
-  page.unroute('**/data/meetings');
-  const testMeeting = {
+  await loginAndWait(page);
+
+  page.__meetingsData = { meetings: [{
     id: 'mtg-detail-1',
     title: '行业峰会2026',
     date: '2026-07-25',
@@ -196,18 +173,8 @@ test('L2 会议: meeting detail renders sections', async ({ page }) => {
     contact_dynamics: '老许和张总似乎认识',
     summary: '很有收获的会议',
     photos: [],
-  };
+  }], total: 1 };
 
-  page.route('**/data/meetings', route => {
-    const method = route.request().method();
-    if (method === 'GET') {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meetings: [testMeeting], total: 1 }) });
-    } else {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, meeting: testMeeting }) });
-    }
-  });
-
-  await loginAndWait(page);
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
@@ -226,7 +193,6 @@ test('L2 会议: meeting detail renders sections', async ({ page }) => {
 
   const content = await page.evaluate(() => document.getElementById('mineContent')?.innerText || '');
 
-  // Verify all sections render
   expect(content).toContain('行业峰会2026');
   expect(content).toContain('开场');
   expect(content).toContain('老许');
@@ -240,9 +206,6 @@ test('L2 会议: meeting detail renders sections', async ({ page }) => {
 // ═══════════════════════════════════════════════════════════════
 
 test('L2 会议: meeting review shows AI-generated insights', async ({ page }) => {
-  // Override default empty mock
-  page.unroute('**/data/meetings');
-  page.unroute('**/ai/meeting_review');
   const testMeeting = {
     id: 'mtg-review-1',
     title: '合作讨论会',
@@ -254,35 +217,23 @@ test('L2 会议: meeting review shows AI-generated insights', async ({ page }) =
     photos: [],
   };
 
-  page.route('**/data/meetings', route => {
-    const method = route.request().method();
-    if (method === 'GET') {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meetings: [testMeeting], total: 1 }) });
-    } else {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, meeting: testMeeting }) });
-    }
-  });
-
-  page.route('**/ai/meeting_review', route => {
-    route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({
-        status: 'ok',
-        review: {
-          summary: '与老许讨论了AI合作方向',
-          new_contacts: [{ name: '张总', company: '阿里', title: 'VP', relation: '同行', nature: 'leverage' }],
-          follow_up_todos: [{ task: '下周联系老许聊合作细节', contact_name: '老许', due: '2026-07-27', priority: 'high' }],
-          opportunity_analysis: [{ description: '老许团队在找AI方案', action: '准备方案后联系', contact_name: '老许' }],
-          leverage_insights: '老许是leverage联系人，这次会议可以推进合作',
-          goal_suggestions: ['推进AI合作项目落地'],
-        },
-        meeting: { ...testMeeting, status: 'completed', summary: '与老许讨论了AI合作方向' },
-        usage: { points: 10, remaining: 90 },
-      }),
-    });
-  });
-
   await loginAndWait(page);
+
+  page.__meetingsData = { meetings: [testMeeting], total: 1 };
+  page.__meetingReviewData = {
+    status: 'ok',
+    review: {
+      summary: '与老许讨论了AI合作方向',
+      new_contacts: [{ name: '张总', company: '阿里', title: 'VP', relation: '同行', nature: 'leverage' }],
+      follow_up_todos: [{ task: '下周联系老许聊合作细节', contact_name: '老许', due: '2026-07-27', priority: 'high' }],
+      opportunity_analysis: [{ description: '老许团队在找AI方案', action: '准备方案后联系', contact_name: '老许' }],
+      leverage_insights: '老许是leverage联系人，这次会议可以推进合作',
+      goal_suggestions: ['推进AI合作项目落地'],
+    },
+    meeting: { ...testMeeting, status: 'completed', summary: '与老许讨论了AI合作方向' },
+    usage: { points: 10, remaining: 90 },
+  };
+
   await page.click('#billingBtn');
   await page.click('.mine-tab[data-tab="meetings"]');
   await page.waitForTimeout(2000);
