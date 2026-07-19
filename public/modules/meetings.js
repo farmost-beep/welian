@@ -59,17 +59,8 @@ export async function loadMeetingsTab() {
 
 export async function createMeeting() {
   const zh = currentLang === 'zh';
-  // Trigger file input for agenda photo
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';  // mobile camera
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    // Read as base64
+  pickImage(async (file) => {
     const base64 = await fileToBase64(file);
-    // Upload for AI recognition
     const content = document.getElementById('mineContent');
     content.innerHTML = `<div class="mine-empty" style="padding:40px;text-align:center">
       <div style="font-size:2em;margin-bottom:8px">🔍</div>
@@ -83,7 +74,6 @@ export async function createMeeting() {
       });
       if (result.status === 'ok' && result.extracted) {
         const ex = result.extracted;
-        // Create meeting from extracted data
         const meeting = await mineApi('/data/meetings', 'POST', {
           title: ex.title || (zh ? '未命名会议' : 'Untitled Meeting'),
           date: ex.date || new Date().toISOString().slice(0, 10),
@@ -97,7 +87,6 @@ export async function createMeeting() {
           openMeetingDetail(meeting.meeting.id);
         }
       } else {
-        // Fallback: create empty meeting
         const meeting = await mineApi('/data/meetings', 'POST', {
           title: zh ? '新会议' : 'New Meeting',
           status: 'planned',
@@ -110,8 +99,7 @@ export async function createMeeting() {
       alert((zh ? '识别失败：' : 'Recognition failed: ') + err.message);
       loadMeetingsTab();
     }
-  };
-  input.click();
+  });
 }
 
 // ── Meeting detail view ──
@@ -241,13 +229,7 @@ export function closeMeetingDetail() {
 
 export async function uploadMeetingPhoto(meetingId, photoType) {
   const zh = currentLang === 'zh';
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  pickImage(async (file) => {
     const base64 = await fileToBase64(file);
 
     // Show loading
@@ -319,8 +301,7 @@ export async function uploadMeetingPhoto(meetingId, photoType) {
       alert((zh ? '上传失败：' : 'Upload failed: ') + err.message);
       openMeetingDetail(meetingId);
     }
-  };
-  input.click();
+  });
 }
 
 // ── Meeting review (会后复盘) ──
@@ -440,5 +421,48 @@ function fileToBase64(file) {
     r.onload = () => resolve(r.result.split(',')[1]);
     r.onerror = reject;
     r.readAsDataURL(file);
+  });
+}
+
+// ── Helper: pick image from camera or album ──
+
+function pickImage(callback) {
+  const zh = currentLang === 'zh';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;display:flex;align-items:flex-end;justify-content:center';
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'width:100%;max-width:480px;background:var(--bg);border-radius:16px 16px 0 0;padding:8px 0 20px;box-shadow:0 -4px 24px rgba(0,0,0,.2)';
+  sheet.innerHTML = `
+    <div style="text-align:center;color:var(--dim);font-size:.85em;padding:12px 0;border-bottom:1px solid var(--border)">${zh ? '选择来源' : 'Choose source'}</div>
+    <button data-action="camera" style="display:block;width:100%;padding:16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:1em;text-align:center;border-bottom:1px solid var(--border)">📷 ${zh ? '拍照' : 'Camera'}</button>
+    <button data-action="album" style="display:block;width:100%;padding:16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:1em;text-align:center;border-bottom:1px solid var(--border)">📁 ${zh ? '从相册上传' : 'Upload from album'}</button>
+    <button data-action="cancel" style="display:block;width:100%;padding:16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:1em;text-align:center;color:var(--dim);margin-top:4px">${zh ? '取消' : 'Cancel'}</button>
+  `;
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+
+  sheet.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    close();
+    if (action === 'cancel') return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (action === 'camera') input.capture = 'environment';
+    input.onchange = async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      callback(file);
+    };
+    input.click();
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
   });
 }
