@@ -530,7 +530,7 @@ export async function shareReviewAsImage(meetingId) {
     return h;
   });
   totalH += sectionHeights.reduce((a, b) => a + b + 12, 0);
-  totalH += 60; // footer
+  totalH += 80; // footer
 
   // Create canvas
   const canvas = document.createElement('canvas');
@@ -614,10 +614,14 @@ export async function shareReviewAsImage(meetingId) {
   }
 
   // Footer
-  ctx.fillStyle = DIM;
-  ctx.font = `13px ${FONT}`;
+  const footerH = 80;
+  ctx.fillStyle = GREEN;
+  ctx.font = `bold 22px ${FONT}`;
   ctx.textAlign = 'center';
-  ctx.fillText('Welian 小维 · welian.app', W / 2, y + 20);
+  ctx.fillText('Welian 小维', W / 2, y + 24);
+  ctx.fillStyle = DIM;
+  ctx.font = `16px ${FONT}`;
+  ctx.fillText('welian.app', W / 2, y + 52);
   ctx.textAlign = 'left';
 
   // Download
