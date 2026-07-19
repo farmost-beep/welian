@@ -3,6 +3,9 @@ import { CLOUD_URL, I18N, currentLang, simulationMode, simulationData } from './
 import { getClerkToken } from './auth.js';
 import { mineApi, escapeHtml, closeMine } from './misc.js';
 
+// Cache last review result for image export
+let _lastReview = null;
+
 // ── Load meetings tab ──
 
 export async function loadMeetingsTab() {
@@ -318,6 +321,7 @@ export async function reviewMeeting(meetingId) {
     const result = await mineApi('/ai/meeting_review', 'POST', { meeting_id: meetingId });
     if (result.status === 'ok' && result.review) {
       const r = result.review;
+      _lastReview = { meetingId, review: r, meeting: result.meeting };
       let html = `<div style="padding:12px">
         <h3 style="margin:0 0 12px;font-size:1.1em">${zh ? '📊 会后复盘' : '📊 Meeting Review'}</h3>`;
 
@@ -383,9 +387,12 @@ export async function reviewMeeting(meetingId) {
         html += `</div>`;
       }
 
-      html += `<div style="margin-top:16px">
-        <button onclick="openMeetingDetail('${escapeHtml(meetingId)}')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">
-          ${zh ? '返回会议详情' : 'Back to meeting'}
+      html += `<div style="margin-top:16px;display:flex;gap:8px">
+        <button onclick="shareReviewAsImage('${escapeHtml(meetingId)}')" style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">
+          📸 ${zh ? '保存图片分享' : 'Save as image'}
+        </button>
+        <button onclick="openMeetingDetail('${escapeHtml(meetingId)}')" style="padding:10px 14px;background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">
+          ${zh ? '返回' : 'Back'}
         </button>
       </div></div>`;
 
@@ -422,6 +429,220 @@ function fileToBase64(file) {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+// ── Share review as long image ──
+
+export async function shareReviewAsImage(meetingId) {
+  const zh = currentLang === 'zh';
+  if (!_lastReview || _lastReview.meetingId !== meetingId) {
+    alert(zh ? '复盘数据已过期，请重新生成' : 'Review data expired, please regenerate');
+    return;
+  }
+
+  const { review: r, meeting: m } = _lastReview;
+  const title = m?.title || (zh ? '会议复盘' : 'Meeting Review');
+  const date = m?.date || '';
+
+  // Layout constants
+  const W = 750;
+  const PAD = 40;
+  const CARD_PAD = 20;
+  const LINE_H = 26;
+  const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const GREEN = '#4A6741';
+  const BG = '#FAFAF7';
+  const CARD_BG = '#fff';
+  const TEXT = '#333';
+  const DIM = '#888';
+  const BORDER = '#e8e8e0';
+
+  // Measure text width
+  function measure(text, fontSize, weight = 'normal') {
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${weight} ${fontSize}px ${FONT}`;
+    return c.measureText(text).width;
+  }
+
+  // Wrap text into lines
+  function wrap(text, maxW, fontSize, weight = 'normal') {
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${weight} ${fontSize}px ${FONT}`;
+    const chars = Array.from(text);
+    const lines = [];
+    let line = '';
+    for (const ch of chars) {
+      const test = line + ch;
+      if (c.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = ch;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  // Build sections data
+  const sections = [];
+  if (r.summary) {
+    sections.push({ icon: '📝', title: zh ? '总结' : 'Summary', items: [{ text: r.summary, wrap: true }] });
+  }
+  if (r.new_contacts?.length) {
+    sections.push({
+      icon: '🆕', title: zh ? '新认识的人' : 'New Contacts',
+      items: r.new_contacts.map(c => ({ text: `${c.name}${c.title || c.company ? ' — ' + [c.title, c.company].filter(Boolean).join(', ') : ''}`, tag: zh ? '已入库' : 'added' })),
+    });
+  }
+  if (r.follow_up_todos?.length) {
+    sections.push({
+      icon: '✅', title: zh ? '跟进待办' : 'Follow-ups',
+      items: r.follow_up_todos.map(t => ({ text: `☐ ${t.task}${t.contact_name ? ' — ' + t.contact_name : ''}${t.due ? '  ' + t.due : ''}`, tag: zh ? '已创建' : 'created' })),
+    });
+  }
+  if (r.opportunity_analysis?.length) {
+    sections.push({
+      icon: '🔥', title: zh ? '机会分析' : 'Opportunities',
+      items: r.opportunity_analysis.map(o => ({
+        text: `💡 ${o.description}${o.action ? '\n' + (zh ? '建议' : 'Action') + ': ' + o.action : ''}${o.contact_name ? ' — ' + o.contact_name : ''}`,
+        wrap: true,
+      })),
+    });
+  }
+  if (r.leverage_insights) {
+    sections.push({ icon: '🤝', title: zh ? '撬动合作建议' : 'Leverage Insights', items: [{ text: r.leverage_insights, wrap: true }] });
+  }
+  if (r.goal_suggestions?.length) {
+    sections.push({ icon: '🎯', title: zh ? '目标关联' : 'Goal Links', items: r.goal_suggestions.map(g => ({ text: `🎯 ${g}` })) });
+  }
+
+  // Calculate total height
+  const headerH = 140;
+  let totalH = headerH + PAD;
+  const sectionHeights = sections.map(s => {
+    let h = 50; // title bar
+    for (const item of s.items) {
+      const lines = item.wrap ? wrap(item.text, W - PAD * 2 - CARD_PAD * 2 - 8, 15) : [item.text];
+      h += lines.length * LINE_H + 8;
+    }
+    h += 16; // bottom padding
+    return h;
+  });
+  totalH += sectionHeights.reduce((a, b) => a + b + 12, 0);
+  totalH += 60; // footer
+
+  // Create canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, totalH);
+
+  // Header bar
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, GREEN);
+  grad.addColorStop(1, '#5a7a51');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, 100);
+
+  // Header text
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold 28px ${FONT}`;
+  ctx.textBaseline = 'top';
+  ctx.fillText('📊 ' + (zh ? '会后复盘' : 'Meeting Review'), PAD, 28);
+
+  ctx.font = `16px ${FONT}`;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText(title + (date ? '  ·  ' + date : ''), PAD, 64);
+
+  // Sections
+  let y = headerH;
+  for (let i = 0; i < sections.length; i++) {
+    const s = sections[i];
+    const sh = sectionHeights[i];
+
+    // Card background
+    ctx.fillStyle = CARD_BG;
+    roundRect(ctx, PAD, y, W - PAD * 2, sh, 12);
+    ctx.fill();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 1;
+    roundRect(ctx, PAD, y, W - PAD * 2, sh, 12);
+    ctx.stroke();
+
+    // Section title
+    ctx.fillStyle = GREEN;
+    ctx.font = `bold 17px ${FONT}`;
+    ctx.fillText(`${s.icon}  ${s.title}`, PAD + CARD_PAD, y + 16);
+
+    // Divider
+    ctx.strokeStyle = BORDER;
+    ctx.beginPath();
+    ctx.moveTo(PAD + CARD_PAD, y + 44);
+    ctx.lineTo(W - PAD - CARD_PAD, y + 44);
+    ctx.stroke();
+
+    // Items
+    let iy = y + 54;
+    ctx.font = `15px ${FONT}`;
+    ctx.fillStyle = TEXT;
+    for (const item of s.items) {
+      const lines = item.wrap ? wrap(item.text, W - PAD * 2 - CARD_PAD * 2 - (item.tag ? 70 : 0) - 8, 15) : [item.text];
+      for (const ln of lines) {
+        ctx.fillText(ln, PAD + CARD_PAD, iy);
+        iy += LINE_H;
+      }
+      if (item.tag) {
+        const tagW = measure(item.tag, 12) + 16;
+        ctx.fillStyle = GREEN;
+        roundRect(ctx, W - PAD - CARD_PAD - tagW - 4, iy - LINE_H + 4, tagW, 20, 10);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = `12px ${FONT}`;
+        ctx.fillText(item.tag, W - PAD - CARD_PAD - tagW + 8, iy - LINE_H + 7);
+        ctx.font = `15px ${FONT}`;
+        ctx.fillStyle = TEXT;
+      }
+      iy += 8;
+    }
+
+    y += sh + 12;
+  }
+
+  // Footer
+  ctx.fillStyle = DIM;
+  ctx.font = `13px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('Welian 小维 · welian.app', W / 2, y + 20);
+  ctx.textAlign = 'left';
+
+  // Download
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `meeting-review-${date || 'export'}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
 
 // ── Helper: pick image from camera or album ──

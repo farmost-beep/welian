@@ -9,7 +9,7 @@ import { saveSessionTurn, loadSessionList, loadSession, startNewSession, deleteS
 import { loadContactsTab, renderContactsResults, handleImportFile, changeGroupBy, toggleGroup, renderContactItem, switchContactsSubtab, getContactGroups, renderContactsList, onContactsSearch, openContactDetail, showTimelineForm, hideTimelineForm, saveTimelineEntry, deleteTimelineEntry, closeContactDetail, editContactForm, saveContactEdit, deleteContact, refreshContactsCache, getCooldownInfo, meetingPrepDetail, meetingPrep } from './contacts.js';
 import { loadTodosTab, renderTodosTab, switchTodosFilter, showTodoForm, filterTodoContacts, hideTodoForm, saveTodo, toggleTodoDone, postponeTodo, cancelTodo, undoTodoDone, deleteTodo } from './todos.js';
 import { loadTimelineTab, renderTimelineTab, filterTimelineSearch, editTimelineEntryFromList, deleteTimelineEntryFromList } from './timeline.js';
-import { loadMeetingsTab, openMeetingDetail, closeMeetingDetail, uploadMeetingPhoto, createMeeting, deleteMeeting, reviewMeeting } from './meetings.js';
+import { loadMeetingsTab, openMeetingDetail, closeMeetingDetail, uploadMeetingPhoto, createMeeting, deleteMeeting, reviewMeeting, shareReviewAsImage } from './meetings.js';
 import { loadBillingTab, renderBillingTab, applyDiscount, savePricing, paddleCheckout, paddleCancelSub, doGiftCredits, doRedeemCoupon, openPayModal, closePayModal, confirmPayment, doUpgrade, doPurchase, setModelTier, updateCostPreview, showModelTierBar, showCostPreview } from './billing.js';
 import { loadWeeklyTab, doShareText, buildShareCard, generateShareImage, canvasToBlob, exportReportPDF, agentPDF, showShareModal, showWeChatShareGuide, shareWeeklyReport, loadSignalsTab, shareSignalsReport, loadMonthlyTab, exportMonthlyPDF, shareMonthlyReport, checkOnboardingNeeded, startOnboarding, closeOnboarding, renderOnboardingChat, submitOnboardingChat, finishOnboarding } from './proactive.js';
 
@@ -103,6 +103,7 @@ w.uploadMeetingPhoto = uploadMeetingPhoto;
 w.createMeeting = createMeeting;
 w.deleteMeeting = deleteMeeting;
 w.reviewMeeting = reviewMeeting;
+w.shareReviewAsImage = shareReviewAsImage;
 
 // Billing
 w.applyDiscount = applyDiscount;

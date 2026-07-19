@@ -60,7 +60,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ todos: [] }) });
   });
   // Meetings routes — default empty; tests override via page.__meetingsData etc.
-  await page.route(/.*\/data\/meetings(\?.*)?$/, route => {
+  await page.route('**/data/meetings*', route => {
     const method = route.request().method();
     const data = page.__meetingsData || { meetings: [], total: 0 };
     if (method === 'GET') {
@@ -73,11 +73,11 @@ test.beforeEach(async ({ page }) => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     }
   });
-  await page.route(/.*\/ai\/meeting_photo$/, route => {
+  await page.route('**/ai/meeting_photo', route => {
     const data = page.__meetingPhotoData || { status: 'ok', photo_type: 'agenda', extracted: {}, usage: { points: 5, remaining: 95 } };
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
-  await page.route(/.*\/ai\/meeting_review$/, route => {
+  await page.route('**/ai/meeting_review', route => {
     const data = page.__meetingReviewData || { status: 'ok', review: {}, meeting: {}, usage: { points: 10, remaining: 90 } };
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
