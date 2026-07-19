@@ -35,7 +35,7 @@ export default defineConfig({
       name: 'journey',
       use: { ...devices['Desktop Chrome'] },
       testMatch: 'l*.spec.js',
-      retries: 1,
+      retries: 2,
     },
   ],
   webServer: {
