@@ -8,6 +8,7 @@ import { loadContactsTab } from './contacts.js';
 import { loadMonthlyTab, loadSignalsTab, loadWeeklyTab } from './proactive.js';
 import { loadTimelineTab } from './timeline.js';
 import { loadTodosTab } from './todos.js';
+import { loadMeetingsTab } from './meetings.js';
 
 export function applyLang(lang) {
   setCurrentLang(lang);
@@ -108,7 +109,7 @@ export function switchMineTab(tab) {
   });
   // Update title
   const d = I18N[currentLang];
-  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, todos: d.todo_title, timeline: d.tab_timeline, weekly: d.mine_weekly_title, monthly: d.monthly_title, signals: currentLang==='zh'?'📡 HN 信号':'📡 Signals', billing: d.billing_title, settings: d.tab_settings };
+  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, todos: d.todo_title, timeline: d.tab_timeline, weekly: d.mine_weekly_title, monthly: d.monthly_title, signals: currentLang==='zh'?'📡 HN 信号':'📡 Signals', billing: d.billing_title, settings: d.tab_settings, meetings: currentLang==='zh'?'🎯 会议':'🎯 Meetings' };
   document.getElementById('mineTitle').textContent = titles[tab] || d.mine_title;
   // Load content
   const content = document.getElementById('mineContent');
@@ -117,6 +118,7 @@ export function switchMineTab(tab) {
   else if (tab === 'contacts') loadContactsTab();
   else if (tab === 'todos') loadTodosTab();
   else if (tab === 'timeline') loadTimelineTab();
+  else if (tab === 'meetings') loadMeetingsTab();
   else if (tab === 'weekly') loadWeeklyTab();
   else if (tab === 'monthly') loadMonthlyTab();
   else if (tab === 'signals') loadSignalsTab();

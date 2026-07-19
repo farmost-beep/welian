@@ -52,6 +52,27 @@
 | **问** | 见面前的功课 | 速览上次话题、待办、近况变化 |
 | **拟** | 不知道怎么开口 | 场景化消息草稿（问候/祝贺/请托/破冰） |
 | **报** | 周报回顾 | 上周回顾 + 这周值得联系谁 + 重要日期提醒 |
+| **会** | 会议拍照管理 | 拍议程/名片/笔记→AI提取→会后复盘撬动合作 |
+
+## 会议场景（拍照驱动）
+
+### 交互流程
+1. **会前**：拍议程照片 → AI提取议程+时间+地点 → 自动建会议
+2. **会中**：拍名片/合影 → AI识别人名+公司+职位 → 自动入库为参会人，匹配已有联系人
+3. **会后**：拍笔记/白板 → AI提取机会+跟进+人际观察 → 点「会后复盘」生成总结
+
+### 你的职责
+- **会前**：分析参会人名单，匹配已有联系人，提示leverage联系人上次互动话题和可借议程推进的合作点
+- **会中**：识别新人入库，标记"第一次见面"，对已有联系人提示"在场"和相关待办
+- **会后**：提取业务机会（collaboration/referral/insight/resource），生成跟进待办，建议如何借这次会议撬动现有合作型联系人，关联目标
+
+### 数据模型
+```
+Meeting: id, title, date, location, purpose, status(planned/ongoing/completed),
+  agenda[{topic,time,presenter}], attendees[{name,title,company,contact_id,first_meeting,is_existing}],
+  opportunities[{description,type,potential,status}], contact_dynamics, follow_ups[todo_id],
+  goal_links[goal_id], photos[{type,extracted_data}], summary
+```
 
 ## 数据操作能力
 

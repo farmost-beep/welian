@@ -1749,6 +1749,354 @@ async function handleMeetingPrep(req, env) {
   };
 }
 
+// ── Meetings CRUD ──
+
+async function handleMeetingsCRUD(req, env, method) {
+  const body = method === 'GET' ? null : await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  if (method === 'GET') {
+    const meetings = await loadDataset(env, userId, 'meetings');
+    meetings.sort((a, b) => new Date(b.date || '1970-01-01') - new Date(a.date || '1970-01-01'));
+    return { status: 200, data: { meetings, total: meetings.length } };
+  }
+
+  if (method === 'POST') {
+    const title = (body.title || '').trim();
+    if (!title) {
+      return { status: 400, data: { error: 'title required' } };
+    }
+
+    // Update existing if id provided
+    if (body.id) {
+      const meetings = await loadDataset(env, userId, 'meetings');
+      const idx = meetings.findIndex(m => m.id === body.id);
+      if (idx >= 0) {
+        meetings[idx] = { ...meetings[idx], ...body, id: body.id, updated: new Date().toISOString() };
+        await saveDataset(env, userId, 'meetings', meetings);
+        return { status: 200, data: { ok: true, meeting: meetings[idx] } };
+      }
+    }
+
+    // Create new meeting
+    const id = body.id || `mtg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const meeting = {
+      id,
+      title,
+      date: body.date || new Date().toISOString().slice(0, 10),
+      location: body.location || '',
+      purpose: body.purpose || '',
+      status: body.status || 'planned',
+      agenda: body.agenda || [],
+      attendees: body.attendees || [],
+      opportunities: body.opportunities || [],
+      contact_dynamics: body.contact_dynamics || '',
+      follow_ups: body.follow_ups || [],
+      goal_links: body.goal_links || [],
+      photos: body.photos || [],
+      summary: body.summary || '',
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    };
+    const meetings = await loadDataset(env, userId, 'meetings');
+    meetings.push(meeting);
+    await saveDataset(env, userId, 'meetings', meetings);
+    return { status: 200, data: { ok: true, meeting } };
+  }
+
+  if (method === 'DELETE') {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    if (!id) {
+      return { status: 400, data: { error: 'id required' } };
+    }
+    let meetings = await loadDataset(env, userId, 'meetings');
+    meetings = meetings.filter(m => m.id !== id);
+    await saveDataset(env, userId, 'meetings', meetings);
+    return { status: 200, data: { ok: true } };
+  }
+
+  return { status: 405, data: { error: 'Method not allowed' } };
+}
+
+// ── Meeting photo recognition ──
+
+async function handleMeetingPhoto(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  const { photo_type, base64, media_type, meeting_id, existing_attendees } = body;
+  if (!base64 || !photo_type) {
+    return { status: 400, data: { error: 'base64 and photo_type required' } };
+  }
+
+  const validTypes = ['agenda', 'card', 'notes'];
+  if (!validTypes.includes(photo_type)) {
+    return { status: 400, data: { error: `photo_type must be one of: ${validTypes.join(', ')}` } };
+  }
+
+  // Build multimodal message with image
+  const imageBlock = {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: media_type || 'image/jpeg',
+      data: base64,
+    },
+  };
+
+  const prompts = {
+    agenda: `你是Welian小维的会议助手。请分析这张议程照片，提取以下信息并以JSON格式返回：
+{
+  "title": "会议名称（从议程推断）",
+  "date": "日期（如能识别，格式YYYY-MM-DD，否则空）",
+  "location": "地点（如能识别，否则空）",
+  "agenda": [{"topic": "议题", "time": "时间（如09:30）", "presenter": "演讲人（如能识别）"}],
+  "purpose": "会议目的（一句话概括）"
+}
+只返回JSON，不要其他文字。`,
+
+    card: `你是Welian小维的会议助手。请分析这张名片/合影照片，识别其中的人物信息，以JSON格式返回：
+{
+  "attendees": [{"name": "姓名", "title": "职位（如能识别）", "company": "公司（如能识别）", "relationship": "与用户的关系（如能推断）"}]
+}
+如果是名片，提取名片上的信息。如果是合影，描述能看到的人物（不猜测无法识别的信息）。
+只返回JSON，不要其他文字。`,
+
+    notes: `你是Welian小维的会议助手。请分析这张会议笔记/白板照片，提取关键信息，以JSON格式返回：
+{
+  "opportunities": [{"description": "机会描述", "type": "collaboration|referral|insight|resource", "potential": "high|medium|low"}],
+  "follow_ups": [{"task": "跟进事项", "contact_name": "相关人名（如有）", "due": "建议时间（如有）"}],
+  "contact_dynamics": "人际观察（谁和谁熟、谁支持什么观点等，一段话）",
+  "key_points": ["关键要点1", "关键要点2"]
+}
+只返回JSON，不要其他文字。`,
+  };
+
+  const system = prompts[photo_type];
+  const userMsg = { type: 'text', text: '请分析这张图片并提取信息。' };
+
+  const result = await callLLM(null, 'You are a helpful assistant that extracts structured data from images. Always respond with valid JSON only.', env, {
+    max_tokens: 1024,
+    model_tier: 'enhanced',
+    messages: [{ role: 'user', content: [imageBlock, userMsg] }],
+  });
+
+  if (!result) {
+    return { status: 200, data: { status: 'error', error: '图片识别失败，请重试', fallback: true } };
+  }
+
+  // Parse JSON from LLM response
+  let extracted;
+  try {
+    // Strip markdown code fences if present
+    const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    extracted = JSON.parse(jsonText);
+  } catch (e) {
+    console.error('[meeting_photo] JSON parse failed:', e.message, result.text.substring(0, 200));
+    return { status: 200, data: { status: 'error', error: '识别结果格式异常', raw: result.text, fallback: true } };
+  }
+
+  // For card type: match against existing contacts
+  if (photo_type === 'card' && extracted.attendees) {
+    const contacts = await loadDataset(env, userId, 'contacts');
+    const existingNames = new Map(contacts.map(c => [c.name, c]));
+    extracted.attendees = extracted.attendees.map(a => {
+      const matched = existingNames.get(a.name);
+      if (matched) {
+        a.contact_id = matched.id;
+        a.first_meeting = false;
+        a.is_existing = true;
+      } else {
+        a.first_meeting = true;
+        a.is_existing = false;
+      }
+      return a;
+    });
+  }
+
+  // For agenda type: match existing attendees if provided
+  if (photo_type === 'agenda' && existing_attendees && extracted.agenda) {
+    extracted.attendees = existing_attendees;
+  }
+
+  // Billing
+  const { billing, points } = await deductBilling(
+    env, userId, result.usage, 'meeting_photo', `meeting photo ${photo_type}`
+  );
+
+  return {
+    status: 200,
+    data: {
+      status: 'ok',
+      photo_type,
+      extracted,
+      usage: { points, remaining: await getRemaining(billing, env) },
+    },
+  };
+}
+
+// ── Meeting review (会后复盘) ──
+
+async function handleMeetingReview(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) {
+    return { status: 401, data: { error: 'Authentication required' } };
+  }
+
+  const { meeting_id } = body;
+  if (!meeting_id) {
+    return { status: 400, data: { error: 'meeting_id required' } };
+  }
+
+  const meetings = await loadDataset(env, userId, 'meetings');
+  const meeting = meetings.find(m => m.id === meeting_id);
+  if (!meeting) {
+    return { status: 404, data: { error: 'meeting not found' } };
+  }
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const todos = await loadDataset(env, userId, 'todos');
+
+  // Build context for LLM
+  const attendeeNames = (meeting.attendees || []).map(a => a.name).filter(Boolean);
+  const existingAttendees = (meeting.attendees || []).filter(a => a.contact_id);
+  const existingContext = existingAttendees.map(a => {
+    const c = contacts.find(c => c.id === a.contact_id);
+    if (!c) return '';
+    return `${c.name}（${c.company || ''}，${c.relation || ''}，上次互动：${(() => {
+      const tl = todos.filter(t => t.contact === c.id && !isTodoDone(t));
+      return tl.length > 0 ? `有待办${tl.length}条` : '无待办';
+    })()}）`;
+  }).filter(Boolean).join('\n');
+
+  const system = `你是Welian小维，社交关系管理助手。用户刚参加完一场会议，请基于会议信息生成会后复盘建议。
+
+会议信息：
+- 标题：${meeting.title}
+- 日期：${meeting.date}
+- 目的：${meeting.purpose || '未指定'}
+- 议程：${JSON.stringify(meeting.agenda || [])}
+- 参会人：${JSON.stringify(meeting.attendees || [])}
+- 识别到的机会：${JSON.stringify(meeting.opportunities || [])}
+- 人际观察：${meeting.contact_dynamics || '无'}
+- 现有待办：${JSON.stringify(todos.filter(t => !isTodoDone(t)).slice(0, 10))}
+
+已有联系人在场情况：
+${existingContext || '无已有联系人'}
+
+请以JSON格式返回复盘建议：
+{
+  "summary": "会议总结（2-3句话）",
+  "new_contacts": [{"name": "新认识的人名", "company": "公司", "title": "职位", "relation": "建议关系类型", "nature": "leverage|nurture|dual"}],
+  "follow_up_todos": [{"task": "跟进事项", "contact_name": "相关人", "due": "建议日期YYYY-MM-DD", "priority": "high|medium|low"}],
+  "opportunity_analysis": [{"description": "机会描述", "action": "建议行动", "contact_name": "相关人"}],
+  "leverage_insights": "如何借这次会议撬动现有合作型联系人的建议（一段话）",
+  "goal_suggestions": ["这次会议可能推进的目标方向"]
+}
+只返回JSON，不要其他文字。`;
+
+  const result = await callLLM('请生成会后复盘建议。', system, env, {
+    max_tokens: 1024,
+    temperature: 0.5,
+  });
+
+  if (!result) {
+    return { status: 200, data: { status: 'error', error: '复盘生成失败，请重试', fallback: true } };
+  }
+
+  let review;
+  try {
+    const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    review = JSON.parse(jsonText);
+  } catch (e) {
+    return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+  }
+
+  // Auto-create new contacts
+  if (review.new_contacts && review.new_contacts.length > 0) {
+    for (const nc of review.new_contacts) {
+      if (!nc.name) continue;
+      const exists = contacts.find(c => c.name === nc.name);
+      if (!exists) {
+        contacts.push({
+          id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: nc.name,
+          company: nc.company || '',
+          title: nc.title || '',
+          relation: nc.relation || '',
+          nature: nc.nature || 'leverage',
+          strength: 3,
+          tags: [],
+          platforms: {},
+          phone: '',
+          email: '',
+          notes: `从会议「${meeting.title}」认识`,
+          memories: [],
+          important_dates: [],
+          leverage: {},
+          nurture: {},
+          aliases: [],
+          alias: [],
+          snooze_until: '',
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
+        });
+      }
+    }
+    await saveDataset(env, userId, 'contacts', contacts);
+  }
+
+  // Auto-create follow-up todos
+  if (review.follow_up_todos && review.follow_up_todos.length > 0) {
+    for (const ft of review.follow_up_todos) {
+      if (!ft.task) continue;
+      const contact = ft.contact_name ? contacts.find(c => c.name === ft.contact_name) : null;
+      todos.push({
+        id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        task: ft.task,
+        contact: contact ? contact.id : '',
+        status: 'pending',
+        due: ft.due || '',
+        priority: ft.priority || 'medium',
+        source: `meeting:${meeting.id}`,
+        created: new Date().toISOString(),
+      });
+    }
+    await saveDataset(env, userId, 'todos', todos);
+  }
+
+  // Update meeting with review
+  meeting.summary = review.summary || '';
+  meeting.status = 'completed';
+  meeting.updated = new Date().toISOString();
+  const idx = meetings.findIndex(m => m.id === meeting_id);
+  meetings[idx] = meeting;
+  await saveDataset(env, userId, 'meetings', meetings);
+
+  // Billing
+  const { billing, points } = await deductBilling(
+    env, userId, result.usage, 'meeting_review', `meeting review ${meeting.title}`
+  );
+
+  return {
+    status: 200,
+    data: {
+      status: 'ok',
+      review,
+      meeting,
+      usage: { points, remaining: await getRemaining(billing, env) },
+    },
+  };
+}
+
 // ── Cost estimation ──
 
 const COST_ESTIMATES = {
@@ -5171,6 +5519,11 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      if (path === '/data/meetings' && (method === 'GET' || method === 'POST' || method === 'DELETE')) {
+        const r = await handleMeetingsCRUD(request, env, method);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/data/profile' && (method === 'GET' || method === 'POST')) {
         const r = await handleProfile(request, env, method);
         return jsonResponse(r.data, r.status);
@@ -5263,6 +5616,16 @@ export default {
 
       if (path === '/ai/meeting_prep' && method === 'POST') {
         const r = await handleMeetingPrep(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/meeting_photo' && method === 'POST') {
+        const r = await handleMeetingPhoto(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/meeting_review' && method === 'POST') {
+        const r = await handleMeetingReview(request, env);
         return jsonResponse(r.data, r.status);
       }
 
