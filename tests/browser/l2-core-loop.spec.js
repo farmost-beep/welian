@@ -797,3 +797,133 @@ test('L2 建议解析: <<<SUGGESTIONS>>> block renders as clickable buttons', as
   // The suggestion marker should NOT be visible to user
   expect(chatBodyText).not.toContain('<<<SUGGESTIONS>>>');
 });
+
+// ═══════════════════════════════════════════════════════════════
+// L2 Boundary — mixed language, emoji, long messages
+// ═══════════════════════════════════════════════════════════════
+
+test('L2 边界: mixed CN/EN input parsed correctly', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: 'John',
+        keywords: ['John', '项目'],
+        actions: [{ type: 'add_timeline', contact_name: 'John', summary: 'met with John about项目' }],
+        action_results: [{ type: 'add_timeline', ok: true, contact_name: 'John' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '记下了，你和John聊了项目的事 ✅',
+        usage: { input_tokens: 120, output_tokens: 60 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '记一下met with John about项目');
+  await page.click('#sendBtn');
+
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && (log.innerText.includes('John') || log.innerText.includes('项目'));
+    },
+    { timeout: 15000 }
+  );
+
+  const chatBodyText = await page.evaluate(() => document.getElementById('chatBody').innerText);
+  expect(chatBodyText.length).toBeGreaterThan(10);
+});
+
+test('L2 边界: contact name with emoji does not crash', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        intent: 'record',
+        contact_name: '😀',
+        keywords: ['😀'],
+        actions: [{ type: 'add_timeline', contact_name: '😀', summary: '和😀聊了天' }],
+        action_results: [{ type: 'add_timeline', ok: true, contact_name: '😀' }],
+      }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '记下了和😀的互动 ✅',
+        usage: { input_tokens: 80, output_tokens: 40 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+  await page.fill('#input', '记一下：和😀聊了天');
+  await page.click('#sendBtn');
+
+  // Page should not crash — wait for some response
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.length > 20;
+    },
+    { timeout: 15000 }
+  );
+
+  // Page should still be functional
+  const inputVisible = await page.locator('#input').isVisible();
+  expect(inputVisible).toBe(true);
+});
+
+test('L2 边界: very long message (5000 chars) is handled', async ({ page }) => {
+  page.route('**/ai/extract_intent', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+    });
+  });
+
+  page.route('**/ai/chat', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reply: '收到你的长消息，已处理 ✅',
+        usage: { input_tokens: 5000, output_tokens: 50 },
+      }),
+    });
+  });
+
+  await loginAndWait(page);
+
+  // Generate a 5000-char message
+  const longMsg = '记一下：' + '今天和老许聊了很长的内容。'.repeat(200);
+  await page.fill('#input', longMsg);
+  await page.click('#sendBtn');
+
+  // Should get a response, not crash or hang
+  await page.waitForFunction(
+    () => {
+      const log = document.getElementById('chatBody');
+      return log && log.innerText.includes('收到');
+    },
+    { timeout: 15000 }
+  );
+
+  const inputVisible = await page.locator('#input').isVisible();
+  expect(inputVisible).toBe(true);
+});

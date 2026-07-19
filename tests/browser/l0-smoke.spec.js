@@ -152,3 +152,42 @@ test('L0: Paddle SDK initializes', async ({ page }) => {
   const authBtnVisible = await page.locator('#authBtn').isVisible();
   expect(authBtnVisible).toBe(true);
 });
+
+// ═══════════════════════════════════════════════════════════════
+// L0 Additional — viewport, language switcher
+// ═══════════════════════════════════════════════════════════════
+
+test('L0: viewport meta tag exists for mobile', async ({ page }) => {
+  await page.goto('http://localhost:8899/index.html');
+  await page.waitForTimeout(500);
+
+  const viewport = await page.evaluate(() => {
+    const meta = document.querySelector('meta[name="viewport"]');
+    return meta ? meta.content : null;
+  });
+  expect(viewport).toBeTruthy();
+  expect(viewport).toContain('width=device-width');
+});
+
+test('L0: language switcher button exists and toggles', async ({ page }) => {
+  await page.goto('http://localhost:8899/index.html');
+  await page.waitForTimeout(500);
+
+  // Language button should exist
+  const langBtn = page.locator('#langBtn');
+  await expect(langBtn).toBeVisible();
+
+  // Should show "EN" initially (Chinese UI, button offers switch to English)
+  const initialText = await langBtn.textContent();
+  expect(initialText).toBeTruthy();
+
+  // Click to toggle language
+  await langBtn.click();
+  await page.waitForTimeout(500);
+
+  // After click, the button text should change (to "中" or "中文")
+  const afterText = await langBtn.textContent();
+  expect(afterText).toBeTruthy();
+  // The text should have changed
+  expect(afterText).not.toBe(initialText);
+});

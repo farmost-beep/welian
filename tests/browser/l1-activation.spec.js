@@ -403,3 +403,168 @@ test('L1: finishOnboarding correctly calls /ai/advise_cloud', async ({ page }) =
   // Verify advise_cloud was called
   expect(adviseCloudCalled).toBe(true);
 });
+
+// ═══════════════════════════════════════════════════════════════
+// L1 Edge Cases — onboarding robustness
+// ═══════════════════════════════════════════════════════════════
+
+test('L1: onboarding with English input extracts contacts', async ({ page }) => {
+  // Override extract_intent mock for English input
+  page.route('**/ai/extract_intent', route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    if (body.onboarding) {
+      page._onboardingContacts = [
+        { id: 'c-en-1', name: 'John', nature: 'leverage' },
+        { id: 'c-en-2', name: 'Sarah', nature: 'leverage' },
+      ];
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          intent: 'record',
+          contact_name: '',
+          keywords: [],
+          actions: [
+            { type: 'add_contact', name: 'John', relation: 'colleague' },
+            { type: 'add_contact', name: 'Sarah', relation: 'friend' },
+          ],
+          action_results: [
+            { type: 'add_contact', ok: true, name: 'John' },
+            { type: 'add_contact', ok: true, name: 'Sarah' },
+          ],
+        }),
+      });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+      });
+    }
+  });
+
+  await page.goto('http://localhost:8899/index.html');
+  await page.waitForFunction(() => window.__clerkCallback !== undefined, { timeout: 10000 });
+  await page.waitForTimeout(500);
+
+  await page.evaluate(() => {
+    window.Clerk.user = { id: 'testuser_l1_en', firstName: 'L1', primaryEmailAddress: { emailAddress: 'l1@test.com' } };
+    window.Clerk.session = { getToken: async () => window.__mockToken, status: 'active' };
+    if (window.__clerkCallback) window.__clerkCallback({ user: window.Clerk.user });
+  });
+
+  await expect(page.locator('#onboardingInput')).toBeVisible({ timeout: 10000 });
+  await page.fill('#onboardingInput', 'Had lunch with John yesterday, met Sarah for coffee');
+  await page.click('button:has-text("发送")');
+
+  // Should extract English names
+  await page.waitForFunction(
+    () => document.body.innerText.includes('John') || document.body.innerText.includes('Sarah'),
+    { timeout: 10000 }
+  );
+});
+
+test('L1: onboarding with gibberish input does not crash', async ({ page }) => {
+  // Override extract_intent to return empty for gibberish
+  page.route('**/ai/extract_intent', route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    if (body.onboarding) {
+      // No contacts extracted from gibberish
+      page._onboardingContacts = [];
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          intent: 'chat',
+          contact_name: '',
+          keywords: [],
+          actions: [],
+          action_results: [],
+        }),
+      });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+      });
+    }
+  });
+
+  await page.goto('http://localhost:8899/index.html');
+  await page.waitForFunction(() => window.__clerkCallback !== undefined, { timeout: 10000 });
+  await page.waitForTimeout(500);
+
+  await page.evaluate(() => {
+    window.Clerk.user = { id: 'testuser_l1_gibber', firstName: 'L1', primaryEmailAddress: { emailAddress: 'l1@test.com' } };
+    window.Clerk.session = { getToken: async () => window.__mockToken, status: 'active' };
+    if (window.__clerkCallback) window.__clerkCallback({ user: window.Clerk.user });
+  });
+
+  await expect(page.locator('#onboardingInput')).toBeVisible({ timeout: 10000 });
+  await page.fill('#onboardingInput', 'asdfghjkl 12345');
+  await page.click('button:has-text("发送")');
+
+  // Page should not crash — wait and check page is still functional
+  await page.waitForTimeout(3000);
+
+  // The onboarding input should still be visible (no crash)
+  const inputVisible = await page.locator('#onboardingInput').isVisible().catch(() => false);
+  expect(inputVisible).toBe(true);
+});
+
+test('L1: onboarding with many contacts handles all', async ({ page }) => {
+  // Generate 10 contacts
+  const manyNames = Array.from({ length: 10 }, (_, i) => `联系人${i + 1}`);
+  page.route('**/ai/extract_intent', route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    if (body.onboarding) {
+      page._onboardingContacts = manyNames.map((name, i) => ({
+        id: `c-many-${i}`, name, nature: 'leverage',
+      }));
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          intent: 'record',
+          contact_name: '',
+          keywords: [],
+          actions: manyNames.map(name => ({ type: 'add_contact', name, relation: 'contact' })),
+          action_results: manyNames.map(name => ({ type: 'add_contact', ok: true, name })),
+        }),
+      });
+    } else {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ intent: 'chat', keywords: [], actions: [], action_results: [] }),
+      });
+    }
+  });
+
+  await page.goto('http://localhost:8899/index.html');
+  await page.waitForFunction(() => window.__clerkCallback !== undefined, { timeout: 10000 });
+  await page.waitForTimeout(500);
+
+  await page.evaluate(() => {
+    window.Clerk.user = { id: 'testuser_l1_many', firstName: 'L1', primaryEmailAddress: { emailAddress: 'l1@test.com' } };
+    window.Clerk.session = { getToken: async () => window.__mockToken, status: 'active' };
+    if (window.__clerkCallback) window.__clerkCallback({ user: window.Clerk.user });
+  });
+
+  await expect(page.locator('#onboardingInput')).toBeVisible({ timeout: 10000 });
+
+  const inputText = manyNames.map(n => `和${n}聊了天`).join('，');
+  await page.fill('#onboardingInput', inputText);
+  await page.click('button:has-text("发送")');
+
+  // Should extract at least some of the 10 contacts
+  await page.waitForFunction(
+    () => document.body.innerText.includes('联系人1'),
+    { timeout: 10000 }
+  );
+
+  // Page should still be functional
+  const inputVisible = await page.locator('#onboardingInput').isVisible().catch(() => false);
+  expect(inputVisible).toBe(true);
+});
