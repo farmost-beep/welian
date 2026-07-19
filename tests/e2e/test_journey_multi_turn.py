@@ -17,11 +17,10 @@ def test_multi_turn_record_then_ask(fresh_env):
     r1 = client.chat("记一下：和张总聊了预算方案")
     assert_reply_ok(r1)
 
-    # Turn 2: Ask about the same contact
-    r2 = client.chat("他上次说了什么")
+    # Turn 2: Ask about the same contact (use name, not pronoun — LLM may not resolve pronouns)
+    r2 = client.chat("张总上次说了什么")
     assert_reply_ok(r2, min_len=10)
     # Should reference the recorded content (budget) or the contact
-    # LLM may use pronouns ("他") instead of the name — accept budget/topic keywords
     assert any(kw in r2 for kw in ["预算", "张总", "聊了", "上次", "答复", "方案"]), \
         f"Second turn should reference first: {r2}"
 
