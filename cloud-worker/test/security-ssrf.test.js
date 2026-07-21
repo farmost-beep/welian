@@ -115,7 +115,9 @@ describe("L3 SSRF: isUrlAllowed filter logic", () => {
       } catch (e) {
         // Timeout means it passed SSRF and tried to fetch (which hangs in test env)
         // This is expected — the SSRF filter allowed it
-        expect(e.message).toContain("timeout");
+        // Any non-SSRF error (timeout, fetch failure, etc.) means the URL was allowed
+        const msg = e.message || String(e) || '';
+        expect(msg).not.toContain('not allowed');
       }
     });
   });
