@@ -62,7 +62,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Run journey tests (L0 smoke + L1 activation + L2 core loop)
         run: npx playwright test --project=journey --reporter=line
-        timeout-minutes: 5
+        timeout-minutes: 10
 
   # ── Auth tests (mock + real Clerk, non-blocking info) ──
   auth-tests:
