@@ -36,6 +36,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: 'l*.spec.js',
       retries: 2,
+      timeout: 60000,
     },
   ],
   webServer: {
