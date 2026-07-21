@@ -32,9 +32,10 @@ jobs:
       - run: npm install
       - run: npx vitest run --coverage
 
-  # ── E2E tests (real LLM, ~2 min) ──
+  # ── E2E tests (real LLM, ~2 min, non-blocking — LLM is non-deterministic) ──
   e2e:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
