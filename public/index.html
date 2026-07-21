@@ -12,7 +12,7 @@
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Welian — 每段关系都值得用心">
-<meta property="og:description" content="AI 关系管理助手，帮你成为更好的朋友、家人、合作者。">
+<meta property="og:description" content="关系网络智能体，帮你成为更好的朋友、家人、合作者。">
 <meta property="og:url" content="https://welian.app/">
 <meta property="og:site_name" content="Welian">
 <meta property="og:locale" content="zh_CN">
@@ -20,14 +20,14 @@
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Welian — 每段关系都值得用心">
-<meta name="twitter:description" content="AI 关系管理助手，帮你成为更好的朋友、家人、合作者。">
+<meta name="twitter:description" content="关系网络智能体，帮你成为更好的朋友、家人、合作者。">
 <!-- Structured data (JSON-LD) -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Welian",
-  "description": "AI 关系管理助手，帮你成为更好的朋友、家人、合作者。",
+  "description": "关系网络智能体，帮你成为更好的朋友、家人、合作者。",
   "url": "https://welian.app",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Web",
@@ -170,11 +170,10 @@ async function loadClerkUI(publishableKey) {
     <span class="name">Welian</span><span class="inf">∞</span>
   </div>
   <div class="links">
-    <button id="demoBtn" onclick="showScenarioPicker()" style="font-size:.82em;color:var(--accent);background:none;border:none;cursor:pointer">🎭 <span data-i18n="roleplay_btn">角色扮演</span></button>
-    <button id="langBtn" onclick="toggleLang()">EN</button>
+    <button id="demoBtn" onclick="showScenarioPicker()" style="display:none;font-size:.82em;color:var(--accent);background:none;border:none;cursor:pointer"><span data-i18n="roleplay_btn">角色扮演</span></button>
+    <button id="langBtn" onclick="toggleLang()" class="nav-tool">EN</button>
     <span id="navStatus" style="display:none"><span class="status-dot offline" id="statusDot"></span><span class="status-text" id="statusText">Offline</span></span>
-    <button id="billingBtn" onclick="openMine()" style="display:none;font-size:.8em;color:var(--dim);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">👤 <span data-i18n="mine_btn">我的</span></button>
-    <button id="supportBtn" onclick="openSupport()" style="font-size:.8em;color:var(--dim);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">💬 <span data-i18n="support_btn">支持</span></button>
+    <button id="billingBtn" onclick="openMine()" class="nav-tool" style="display:none"><span data-i18n="mine_btn">我的</span></button>
     <button class="cta" id="authBtn" onclick="toggleAuth()">登录</button>
   </div>
 </nav>
@@ -215,7 +214,7 @@ async function loadClerkUI(publishableKey) {
       <h3 data-i18n="roleplay_picker_title">🎭 选择一个角色开始体验</h3>
       <button onclick="closeScenarioPicker()" style="background:none;border:none;font-size:1.2em;cursor:pointer;color:var(--dim)">✕</button>
     </div>
-    <p class="scenario-intro" data-i18n="roleplay_intro">无需登录，立即体验 Welian 如何帮你管理社交关系。选择一个名人角色，在对话中维护他们的关系网络。</p>
+    <p class="scenario-intro" data-i18n="roleplay_intro">无需登录，立即体验 Welian 如何理解你的关系网络。选择一个名人角色，在对话中维护他们的关系网络。</p>
     <div class="scenario-howto">
       <strong data-i18n="roleplay_howto">怎么玩？</strong>
       <ol>
@@ -289,13 +288,9 @@ async function loadClerkUI(publishableKey) {
     <button class="mine-tab active" data-tab="overview" onclick="switchMineTab('overview')"><span class="icon">📊</span><span data-i18n="tab_overview">概览</span></button>
     <button class="mine-tab" data-tab="contacts" onclick="switchMineTab('contacts')"><span class="icon">🌳</span><span data-i18n="tab_contacts">关系</span></button>
     <button class="mine-tab" data-tab="todos" onclick="switchMineTab('todos')"><span class="icon">✅</span><span data-i18n="tab_todos">待办</span><span id="tabBadgeTodos"></span></button>
-    <button class="mine-tab" data-tab="timeline" onclick="switchMineTab('timeline')"><span class="icon">📝</span><span data-i18n="tab_timeline">互动</span></button>
     <button class="mine-tab" data-tab="meetings" onclick="switchMineTab('meetings')"><span class="icon">🎯</span><span data-i18n="tab_meetings">会议</span></button>
-    <button class="mine-tab" data-tab="weekly" onclick="switchMineTab('weekly')"><span class="icon">📋</span><span data-i18n="tab_weekly">周报</span><span id="tabBadgeWeekly"></span></button>
-    <button class="mine-tab" data-tab="monthly" onclick="switchMineTab('monthly')"><span class="icon">📅</span><span data-i18n="tab_monthly">月度</span></button>
-    <button class="mine-tab" data-tab="signals" onclick="switchMineTab('signals')"><span class="icon">📡</span><span data-i18n="tab_signals">信号</span></button>
-    <button class="mine-tab" data-tab="billing" onclick="switchMineTab('billing')"><span class="icon">💳</span><span data-i18n="tab_billing">套餐</span></button>
-    <button class="mine-tab" data-tab="settings" onclick="switchMineTab('settings')"><span class="icon">⚙️</span><span data-i18n="tab_settings">设置</span></button>
+    <button class="mine-tab" data-tab="reports" onclick="switchMineTab('reports')"><span class="icon">📋</span><span data-i18n="tab_reports">报告</span><span id="tabBadgeWeekly"></span></button>
+    <button class="mine-tab mine-tab-icon" data-tab="settings" onclick="switchMineTab('settings')"><span class="icon">⚙️</span></button>
   </div>
 </div>
 

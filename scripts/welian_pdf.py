@@ -22,7 +22,7 @@ Input JSON schema:
       }
     }
   ],
-  "footer": "自定义页脚（可选，默认 'Welian 小维 · welian.app'）"
+  "footer": "自定义页脚（可选，默认 '用 Welian 管理你的关系 · welian.app'）"
 }
 
 Examples:
@@ -167,7 +167,7 @@ def _card(items, styles):
 
 def build_pdf(doc_data: dict) -> bytes:
     styles = _build_styles()
-    footer_text = doc_data.get("footer", "Welian 小维 · welian.app")
+    footer_text = doc_data.get("footer", "用 Welian 管理你的关系 · welian.app")
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
         leftMargin=20*mm, rightMargin=20*mm,

@@ -34,6 +34,31 @@ preview_id = "98c045b73d874a869493706dc585bafb"
 
 # Set LLM_API_KEY via: wrangler secret put LLM_API_KEY
 
+# ── Multi-platform IM (Phase 1: Telegram, Phase 2: Feishu + DingTalk) ──
+# Set via: wrangler secret put <NAME>
+#
+# Telegram:
+# TELEGRAM_BOT_TOKEN       — Telegram bot token from @BotFather
+# TELEGRAM_WEBHOOK_SECRET  — secret token for webhook verification (set when calling setWebhook)
+# Webhook URL: https://api.welian.app/im/telegram/webhook
+# Setup: curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+#          -d "url=https://api.welian.app/im/telegram/webhook" \
+#          -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+#
+# Feishu / Lark:
+# FEISHU_APP_ID            — App ID from https://open.feishu.cn 企业自建应用
+# FEISHU_APP_SECRET        — App Secret
+# FEISHU_ENCRYPT_KEY       — Encrypt Key (事件订阅加密密钥，可选但推荐)
+# FEISHU_VERIFICATION_TOKEN — Verification Token (事件订阅验证令牌)
+# Webhook URL: https://api.welian.app/im/feishu/webhook
+# 订阅事件: im.message.receive_v1
+#
+# DingTalk:
+# DINGTALK_APP_KEY         — AppKey from https://open-dev.dingtalk.com 企业内部应用
+# DINGTALK_APP_SECRET      — App Secret
+# Webhook URL: https://api.welian.app/im/dingtalk/webhook
+# 机器人消息接收模式: HTTP 模式
+
 # ── Paddle (global payments, USD) ──
 # Set via: wrangler secret put <NAME>
 # PADDLE_API_KEY           — Paddle API key (paddle_...)
@@ -46,5 +71,7 @@ preview_id = "98c045b73d874a869493706dc585bafb"
 # Paddle webhook URL: https://api.welian.app/ai/paddle/webhook
 
 # Cron: weekly report push every Monday 09:00 CST (01:00 UTC)
+# Cron: daily signals push 07:00 CST (23:00 UTC previous day)
+# Cron: health warning push biweekly (1st & 15th) 09:00 CST (01:00 UTC)
 [triggers]
-crons = ["0 1 * * 1"]
+crons = ["0 1 * * 1", "0 23 * * *", "0 1 1,15 * *"]

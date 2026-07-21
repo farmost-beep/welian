@@ -3,6 +3,33 @@
 import { CLOUD_URL, I18N, PDF_SANDBOX_URL, body, bridgeFrame, bridgeReady, currentLang, input, mineCache, onboardingExtractedContacts, setMineCache, setOnboardingExtractedContacts, simulationMode } from './state.js';
 import { addMsg } from './chat.js';
 import { escapeHtml, mineApi } from './misc.js';
+
+// Normalize LLM report fields that might be string or object into display text
+function formatReportField(val, zh) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    // Array → join items
+    if (Array.isArray(val)) return val.map(v => typeof v === 'string' ? v : formatReportField(v, zh)).filter(Boolean).join('；');
+    // Object → format key-value pairs
+    const entries = Object.entries(val).filter(([, v]) => v != null && v !== '');
+    if (entries.length === 0) return '';
+    return entries.map(([k, v]) => {
+      // Translate known keys
+      const labelMap = {
+        busiest_month: zh ? '最忙月份' : 'Busiest month',
+        quietest_month: zh ? '最闲月份' : 'Quietest month',
+        month: zh ? '月份' : 'Month',
+        contact: zh ? '联系人' : 'Contact',
+        count: zh ? '次数' : 'Count',
+        description: zh ? '描述' : 'Description',
+      };
+      const label = labelMap[k] || k;
+      return `${label}: ${v}`;
+    }).join('；');
+  }
+  return String(val);
+}
 import { getClerkToken } from './auth.js';
 
 export async function loadWeeklyTab() {
@@ -121,7 +148,8 @@ export function buildShareCard(title, subtitle, sections, zh) {
     </div>
     ${sectionsHtml}
     <div style="margin-top:24px;text-align:center;padding-top:16px;border-top:1px solid #e8e0d6">
-      <div style="font-size:11px;color:#bbb">— Welian 小维 · welian.app —</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#4A6741;color:#fff;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600">Welian 小维</div>
+      <div style="font-size:11px;color:#999;margin-top:8px">用 Welian 管理你的关系 · <span style="color:#4A6741;font-weight:600">welian.app</span></div>
     </div>
   `;
   return card;
@@ -393,7 +421,8 @@ export function showWeChatShareGuide(zh) {
     <div style="color:#fff;text-align:right;padding-top:10px;max-width:280px">
       <div style="font-size:1.4em;margin-bottom:12px">👆</div>
       <div style="font-size:1em;font-weight:600;margin-bottom:8px">${zh ? '点击右上角 ··· 分享' : 'Tap ··· at top-right to share'}</div>
-      <div style="font-size:.82em;opacity:.8;line-height:1.5">${zh ? '长图已复制，可选择「发送给朋友」或「分享到朋友圈」' : 'Image copied. Choose "Send to friend" or "Share to Moments"'}</div>
+      <div style="font-size:.82em;opacity:.8;line-height:1.5">${zh ? '长图已复制，可选择「发送给朋友」「分享到朋友圈」或「发送到微信群」' : 'Image copied. Choose "Send to friend", "Share to Moments" or "Send to WeChat group"'}</div>
+      <div style="font-size:.75em;opacity:.6;margin-top:10px">${zh ? '朋友看到后可通过 welian.app 体验' : 'Friends can try Welian at welian.app'}</div>
     </div>
   `;
   guide.onclick = () => guide.remove();
@@ -465,17 +494,62 @@ export async function loadSignalsTab() {
   const zh = currentLang === 'zh';
   const content = document.getElementById('mineContent');
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
+
+  // Load user domain preferences
+  let userDomains = ['investment', 'ai', 'tech_finance'];
+  try {
+    const token = simulationMode ? `demo_sim:demo_secret` : await getClerkToken();
+    if (token) {
+      const dresp = await fetch(`${CLOUD_URL}/ai/signal_domains`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (dresp.ok) {
+        const ddata = await dresp.json();
+        if (ddata.domains) userDomains = ddata.domains;
+      }
+    }
+  } catch (e) {}
+
   try {
     const resp = await mineApi('/ai/hn_signals', 'POST', {});
     const report = resp.report || {};
     const raw = resp.raw_data || {};
     const signals = report.signals || [];
+    const contactSignals = report.contact_signals || [];
     const themes = report.themes || [];
 
+    // Source badges
+    const sourceCount = {};
+    signals.forEach(s => { sourceCount[s.source || '网络'] = (sourceCount[s.source || '网络'] || 0) + 1; });
+    const sourceBadges = Object.entries(sourceCount).map(([src, cnt]) =>
+      `<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);padding:1px 8px;border-radius:10px;font-size:.72em;margin:2px">${escapeHtml(src)} ${cnt}</span>`
+    ).join('');
+
+    // Domain selector
+    const domainOptions = [
+      { key: 'investment', label: zh ? '投资' : 'Investment', icon: '📈' },
+      { key: 'ai', label: 'AI', icon: '🤖' },
+      { key: 'tech_finance', label: zh ? '科技金融' : 'Tech Finance', icon: '💳' },
+    ];
+    const domainSelector = domainOptions.map(opt => {
+      const checked = userDomains.includes(opt.key) ? 'checked' : '';
+      return `<label style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px;cursor:pointer;font-size:.85em">
+        <input type="checkbox" ${checked} onchange="toggleSignalDomain('${opt.key}', this.checked)" style="cursor:pointer">
+        ${opt.icon} ${opt.label}
+      </label>`;
+    }).join('');
+
     let html = `<div class="mine-card" style="text-align:center;margin-bottom:12px">
-      <div style="font-size:1.2em;font-weight:500">📡 ${zh ? '今日 HN 信号' : 'Today\'s HN Signals'}</div>
-      <div style="font-size:.78em;color:var(--dim);margin-top:4px">${zh ? '结合你的关系网络，从 Hacker News 筛选关键信号' : 'Personalized from Hacker News with your network context'}</div>
-      <div style="margin-top:8px;display:flex;gap:8px"><button onclick="shareSignalsReport()" style="font-size:.75em;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${zh ? '📤 分享' : '📤 Share'}</button><button onclick="exportReportPDF('signals', window._signalsReportData?.report || {})" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">📄 PDF</button></div>
+      <div style="font-size:1.2em;font-weight:500">📡 ${zh ? '今日信号' : "Today's Signals"}</div>
+      <div style="font-size:.78em;color:var(--dim);margin-top:4px">${zh ? '结合你的关系网络，从多源信号筛选关键信息' : 'Personalized from multiple sources + contact company news'}</div>
+      ${sourceBadges ? `<div style="margin-top:6px">${sourceBadges}</div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center"><button onclick="shareSignalsReport()" style="font-size:.75em;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${zh ? '📤 分享' : '📤 Share'}</button><button onclick="exportReportPDF('signals', window._signalsReportData?.report || {})" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">📄 PDF</button><button onclick="refreshSignals()" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--dim);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">🔄 ${zh ? '刷新' : 'Refresh'}</button></div>
+    </div>`;
+
+    // Domain selector
+    html += `<div class="mine-card" style="margin-bottom:12px">
+      <div style="font-size:.8em;color:var(--dim);margin-bottom:6px">${zh ? '关注领域（切换后刷新生效）' : 'Focus domains (refresh after toggle)'}</div>
+      <div>${domainSelector}</div>
     </div>`;
 
     if (report.greeting) {
@@ -488,22 +562,147 @@ export async function loadSignalsTab() {
       html += `</div>`;
     }
 
+    // Contact company signals
+    if (contactSignals.length > 0) {
+      html += `<div class="mine-section-title">👥 ${zh ? '联系人公司动态' : 'Contact Company News'}</div>`;
+      contactSignals.forEach(cs => {
+        html += `<div class="mine-card">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="font-weight:500;font-size:.9em">${escapeHtml(cs.contact_name || '')}</span>
+            <span style="font-size:.72em;color:var(--dim);background:var(--surface);padding:1px 6px;border-radius:8px">${escapeHtml(cs.company || '')}</span>
+          </div>
+          <div style="font-weight:500;font-size:.88em">${escapeHtml(cs.title || '')}</div>
+          ${cs.snippet ? `<div style="font-size:.78em;color:var(--dim);margin-top:4px;line-height:1.5">${escapeHtml(cs.snippet)}</div>` : ''}
+          ${cs.relevance ? `<div style="font-size:.78em;color:var(--accent);margin-top:4px">→ ${escapeHtml(cs.relevance)}</div>` : ''}
+          ${cs.url ? `<a href="${escapeHtml(cs.url)}" target="_blank" style="font-size:.72em;color:var(--accent);margin-top:2px;display:inline-block">${zh ? '查看原文' : 'Source'}</a>` : ''}
+        </div>`;
+      });
+    }
+
     if (signals.length > 0) {
-      html += `<div class="mine-section-title">${zh ? '📊 关键信号' : '📊 Key Signals'}</div>`;
+      html += `<div class="mine-section-title">📊 ${zh ? '关键信号' : 'Key Signals'}</div>`;
       signals.forEach((s, i) => {
+        const sourceTag = s.source ? `<span style="font-size:.65em;color:var(--dimmer);background:var(--surface);padding:1px 5px;border-radius:4px;margin-left:4px">${escapeHtml(s.source)}</span>` : '';
+        // Related contacts — only show if LLM returned contacts with actual names
+        const relatedContacts = (s.related_contacts || []).filter(rc => rc.name && rc.name.trim());
+        const contactsHtml = relatedContacts.length > 0
+          ? `<div style="margin-top:8px;padding:8px 10px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent)">
+              <div style="font-size:.72em;color:var(--accent);font-weight:500;margin-bottom:4px">👥 ${zh ? '相关联系人' : 'Related Contacts'}</div>
+              ${relatedContacts.map(rc => `<div style="font-size:.78em;margin-bottom:3px"><b style="color:var(--text)">${escapeHtml(rc.name)}</b> <span style="color:var(--dim)">— ${escapeHtml(rc.reason)}</span></div>`).join('')}
+            </div>`
+          : '';
         html += `<div class="mine-card">
           <div style="display:flex;justify-content:space-between;align-items:start">
             <div style="flex:1">
-              <div style="font-weight:500;font-size:.92em">${escapeHtml(s.title || '')}</div>
-              <div style="font-size:.72em;color:var(--dimmer);margin-top:2px">${s.points || 0} ${zh?'分':'pts'} · <a href="${escapeHtml(s.hn_url || '')}" target="_blank" style="color:var(--accent)">HN</a>${s.url ? ` · <a href="${escapeHtml(s.url)}" target="_blank" style="color:var(--accent)">${zh?'原文':'Source'}</a>` : ''}</div>
+              <div style="font-weight:500;font-size:.92em">${escapeHtml(s.title || '')}${sourceTag}</div>
+              <div style="font-size:.72em;color:var(--dimmer);margin-top:2px">${s.points || 0} ${zh?'分':'pts'}${s.url ? ` · <a href="${escapeHtml(s.url)}" target="_blank" style="color:var(--accent)">${zh?'原文':'Source'}</a>` : ''}</div>
             </div>
           </div>
           <div style="font-size:.82em;line-height:1.6;margin-top:8px;color:var(--dim)"><strong>${zh?'为什么重要':'Why'}：</strong>${escapeHtml(s.why || '')}</div>
           <div style="font-size:.82em;line-height:1.6;margin-top:4px;color:var(--accent)"><strong>→ ${zh?'建议行动':'Action'}：</strong>${escapeHtml(s.action || '')}</div>
+          ${contactsHtml}
           ${(s.tags || []).length > 0 ? `<div style="margin-top:6px">${s.tags.map(t => `<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);padding:1px 6px;border-radius:8px;font-size:.7em;margin:1px">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
         </div>`;
       });
-    } else {
+    } else if (contactSignals.length === 0) {
+      html += `<div class="mine-empty">${zh ? '今天没有强相关信号' : 'No strong signals today'}</div>`;
+    }
+
+    if (report.closing) {
+      html += `<div class="mine-card" style="font-size:.85em;color:var(--dim);text-align:center">${escapeHtml(report.closing)}</div>`;
+    }
+
+    content.innerHTML = html;
+    window._signalsReportData = { report, raw };
+  } catch (e) {
+    content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+export async function refreshSignals() {
+  const zh = currentLang === 'zh';
+  const content = document.getElementById('mineContent');
+  if (content) content.innerHTML = `<div class="mine-empty">${zh ? '🔄 正在重新生成信号…' : '🔄 Regenerating signals…'}</div>`;
+  try {
+    const resp = await mineApi('/ai/hn_signals', 'POST', { refresh: true });
+    const report = resp.report || {};
+    const raw = resp.raw_data || {};
+    const signals = report.signals || [];
+    const contactSignals = report.contact_signals || [];
+    const themes = report.themes || [];
+    const contactSearch = raw.contact_search || [];
+
+    // Debug: show what we got
+    console.log('[signals] refresh result:', { signals: signals.length, contactSignals: contactSignals.length, contactSearch: contactSearch.length, raw: JSON.stringify(raw).substring(0, 200) });
+
+    const sourceCount = {};
+    signals.forEach(s => { sourceCount[s.source || '网络'] = (sourceCount[s.source || '网络'] || 0) + 1; });
+    const sourceBadges = Object.entries(sourceCount).map(([src, cnt]) =>
+      `<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);padding:1px 8px;border-radius:10px;font-size:.72em;margin:2px">${escapeHtml(src)} ${cnt}</span>`
+    ).join('');
+
+    let html = `<div class="mine-card" style="text-align:center;margin-bottom:12px">
+      <div style="font-size:1.2em;font-weight:500">📡 ${zh ? '今日信号' : "Today's Signals"}</div>
+      <div style="font-size:.78em;color:var(--dim);margin-top:4px">${zh ? '结合你的关系网络，从 13 源信号筛选：HN + 36氪 + 虎嗅 + 头条 + 微信 + 机器之心 + 华尔街见闻 + 投资界 + Product Hunt + TechCrunch + The Verge + ArXiv + V2EX + 联系人公司动态' : 'Personalized from 13 sources: HN + 36Kr + Huxiu + Toutiao + WeChat + JQZX + WallStreet + PE Daily + Product Hunt + TechCrunch + The Verge + ArXiv + V2EX + contact company news'}</div>
+      ${sourceBadges ? `<div style="margin-top:6px">${sourceBadges}</div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center"><button onclick="shareSignalsReport()" style="font-size:.75em;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${zh ? '📤 分享' : '📤 Share'}</button><button onclick="exportReportPDF('signals', window._signalsReportData?.report || {})" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">📄 PDF</button><button onclick="refreshSignals()" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--dim);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">🔄 ${zh ? '刷新' : 'Refresh'}</button></div>
+    </div>`;
+
+    if (report.greeting) {
+      html += `<div class="mine-card" style="font-size:.9em;line-height:1.7">${escapeHtml(report.greeting)}</div>`;
+    }
+
+    if (themes.length > 0) {
+      html += `<div class="mine-section-title">${zh ? '🔥 热点主题' : '🔥 Hot Themes'}</div><div class="mine-card">`;
+      themes.forEach(t => { html += `<span style="display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:12px;font-size:.78em;margin:2px">${escapeHtml(t)}</span>`; });
+      html += `</div>`;
+    }
+
+    // Contact company signals
+    if (contactSignals.length > 0) {
+      html += `<div class="mine-section-title">👥 ${zh ? '联系人公司动态' : 'Contact Company News'}</div>`;
+      contactSignals.forEach(cs => {
+        html += `<div class="mine-card">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="font-weight:500;font-size:.9em">${escapeHtml(cs.contact_name || '')}</span>
+            <span style="font-size:.72em;color:var(--dim);background:var(--surface);padding:1px 6px;border-radius:8px">${escapeHtml(cs.company || '')}</span>
+          </div>
+          <div style="font-weight:500;font-size:.88em">${escapeHtml(cs.title || '')}</div>
+          ${cs.snippet ? `<div style="font-size:.78em;color:var(--dim);margin-top:4px;line-height:1.5">${escapeHtml(cs.snippet)}</div>` : ''}
+          ${cs.relevance ? `<div style="font-size:.78em;color:var(--accent);margin-top:4px">→ ${escapeHtml(cs.relevance)}</div>` : ''}
+          ${cs.url ? `<a href="${escapeHtml(cs.url)}" target="_blank" style="font-size:.72em;color:var(--accent);margin-top:2px;display:inline-block">${zh ? '查看原文' : 'Source'}</a>` : ''}
+        </div>`;
+      });
+    } else if (contactSearch.length === 0) {
+      html += `<div class="mine-card" style="font-size:.78em;color:var(--dimmer);text-align:center">${zh ? '💡 暂无联系人公司动态——给联系人添加公司信息后会有更多动态' : '💡 No contact company news — add company info to contacts for more signals'}</div>`;
+    }
+
+    if (signals.length > 0) {
+      html += `<div class="mine-section-title">📊 ${zh ? '关键信号' : 'Key Signals'}</div>`;
+      signals.forEach((s, i) => {
+        const sourceTag = s.source ? `<span style="font-size:.65em;color:var(--dimmer);background:var(--surface);padding:1px 5px;border-radius:4px;margin-left:4px">${escapeHtml(s.source)}</span>` : '';
+        // Related contacts — only show if LLM returned contacts with actual names
+        const relatedContacts = (s.related_contacts || []).filter(rc => rc.name && rc.name.trim());
+        const contactsHtml = relatedContacts.length > 0
+          ? `<div style="margin-top:8px;padding:8px 10px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent)">
+              <div style="font-size:.72em;color:var(--accent);font-weight:500;margin-bottom:4px">👥 ${zh ? '相关联系人' : 'Related Contacts'}</div>
+              ${relatedContacts.map(rc => `<div style="font-size:.78em;margin-bottom:3px"><b style="color:var(--text)">${escapeHtml(rc.name)}</b> <span style="color:var(--dim)">— ${escapeHtml(rc.reason)}</span></div>`).join('')}
+            </div>`
+          : '';
+        html += `<div class="mine-card">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div style="flex:1">
+              <div style="font-weight:500;font-size:.92em">${escapeHtml(s.title || '')}${sourceTag}</div>
+              <div style="font-size:.72em;color:var(--dimmer);margin-top:2px">${s.points || 0} ${zh?'分':'pts'}${s.url ? ` · <a href="${escapeHtml(s.url)}" target="_blank" style="color:var(--accent)">${zh?'原文':'Source'}</a>` : ''}</div>
+            </div>
+          </div>
+          <div style="font-size:.82em;line-height:1.6;margin-top:8px;color:var(--dim)"><strong>${zh?'为什么重要':'Why'}：</strong>${escapeHtml(s.why || '')}</div>
+          <div style="font-size:.82em;line-height:1.6;margin-top:4px;color:var(--accent)"><strong>→ ${zh?'建议行动':'Action'}：</strong>${escapeHtml(s.action || '')}</div>
+          ${contactsHtml}
+          ${(s.tags || []).length > 0 ? `<div style="margin-top:6px">${s.tags.map(t => `<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);padding:1px 6px;border-radius:8px;font-size:.7em;margin:1px">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        </div>`;
+      });
+    } else if (contactSignals.length === 0) {
       html += `<div class="mine-empty">${zh ? '今天没有强相关信号' : 'No strong signals today'}</div>`;
     }
 
@@ -523,33 +722,47 @@ export function shareSignalsReport() {
   if (!data) return;
   const { report } = data;
   const zh = currentLang === 'zh';
-  let text = `📡 ${zh ? '今日 HN 信号' : "Today's HN Signals"}\n\n`;
+  // Track signal action (share/forward)
+  trackSignalAction('share', (report.signals || []).map(s => s.title).join(', '));
+  let text = `📡 ${zh ? '今日信号' : "Today's Signals"}\n\n`;
   if (report.greeting) text += `${report.greeting}\n\n`;
   if ((report.themes || []).length > 0) {
     text += zh ? `🔥 热点主题\n${report.themes.map(t => `· ${t}`).join('\n')}\n\n` : `🔥 Themes\n${report.themes.map(t => `· ${t}`).join('\n')}\n\n`;
   }
+  const contactSignals = report.contact_signals || [];
+  if (contactSignals.length > 0) {
+    text += zh ? `👥 联系人公司动态\n` : `👥 Contact Company News\n`;
+    contactSignals.forEach(cs => {
+      text += `· ${cs.contact_name} (${cs.company}): ${cs.title}\n`;
+      if (cs.relevance) text += `  → ${cs.relevance}\n`;
+    });
+    text += `\n`;
+  }
   const signals = report.signals || [];
   if (signals.length > 0) {
     signals.forEach(s => {
-      text += `📊 ${s.title || ''} (${s.points || 0}pts)\n`;
+      text += `📊 ${s.title || ''} (${s.points || 0}pts) [${s.source || ''}]\n`;
       text += `${zh ? '为什么重要' : 'Why'}：${s.why || ''}\n`;
       text += `→ ${zh ? '建议' : 'Action'}：${s.action || ''}\n`;
-      if (s.hn_url) text += `${s.hn_url}\n`;
+      if (s.url) text += `${s.url}\n`;
       text += `\n`;
     });
   }
   if (report.closing) text += `${report.closing}\n`;
-  text += `\n— Welian 小维 · welian.app`;
+  text += `\n— 用 Welian 管理你的关系：welian.app`;
 
   const sections = [];
   if (report.greeting) sections.push({ icon: '💬', title: '', items: [escapeHtml(report.greeting)] });
   if ((report.themes || []).length > 0) {
     sections.push({ icon: '🔥', title: zh ? '热点主题' : 'Themes', items: report.themes.map(t => escapeHtml(t)) });
   }
-  if (signals.length > 0) {
-    sections.push({ icon: '📊', title: zh ? '关键信号' : 'Key Signals', items: signals.map(s => `${escapeHtml(s.title||'')} (${s.points||0}pts)\n${escapeHtml(s.why||'')}\n→ ${escapeHtml(s.action||'')}`) });
+  if (contactSignals.length > 0) {
+    sections.push({ icon: '👥', title: zh ? '联系人公司动态' : 'Contact Company News', items: contactSignals.map(cs => `${escapeHtml(cs.contact_name||'')} (${escapeHtml(cs.company||'')})\n${escapeHtml(cs.title||'')}\n→ ${escapeHtml(cs.relevance||'')}`) });
   }
-  const card = buildShareCard(zh ? '📡 今日 HN 信号' : '📡 HN Signals', zh ? '结合你的关系网络' : 'Personalized with your network', sections, zh);
+  if (signals.length > 0) {
+    sections.push({ icon: '📊', title: zh ? '关键信号' : 'Key Signals', items: signals.map(s => `${escapeHtml(s.title||'')} (${s.points||0}pts) [${escapeHtml(s.source||'')}]\n${escapeHtml(s.why||'')}\n→ ${escapeHtml(s.action||'')}`) });
+  }
+  const card = buildShareCard(zh ? '📡 今日信号' : '📡 Today\'s Signals', zh ? 'HN + 36氪 + 虎嗅 + 联系人动态' : 'HN + 36Kr + Huxiu + Contacts', sections, zh);
   showShareModal(text, zh, card);
 }
 
@@ -731,6 +944,134 @@ export async function loadMonthlyTab() {
   } catch (e) {
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
+}
+
+export async function loadAnnualTab() {
+  const d = I18N[currentLang];
+  const zh = currentLang === 'zh';
+  const content = document.getElementById('mineContent');
+  content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
+  try {
+    const resp = await mineApi('/ai/annual_report', 'POST', {});
+    const report = resp.report || {};
+    const year = report.year || new Date().getFullYear();
+
+    let html = `<div class="mine-card" style="text-align:center;margin-bottom:12px">
+      <div style="font-size:1.4em;font-weight:600">🏆 ${year}${zh ? '年度关系报告' : ' Annual Report'}</div>
+      <div style="font-size:.78em;color:var(--dim);margin-top:4px">${zh ? '回顾这一年的关系经营' : 'A year in review'}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+        <button onclick="exportAnnualPDF()" style="font-size:.75em;padding:4px 12px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit">📄 PDF</button>
+      </div>
+    </div>`;
+
+    if (report.greeting) {
+      html += `<div class="mine-card" style="font-size:.95em;line-height:1.8">${escapeHtml(report.greeting)}</div>`;
+    }
+
+    if (report.review) {
+      html += `<div class="mine-card"><div class="mine-card-title">📝 ${zh ? '年度回顾' : 'Review'}</div><div style="line-height:1.7">${escapeHtml(report.review)}</div></div>`;
+    }
+
+    // Key numbers
+    const keyNumbers = report.key_numbers || [];
+    const rawStats = report.raw_stats || {};
+    if (keyNumbers.length > 0 || rawStats.total_contacts !== undefined) {
+      html += `<div class="mine-card"><div class="mine-card-title">📊 ${zh ? '关键数字' : 'Key Numbers'}</div>`;
+      if (keyNumbers.length > 0) {
+        for (const kn of keyNumbers) {
+          html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--dim)">${escapeHtml(kn.label)}</span><b>${escapeHtml(String(kn.value))}</b></div>`;
+        }
+      } else if (rawStats.total_contacts !== undefined) {
+        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+        html += `<div style="text-align:center;padding:12px;background:var(--surface);border-radius:8px"><div style="font-size:1.5em;font-weight:600;color:var(--accent)">${rawStats.total_interactions || 0}</div><div style="font-size:.75em;color:var(--dim)">${zh ? '总互动' : 'Interactions'}</div></div>`;
+        html += `<div style="text-align:center;padding:12px;background:var(--surface);border-radius:8px"><div style="font-size:1.5em;font-weight:600;color:var(--accent)">${rawStats.total_contacts || 0}</div><div style="font-size:.75em;color:var(--dim)">${zh ? '关系数' : 'Contacts'}</div></div>`;
+        html += `<div style="text-align:center;padding:12px;background:var(--surface);border-radius:8px"><div style="font-size:1.5em;font-weight:600;color:var(--accent)">${rawStats.new_contacts_this_year || 0}</div><div style="font-size:.75em;color:var(--dim)">${zh ? '新增' : 'New'}</div></div>`;
+        html += `<div style="text-align:center;padding:12px;background:var(--surface);border-radius:8px"><div style="font-size:1.5em;font-weight:600;color:var(--accent)">${rawStats.completion_rate || 0}%</div><div style="font-size:.75em;color:var(--dim)">${zh ? '完成率' : 'Done Rate'}</div></div>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Health
+    const health = report.health || {};
+    if (health.active !== undefined || report.raw_stats) {
+      const h = health.active !== undefined ? health : { active: rawStats.active_relationships, cooling: rawStats.cooling_relationships, dormant: rawStats.dormant_relationships };
+      html += `<div class="mine-card"><div class="mine-card-title">💚 ${zh ? '关系健康度' : 'Health'}</div>`;
+      html += `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
+      html += `<span style="background:#4A674120;color:#4A6741;padding:4px 12px;border-radius:12px;font-size:.85em">${zh ? '活跃' : 'Active'} ${h.active || 0}</span>`;
+      html += `<span style="background:#e74c3c20;color:#e74c3c;padding:4px 12px;border-radius:12px;font-size:.85em">${zh ? '冷却' : 'Cooling'} ${h.cooling || 0}</span>`;
+      html += `<span style="background:#95a5a620;color:#95a5a6;padding:4px 12px;border-radius:12px;font-size:.85em">${zh ? '休眠' : 'Dormant'} ${h.dormant || 0}</span>`;
+      html += `</div></div>`;
+    }
+
+    // Monthly distribution chart
+    const monthly = report.monthly_distribution || [];
+    if (monthly.length === 12) {
+      const maxVal = Math.max(...monthly, 1);
+      html += `<div class="mine-card"><div class="mine-card-title">📈 ${zh ? '月度互动分布' : 'Monthly Distribution'}</div>`;
+      html += `<div style="display:flex;align-items:flex-end;gap:3px;height:80px;margin-top:8px">`;
+      monthly.forEach((v, i) => {
+        const h = Math.max(2, (v / maxVal) * 70);
+        html += `<div style="flex:1;text-align:center"><div style="background:var(--accent);height:${h}px;border-radius:3px 3px 0 0;transition:height .3s"></div><div style="font-size:.6em;color:var(--dim);margin-top:2px">${i + 1}</div></div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // Top contacts
+    const topContacts = report.top_contacts || [];
+    if (topContacts.length > 0) {
+      html += `<div class="mine-card"><div class="mine-card-title">🌟 ${zh ? '互动最多的联系人' : 'Top Contacts'}</div>`;
+      topContacts.slice(0, 10).forEach((c, i) => {
+        html += `<div style="display:flex;justify-content:space-between;padding:4px 0"><span><b style="color:var(--accent)">${i + 1}.</b> ${escapeHtml(c.name)}</span><span style="color:var(--dim)">${c.count} ${zh ? '次' : 'times'}</span></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Highlights — LLM may return string or object, normalize to string
+    const highlightsText = formatReportField(report.highlights, zh);
+    if (highlightsText) {
+      html += `<div class="mine-card"><div class="mine-card-title">✨ ${zh ? '高光时刻' : 'Highlights'}</div><div style="line-height:1.7">${escapeHtml(highlightsText)}</div></div>`;
+    }
+
+    // Growth — same normalization
+    const growthText = formatReportField(report.growth, zh);
+    if (growthText) {
+      html += `<div class="mine-card"><div class="mine-card-title">🧬 ${zh ? '成长轨迹' : 'Growth'}</div><div style="line-height:1.7">${escapeHtml(growthText)}</div></div>`;
+    }
+
+    // Suggestions
+    const suggestions = report.suggestions || [];
+    if (suggestions.length > 0) {
+      html += `<div class="mine-card"><div class="mine-card-title">🎯 ${zh ? '明年建议' : 'Next Year Suggestions'}</div>`;
+      suggestions.forEach(s => {
+        html += `<div style="padding:6px 0;border-bottom:1px solid var(--border)">· ${escapeHtml(s)}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    content.innerHTML = html;
+    window._annualReportData = { report, year };
+  } catch (e) {
+    content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+export function exportAnnualPDF() {
+  const data = window._annualReportData;
+  if (!data) return;
+  const { report, year } = data;
+  const zh = currentLang === 'zh';
+  const sections = [];
+  if (report.greeting) sections.push({ icon: '🏆', title: `${year}${zh ? '年度报告' : ' Annual Report'}`, items: [escapeHtml(report.greeting)] });
+  if (report.review) sections.push({ icon: '📝', title: zh ? '年度回顾' : 'Review', items: [escapeHtml(report.review)] });
+  const kn = report.key_numbers || [];
+  if (kn.length > 0) sections.push({ icon: '📊', title: zh ? '关键数字' : 'Key Numbers', items: kn.map(k => `${escapeHtml(k.label)}: ${escapeHtml(String(k.value))}`) });
+  if (report.highlights) sections.push({ icon: '✨', title: zh ? '高光时刻' : 'Highlights', items: [escapeHtml(report.highlights)] });
+  if (report.growth) sections.push({ icon: '🧬', title: zh ? '成长轨迹' : 'Growth', items: [escapeHtml(report.growth)] });
+  const sugg = report.suggestions || [];
+  if (sugg.length > 0) sections.push({ icon: '🎯', title: zh ? '明年建议' : 'Suggestions', items: sugg.map(s => escapeHtml(s)) });
+  const card = buildShareCard(`🏆 ${year}${zh ? '年度关系报告' : ' Annual Report'}`, '', sections, zh);
+  showShareModal('', zh, card);
 }
 
 export function exportMonthlyPDF() {
@@ -983,5 +1324,52 @@ export async function finishOnboarding() {
     } catch (e) {
       console.log('[onboarding] first advise failed:', e.message);
     }
+  }
+}
+
+// Track signal actions (share/forward/record/todo) for evolution metrics
+async function trackSignalAction(type, title) {
+  try {
+    const token = simulationMode ? `demo_sim:demo_secret` : await getClerkToken();
+    if (!token) return;
+    await fetch(`${CLOUD_URL}/ai/signal_action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ type, title }),
+    });
+  } catch (e) { /* fire-and-forget */ }
+}
+
+// Toggle signal domain preference and refresh
+export async function toggleSignalDomain(domain, enabled) {
+  try {
+    const token = simulationMode ? `demo_sim:demo_secret` : await getClerkToken();
+    if (!token) return;
+    // Get current domains
+    const resp = await fetch(`${CLOUD_URL}/ai/signal_domains`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    let domains = ['investment', 'ai', 'tech_finance'];
+    if (resp.ok) {
+      const data = await resp.json();
+      domains = data.domains || domains;
+    }
+    // Toggle
+    if (enabled && !domains.includes(domain)) domains.push(domain);
+    if (!enabled) domains = domains.filter(d => d !== domain);
+    // Save (ensure at least one domain)
+    if (domains.length === 0) {
+      alert(currentLang === 'zh' ? '至少需要选择一个领域' : 'At least one domain required');
+      return;
+    }
+    await fetch(`${CLOUD_URL}/ai/signal_domains`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ domains }),
+    });
+    // Auto-refresh signals after domain change
+    setTimeout(() => refreshSignals(), 300);
+  } catch (e) {
+    console.error('[signal_domains] toggle failed:', e.message);
   }
 }

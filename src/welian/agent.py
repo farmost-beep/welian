@@ -1257,6 +1257,156 @@ class LocalAgent:
 
             return web.json_response({"imported": imported, "skipped": skipped, "total": len(contacts), "extracted_names": [c.get("name","") for c in contacts[:5]]})
 
+        def _verify_sync_token(self, request):
+            """Verify cloud→local sync token: Bearer <clerk_uid>:<WELIAN_SYNC_SECRET>.
+
+            Returns clerk_uid on success, None on failure.
+            """
+            sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
+            if not sync_secret:
+                return None
+            auth = request.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                return None
+            token = auth[7:]
+            if ":" not in token:
+                return None
+            uid, secret = token.split(":", 1)
+            if secret != sync_secret:
+                return None
+            return uid
+
+        async def cloud_health_handler(request):
+            """GET /cloud/health — liveness check for cloud dispatcher."""
+            uid = self._verify_sync_token(request)
+            if not uid:
+                return web.json_response({"error": "unauthorized"}, status=401)
+            return web.json_response({
+                "status": "ok",
+                "clerk_uid": uid,
+                "device_id": self.device_id,
+                "tunnel": self.tunnel_url or None,
+            })
+
+        async def cloud_query_handler(request):
+            """POST /cloud/query — return local datasets for cloud dispatcher.
+
+            Body: { "datasets": ["contacts", "todos", "timeline"] }
+            Returns: { "contacts": [...], "todos": [...], "timeline": [...] }
+            """
+            uid = self._verify_sync_token(request)
+            if not uid:
+                return web.json_response({"error": "unauthorized"}, status=401)
+            try:
+                body = await request.json()
+            except Exception:
+                return web.json_response({"error": "Invalid JSON"}, status=400)
+            requested = body.get("datasets", ["contacts", "todos", "timeline"])
+
+            from .engine import get_store
+            store = get_store()
+            result = {}
+            for name in requested:
+                try:
+                    result[name] = store.load(name)
+                except Exception as e:
+                    print(f"  /cloud/query load {name} error: {e}")
+                    result[name] = []
+            return web.json_response(result)
+
+        async def cloud_tool_handler(request):
+            """POST /cloud/tool — execute a tool call via local Devin CLI subprocess.
+
+            Body: { "tool": { "type": "shell"|"read"|"write"|"grep"|"glob", ...args } }
+            Returns: { "ok": true, "output": "..." } or { "ok": false, "error": "..." }
+
+            This is the "Devin CLI capability" entry point — cloud dispatcher
+            delegates tool execution here when local agent is online.
+            """
+            uid = self._verify_sync_token(request)
+            if not uid:
+                return web.json_response({"error": "unauthorized"}, status=401)
+            try:
+                body = await request.json()
+            except Exception:
+                return web.json_response({"error": "Invalid JSON"}, status=400)
+            tool = body.get("tool", {})
+            tool_type = tool.get("type", "")
+            if not tool_type:
+                return web.json_response({"ok": False, "error": "tool.type required"})
+
+            # Build a prompt for Devin CLI to execute the tool call
+            import tempfile
+            from pathlib import Path
+            tmp_dir = Path(tempfile.gettempdir()) / "welian-cloud-tool"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            prompt_file = tmp_dir / f"prompt-{uuid.uuid4().hex[:8]}.txt"
+            export_file = tmp_dir / f"export-{uuid.uuid4().hex[:8]}.json"
+
+            # Translate tool call into a Devin CLI prompt
+            if tool_type == "shell":
+                cmd = tool.get("command", "")
+                if not cmd:
+                    return web.json_response({"ok": False, "error": "shell command required"})
+                prompt = f"Run this shell command and return its output verbatim. Do not explain.\n\n$ {cmd}"
+            elif tool_type == "read":
+                path = tool.get("path", "")
+                if not path:
+                    return web.json_response({"ok": False, "error": "read path required"})
+                prompt = f"Read the file at {path} and return its content verbatim. Do not summarize."
+            elif tool_type == "write":
+                path = tool.get("path", "")
+                content = tool.get("content", "")
+                if not path:
+                    return web.json_response({"ok": False, "error": "write path required"})
+                prompt = f"Write the following content to {path}. Reply only 'OK' on success.\n\n---\n{content}\n---"
+            elif tool_type == "grep":
+                pattern = tool.get("pattern", "")
+                path = tool.get("path", ".")
+                prompt = f"Search for pattern '{pattern}' in '{path}' and return matching lines. Do not explain."
+            elif tool_type == "glob":
+                pattern = tool.get("pattern", "")
+                prompt = f"Find files matching '{pattern}' and return the list. Do not explain."
+            else:
+                return web.json_response({"ok": False, "error": f"unsupported tool type: {tool_type}"})
+
+            prompt_file.write_text(prompt, encoding="utf-8")
+            work_dir = os.environ.get("WELIAN_WORK_DIR", os.path.expanduser("~"))
+            timeout = int(tool.get("timeout", 60))
+
+            cmd = [
+                "devin", "--permission-mode", "plan",
+                "-p",
+                "--prompt-file", str(prompt_file),
+                "--export", str(export_file),
+            ]
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd, cwd=work_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env={**os.environ, "NO_AUTO_UPDATE": "true"},
+                )
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+                    return web.json_response({"ok": False, "error": f"tool timeout ({timeout}s)"})
+                output = (stdout or b"").decode("utf-8", errors="replace").strip()
+                if proc.returncode != 0 and not output:
+                    err = (stderr or b"").decode("utf-8", errors="replace").strip()
+                    return web.json_response({"ok": False, "error": f"devin exit {proc.returncode}: {err[:200]}"})
+                return web.json_response({"ok": True, "output": output})
+            except FileNotFoundError:
+                return web.json_response({"ok": False, "error": "devin CLI not found in PATH"})
+            except Exception as e:
+                return web.json_response({"ok": False, "error": str(e)[:200]})
+            finally:
+                prompt_file.unlink(missing_ok=True)
+                export_file.unlink(missing_ok=True)
+
         async def cors_options_handler(request):
             """Handle CORS preflight for all routes."""
             return web.Response(headers={
@@ -1292,6 +1442,10 @@ class LocalAgent:
         app.router.add_get("/health", health_handler)
         app.router.add_get("/ws", ws_handler)
         app.router.add_post("/ai/import", import_handler)
+        # Cloud→local callback endpoints (for multi-platform IM dispatcher)
+        app.router.add_get("/cloud/health", cloud_health_handler)
+        app.router.add_post("/cloud/query", cloud_query_handler)
+        app.router.add_post("/cloud/tool", cloud_tool_handler)
 
         runner = web.AppRunner(app)
         await runner.setup()

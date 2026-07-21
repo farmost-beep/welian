@@ -490,7 +490,7 @@ class EdgeClient:
                 wechat_uid = f"wechat_{hashlib.sha256(self.user_id.encode()).hexdigest()[:16]}"
                 bind_url = f"https://welian.app/bind.html?wid={wechat_uid}"
                 return (
-                    f"👋 你好！我是小维，你的关系管理 AI 助手。\n\n"
+                    f"👋 你好！我是小维，你的关系网络智能体。\n\n"
                     f"使用前需要先绑定你的 Welian 账号：\n{bind_url}\n\n"
                     f"绑定后就能在微信里记录互动、查询联系人、拟写消息了。"
                 )
@@ -523,7 +523,7 @@ class EdgeClient:
             return self._fallback_system_prompt()
 
     def _fallback_system_prompt(self) -> str:
-        return """你是小维（Welian），一个关系管理 AI 助手。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
+        return """你是小维（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
 
 你的信念：每段关系都值得用心。
 
@@ -542,7 +542,7 @@ class EdgeClient:
 - 回复不要太长，重点突出
 - 如果用户在记录事情，确认记下了并简要复述
 - 如果用户在查待办，只列出数据中有的待办，按紧急程度分组
-- 如果用户在闲聊，自然回应，可以引导到关系管理话题"""
+- 如果用户在闲聊，自然回应，可以引导到关系网络话题"""
 
     def chat(self, text: str, file_info=None) -> str:
         """Process user message: LLM is the primary processor.
@@ -625,7 +625,7 @@ class EdgeClient:
         """
         llm = self._get_llm()
 
-        system = self._load_prompt('chat', """你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+        system = self._load_prompt('chat', """你是 Welian，一个关系网络智能体。你理解用户的关系网络，记住每段关系，主动提醒该联系谁、该聊什么，并在持续进化中越来越懂用户。
 
 你的风格：
 - 简洁友好，像朋友在聊天
@@ -633,7 +633,7 @@ class EdgeClient:
 - 回复不要太长，重点突出
 - 如果用户在记录事情，确认记下了并简要复述
 - 如果用户在查待办，清晰列出，按紧急程度分组
-- 如果用户在闲聊，自然回应，可以引导到关系管理话题
+- 如果用户在闲聊，自然回应，可以引导到关系网络话题
 
 你会收到用户的原始消息和相关数据上下文。请基于数据回答，不要编造。
 对话是连续的，请结合上下文理解用户的意图。""")
@@ -1354,13 +1354,13 @@ class EdgeClient:
         try:
             llm = self._get_llm()
             dashboard = engine.get_dashboard()
-            context = (f"你是 Welian，一个关系管理 AI 助手。\n"
+            context = (f"你是 Welian，一个关系网络智能体。\n"
                       f"用户数据概览：{dashboard['total_contacts']} 个联系人，"
                       f"{dashboard['pending_todos']} 条待办，"
                       f"{dashboard['recent_activities']} 条近期活动。\n"
                       f"用户说：{text}\n"
                       f"请用中文简短回复。如果用户在问数据相关问题，直接回答。"
-                      f"如果用户在闲聊，自然回应并引导到关系管理话题。")
+                      f"如果用户在闲聊，自然回应并引导到关系网络话题。")
             return llm.complete(context, system="你是 Welian，简洁友好地回复。", messages=self._conversation)
         except Exception:
             pass

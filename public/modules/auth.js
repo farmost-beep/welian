@@ -1,6 +1,6 @@
 // Auto-generated from app.js — do not edit manually
 
-import { CLERK_PUBLISHABLE_KEY, DISCOVERY_URL, I18N, authBtn, body, clerkInstance, clerkReady, clerkUserId, cliCallback, cliLoginInitialUserId, conversationHistory, currentLang, existingUserId, input, isAuthed, isCliLogin, isCloud, isLive, isPageReload, modeBadge } from './state.js';
+import { CLERK_PUBLISHABLE_KEY, CLOUD_URL, DISCOVERY_URL, I18N, authBtn, body, clerkInstance, clerkReady, clerkUserId, cliCallback, cliLoginInitialUserId, conversationHistory, currentLang, existingUserId, input, isAuthed, isCliLogin, isCloud, isLive, isPageReload, modeBadge } from './state.js';
 import { navStatus, setClerkInstance, setClerkReady, setClerkUserId, setCliLoginInitialUserId, setConversationHistory, setExistingUserId, setIsAuthed, setIsCliLogin, setIsCloud, setIsLive, setSmsPhone, setUserInitiatedLogin, smsPhone, userInitiatedLogin, wechatToken } from './state.js';
 import { addSystemMsg, clearChat, closeSidebar, loadChatEnhancements, loadSessionList, send, showWelcome } from './chat.js';
 import { autoConnectAgent, removeBridge } from './agent-bridge.js';
@@ -376,6 +376,37 @@ export function onAuthed(user) {
   // Auto-connect to local agent (no token needed)
   autoConnectAgent();
 
+  // Process invite code from URL (?ref=XXXXXX)
+  const refCode = new URLSearchParams(window.location.search).get('ref');
+  if (refCode) {
+    console.log('[onAuthed] Processing invite code:', refCode);
+    // Call invite/redeem after a short delay to ensure user is fully registered
+    setTimeout(async () => {
+      try {
+        const token = await getClerkToken();
+        const resp = await fetch(`${CLOUD_URL}/ai/invite/redeem`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ code: refCode.toUpperCase() }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          console.log('[onAuthed] Invite redeemed successfully:', data.reward, 'credits');
+          // Clean URL
+          const url = new URL(window.location);
+          url.searchParams.delete('ref');
+          window.history.replaceState({}, '', url);
+        } else if (data.error === 'already_invited') {
+          console.log('[onAuthed] Already invited by someone');
+        } else {
+          console.log('[onAuthed] Invite redeem result:', data.error);
+        }
+      } catch (e) {
+        console.error('[onAuthed] Invite redeem error:', e);
+      }
+    }, 2000);
+  }
+
   // Check if onboarding needed (new user with no contacts)
   checkOnboardingNeeded();
 
@@ -385,7 +416,7 @@ export function onAuthed(user) {
   // Paddle checkout success: auto-open billing tab
   if (window._pendingBillingOpen) {
     window._pendingBillingOpen = false;
-    localStorage.setItem('welian_mine_tab', 'billing');
+    localStorage.setItem('welian_mine_tab', 'settings');
     sessionStorage.setItem('welian_mine_open', '1');
     setTimeout(() => openMine(), 800);
   } else if (sessionStorage.getItem('welian_mine_open') === '1') {

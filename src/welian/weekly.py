@@ -217,7 +217,7 @@ def generate_weekly_report() -> str:
 
     try:
         llm = get_client()
-        system = """你是 Welian，一个关系管理 AI 助手。你需要为用户生成一份社交周报。
+        system = """你是 Welian，一个关系网络智能体。你需要为用户生成一份社交周报。
 
 核心原则（SPEC §3.3）：
 - 只做行为回顾：你做了什么（发了消息、打了电话、完成了答应的事、出席了重要场合）。

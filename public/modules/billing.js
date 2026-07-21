@@ -181,6 +181,59 @@ export function renderBillingTab(info, pricing, isAdmin) {
   `;
 }
 
+export async function loadInviteSection() {
+  const zh = currentLang === 'zh';
+  const el = document.getElementById('inviteContent');
+  if (!el) return;
+  try {
+    const token = await getClerkToken();
+    const resp = await fetch(`${CLOUD_URL}/ai/invite/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (!data.ok) { el.textContent = zh ? '请先登录' : 'Please sign in'; return; }
+    const inviteUrl = `https://welian.app/?ref=${data.code}`;
+    const invited = data.invited || 0;
+    const maxInvites = data.max_invites || 50;
+    const totalCredits = data.total_credits || 0;
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="flex:1;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:1em;font-weight:600;color:var(--accent);letter-spacing:1px">${data.code}</div>
+        <button onclick="copyInviteCode('${data.code}')" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8em;white-space:nowrap">${zh?'复制码':'Copy'}</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <input type="text" value="${inviteUrl}" readonly id="inviteUrlInput" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:.78em;background:var(--surface);color:var(--text);box-sizing:border-box">
+        <button onclick="copyInviteUrl()" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.78em;white-space:nowrap">${zh?'复制链接':'Copy'}</button>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px">
+        <div><span style="font-size:1.2em;font-weight:600;color:var(--accent)">${invited}</span><span style="font-size:.78em;color:var(--dim)">/${maxInvites} ${zh?'已邀请':'invited'}</span></div>
+        <div><span style="font-size:1.2em;font-weight:600;color:var(--accent)">${totalCredits}</span> <span style="font-size:.78em;color:var(--dim)">${zh?'联点奖励':'credits earned'}</span></div>
+      </div>
+    `;
+  } catch (e) {
+    el.textContent = (zh ? '加载失败: ' : 'Load failed: ') + e.message;
+  }
+}
+
+export function copyInviteCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    const zh = currentLang === 'zh';
+    alert(zh ? '邀请码已复制' : 'Invite code copied');
+  });
+}
+
+export function copyInviteUrl() {
+  const input = document.getElementById('inviteUrlInput');
+  if (input) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      const zh = currentLang === 'zh';
+      alert(zh ? '邀请链接已复制，去微信粘贴分享吧' : 'Invite link copied');
+    });
+  }
+}
+
 export function applyDiscount(percent) {
   const pct = parseFloat(percent);
   if (isNaN(pct) || pct < 0 || pct > 100) return;

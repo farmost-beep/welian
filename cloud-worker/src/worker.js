@@ -1,3 +1,10 @@
+// ── Multi-platform IM modules (Phase 1: Telegram, Phase 2: Feishu + DingTalk) ──
+import { dispatch as imDispatch } from './im/dispatcher.js';
+import * as telegramAdapter from './im/telegram.js';
+import * as feishuAdapter from './im/feishu.js';
+import * as dingtalkAdapter from './im/dingtalk.js';
+import { handleBindStart, handleBindConfirm, handleUnbind } from './im/bind.js';
+
 /**
  * Welian Cloud AI API — Cloudflare Worker
  *
@@ -698,8 +705,8 @@ async function handleAdvise(req, env) {
 // ── Cloud billing system ──
 
 const DEFAULT_PRICING = {
-  points_per_1k_input: 1,
-  points_per_1k_output: 2,
+  points_per_1k_input: 0.1,
+  points_per_1k_output: 0.2,
   free_monthly: 100,
   pro_monthly: 500,
   // Base prices (before discount)
@@ -865,7 +872,7 @@ async function deductBilling(env, userId, usage, action, detail = '', modelTier 
     else if (modelTier === 'premium') tierMultiplier = Math.min(tierMultiplier, 3);
   }
   const basePoints = await calcPoints(usage, env);
-  const points = Math.round(basePoints * tierMultiplier * 10) / 10;
+  const points = Math.round(basePoints * tierMultiplier * 100) / 100;
   billing.used += points;
   billing.history.push({
     date: new Date().toISOString(),
@@ -1612,7 +1619,7 @@ async function sendWelcomeEmail(env, email) {
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:20px;color:#2C2C2C">
   <h1 style="color:#4A6741">欢迎来到 Welian 🌱</h1>
   <p>每段关系都值得用心。</p>
-  <p>Welian 是你的 AI 关系管理助手，帮你：</p>
+  <p>Welian 是你的关系网络智能体，帮你：</p>
   <ul>
     <li>📝 随手记录每次互动</li>
     <li>🔔 智能提醒该联系谁</li>
@@ -1781,12 +1788,31 @@ async function handleMeetingsCRUD(req, env, method) {
       }
     }
 
-    // Create new meeting
+    // Create new meeting (with dedup: merge into existing same-date+title meeting)
+    const meetingDate = body.date || new Date().toISOString().slice(0, 10);
+    const meetings = await loadDataset(env, userId, 'meetings');
+    // Check for existing meeting with same date + similar title
+    const existing = meetings.find(m =>
+      m.date === meetingDate &&
+      (m.title || '').trim() === title &&
+      m.status !== 'completed'
+    );
+    if (existing) {
+      // Merge: append new photos/attendees/agenda into existing meeting
+      existing.photos = [...(existing.photos || []), ...(body.photos || [])];
+      existing.attendees = [...(existing.attendees || []), ...(body.attendees || [])];
+      existing.agenda = [...(existing.agenda || []), ...(body.agenda || [])];
+      if (body.location) existing.location = body.location;
+      if (body.purpose) existing.purpose = body.purpose;
+      existing.updated = new Date().toISOString();
+      await saveDataset(env, userId, 'meetings', meetings);
+      return { status: 200, data: { ok: true, meeting: existing, merged: true } };
+    }
     const id = body.id || `mtg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const meeting = {
       id,
       title,
-      date: body.date || new Date().toISOString().slice(0, 10),
+      date: meetingDate,
       location: body.location || '',
       purpose: body.purpose || '',
       status: body.status || 'planned',
@@ -1801,7 +1827,6 @@ async function handleMeetingsCRUD(req, env, method) {
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
     };
-    const meetings = await loadDataset(env, userId, 'meetings');
     meetings.push(meeting);
     await saveDataset(env, userId, 'meetings', meetings);
     return { status: 200, data: { ok: true, meeting } };
@@ -1836,7 +1861,7 @@ async function handleMeetingPhoto(req, env) {
     return { status: 400, data: { error: 'base64 and photo_type required' } };
   }
 
-  const validTypes = ['agenda', 'card', 'notes'];
+  const validTypes = ['agenda', 'card', 'notes', 'roster'];
   if (!validTypes.includes(photo_type)) {
     return { status: 400, data: { error: `photo_type must be one of: ${validTypes.join(', ')}` } };
   }
@@ -1860,7 +1885,7 @@ async function handleMeetingPhoto(req, env) {
   "agenda": [{"topic": "议题", "time": "时间（如09:30）", "presenter": "演讲人（如能识别）"}],
   "purpose": "会议目的（一句话概括）"
 }
-只返回JSON，不要其他文字。`,
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
 
     card: `你是Welian小维的会议助手。请分析这张名片/合影照片，识别其中的人物信息，以JSON格式返回：
 {
@@ -1868,7 +1893,7 @@ async function handleMeetingPhoto(req, env) {
 }
 核心目标：识别出人名。其他信息（职位、公司等）能识别就填，识别不到就留空，不要猜测。
 如果是名片，提取名片上的姓名和可选信息。如果是合影，识别能看到的人名（如胸牌、字幕等），识别不到具体名字的可以描述角色（如"主讲人""主持人"）。
-只返回JSON，不要其他文字。`,
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
 
     notes: `你是Welian小维的会议助手。请分析这张会议笔记/白板照片，提取关键信息，以JSON格式返回：
 {
@@ -1877,7 +1902,14 @@ async function handleMeetingPhoto(req, env) {
   "contact_dynamics": "人际观察（谁和谁熟、谁支持什么观点等，一段话）",
   "key_points": ["关键要点1", "关键要点2"]
 }
-只返回JSON，不要其他文字。`,
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
+
+    roster: `你是Welian小维的会议助手。请分析这张参会名单/签到表/出席人员表照片，识别其中的参会人员，以JSON格式返回：
+{
+  "attendees": [{"name": "姓名", "title": "职位（如能识别，否则空字符串）", "company": "公司（如能识别，否则空字符串）", "relationship": "与用户的关系（如能推断，否则空字符串）"}]
+}
+核心目标：识别出名单上所有的人名。逐行逐列识别，不要遗漏。其他信息（职位、公司等）能识别就填，识别不到就留空，不要猜测。
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
   };
 
   const system = prompts[photo_type];
@@ -1895,17 +1927,36 @@ async function handleMeetingPhoto(req, env) {
 
   // Parse JSON from LLM response
   let extracted;
+  let unstructured = false;
   try {
     // Strip markdown code fences if present
     const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     extracted = JSON.parse(jsonText);
   } catch (e) {
     console.error('[meeting_photo] JSON parse failed:', e.message, result.text.substring(0, 200));
-    return { status: 200, data: { status: 'error', error: '识别结果格式异常', raw: result.text, fallback: true } };
+    // Fallback 1: try to extract the first { ... } block (LLM may have wrapped JSON in prose)
+    try {
+      const match = result.text.match(/\{[\s\S]*\}/);
+      if (match) {
+        extracted = JSON.parse(match[0]);
+        console.log('[meeting_photo] recovered via fallback block extraction');
+      } else {
+        // Fallback 2: LLM returned prose with no JSON at all — return raw text so user sees what AI recognized
+        console.log('[meeting_photo] no JSON block found, returning raw text');
+        extracted = { raw_text: result.text };
+        unstructured = true;
+      }
+    } catch (e2) {
+      // Fallback 2: block extraction found something but it's not valid JSON — return raw text
+      console.log('[meeting_photo] block extraction failed, returning raw text');
+      extracted = { raw_text: result.text };
+      unstructured = true;
+    }
   }
 
-  // For card type: match against existing contacts
-  if (photo_type === 'card' && extracted.attendees) {
+  // For card and roster types: match attendees against existing contacts
+  // (skip if unstructured — no attendees array to match)
+  if (!unstructured && (photo_type === 'card' || photo_type === 'roster') && extracted.attendees) {
     const contacts = await loadDataset(env, userId, 'contacts');
     const existingNames = new Map(contacts.map(c => [c.name, c]));
     extracted.attendees = extracted.attendees.map(a => {
@@ -1938,6 +1989,7 @@ async function handleMeetingPhoto(req, env) {
       status: 'ok',
       photo_type,
       extracted,
+      unstructured,
       usage: { points, remaining: await getRemaining(billing, env) },
     },
   };
@@ -1964,7 +2016,7 @@ async function handleMeetingReview(req, env) {
   }
 
   const contacts = await loadDataset(env, userId, 'contacts');
-  const todos = await loadDataset(env, userId, 'todos');
+  let todos = await loadDataset(env, userId, 'todos');
 
   // Build context for LLM
   const attendeeNames = (meeting.attendees || []).map(a => a.name).filter(Boolean);
@@ -1978,7 +2030,7 @@ async function handleMeetingReview(req, env) {
     })()}）`;
   }).filter(Boolean).join('\n');
 
-  const system = `你是Welian小维，社交关系管理助手。用户刚参加完一场会议，请基于会议信息生成会后复盘建议。
+  const system = `你是Welian小维，关系网络智能体。用户刚参加完一场会议，请基于会议信息生成会后复盘建议。
 
 会议信息：
 - 标题：${meeting.title}
@@ -1997,12 +2049,21 @@ ${existingContext || '无已有联系人'}
 {
   "summary": "会议总结（2-3句话）",
   "new_contacts": [{"name": "新认识的人名", "company": "公司", "title": "职位", "relation": "建议关系类型", "nature": "leverage|nurture|dual"}],
-  "follow_up_todos": [{"task": "跟进事项", "contact_name": "相关人", "due": "建议日期YYYY-MM-DD", "priority": "high|medium|low"}],
+  "follow_up_todos": [{"task": "具体行动描述", "contact_name": "相关人", "due": "建议日期YYYY-MM-DD", "priority": "high|medium|low"}],
   "opportunity_analysis": [{"description": "机会描述", "action": "建议行动", "contact_name": "相关人"}],
   "leverage_insights": "如何借这次会议撬动现有合作型联系人的建议（一段话）",
   "goal_suggestions": ["这次会议可能推进的目标方向"]
 }
-只返回JSON，不要其他文字。`;
+
+follow_up_todos 规则（重要）：
+- 最多 5 条，按重要性排序，只选最值得跟进的
+- 每条必须是具体可执行的行动，不是"联系XX探讨YY"这种模糊话题
+- 格式："发[微信/邮件]给[姓名]（[公司]），[具体动作]" 或 "约[姓名]（[公司]）[时间]见面聊[具体话题]"
+- 优先选择：有明确合作意向的 > 可索取演讲材料/报告的 > 单纯交换名片的
+- 有潜力但非紧急的机会，放在 opportunity_analysis 里，不要变成 todo
+- 如果会议没有值得立即跟进的事项，返回空数组 []
+
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`;
 
   const result = await callLLM('请生成会后复盘建议。', system, env, {
     max_tokens: 2048,
@@ -2014,20 +2075,28 @@ ${existingContext || '无已有联系人'}
   }
 
   let review;
+  let reviewUnstructured = false;
   try {
     const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     review = JSON.parse(jsonText);
   } catch (e) {
-    // Try to extract the first { ... } block as a fallback
+    // Fallback 1: try to extract the first { ... } block
     try {
       const match = result.text.match(/\{[\s\S]*\}/);
       if (match) {
         review = JSON.parse(match[0]);
+        console.log('[meeting_review] recovered via fallback block extraction');
       } else {
-        return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+        // Fallback 2: no JSON at all — use raw text as summary so user sees AI's output
+        console.log('[meeting_review] no JSON block found, using raw text as summary');
+        review = { summary: result.text, new_contacts: [], follow_up_todos: [], opportunity_analysis: [], leverage_insights: '', goal_suggestions: [] };
+        reviewUnstructured = true;
       }
     } catch (e2) {
-      return { status: 200, data: { status: 'error', error: '复盘格式异常', raw: result.text, fallback: true } };
+      // Fallback 2: block extraction found something but invalid JSON — use raw text as summary
+      console.log('[meeting_review] block extraction failed, using raw text as summary');
+      review = { summary: result.text, new_contacts: [], follow_up_todos: [], opportunity_analysis: [], leverage_insights: '', goal_suggestions: [] };
+      reviewUnstructured = true;
     }
   }
 
@@ -2065,11 +2134,23 @@ ${existingContext || '无已有联系人'}
     await saveDataset(env, userId, 'contacts', contacts);
   }
 
-  // Auto-create follow-up todos
-  if (review.follow_up_todos && review.follow_up_todos.length > 0) {
-    for (const ft of review.follow_up_todos) {
+  // Auto-create follow-up todos (capped at 5, deduplicated)
+  const followUps = (review.follow_up_todos || []).slice(0, 5);
+  let createdCount = 0;
+  let skippedDupes = 0;
+  if (followUps.length > 0) {
+    for (const ft of followUps) {
       if (!ft.task) continue;
       const contact = ft.contact_name ? contacts.find(c => c.name === ft.contact_name) : null;
+      // Dedupe: skip if same contact already has a pending todo from this meeting
+      const taskPrefix = ft.task.slice(0, 10);
+      const exists = todos.some(t =>
+        t.status === 'pending' &&
+        t.source === `meeting:${meeting.id}` &&
+        t.contact === (contact ? contact.id : '') &&
+        (t.task || '').includes(taskPrefix)
+      );
+      if (exists) { skippedDupes++; continue; }
       todos.push({
         id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         task: ft.task,
@@ -2080,17 +2161,45 @@ ${existingContext || '无已有联系人'}
         source: `meeting:${meeting.id}`,
         created: new Date().toISOString(),
       });
+      createdCount++;
     }
-    await saveDataset(env, userId, 'todos', todos);
+    if (createdCount > 0) {
+      await saveDataset(env, userId, 'todos', todos);
+    }
   }
 
-  // Update meeting with review
+  // Update meeting with review (persist full review so user can re-open it)
   meeting.summary = review.summary || '';
+  meeting.review = review;
   meeting.status = 'completed';
   meeting.updated = new Date().toISOString();
   const idx = meetings.findIndex(m => m.id === meeting_id);
   meetings[idx] = meeting;
   await saveDataset(env, userId, 'meetings', meetings);
+
+  // Auto-complete prep todos: mark pending todos whose task matches the meeting title as done
+  // e.g. todo "拜访老许" → meeting "拜访老许" completed → todo auto-completed
+  if (todos === null) todos = await loadDataset(env, userId, 'todos');
+  let completedTodoCount = 0;
+  const meetingTitle = meeting.title || '';
+  if (meetingTitle && meetingTitle !== '未命名会议' && meetingTitle !== 'Untitled Meeting') {
+    for (const t of todos) {
+      if (t.status !== 'pending') continue;
+      // Match: todo task contains meeting title, or meeting title contains todo task
+      // (handles "拜访老许" todo vs "拜访老许 - Q3讨论" meeting, and vice versa)
+      const task = t.task || '';
+      if (task.length >= 2 && (task.includes(meetingTitle) || meetingTitle.includes(task))) {
+        t.status = 'done';
+        t.completed_at = new Date().toISOString();
+        t.updated = new Date().toISOString();
+        completedTodoCount++;
+      }
+    }
+    if (completedTodoCount > 0) {
+      await saveDataset(env, userId, 'todos', todos);
+      console.log(`[meeting_review] Auto-completed ${completedTodoCount} prep todo(s) matching "${meetingTitle}"`);
+    }
+  }
 
   // Billing
   const { billing, points } = await deductBilling(
@@ -2103,6 +2212,11 @@ ${existingContext || '无已有联系人'}
       status: 'ok',
       review,
       meeting,
+      unstructured: reviewUnstructured,
+      auto_completed_todos: completedTodoCount,
+      created_todos: createdCount,
+      skipped_dupes: skippedDupes,
+      opportunity_count: (review.opportunity_analysis || []).length,
       usage: { points, remaining: await getRemaining(billing, env) },
     },
   };
@@ -2127,7 +2241,7 @@ async function handleEstimateCost(req, env) {
   const pricing = await getPricing(env);
   const est = COST_ESTIMATES[action];
   if (!est) return { status: 400, data: { error: 'unknown action' } };
-  const points = Math.round((est.input / 1000 * pricing.points_per_1k_input + est.output / 1000 * pricing.points_per_1k_output) * tier * 10) / 10;
+  const points = Math.round((est.input / 1000 * pricing.points_per_1k_input + est.output / 1000 * pricing.points_per_1k_output) * tier * 100) / 100;
   return { status: 200, data: { action, model_tier: model_tier || 'standard', estimated_points: points } };
 }
 
@@ -2257,6 +2371,113 @@ async function handleRedeemCoupon(req, env) {
 
   const remaining = await getRemaining(billing, env);
   return { status: 200, data: { ok: true, points: coupon.points, remaining } };
+}
+
+// ── Invite system: referral codes + reward both sides ──
+
+async function handleInviteCreate(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  // Check if user already has an invite code
+  const existing = await env.USER_DATA.get(`invite_code:${userId}`);
+  if (existing) {
+    // Return existing code + stats
+    const stats = await getInviteStats(env, userId);
+    return { status: 200, data: { ok: true, code: existing, ...stats } };
+  }
+
+  // Generate 6-char invite code
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  let attempts = 0;
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    attempts++;
+    // Check for collision
+    const collision = await env.USER_DATA.get(`invite_code_reverse:${code}`);
+    if (!collision) break;
+  } while (attempts < 10);
+
+  await env.USER_DATA.put(`invite_code:${userId}`, code);
+  await env.USER_DATA.put(`invite_code_reverse:${code}`, userId);
+
+  return { status: 200, data: { ok: true, code, invited: [], total_credits: 0 } };
+}
+
+async function handleInviteRedeem(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { code } = body;
+  if (!code) return { status: 400, data: { error: 'Invite code required' } };
+
+  // Check if already invited by someone
+  const alreadyInvited = await env.USER_DATA.get(`invited_by:${userId}`);
+  if (alreadyInvited) return { status: 400, data: { error: 'already_invited', inviter: alreadyInvited } };
+
+  // Find inviter by code
+  const inviterId = await env.USER_DATA.get(`invite_code_reverse:${code.toUpperCase()}`);
+  if (!inviterId) return { status: 404, data: { error: 'Invalid invite code' } };
+
+  // Can't invite yourself
+  if (inviterId === userId) return { status: 400, data: { error: '不能邀请自己' } };
+
+  // Check invite limit (max 50 per inviter)
+  const MAX_INVITES = 50;
+  const inviteListRaw = await env.USER_DATA.get(`invite_list:${inviterId}`);
+  const existingList = inviteListRaw ? JSON.parse(inviteListRaw) : [];
+  if (existingList.length >= MAX_INVITES) {
+    return { status: 400, data: { error: `邀请人数已达上限（${MAX_INVITES}人）` } };
+  }
+
+  // Record the invitation
+  await env.USER_DATA.put(`invited_by:${userId}`, inviterId);
+
+  // Add to inviter's invited list (reuse existingList from limit check)
+  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: true });
+  await env.USER_DATA.put(`invite_list:${inviterId}`, JSON.stringify(existingList));
+
+  // Reward: 100 credits to both inviter and invitee
+  const REWARD = 100;
+
+  // Inviter gets 100
+  const inviterBilling = await getBillingData(env, inviterId);
+  inviterBilling.purchased = (inviterBilling.purchased || 0) + REWARD;
+  inviterBilling.history.push({ date: new Date().toISOString(), action: 'invite_reward', points: REWARD, detail: `邀请好友奖励` });
+  if (inviterBilling.history.length > 100) inviterBilling.history = inviterBilling.history.slice(-100);
+  await saveBillingData(env, inviterId, inviterBilling);
+
+  // Invitee gets 100
+  const inviteeBilling = await getBillingData(env, userId);
+  inviteeBilling.purchased = (inviteeBilling.purchased || 0) + REWARD;
+  inviteeBilling.history.push({ date: new Date().toISOString(), action: 'invite_bonus', points: REWARD, detail: `受邀注册奖励 (邀请码 ${code})` });
+  if (inviteeBilling.history.length > 100) inviteeBilling.history = inviteeBilling.history.slice(-100);
+  await saveBillingData(env, userId, inviteeBilling);
+
+  const remaining = await getRemaining(inviteeBilling, env);
+  return { status: 200, data: { ok: true, reward: REWARD, remaining } };
+}
+
+async function handleInviteStatus(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const code = await env.USER_DATA.get(`invite_code:${userId}`);
+  if (!code) return { status: 200, data: { ok: true, code: null, invited: [], total_credits: 0 } };
+
+  const stats = await getInviteStats(env, userId);
+  return { status: 200, data: { ok: true, code, ...stats } };
+}
+
+async function getInviteStats(env, userId) {
+  const inviteListRaw = await env.USER_DATA.get(`invite_list:${userId}`);
+  const invited = inviteListRaw ? JSON.parse(inviteListRaw) : [];
+  const totalCredits = invited.reduce((sum, i) => sum + (i.rewarded ? 100 : 0), 0);
+  return { invited: invited.length, max_invites: 50, total_credits: totalCredits, invitees: invited.map(i => ({ date: i.date, rewarded: i.rewarded })) };
 }
 
 async function handleBindWechat(req, env) {
@@ -2425,7 +2646,11 @@ async function handleExtractIntent(req, env) {
 
   const todayDateStr = localDateStr(req);
   const isOnboarding = body.onboarding === true;
-  const _intentFallback = `你是一个关系管理助手。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
+  // Minimal fallback — only used if KV prompt:intent.md is unavailable.
+  // The full prompt (with visit rules, memory_save, goal_evidence, profile_updates,
+  // and all examples) lives in prompts/intent.md synced to KV. This fallback only
+  // ensures basic 记/问/拟/报 still works if KV is down. Do NOT duplicate full rules here.
+  const _intentFallback = `你是一个关系网络智能体。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
 
 今天是 ${todayDateStr}。所有日期计算以此为准。
 
@@ -2433,7 +2658,7 @@ JSON格式：
 {
   "intent": "query_contact|query_todo|record|draft|advise|report|chat|help|update_profile",
   "contact_name": "用户提到的人名或昵称，没有则为空字符串",
-  "keywords": ["搜索关键词，用于模糊匹配联系人"],
+  "keywords": ["搜索关键词"],
   "actions": [],
   "profile_updates": {},
   "memory_save": null,
@@ -2443,125 +2668,56 @@ JSON格式：
 }
 
 intent 说明：
-- query_contact: 查询某人的信息（"老许啥情况"、"查下邵哥"）
-- query_todo: 查看待办（"有啥待办"、"待办事项"）
+- query_contact: 查询某人信息
+- query_todo: 查看待办
 - record: 记录互动/添加待办/添加联系人
-- draft: 拟写消息（"给老许写个消息"、"帮我拟条消息"）
-- advise: 建议联系谁（"该联系谁"、"这周联系谁"、"谁该联系了"）
-- report: 回顾/报告（"月度回顾"、"这月怎么样"、"周报"、"总结一下"）
+- draft: 拟写消息
+- advise: 建议联系谁
+- report: 回顾/报告
 - chat: 闲聊/其他
 - help: 帮助
-- update_profile: 用户主动要求更新画像（"更新我的画像"、"修改我的信息"）
-
-needs_search：用户问题需要互联网最新信息时设为 true，并在 search_query 填搜索关键词。
-- 需要搜索的场景：问某人/某公司最近动态、行业新闻、热点事件、实时信息
-- 不需要搜索的场景：记录互动、查待办、查联系人、拟消息、闲聊、关系建议
-- 示例："XX公司最近怎么样" → needs_search=true, search_query="XX公司 最新动态"
-- 示例："记一下今天和老许聊了项目" → needs_search=false
-
-memory_save：用户消息中包含值得长期记住的信息时，提取为记忆对象。没有则为 null。
-- 触发场景：用户偏好（"别在周末推消息"）、重要背景（"我女儿叫小美"）、关键决策（"决定每月联系一次老许"）、人际洞察（"老许最近在创业"）
-- 不触发场景：普通记录互动、查待办、闲聊、一次性事务
-- 格式：{"type": "preference|context|milestone|contact_note", "title": "简短标题", "content": "详细内容", "tags": ["可选标签"]}
-- 示例："我一般不在周末联系客户" → {"type":"preference","title":"周末不联系客户","content":"用户偏好：周末不主动联系客户，工作日才联系","tags":["沟通偏好"]}
-- 示例："老许最近在搞AI创业" → {"type":"contact_note","title":"老许在AI创业","content":"老许最近在做AI相关的创业项目","tags":["老许","创业"]}
-
-goal_evidence：用户消息中提到完成了某个关系目标的步骤时，提取为证据。没有则为 null。
-- 触发场景：用户提到联系了某人、完成了某事、达成了某里程碑，且与现有目标的验收标准相关
-- 格式：{"goal_id": "目标ID（不确定时留空）", "criterion_text": "匹配的验收标准文本", "evidence_text": "证据描述"}
-- 示例："今天和老许聊了项目" → {"goal_id":"", "criterion_text":"联系老许", "evidence_text":"今天和老许聊了项目"}
-- 不触发场景：没有活跃目标、消息与目标无关
-
-profile_updates 是从用户消息中自动提取的用户画像信息。用户在对话中自然提到自己的信息时，提取对应字段。只填能从消息中明确提取的字段，不确定的不填。
-
-profile_updates 可选字段：
-- name: 姓名
-- occupation: 职业
-- company: 公司
-- industry: 行业
-- location: 所在地
-- communication_style: 沟通风格
-- address_habit: 称呼习惯
-- focus_areas: 关注领域
-- message_tone: 拟消息语气偏好
-- career_goal: 当前职业目标
-- current_projects: 正在推进的事
-- network_direction: 人脉方向
-- notes: 附注（大段文字，如个人简介、背景资料）
-
-profile_updates 提取示例：
-- "我在邮储银行做科技金融" → {"occupation":"科技金融","company":"邮储银行"}
-- "我一般叫他们老X" → {"address_habit":"老X"}
-- "最近在推量化圈的人脉" → {"network_direction":"量化圈"}
-- 用户没提到自己的信息 → profile_updates = {}（空对象）
-
-actions 是需要执行的数据操作数组。【关键】只有用户明确表达记录/提醒/添加意图时才生成 actions，否则 actions 必须为空数组 []。
+- update_profile: 更新画像
 
 actions 元素格式：
 - {"type":"add_timeline","contact_name":"人名","summary":"互动摘要","date":"YYYY-MM-DD"}
-- {"type":"add_contact","name":"人名","relation":"关系","phone":"电话","email":"邮箱","notes":"备注"}
-- {"type":"add_todo","task":"待办内容","contact_name":"关联人名","due":"YYYY-MM-DD","priority":"P0|P1|P2"}
-- {"type":"complete_todo","task":"待办内容关键词","contact_name":"关联人名"}
-- {"type":"delete_todo","task":"待办内容关键词","contact_name":"关联人名"}
-- {"type":"update_contact","contact_name":"人名","fields":{"name":"新名","relation":"新关系","company":"新公司","title":"新职位","phone":"新电话","email":"新邮箱","notes":"新备注","nature":"leverage|nurture"}}
-- {"type":"merge_contact","source_name":"被合并的联系人名","target_name":"合并到哪个联系人名"}
+- {"type":"add_contact","name":"人名","relation":"关系","notes":"备注"}
+- {"type":"add_todo","task":"待办内容","contact_name":"关联人名","due":"YYYY-MM-DD","priority":"P0|P1|P2","source":"ai_extract"}
+- {"type":"complete_todo","task":"待办关键词","contact_name":"关联人名"}
+- {"type":"delete_todo","task":"待办关键词","contact_name":"关联人名"}
+- {"type":"update_contact","contact_name":"人名","fields":{"name":"新名","relation":"新关系","company":"新公司","title":"新职位","notes":"新备注","nature":"leverage|nurture"}}
+- {"type":"merge_contact","source_name":"被合并的联系人名","target_name":"保留的联系人名"}
 
-【add_todo 三要素规则 — 必须遵守】：
-待办事项必须包含三个要素：时间、人物、事情。
-- task（事情）：必须有，来自用户原话
-- contact_name（人物）：尽量提取用户消息中提到的人名。如果待办明确关联某个人，必须填入 contact_name。如果待办是通用事项（如"买牛奶"）不关联具体人，才允许为空
-- due（时间）：尽量从用户消息中提取。用户说"下周""明天""月底"等 → 推算为 YYYY-MM-DD。如果用户没说时间 → 填今天后 7 天的日期（给一个合理默认期限）
-
-【严格规则 — 必须遵守】：
-${isOnboarding ? `【引导模式特殊规则】这是新用户引导场景，用户正在描述最近和谁聊过。即使没有"记一下"等指令词，也要：
-- 从用户消息中提取所有人名，为每个不重复的人名生成 add_contact action
-- 如果用户提到了互动内容（吃了饭、开了会、聊了XX），同时生成 add_timeline action
-- intent 固定为 "record"
-- 不要等待用户说"记一下"，直接提取并创建` : ''}
-1. 生成 actions 的前提是用户消息中包含明确的记录/操作指令词：
-   - 记录类："记一下"、"记录"、"备注"、"补充"
-   - 提醒类："提醒我"、"待办"、"todo"、"别忘了"
-   - 添加类："认识了一个"、"新认识"、"加个联系人"、"存一下"、"记一下XX"（仅人名无互动内容时视为添加联系人）
-   - 完成类："完成了"、"做完了"、"搞定了"、"标记完成"、"已经联系了"
-   - 删除类："删除"、"删掉"、"去掉"、"取消这个待办"
-   - 修改类："改一下"、"更新"、"修改"、"把XX改成YY"、"把XX的公司改成YY"
-   - 合并类："合并到"、"合并到XX名下"、"把XX合并到YY"、"XX和YY是同一个人"
-2. 如果用户只是在查询、闲聊、或提到某个人但没说要记录 → actions=[]
-   - "老许啥情况" → actions=[]（查询，不是记录）
-   - "昨天和老许吃了饭" → actions=[]（陈述，没说"记一下"）
-   - "老许是做什么的" → actions=[]（查询）
-3. summary 和 task 必须直接来自用户消息的原话，不能改写、扩展或编造
-4. 如果用户没有提供日期，add_timeline 的 date 用今天日期；add_todo 的 due 用今天后 7 天
-5. 不能凭空创造人名——contact_name 必须在用户消息中明确出现
-6. complete_todo 和 delete_todo 的 task 字段是待办内容的关键词（用于匹配），不是完整内容
-7. update_contact 的 fields 只包含用户明确要改的字段，不要包含未提及的字段
-8. merge_contact 的 source_name 是被合并（被删除）的联系人，target_name 是保留的联系人
+【核心规则】：
+1. 只有用户明确表达记录/提醒/添加/完成/删除/修改/合并意图时才生成 actions，否则 actions=[]
+2. summary 和 task 必须来自用户原话，不能编造
+3. contact_name 必须在用户消息中明确出现，不能凭空创造
+4. add_todo 的 due：用户说了时间就推算为 YYYY-MM-DD，没说就用今天后 7 天
+5. add_timeline 的 date：用户说了就用，没说用今天
 
 示例：
 - "老许啥情况" → intent=query_contact, actions=[]
 - "有啥待办" → intent=query_todo, actions=[]
-- "该联系谁了" → intent=advise, actions=[]
-- "月度回顾" → intent=report, actions=[]
-- "这周总结" → intent=report, actions=[]
-- "记一下今天和老许聊了Q3预算" → intent=record, actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"今天日期"}]
-- "记一下徐良建" → intent=record, actions=[{"type":"add_contact","name":"徐良建","relation":"","notes":""}]（仅人名无互动内容时，生成 add_contact 而非 add_timeline）
-- "记一下老许" → intent=record, actions=[{"type":"add_contact","name":"老许","relation":"","notes":""}]（同上）
-- "提醒我下周拜访张三" → intent=record, actions=[{"type":"add_todo","task":"拜访张三","contact_name":"张三","due":"下周五日期","priority":"P1"}]
-- "认识了一个新朋友李四，在腾讯做产品" → intent=record, actions=[{"type":"add_contact","name":"李四","relation":"朋友","notes":"腾讯产品"}]
-- "昨天和老许吃了饭" → intent=chat, actions=[]（用户没说"记一下"，不自动记录）
-- "帮我给老许写个消息" → intent=draft, actions=[]
-- "你好" → intent=chat, actions=[]
-- "拜访张三的待办完成了" → intent=record, actions=[{"type":"complete_todo","task":"拜访张三","contact_name":"张三"}]
-- "删掉买牛奶的待办" → intent=record, actions=[{"type":"delete_todo","task":"买牛奶"}]
+- "记一下今天和老许聊了Q3预算" → intent=record, actions=[{"type":"add_timeline","contact_name":"老许","summary":"聊了Q3预算","date":"${todayDateStr}"}]
+- "提醒我下周联系张总" → intent=record, actions=[{"type":"add_todo","task":"联系张总","contact_name":"张总","due":"7天后日期","priority":"P1","source":"ai_extract"}]
+- "下周三和老许吃饭" → intent=record, actions=[{"type":"add_todo","task":"和老许聚餐","contact_name":"老许","due":"下周三日期","priority":"P1","source":"dinner"},{"type":"add_todo","task":"聚餐前查阅与老许的最近互动和近况","contact_name":"老许","due":"下周二日期","priority":"P2","source":"dinner_prep"}]
+- "刚和老许吃完饭，聊了合作" → intent=record, actions=[{"type":"add_timeline","contact_name":"老许","summary":"和老许聚餐，聊了合作","date":"${todayDateStr}"}]
 - "把老许的公司改成腾讯" → intent=record, actions=[{"type":"update_contact","contact_name":"老许","fields":{"company":"腾讯"}}]
-- "老许的电话是13800138000" → intent=record, actions=[{"type":"update_contact","contact_name":"老许","fields":{"phone":"13800138000"}}]
-- "存一下小李的电话13912345678" → intent=record, actions=[{"type":"update_contact","contact_name":"小李","fields":{"phone":"13912345678"}}]
-- "老许其实是陪伴型关系" → intent=record, actions=[{"type":"update_contact","contact_name":"老许","fields":{"nature":"nurture"}}]
-- "把张总合并到张成吉名下" → intent=record, actions=[{"type":"merge_contact","source_name":"张总","target_name":"张成吉"}]
-- "张总和张成吉是同一个人，合并到张成吉" → intent=record, actions=[{"type":"merge_contact","source_name":"张总","target_name":"张成吉"}]`;
+- "你好" → intent=chat, actions=[]
+
+注意：这是降级模式（KV prompt 不可用）。完整的拜访规则、记忆提取、目标证据、画像更新等高级功能在 prompts/intent.md 中，此 fallback 不包含。`;
+
+  // Onboarding mode: append special rules to the prompt (whether from KV or fallback)
+  const onboardingSuffix = isOnboarding ? `
+
+【引导模式特殊规则】这是新用户引导场景，用户正在描述最近和谁聊过。即使没有"记一下"等指令词，也要：
+- 从用户消息中提取所有人名，为每个不重复的人名生成 add_contact action
+- 如果用户提到了互动内容（吃了饭、开了会、聊了XX），同时生成 add_timeline action
+- intent 固定为 "record"
+- 不要等待用户说"记一下"，直接提取并创建` : '';
 
   try {
-    const system = await getPrompt(env, 'intent', _intentFallback);
+    let system = await getPrompt(env, 'intent', _intentFallback);
+    system += onboardingSuffix;
     const llmResp = await callLLM(text, system, env, {
       max_tokens: 800,
       temperature: 0,
@@ -2681,7 +2837,7 @@ ${isOnboarding ? `【引导模式特殊规则】这是新用户引导场景，�
             const todo = createTodo(contactId, action.task, {
               priority: action.priority || 'P1',
               due,
-              source: 'ai_extract',
+              source: action.source || 'ai_extract',
             });
             todos.push(todo);
             todosDirty = true;
@@ -3499,7 +3655,7 @@ async function handleProactiveSuggestion(req, env) {
     return { status: 200, data: { suggestions: [], reason: 'no_actionable_items' } };
   }
 
-  const system = await getPrompt(env, 'proactive', `你是小维，一个关系管理 AI 助手。根据用户当前的环境和数据，生成 1-2 条贴心建议。只引用数据中提供的信息，不能编造事件。输出 JSON 数组。`);
+  const system = await getPrompt(env, 'proactive', `你是小维，一个关系网络智能体。根据用户当前的环境和数据，生成 1-2 条贴心建议。只引用数据中提供的信息，不能编造事件。输出 JSON 数组。`);
 
   const prompt = `环境信息：\n${envParts.join('\n')}\n\n数据：\n${dataParts.join('\n') || '无特别需要关注的数据'}\n\n请生成 1-2 条贴心建议。如果数据中没有可操作的内容，只根据环境生成建议；如果环境也没有特殊因素，返回空数组。`;
 
@@ -3884,10 +4040,13 @@ async function trackAction(env, userId, actionType, meta = {}) {
   const metrics = await loadMetrics(env, userId);
   const wk = getWeekKey(new Date().toISOString());
   if (!metrics.weekly[wk]) {
-    metrics.weekly[wk] = { advise_generated: 0, todo_completed: 0, interaction_recorded: 0, draft_generated: 0 };
+    metrics.weekly[wk] = { advise_generated: 0, todo_completed: 0, interaction_recorded: 0, draft_generated: 0, signal_action: 0 };
   }
   if (metrics.weekly[wk][actionType] !== undefined) {
     metrics.weekly[wk][actionType]++;
+  } else if (actionType === 'signal_action') {
+    // New action type not in old weekly objects — initialize if missing
+    metrics.weekly[wk].signal_action = (metrics.weekly[wk].signal_action || 0) + 1;
   }
 
   // P0-2: Advice adoption — if this action happens within 7 days of last advise, count as adoption
@@ -3915,7 +4074,7 @@ async function registerAdvise(env, userId) {
   const metrics = await loadMetrics(env, userId);
   const wk = getWeekKey(new Date().toISOString());
   if (!metrics.weekly[wk]) {
-    metrics.weekly[wk] = { advise_generated: 0, todo_completed: 0, interaction_recorded: 0, draft_generated: 0 };
+    metrics.weekly[wk] = { advise_generated: 0, todo_completed: 0, interaction_recorded: 0, draft_generated: 0, signal_action: 0 };
   }
   metrics.weekly[wk].advise_generated++;
   metrics.last_advise_ts = new Date().toISOString();
@@ -5382,6 +5541,144 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      // ── Invite system (referral codes) ──
+
+      if (path === '/ai/invite/create' && method === 'POST') {
+        const r = await handleInviteCreate(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/invite/redeem' && method === 'POST') {
+        const r = await handleInviteRedeem(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/invite/status' && method === 'POST') {
+        const r = await handleInviteStatus(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── Public signals preview (no auth required) ──
+
+      if (path === '/ai/signals_preview' && method === 'GET') {
+        const r = await handleSignalsPreview(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/signals_history' && method === 'GET') {
+        const r = await handleSignalsHistory(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/signal_action' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, await request.json().catch(() => ({})));
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        trackAction(env, userId, 'signal_action', { type: body.type || 'view', signal_title: body.title || '' });
+        return jsonResponse({ ok: true });
+      }
+
+      // ── Signal domain preferences ──
+      if (path === '/ai/signal_domains' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const raw = await env.USER_DATA.get(`signal_domains:${userId}`);
+        const domains = raw ? JSON.parse(raw) : ['investment', 'ai', 'tech_finance'];
+        return jsonResponse({ ok: true, domains });
+      }
+      if (path === '/ai/signal_domains' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, await request.json().catch(() => ({})));
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const valid = ['investment', 'ai', 'tech_finance'];
+        const domains = (body.domains || []).filter(d => valid.includes(d));
+        await env.USER_DATA.put(`signal_domains:${userId}`, JSON.stringify(domains));
+        return jsonResponse({ ok: true, domains });
+      }
+
+      // ── Manual trigger for daily signals push (admin only) ──
+
+      if (path === '/ai/daily_signals_push' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = await getVerifiedUserId(request, env, body);
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        // Only admin can trigger
+        const admin = await isAdmin(userId, env);
+        if (!admin) return jsonResponse({ error: 'Admin only' }, 403);
+        const result = await handleDailySignalsPush(env);
+        return jsonResponse({ ok: true, message: 'Daily signals push triggered' });
+      }
+
+      // ── Diagnostic: WeChat token + signals push status (admin only) ──
+
+      if (path === '/ai/wechat_diagnostic' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const admin = await isAdmin(userId, env);
+        if (!admin) return jsonResponse({ error: 'Admin only' }, 403);
+        const diag = { ok: true, checks: {} };
+        // Check WeChat config
+        diag.checks.wechat_app_id = !!env.WECHAT_APP_ID;
+        diag.checks.wechat_app_secret = !!env.WECHAT_APP_SECRET;
+        // Check cached token
+        const cachedToken = await env.USER_DATA.get('wechat_access_token');
+        diag.checks.cached_token = !!cachedToken;
+        // Try fetch token (stable_token API)
+        if (env.WECHAT_APP_ID && env.WECHAT_APP_SECRET) {
+          try {
+            const resp = await fetch('https://api.weixin.qq.com/cgi-bin/stable_token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                grant_type: 'client_credential',
+                appid: env.WECHAT_APP_ID,
+                secret: env.WECHAT_APP_SECRET,
+                force_refresh: false,
+              }),
+            });
+            const data = await resp.json();
+            diag.checks.token_fetch_ok = !!data.access_token;
+            diag.checks.token_error = data.errmsg || null;
+            diag.checks.token_errcode = data.errcode || null;
+            if (data.access_token) {
+              await env.USER_DATA.put('wechat_access_token', data.access_token, { expirationTtl: 5400 });
+              // Check cached thumb
+              const cachedThumb = await env.USER_DATA.get('wechat_thumb_media_id');
+              diag.checks.cached_thumb = !!cachedThumb;
+            }
+          } catch (e) {
+            diag.checks.token_fetch_ok = false;
+            diag.checks.token_error = e.message;
+          }
+        }
+        // Check signals preview
+        const todayKey = new Date().toISOString().slice(0, 13);
+        const cachedPreview = await env.USER_DATA.get(`signals_preview:${todayKey}`);
+        diag.checks.signals_cached = !!cachedPreview;
+        if (cachedPreview) {
+          try {
+            const parsed = JSON.parse(cachedPreview);
+            diag.checks.signals_count = parsed.report?.signals?.length || 0;
+          } catch {}
+        }
+        // Check signals history
+        const todayDate = new Date().toISOString().slice(0, 10);
+        const todaySnapshot = await env.USER_DATA.get(`signals_history:${todayDate}`);
+        diag.checks.today_snapshot = !!todaySnapshot;
+        return jsonResponse(diag);
+      }
+
+      // ── Funnel metrics (admin only) ──
+
+      if (path === '/ai/funnel_metrics' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const admin = await isAdmin(userId, env);
+        if (!admin) return jsonResponse({ error: 'Admin only' }, 403);
+        const r = await handleFunnelMetrics(env);
+        return jsonResponse(r.data, r.status);
+      }
+
       // ── Web search ──
 
       if (path === '/ai/search' && method === 'POST') {
@@ -5625,6 +5922,104 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      // ── Multi-platform IM webhooks & binding (Phase 1: Telegram) ──
+
+      // Telegram webhook: Telegram sends updates as JSON, verified via secret token header
+      if (path === '/im/telegram/webhook' && method === 'POST') {
+        const ok = await telegramAdapter.verifyWebhook(request, env);
+        if (!ok) return jsonResponse({ error: 'invalid secret token' }, 401);
+        const msg = await telegramAdapter.parseIncoming(request, env);
+        // Telegram expects 200 OK quickly; reply asynchronously via sendMessage API
+        if (msg) {
+          ctx.waitUntil((async () => {
+            try {
+              const outgoing = await imDispatch(env, msg, {
+                callLLM, deductBilling, loadDataset, getPrompt, trackAction,
+              });
+              await telegramAdapter.sendReply(env, outgoing);
+            } catch (e) {
+              console.error('[im/telegram] dispatch error:', e.message);
+              try {
+                await telegramAdapter.sendReply(env, {
+                  platform: 'telegram', chatId: msg.chatId,
+                  text: '⚠️ 处理消息时出错了，请稍后再试。',
+                });
+              } catch { /* best-effort error reply */ }
+            }
+          })());
+        }
+        return jsonResponse({ ok: true }); // ack to Telegram immediately
+      }
+
+      // Feishu webhook: event subscription callback
+      if (path === '/im/feishu/webhook' && method === 'POST') {
+        const ok = await feishuAdapter.verifyWebhook(request, env);
+        if (!ok) return jsonResponse({ error: 'invalid signature' }, 401);
+        const parsed = await feishuAdapter.parseIncoming(request, env);
+        // URL verification challenge — must return {challenge} synchronously
+        if (parsed && parsed.isVerification) {
+          return jsonResponse({ challenge: parsed.challenge });
+        }
+        if (parsed) {
+          ctx.waitUntil((async () => {
+            try {
+              const outgoing = await imDispatch(env, parsed, {
+                callLLM, deductBilling, loadDataset, getPrompt, trackAction,
+              });
+              await feishuAdapter.sendReply(env, outgoing);
+            } catch (e) {
+              console.error('[im/feishu] dispatch error:', e.message);
+            }
+          })());
+        }
+        return jsonResponse({ ok: true });
+      }
+
+      // DingTalk webhook: event subscription callback
+      if (path === '/im/dingtalk/webhook' && method === 'POST') {
+        const ok = await dingtalkAdapter.verifyWebhook(request, env);
+        if (!ok) return jsonResponse({ error: 'invalid signature' }, 401);
+        const msg = await dingtalkAdapter.parseIncoming(request, env);
+        if (msg) {
+          ctx.waitUntil((async () => {
+            try {
+              const outgoing = await imDispatch(env, msg, {
+                callLLM, deductBilling, loadDataset, getPrompt, trackAction,
+              });
+              // Preserve raw (for sessionWebhook) on outgoing
+              outgoing.raw = msg.raw;
+              await dingtalkAdapter.sendReply(env, outgoing);
+            } catch (e) {
+              console.error('[im/dingtalk] dispatch error:', e.message);
+            }
+          })());
+        }
+        return jsonResponse({ ok: true });
+      }
+
+      // Start binding from IM (called by adapter, but also exposed for testing)
+      if (path === '/im/bind/start' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const r = await handleBindStart(env, body);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // Confirm binding from web (after Clerk login)
+      if (path === '/im/bind/confirm' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const clerkUserId = await getVerifiedUserId(request, env, body);
+        const r = await handleBindConfirm(env, clerkUserId, body);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // Unbind a platform (web, authenticated)
+      if (path === '/im/bind/unbind' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const clerkUserId = await getVerifiedUserId(request, env, body);
+        const r = await handleUnbind(env, clerkUserId, body);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/ai/meeting_prep' && method === 'POST') {
         const r = await handleMeetingPrep(request, env);
         return jsonResponse(r.data, r.status);
@@ -5652,8 +6047,18 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      if (path === '/ai/annual_report' && method === 'POST') {
+        const r = await handleAnnualReport(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/ai/hn_signals' && method === 'POST') {
         const r = await handleHnSignals(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/contact_web_search' && method === 'POST') {
+        const r = await handleContactWebSearch(request, env);
         return jsonResponse(r.data, r.status);
       }
 
@@ -5699,6 +6104,11 @@ export default {
       }
 
       // ── Push poll (bot picks up queued messages) ──
+
+      if (path === '/ai/relationship_health' && method === 'POST') {
+        const r = await handleRelationshipHealth(request, env);
+        return jsonResponse(r.data, r.status);
+      }
 
       if (path === '/ai/push_poll' && method === 'POST') {
         const r = await handlePushPoll(request, env);
@@ -5991,9 +6401,25 @@ export default {
 
   // ── Cron handler: weekly report push every Monday 9:00 AM CST (01:00 UTC) ──
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(handleScheduledPush(env).catch(e => captureException(env, e, {
-      tags: { handler: 'scheduled' },
-    })));
+    const cronExpr = event.cron || '';
+    const tasks = [];
+    // Monday 01:00 UTC → weekly report push
+    if (cronExpr === '0 1 * * 1') {
+      tasks.push(handleScheduledPush(env).catch(e => captureException(env, e, { tags: { handler: 'scheduled' } })));
+    }
+    // Daily 23:00 UTC (07:00 CST) → daily signals push to WeChat
+    if (cronExpr === '0 23 * * *') {
+      tasks.push(handleDailySignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_signals' } })));
+    }
+    // 1st & 15th of month 01:00 UTC (09:00 CST) → biweekly health warning push
+    if (cronExpr === '0 1 1,15 * *') {
+      tasks.push(handleHealthWarningPush(env).catch(e => captureException(env, e, { tags: { handler: 'health_warning' } })));
+    }
+    // Fallback: if no cron match, run weekly (backward compat)
+    if (tasks.length === 0) {
+      tasks.push(handleScheduledPush(env).catch(e => captureException(env, e, { tags: { handler: 'scheduled' } })));
+    }
+    ctx.waitUntil(Promise.all(tasks));
   },
 };
 
@@ -6258,9 +6684,9 @@ async function handleMonthlyReport(req, env) {
   return { status: 200, data: resultData };
 }
 
-// ── HN Signals: Always-on Hacker News briefing, personalized with user context ──
+// ── Signals: Multi-source briefing (HN + 36氪 + 虎嗅 + Tavily contact search) ──
 
-const HN_SIGNALS_SYSTEM = `You are Welian (小维), generating a personalized tech signal briefing from Hacker News.
+const HN_SIGNALS_SYSTEM = `You are Welian (小维), generating a personalized signal briefing from multiple news sources.
 
 IMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences, no text before or after the JSON.
 
@@ -6269,13 +6695,29 @@ Return JSON with this exact structure:
   "greeting": "一句话开场，结合用户行业背景",
   "signals": [
     {
-      "title": "故事标题（中文）",
+      "title": "标题（中文）",
       "url": "原始链接",
-      "hn_url": "HN 讨论链接",
-      "points": 分数,
+      "source": "来源（HN/36氪/虎嗅/头条/微信/机器之心/华尔街见闻/投资界/Product Hunt/TechCrunch/The Verge/ArXiv/V2EX）",
+      "points": 分数或0,
       "why": "为什么这对用户重要（结合用户行业/联系人上下文）",
       "action": "建议行动：可以跟谁聊/分享给谁/关注什么",
+      "related_contacts": [
+        {
+          "name": "联系人姓名（必须来自用户联系人列表，不能编造）",
+          "reason": "为什么这条信号和这个联系人相关（基于联系人的公司/行业/标签/上次互动话题）"
+        }
+      ],
       "tags": ["标签1", "标签2"]
+    }
+  ],
+  "contact_signals": [
+    {
+      "contact_name": "联系人名",
+      "company": "公司名",
+      "title": "新闻标题",
+      "snippet": "摘要",
+      "url": "链接",
+      "relevance": "为什么和这个联系人相关"
     }
   ],
   "themes": ["本轮热点主题1", "热点主题2"],
@@ -6283,61 +6725,472 @@ Return JSON with this exact structure:
 }
 
 Rules:
-- 最多选 8 条高信号故事
-- "why" 必须结合用户的行业（金融科技/银行/支付）和联系人网络
+- 最多选 10 条高信号故事（从所有来源中筛选）
+- "why" 必须结合用户的行业和联系人网络
 - "action" 要具体：提到可以分享给的联系人类型或具体方向
+- **related_contacts 是核心功能**：对每条 signal，检查用户联系人列表，找出最相关的 1-3 个联系人。匹配依据：
+  1. 联系人的公司/行业与新闻领域重叠
+  2. 联系人的标签(tags)与新闻标签匹配
+  3. 上次互动话题与新闻主题相关
+  4. 联系人的关系类型适合讨论这个话题
+  如果确实没有相关联系人，related_contacts 返回空数组 []。绝不能编造不在用户联系人列表中的名字。
+- contact_signals 是用户高等级联系人公司的最新动态，每条关联到具体联系人
+- 如果同一条新闻在多个来源出现，合并为一条，source 列出所有来源
 - 中文输出，简洁有力
 - 如果没有特别相关的，诚实说"今天没有强相关信号"`;
+
+// Parse RSS XML (minimal parser for <item><title><link><pubDate>)
+function parseRssItems(xml, source, maxItems = 15) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) && items.length < maxItems) {
+    const block = match[1];
+    const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1]?.trim() || '';
+    const link = (block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i) || [])[1]?.trim() || '';
+    const pubDate = (block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) || [])[1]?.trim() || '';
+    if (title) items.push({ title, url: link, source, pubDate, points: 0 });
+  }
+  return items;
+}
+
+// ── Annual relationship report ──
+
+async function handleAnnualReport(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  try {
+    const contacts = await loadDataset(env, userId, 'contacts');
+    const timeline = await loadDataset(env, userId, 'timeline');
+    const todos = await loadDataset(env, userId, 'todos');
+    const metrics = await loadMetrics(env, userId);
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+
+  // Filter to this year's data
+  const yearTimeline = timeline.filter(t => (t.date || '') >= yearStart && (t.date || '') <= yearEnd);
+  const yearTodos = todos.filter(t => (t.created || t.date || '') >= yearStart);
+
+  // Compute stats
+  const contactInteractions = {};
+  for (const t of yearTimeline) {
+    const name = t.contact_name || t.contact || '';
+    if (name) contactInteractions[name] = (contactInteractions[name] || 0) + 1;
+  }
+
+  // Top contacts by interaction count
+  const topContacts = Object.entries(contactInteractions)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  // Monthly distribution
+  const monthlyDist = Array(12).fill(0);
+  for (const t of yearTimeline) {
+    const month = parseInt((t.date || '').slice(5, 7)) - 1;
+    if (month >= 0 && month < 12) monthlyDist[month]++;
+  }
+
+  // New contacts this year (by created date if available, otherwise count all)
+  const newContacts = contacts.filter(c => (c.created || c.created_at || '') >= yearStart).length;
+
+  // Todo completion
+  const completedTodos = yearTodos.filter(t => isTodoDone(t)).length;
+  const totalTodos = yearTodos.length;
+  const completionRate = totalTodos > 0 ? Math.round(completedTodos / totalTodos * 100) : 0;
+
+  // Relationship health summary (reuse classification logic)
+  const DAY = 86400000;
+  let activeCount = 0, coolingCount = 0, dormantCount = 0;
+  for (const c of contacts) {
+    const nature = (c.nature || '').toLowerCase();
+    if (nature === 'nurture') continue;
+    const contactTimeline = timeline.filter(t => t.contact_name === c.name || t.contact === c.id);
+    const lastTs = contactTimeline.length > 0
+      ? Math.max(...contactTimeline.map(t => new Date(t.date || 0).getTime() || 0))
+      : 0;
+    const daysSince = lastTs > 0 ? Math.floor((now.getTime() - lastTs) / DAY) : 999;
+    if (daysSince <= 30) activeCount++;
+    else if (daysSince <= 90) coolingCount++;
+    else dormantCount++;
+  }
+
+  // Weekly metrics aggregation
+  const weeklyMetrics = metrics.weekly || {};
+  let totalAdvise = 0, totalTodoCompleted = 0, totalInteractions = 0, totalDrafts = 0, totalSignalActions = 0;
+  for (const wk of Object.keys(weeklyMetrics)) {
+    if (wk.startsWith(String(year))) {
+      const w = weeklyMetrics[wk];
+      totalAdvise += w.advise_generated || 0;
+      totalTodoCompleted += w.todo_completed || 0;
+      totalInteractions += w.interaction_recorded || 0;
+      totalDrafts += w.draft_generated || 0;
+      totalSignalActions += w.signal_action || 0;
+    }
+  }
+
+  // Build context for LLM
+  const contextData = {
+    year,
+    summary: {
+      total_contacts: contacts.length,
+      new_contacts_this_year: newContacts,
+      total_interactions: yearTimeline.length,
+      completed_todos: completedTodos,
+      total_todos: totalTodos,
+      completion_rate: completionRate,
+      active_relationships: activeCount,
+      cooling_relationships: coolingCount,
+      dormant_relationships: dormantCount,
+      advise_generated: totalAdvise,
+      drafts_generated: totalDrafts,
+      signal_actions: totalSignalActions,
+    },
+    monthly_distribution: monthlyDist,
+    top_contacts: topContacts,
+    highlights: {
+      busiest_month: monthlyDist.indexOf(Math.max(...monthlyDist)) + 1,
+      quietest_month: (() => {
+        const nonZero = monthlyDist.filter(m => m > 0);
+        if (nonZero.length === 0) return 0;
+        return monthlyDist.indexOf(Math.min(...nonZero)) + 1;
+      })(),
+    },
+  };
+
+  // Generate narrative via LLM
+  const llmResp = await callLLM(
+    JSON.stringify(contextData),
+    `你是一个关系网络智能体。请根据用户${year}年的关系数据，生成一份温暖、有洞察力的年度关系报告。报告应包含：
+1. 年度回顾（用2-3句话总结这一年的关系经营）
+2. 关键数字（列出核心数据）
+3. 关系健康度（活跃/冷却/休眠分布）
+4. 年度高光时刻（互动最多的月份和联系人，用一段连贯的文字描述）
+5. 成长轨迹（从进化指标看成长，用一段连贯的文字描述）
+6. 明年建议（3条具体可执行的建议）
+用中文，语气温暖但不过度煽情。JSON格式：{greeting(string), review(string), key_numbers[{label,value}], health{active,cooling,dormant}, highlights(string), growth(string), suggestions[](string数组)}
+注意：highlights 和 growth 必须是字符串，不是对象。`,
+    env,
+    { max_tokens: 2048, temperature: 0.7, model_tier: 'standard' }
+  );
+
+  let report;
+  if (llmResp && llmResp.text) {
+    try {
+      const jsonMatch = llmResp.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) report = JSON.parse(jsonMatch[0]);
+      else report = { greeting: llmResp.text };
+    } catch {
+      report = { greeting: llmResp.text };
+    }
+  } else {
+    report = {
+      greeting: `${year}年度关系报告`,
+      review: `这一年你记录了${yearTimeline.length}次互动，管理了${contacts.length}段关系。`,
+      key_numbers: [
+        { label: '总互动次数', value: yearTimeline.length },
+        { label: '管理关系数', value: contacts.length },
+        { label: '新增联系人', value: newContacts },
+        { label: '待办完成率', value: `${completionRate}%` },
+      ],
+      health: { active: activeCount, cooling: coolingCount, dormant: dormantCount },
+      highlights: `互动最频繁的月份是${contextData.highlights.busiest_month}月`,
+      growth: `生成了${totalAdvise}条建议，${totalDrafts}条消息草稿`,
+      suggestions: ['定期回顾冷却中的关系', '保持每月互动节奏', '关注休眠关系的重新激活'],
+    };
+  }
+
+  // Attach raw stats
+  report.raw_stats = contextData.summary;
+  report.monthly_distribution = monthlyDist;
+  report.top_contacts = topContacts;
+  report.year = year;
+
+  // Cache for 24 hours
+    const cacheKey = `annual_cache:${userId}:${year}`;
+    await env.USER_DATA.put(cacheKey, JSON.stringify({ ok: true, report }), { expirationTtl: 86400 });
+
+    return { status: 200, data: { ok: true, report } };
+  } catch (e) {
+    console.error('[annual_report] Error:', e.message, e.stack);
+    return { status: 500, data: { error: '年度报告生成失败', detail: e.message } };
+  }
+}
 
 async function handleHnSignals(req, env) {
   const body = await req.json().catch(() => ({}));
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
-  // Cache: same-day cache (25h TTL)
+  // Cache: same-day cache (25h TTL), bypass with refresh=1
   const todayKey = new Date().toISOString().slice(0, 10);
   const cacheKey = `hn_signals:${userId}:${todayKey}`;
-  const cached = await env.USER_DATA.get(cacheKey);
-  if (cached) {
-    return { status: 200, data: JSON.parse(cached) };
-  }
-
-  // Fetch top HN stories
-  let hnStories = [];
-  try {
-    // Use Algolia API for top stories (more reliable than Firebase for Workers)
-    const searchResp = await fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', {
-      headers: { 'User-Agent': 'Welian/1.0' },
-    });
-    if (searchResp.ok) {
-      const searchData = await searchResp.json();
-      hnStories = (searchData.hits || []).map(h => ({
-        title: h.title || h.story_title || '',
-        url: h.url || h.story_url || '',
-        points: h.points || 0,
-        comments: h.num_comments || 0,
-        objectID: h.objectID,
-        created_at: h.created_at || '',
-      })).filter(s => s.title).slice(0, 25);
+  if (!body.refresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      return { status: 200, data: JSON.parse(cached) };
     }
-  } catch (e) {
-    console.error('HN fetch error:', e.message);
   }
 
-  if (hnStories.length === 0) {
-    return { status: 200, data: { ok: true, report: { greeting: '今天暂时无法获取 HN 数据', signals: [], themes: [], closing: '稍后再试' }, raw_data: { stories: [] } } };
+  // ── Load user signal domain preferences ──
+  let userDomains = ['investment', 'ai', 'tech_finance']; // default: all three
+  try {
+    const domainsRaw = await env.USER_DATA.get(`signal_domains:${userId}`);
+    if (domainsRaw) userDomains = JSON.parse(domainsRaw);
+  } catch { /* domain prefs optional */ }
+
+  // ── Fetch from multiple sources in parallel ──
+  // Sources are tagged with domains: investment, ai, tech_finance, general
+  const [hnStories, kr36Stories, huxiuStories, jiqizhixinStories, wallstreetStories, bbtStories, toutiaoStories, weixinStories, producthuntStories, techcrunchStories, vergeStories, arxivStories, v2exStories] = await Promise.all([
+    // Source 1: Hacker News (Algolia API) — general/ai/tech
+    (async () => {
+      try {
+        const resp = await fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', {
+          headers: { 'User-Agent': 'Welian/1.0' },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          return (data.hits || []).map(h => ({
+            title: h.title || h.story_title || '',
+            url: h.url || h.story_url || '',
+            source: 'HN',
+            points: h.points || 0,
+            comments: h.num_comments || 0,
+            hn_url: `https://news.ycombinator.com/item?id=${h.objectID}`,
+            domains: ['ai', 'tech_finance', 'general'],
+          })).filter(s => s.title).slice(0, 20);
+        }
+      } catch (e) { console.error('HN fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 2: 36氪 RSS — tech_finance/general
+    (async () => {
+      try {
+        const resp = await fetch('https://36kr.com/feed', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '36氪', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+        }
+      } catch (e) { console.error('36kr fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 3: 虎嗅 RSS (via RSSHub mirror) — general/tech_finance
+    (async () => {
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/huxiu/article', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '虎嗅', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+        }
+      } catch (e) { console.error('huxiu fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 4: 机器之心 RSS (via RSSHub) — ai
+    (async () => {
+      if (!userDomains.includes('ai')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/jiqizhixin/article', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '机器之心', 15).map(s => ({ ...s, domains: ['ai'] }));
+        }
+      } catch (e) { console.error('jiqizhixin fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 5: 华尔街见闻 RSS (via RSSHub) — investment
+    (async () => {
+      if (!userDomains.includes('investment')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/wallstreetcn/news/global', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '华尔街见闻', 15).map(s => ({ ...s, domains: ['investment'] }));
+        }
+      } catch (e) { console.error('wallstreetcn fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 6: 投资界/PE日报 RSS (via RSSHub) — investment
+    (async () => {
+      if (!userDomains.includes('investment')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/pedaily/pe', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '投资界', 10).map(s => ({ ...s, domains: ['investment'] }));
+        }
+      } catch (e) { console.error('pedaily fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 7: 头条热榜 (JSON API) — general/tech_finance
+    (async () => {
+      try {
+        const resp = await fetch('https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc', {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          return (data.data || []).slice(0, 15).map(item => ({
+            title: item.Title || '',
+            url: item.Url || `https://www.toutiao.com/trending/${item.ClusterId}/`,
+            source: '头条',
+            points: Math.floor((item.HotValue || 0) / 1000000),
+            domains: ['tech_finance', 'general'],
+          })).filter(s => s.title);
+        }
+      } catch (e) { console.error('toutiao fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 8: 微信生态圈 (Tavily search on mp.weixin.qq.com — real WeChat公众号 articles)
+    (async () => {
+      try {
+        // site:mp.weixin.qq.com ensures results are native WeChat公众号 articles, not reposts
+        const r = await webSearch('site:mp.weixin.qq.com AI 科技 商业 金融', env, 10, 3);
+        const results = (r?.results || []).slice(0, 10).map(item => ({
+          title: item.title || '',
+          url: item.url || '',
+          source: '微信',
+          points: 0,
+          domains: ['ai', 'tech_finance', 'general'],
+        })).filter(s => s.title && s.url.includes('mp.weixin.qq.com'));
+        console.log(`[hn_signals] WeChat: ${results.length} articles from mp.weixin.qq.com`);
+        return results;
+      } catch (e) { console.error('weixin search error:', e.message); }
+      return [];
+    })(),
+    // Source 9: Product Hunt (Atom RSS) — tech/ai, product launches
+    (async () => {
+      try {
+        const resp = await fetch('https://www.producthunt.com/feed', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          // Atom feed: <entry><title><link href><content>
+          const items = [];
+          const entryRegex = /<entry>([\s\S]*?)<\/entry>/gi;
+          let match;
+          while ((match = entryRegex.exec(xml)) && items.length < 15) {
+            const block = match[1];
+            const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1]?.trim() || '';
+            const link = (block.match(/<link[^>]*href="([^"]+)"/i) || [])[1]?.trim() || '';
+            if (title) items.push({ title, url: link, source: 'Product Hunt', points: 0, domains: ['ai', 'tech_finance', 'general'] });
+          }
+          return items;
+        }
+      } catch (e) { console.error('producthunt fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 10: TechCrunch (RSS) — tech_finance, VC/startup
+    (async () => {
+      try {
+        const resp = await fetch('https://techcrunch.com/feed/', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, 'TechCrunch', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+        }
+      } catch (e) { console.error('techcrunch fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 11: The Verge (RSS) — tech/general, consumer tech
+    (async () => {
+      try {
+        const resp = await fetch('https://www.theverge.com/rss/index.xml', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, 'The Verge', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+        }
+      } catch (e) { console.error('verge fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 12: ArXiv AI (Atom API) — ai, research papers
+    (async () => {
+      if (!userDomains.includes('ai')) return [];
+      try {
+        const resp = await fetch('http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=10', {
+          headers: { 'User-Agent': 'Welian/1.0' },
+        });
+        if (resp.ok) {
+          const xml = await resp.text();
+          // ArXiv uses Atom: <entry><title><summary><link href>
+          const items = [];
+          const entryRegex = /<entry>([\s\S]*?)<\/entry>/gi;
+          let match;
+          while ((match = entryRegex.exec(xml)) && items.length < 10) {
+            const block = match[1];
+            const title = (block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]?.trim() || '';
+            const link = (block.match(/<link[^>]*href="([^"]+)"/i) || [])[1]?.trim() || '';
+            if (title) items.push({ title: title.replace(/\n/g, ' ').trim(), url: link, source: 'ArXiv', points: 0, domains: ['ai'] });
+          }
+          return items;
+        }
+      } catch (e) { console.error('arxiv fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 13: V2EX 热榜 (JSON API) — tech/general, developer community
+    (async () => {
+      try {
+        const resp = await fetch('https://www.v2ex.com/api/topics/hot.json', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const data = await resp.json();
+          return (data || []).slice(0, 15).map(t => ({
+            title: t.title || '',
+            url: `https://www.v2ex.com/t/${t.id}`,
+            source: 'V2EX',
+            points: t.replies || 0,
+            domains: ['tech_finance', 'general'],
+          })).filter(s => s.title);
+        }
+      } catch (e) { console.error('v2ex fetch error:', e.message); }
+      return [];
+    })(),
+  ]);
+
+  // Filter stories by user's domain preferences
+  let allStories = [...hnStories, ...kr36Stories, ...huxiuStories, ...jiqizhixinStories, ...wallstreetStories, ...bbtStories, ...toutiaoStories, ...weixinStories, ...producthuntStories, ...techcrunchStories, ...vergeStories, ...arxivStories, ...v2exStories];
+  // Filter: keep stories that have at least one domain matching user preferences, or have no domain tag (legacy)
+  allStories = allStories.filter(s => {
+    if (!s.domains || s.domains.length === 0) return true; // legacy stories without domain tag
+    return s.domains.some(d => userDomains.includes(d) || d === 'general');
+  });
+
+  if (allStories.length === 0) {
+    return { status: 200, data: { ok: true, report: { greeting: '今天暂时无法获取新闻数据', signals: [], contact_signals: [], themes: [], closing: '稍后再试' }, raw_data: { stories: [] } } };
   }
 
-  // Load user context for personalization
+  // ── Load user context for personalization ──
   const contacts = await loadDataset(env, userId, 'contacts');
   const timeline = await loadDataset(env, userId, 'timeline');
   const todos = await loadDataset(env, userId, 'todos');
 
-  // Build user context summary
-  const topContacts = contacts.slice(0, 30).map(c => ({
-    name: c.name, relation: c.relation || '', sub_relation: c.sub_relation || '',
-    company: c.company || '', tags: (c.tags || []).slice(0, 5),
-  }));
+  // Load user profile for industry personalization
+  let userProfile = null;
+  try {
+    const profileRaw = await env.USER_DATA.get(`profile:${userId}`);
+    if (profileRaw) userProfile = JSON.parse(profileRaw);
+  } catch { /* profile optional */ }
+
+  const industry = userProfile?.industry || userProfile?.occupation || '';
+  const focusAreas = userProfile?.focus_areas || '';
+  const careerGoal = userProfile?.career_goal || '';
+
+  // Build user context summary — include enough detail for LLM to map signals to contacts
+  const topContacts = contacts.slice(0, 30).map(c => {
+    // Find last interaction with this contact for context
+    const contactTimeline = timeline.filter(t => t.contact === c.id || t.contact_name === c.name);
+    const lastInteraction = contactTimeline.length > 0
+      ? contactTimeline[contactTimeline.length - 1]
+      : null;
+    return {
+      name: c.name, relation: c.relation || '', sub_relation: c.sub_relation || '',
+      company: c.company || '', title: c.title || '',
+      tags: (c.tags || []).slice(0, 5),
+      nature: c.nature || '',
+      last_interaction: lastInteraction ? (lastInteraction.summary || lastInteraction.action || '').substring(0, 60) : null,
+    };
+  });
   const recentTimeline = timeline.slice(-10).map(t => ({
     contact: t.contact || '', summary: (t.summary || t.action || '').substring(0, 80),
   }));
@@ -6346,25 +7199,96 @@ async function handleHnSignals(req, env) {
   }));
 
   const userContext = JSON.stringify({
+    profile: { industry, focus_areas: focusAreas, career_goal: careerGoal },
     contacts: topContacts,
     recent_interactions: recentTimeline,
     pending_todos: pendingTodos,
     contact_count: contacts.length,
   });
 
-  const storiesText = hnStories.map((s, i) =>
-    `${i + 1}. [${s.points}pts ${s.comments}comments] ${s.title}\n   URL: ${s.url || '(no url)'}\n   HN: https://news.ycombinator.com/item?id=${s.objectID}`
-  ).join('\n');
+  // ── Source 4: Tavily search for top contacts' companies (last 7 days only) ──
+  let contactSearchResults = [];
+  try {
+    // Get top 3 contacts with company names (prefer leverage/dual, fallback to any with company)
+    const leverageContacts = contacts
+      .filter(c => (c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重') && c.company && c.company.length >= 2)
+      .slice(0, 3);
+    // If not enough leverage contacts, fill with any contacts that have company
+    const otherContactsWithCompany = contacts
+      .filter(c => !leverageContacts.includes(c) && c.company && c.company.length >= 2)
+      .slice(0, 3 - leverageContacts.length);
+    const searchContacts = [...leverageContacts, ...otherContactsWithCompany];
+    console.log(`[hn_signals] Contact search: ${searchContacts.length} contacts (leverage: ${leverageContacts.length})`);
 
-  const prompt = `Today's top Hacker News stories:
+    // Time filter: only keep results from last 7 days
+    const nowMs = Date.now();
+    const SEVEN_DAYS_MS = 7 * 86400000;
+
+    if (searchContacts.length > 0) {
+      const searchPromises = searchContacts.map(c =>
+        // Search for company's own news only — exact company name + company event keywords
+        // Tavily doesn't support OR syntax, so use natural query that targets company-specific events
+        webSearch(`"${c.company}" 融资 OR 收购 OR 发布会 OR 财报 OR 人事变动 OR 战略合作 OR 新产品 OR 上线`, env, 8, 7).then(r => {
+          const allResults = r?.results || [];
+          // Strict 7-day filter: drop results without date or with old date
+          const recentResults = allResults.filter(res => {
+            if (!res.published_date) return false; // no date → drop (can't verify recency)
+            const pubMs = new Date(res.published_date).getTime();
+            if (isNaN(pubMs)) return false; // unparseable → drop
+            return pubMs > nowMs - SEVEN_DAYS_MS;
+          });
+          // Take top 2 after filtering
+          const topResults = recentResults.slice(0, 2);
+          console.log(`[hn_signals] Search for ${c.name} (${c.company}): ${allResults.length} results → ${topResults.length} after strict 7-day filter via ${r?.provider || 'none'}`);
+          return {
+            contact_name: c.name,
+            company: c.company,
+            results: topResults,
+          };
+        }).catch((e) => {
+          console.error(`[hn_signals] Search failed for ${c.company}:`, e.message);
+          return { contact_name: c.name, company: c.company, results: [] };
+        })
+      );
+      contactSearchResults = await Promise.all(searchPromises);
+    }
+  } catch (e) {
+    console.error('Contact search error:', e.message);
+  }
+
+  // Format contact search results for LLM — only contacts with recent results
+  const contactSearchText = contactSearchResults
+    .filter(r => r.results.length > 0)
+    .map(r => {
+      const topResult = r.results[0];
+      const dateHint = topResult.published_date ? ` (${topResult.published_date.slice(0, 10)})` : '';
+      return `联系人: ${r.contact_name} (${r.company})\n  新闻: ${topResult.title}${dateHint}\n  摘要: ${(topResult.snippet || '').substring(0, 200)}\n  链接: ${topResult.url}`;
+    }).join('\n');
+
+  // Format all stories for LLM
+  const storiesText = allStories.map((s, i) => {
+    const pts = s.points ? ` [${s.points}pts]` : '';
+    const hnUrl = s.hn_url ? `\n   HN: ${s.hn_url}` : '';
+    return `${i + 1}. ${pts} [${s.source}] ${s.title}\n   URL: ${s.url || '(no url)'}${hnUrl}`;
+  }).join('\n');
+
+  const industryDesc = industry || focusAreas || '金融科技/银行/支付';
+
+  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 虎嗅, 头条, 微信, 机器之心, 华尔街见闻, 投资界, Product Hunt, TechCrunch, The Verge, ArXiv, V2EX):
 ${storiesText}
 
-User context (their contacts, recent interactions, pending todos):
+${contactSearchText ? `\nUser's key contacts' company news (from web search):\n${contactSearchText}\n` : ''}
+User context (profile, contacts, recent interactions, pending todos):
 ${userContext}
 
-From these HN stories, select the ones most relevant to this user. The user works in fintech/banking/payments and has the contacts shown above. Generate personalized signals that connect HN stories to their professional network and relationship goals.`;
+From all these sources, select the ones most relevant to this user. The user works in ${industryDesc}${careerGoal ? ` and their career goal is: ${careerGoal}` : ''}. They have ${contacts.length} contacts shown above.
 
-  const llmResp = await callLLM(prompt, await getPrompt(env, 'hn_signals', HN_SIGNALS_SYSTEM), env, { max_tokens: 2048, temperature: 0.7 });
+CRITICAL: For each signal, you MUST check the user's contact list and identify which contacts are most relevant to this news. Put them in related_contacts with a specific reason based on the contact's company, industry, tags, or recent interaction topics. This is the key value of Welian — connecting external news to the user's specific relationship network.
+
+Generate personalized signals that connect news to their professional network and relationship goals. For contact_signals, use the web search results about their contacts' companies.`;
+
+  // Use enhanced tier (claude-sonnet) for signals — complex nested JSON needs stronger model
+  const llmResp = await callLLM(prompt, await getPrompt(env, 'hn_signals', HN_SIGNALS_SYSTEM), env, { max_tokens: 4096, temperature: 0.7, model_tier: 'enhanced' });
 
   let report;
   if (llmResp && llmResp.text) {
@@ -6373,10 +7297,42 @@ From these HN stories, select the ones most relevant to this user. The user work
       if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       report = JSON.parse(cleaned);
     } catch (e) {
-      report = { greeting: '今日 HN 信号', signals: [], themes: [], closing: '解析失败，稍后再试', raw: llmResp.text.substring(0, 500) };
+      // Try to fix common JSON issues: trailing commas, truncated output
+      try {
+        let fixed = llmResp.text.trim();
+        if (fixed.startsWith('```')) fixed = fixed.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        // Remove trailing commas before } or ]
+        fixed = fixed.replace(/,\s*([}\]])/g, '$1');
+        // If truncated, try to close open arrays/objects
+        const openBraces = (fixed.match(/{/g) || []).length;
+        const closeBraces = (fixed.match(/}/g) || []).length;
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+        if (openBraces > closeBraces) fixed += '}'.repeat(openBraces - closeBraces);
+        if (openBrackets > closeBrackets) fixed += ']'.repeat(openBrackets - closeBrackets);
+        report = JSON.parse(fixed);
+        console.log('[hn_signals] JSON parsed after fix');
+      } catch (e2) {
+        report = { greeting: '今日信号', signals: [], contact_signals: [], themes: [], closing: '解析失败，稍后再试', raw: llmResp.text.substring(0, 500) };
+      }
     }
   } else {
-    report = { greeting: '今日 HN 信号', signals: [], themes: [], closing: '生成失败，稍后再试' };
+    report = { greeting: '今日信号', signals: [], contact_signals: [], themes: [], closing: '生成失败，稍后再试' };
+  }
+
+  // Fallback: if LLM didn't generate contact_signals, build from raw search results
+  if (!report.contact_signals || report.contact_signals.length === 0) {
+    report.contact_signals = contactSearchResults
+      .filter(r => r.results.length > 0)
+      .map(r => ({
+        contact_name: r.contact_name,
+        company: r.company,
+        title: r.results[0].title || '',
+        snippet: (r.results[0].snippet || '').substring(0, 200),
+        url: r.results[0].url || '',
+        relevance: '',
+      }));
+    console.log(`[hn_signals] Built ${report.contact_signals.length} contact_signals from raw search (LLM fallback)`);
   }
 
   // Deduct billing (unified)
@@ -6384,8 +7340,252 @@ From these HN stories, select the ones most relevant to this user. The user work
     await deductBilling(env, userId, llmResp.usage, 'hn_signals');
   }
 
-  const resultData = { ok: true, report, raw_data: { stories: hnStories, generated_at: new Date().toISOString() } };
+  const resultData = { ok: true, report, raw_data: { stories: allStories, contact_search: contactSearchResults, generated_at: new Date().toISOString() } };
   await env.USER_DATA.put(cacheKey, JSON.stringify(resultData), { expirationTtl: 90000 });
+  return { status: 200, data: resultData };
+}
+
+// ── Public signals preview (no auth, no personalization, 6h cache) ──
+
+async function handleSignalsPreview(req, env) {
+  // Cache: 6 hour TTL, shared across all users
+  const cacheKey = `signals_preview:${new Date().toISOString().slice(0, 13)}`; // hour-level key
+  const cached = await env.USER_DATA.get(cacheKey);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    // Don't serve cached empty results — regenerate
+    if (parsed.report?.signals?.length > 0) {
+      // Ensure daily snapshot exists even on cache hit
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const existing = await env.USER_DATA.get(`signals_history:${todayKey}`);
+      if (!existing) {
+        await env.USER_DATA.put(`signals_history:${todayKey}`, JSON.stringify({
+          date: todayKey,
+          greeting: parsed.report.greeting || '',
+          signals: parsed.report.signals,
+          themes: parsed.report.themes || [],
+          closing: parsed.report.closing || '',
+        }), { expirationTtl: 2592000 });
+      }
+      return { status: 200, data: parsed };
+    }
+  }
+
+  // Fetch from multiple sources in parallel (same as handleHnSignals but no user context)
+  const [hnStories, kr36Stories, huxiuStories] = await Promise.all([
+    (async () => {
+      try {
+        const resp = await fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', {
+          headers: { 'User-Agent': 'Welian/1.0' },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          return (data.hits || []).map(h => ({
+            title: h.title || h.story_title || '',
+            url: h.url || h.story_url || '',
+            source: 'HN',
+            points: h.points || 0,
+          })).filter(s => s.title).slice(0, 20);
+        }
+      } catch (e) { console.error('HN fetch error:', e.message); }
+      return [];
+    })(),
+    (async () => {
+      try {
+        const resp = await fetch('https://36kr.com/feed', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '36氪', 15);
+        }
+      } catch (e) { console.error('36kr fetch error:', e.message); }
+      return [];
+    })(),
+    (async () => {
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/huxiu/article', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '虎嗅', 15);
+        }
+      } catch (e) { console.error('huxiu fetch error:', e.message); }
+      return [];
+    })(),
+  ]);
+
+  const allStories = [...hnStories, ...kr36Stories, ...huxiuStories];
+
+  if (allStories.length === 0) {
+    // All news sources failed — try yesterday's snapshot as fallback
+    const yesterdayKey = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const yesterdaySnapshot = await env.USER_DATA.get(`signals_history:${yesterdayKey}`);
+    if (yesterdaySnapshot) {
+      const parsed = JSON.parse(yesterdaySnapshot);
+      return { status: 200, data: { ok: true, report: parsed, generated_at: new Date().toISOString(), fallback: true } };
+    }
+    return { status: 200, data: { ok: true, report: { greeting: '今天暂时无法获取新闻数据', signals: [], themes: [], closing: '稍后再试' } } };
+  }
+
+  const storiesText = allStories.map((s, i) => {
+    const pts = s.points ? ` [${s.points}pts]` : '';
+    return `${i + 1}. ${pts} [${s.source}] ${s.title}\n   URL: ${s.url || '(no url)'}`;
+  }).join('\n');
+
+  const previewSystem = `You are Welian (小维), generating a public tech signal briefing from multiple news sources. This is a PUBLIC preview (no user context available).
+
+IMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences.
+
+Return JSON:
+{
+  "greeting": "一句话开场",
+  "signals": [
+    {
+      "title": "标题（中文）",
+      "url": "原始链接",
+      "source": "来源（HN/36氪/虎嗅）",
+      "points": 分数或0,
+      "why": "为什么值得关注",
+      "tags": ["标签1", "标签2"]
+    }
+  ],
+  "themes": ["热点主题1", "热点主题2"],
+  "closing": "一句话收尾，引导用户登录 welian.app 获取个性化信号"
+}
+
+Rules:
+- 最多选 8 条高信号故事
+- 中文输出，简洁有力
+- closing 要引导用户登录获取个性化信号（如"登录 welian.app 查看结合你关系网络的个性化信号"）`;
+
+  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 虎嗅):
+${storiesText}
+
+Select the most important and interesting stories. Generate a public signal briefing.`;
+
+  const llmResp = await callLLM(prompt, previewSystem, env, { max_tokens: 1500, temperature: 0.7 });
+
+  let report;
+  if (llmResp && llmResp.text) {
+    try {
+      let cleaned = llmResp.text.trim();
+      if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      report = JSON.parse(cleaned);
+    } catch (e) {
+      report = null; // will use fallback below
+    }
+  }
+
+  // Fallback: if LLM failed or returned empty signals, build report from raw stories
+  if (!report || !report.signals || report.signals.length === 0) {
+    const fallbackSignals = allStories
+      .sort((a, b) => (b.points || 0) - (a.points || 0))
+      .slice(0, 8)
+      .map(s => ({
+        title: s.title,
+        url: s.url || '',
+        source: s.source,
+        points: s.points || 0,
+        why: '',
+        tags: [],
+      }));
+    report = {
+      greeting: '今日信号',
+      signals: fallbackSignals,
+      themes: [],
+      closing: '登录 welian.app 获取个性化信号',
+    };
+  }
+
+  const resultData = { ok: true, report, generated_at: new Date().toISOString() };
+  await env.USER_DATA.put(cacheKey, JSON.stringify(resultData), { expirationTtl: 21600 }); // 6 hours
+
+  // Also save daily snapshot for history (30-day TTL) — only if not already saved today
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const existingSnapshot = await env.USER_DATA.get(`signals_history:${todayKey}`);
+  if (!existingSnapshot && report.signals && report.signals.length > 0) {
+    await env.USER_DATA.put(`signals_history:${todayKey}`, JSON.stringify({
+      date: todayKey,
+      greeting: report.greeting || '',
+      signals: report.signals,
+      themes: report.themes || [],
+      closing: report.closing || '',
+    }), { expirationTtl: 2592000 }); // 30 days
+  }
+
+  return { status: 200, data: resultData };
+}
+
+// ── Public signals history (no auth, last 7 days) ──
+
+async function handleSignalsHistory(req, env) {
+  const days = [];
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateKey = d.toISOString().slice(0, 10);
+    const raw = await env.USER_DATA.get(`signals_history:${dateKey}`);
+    if (raw) {
+      days.push(JSON.parse(raw));
+    }
+  }
+  // Build weekly theme aggregation
+  const themeCount = {};
+  days.forEach(d => {
+    (d.themes || []).forEach(t => {
+      themeCount[t] = (themeCount[t] || 0) + 1;
+    });
+  });
+  const weeklyThemes = Object.entries(themeCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([theme, count]) => ({ theme, count }));
+
+  return { status: 200, data: { ok: true, days, weekly_themes: weeklyThemes } };
+}
+
+// ── Contact web search: search a contact's recent public activity ──
+
+async function handleContactWebSearch(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { contact_name, company } = body;
+  if (!contact_name) return { status: 400, data: { error: 'contact_name required' } };
+
+  // Build search query: name + company for better precision
+  const query = company
+    ? `"${contact_name}" ${company}`
+    : `"${contact_name}"`;
+
+  // Cache: 24h per user+contact (avoids re-searching same person repeatedly)
+  const cacheKey = `contact_search:${userId}:${contact_name}`;
+  const cached = await env.USER_DATA.get(cacheKey);
+  if (cached) {
+    return { status: 200, data: JSON.parse(cached) };
+  }
+
+  // Use Tavily for AI-optimized results
+  const results = await webSearch(query, env, 5);
+
+  if (!results || !results.results || results.results.length === 0) {
+    const emptyData = { ok: true, results: [], query, message: 'No public results found' };
+    await env.USER_DATA.put(cacheKey, JSON.stringify(emptyData), { expirationTtl: 86400 });
+    return { status: 200, data: emptyData };
+  }
+
+  // Format results
+  const formatted = results.results.map(r => ({
+    title: r.title || '',
+    snippet: (r.snippet || '').substring(0, 300),
+    url: r.url || '',
+  }));
+
+  const resultData = { ok: true, results: formatted, query, provider: results.provider };
+  await env.USER_DATA.put(cacheKey, JSON.stringify(resultData), { expirationTtl: 86400 });
+
+  // Deduct a small billing for the search (1 point)
+  await deductBilling(env, userId, { input_tokens: 0, output_tokens: 0 }, 'contact_search', `web search ${contact_name}`);
+
   return { status: 200, data: resultData };
 }
 
@@ -6469,6 +7669,119 @@ async function handleOnboardingCreateContacts(req, env) {
   return { status: 200, data: { ok: true, created: created.map(c => ({ id: c.id, name: c.name, nature: c.nature })), first_advise: firstAdvise } };
 }
 
+// ── Relationship health: AI-powered cooling/warming/dormant classification ──
+
+async function handleRelationshipHealth(req, env) {
+  const userId = await getVerifiedUserId(req, env, {});
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const timeline = await loadDataset(env, userId, 'timeline');
+
+  const now = Date.now();
+  const DAY = 86400000;
+
+  // Classify each leverage/dual contact
+  const classifications = [];
+  for (const c of contacts) {
+    const nature = (c.nature || '').toLowerCase();
+    if (nature === 'nurture') continue; // skip nurture — ethical boundary
+
+    // Find last interaction with this contact
+    const contactTimeline = timeline.filter(t => t.contact === c.id || t.contact_name === c.name);
+    const lastTs = contactTimeline.length > 0
+      ? Math.max(...contactTimeline.map(t => new Date(t.date || t.created || 0).getTime() || 0))
+      : 0;
+    const daysSince = lastTs > 0 ? Math.floor((now - lastTs) / DAY) : -1; // -1 = never
+
+    // Interaction frequency: interactions in last 90 days
+    const recent90 = contactTimeline.filter(t => {
+      const ts = new Date(t.date || t.created || 0).getTime() || 0;
+      return ts > now - 90 * DAY;
+    }).length;
+
+    // Classify: cooling / warming / dormant / active / new
+    let status = 'active';
+    let urgency = 0;
+    let recommendation = '';
+
+    if (daysSince < 0) {
+      status = 'new';
+      recommendation = '尚未互动，建议尽快建立首次联系';
+    } else if (daysSince <= 14) {
+      status = 'active';
+      recommendation = recent90 >= 3 ? '关系热络，保持节奏' : '近期有互动，建议加深交流';
+    } else if (daysSince <= 45) {
+      status = 'cooling';
+      urgency = 2;
+      recommendation = `已 ${daysSince} 天未联系，建议找个自然切入点重新互动`;
+    } else if (daysSince <= 90) {
+      status = 'cooling';
+      urgency = 3;
+      recommendation = `已 ${daysSince} 天未联系，需要主动破冰`;
+    } else if (daysSince <= 180) {
+      status = 'dormant';
+      urgency = 4;
+      recommendation = `已 ${daysSince} 天未联系，关系可能休眠，需要重新激活`;
+    } else {
+      status = 'dormant';
+      urgency = 5;
+      recommendation = `已 ${daysSince} 天未联系，关系大概率已冷，需要重大契机重新连接`;
+    }
+
+    // Warming: was dormant/cooling but had recent interaction
+    if (daysSince <= 14 && recent90 >= 2) {
+      const prev90 = contactTimeline.filter(t => {
+        const ts = new Date(t.date || t.created || 0).getTime() || 0;
+        return ts > now - 180 * DAY && ts <= now - 90 * DAY;
+      }).length;
+      if (prev90 === 0) {
+        status = 'warming';
+        urgency = 0;
+        recommendation = '关系正在升温，趁热打铁加深连接';
+      }
+    }
+
+    classifications.push({
+      contact_id: c.id,
+      name: c.name,
+      company: c.company || '',
+      nature: c.nature || 'leverage',
+      status,
+      urgency,
+      days_since: daysSince,
+      recent_interactions_90d: recent90,
+      recommendation,
+    });
+  }
+
+  // Sort by urgency (highest first)
+  classifications.sort((a, b) => b.urgency - a.urgency);
+
+  // Summary stats
+  const summary = {
+    total: classifications.length,
+    active: classifications.filter(c => c.status === 'active').length,
+    warming: classifications.filter(c => c.status === 'warming').length,
+    cooling: classifications.filter(c => c.status === 'cooling').length,
+    dormant: classifications.filter(c => c.status === 'dormant').length,
+    new: classifications.filter(c => c.status === 'new').length,
+  };
+
+  // Top priorities (urgency >= 3)
+  const priorities = classifications.filter(c => c.urgency >= 3).slice(0, 10);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      summary,
+      classifications,
+      priorities,
+    },
+  };
+}
+
 // ── Push poll: bot picks up queued messages ──
 
 async function handlePushPoll(req, env) {
@@ -6495,6 +7808,175 @@ async function handlePushPoll(req, env) {
   await env.USER_DATA.delete(`push_queue:${clerkUserId}`);
 
   return { status: 200, data: { messages: queue } };
+}
+
+// ── Push a message to all IM channels bound by a user ──
+
+async function pushToIMChannels(env, clerkUserId, text) {
+  // Find all IM platforms this user has bound
+  const imPrefix = `im_user:${clerkUserId}:`;
+  const listResult = await env.USER_DATA.list({ prefix: imPrefix });
+  if (listResult.keys.length === 0) return;
+
+  for (const key of listResult.keys) {
+    // key.name = "im_user:<clerkUserId>:<platform>"
+    const platform = key.name.replace(imPrefix, '');
+    const raw = await env.USER_DATA.get(key.name);
+    if (!raw) continue;
+
+    // Parse binding info (new format: JSON, old format: plain string)
+    let chatId = '';
+    try {
+      const parsed = JSON.parse(raw);
+      chatId = parsed.chat_id || '';
+    } catch {
+      chatId = raw; // old format: scoped_id (no chat_id — can't push)
+    }
+    if (!chatId) continue;
+
+    try {
+      const adapter = platform === 'telegram' ? telegramAdapter
+        : platform === 'feishu' ? feishuAdapter
+        : platform === 'dingtalk' ? dingtalkAdapter
+        : null;
+      if (!adapter) continue;
+
+      await adapter.sendReply(env, { chatId, text, platform });
+      console.log(`[im_push] ${platform} push sent to ${clerkUserId}`);
+    } catch (e) {
+      console.error(`[im_push] ${platform} failed for ${clerkUserId}:`, e.message);
+    }
+  }
+}
+
+// ── Biweekly health warning push: check relationship health for all bound users ──
+
+async function handleHealthWarningPush(env) {
+  console.log('[health_warning] Starting biweekly health warning push');
+
+  // Find all bound users (WeChat + IM)
+  const wechatList = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+  const imList = await env.USER_DATA.list({ prefix: 'im_user:' });
+
+  // Collect unique clerk user IDs
+  const userIds = new Set();
+  for (const key of wechatList.keys) {
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) userIds.add(clerkUserId);
+  }
+  for (const key of imList.keys) {
+    // key.name = "im_user:<clerkUserId>:<platform>"
+    const clerkUserId = key.name.split(':')[1];
+    if (clerkUserId) userIds.add(clerkUserId);
+  }
+
+  for (const clerkUserId of userIds) {
+    try {
+      const contacts = await loadDataset(env, clerkUserId, 'contacts');
+      const timeline = await loadDataset(env, clerkUserId, 'timeline');
+
+      if (contacts.length === 0) continue;
+
+      // Reuse health classification logic (inline to avoid auth overhead)
+      const now = Date.now();
+      const DAY = 86400000;
+      const classifications = [];
+
+      for (const c of contacts) {
+        const nature = (c.nature || '').toLowerCase();
+        if (nature === 'nurture') continue; // ethical boundary
+
+        const contactTimeline = timeline.filter(t => t.contact === c.id || t.contact_name === c.name);
+        const lastTs = contactTimeline.length > 0
+          ? Math.max(...contactTimeline.map(t => new Date(t.date || t.created || 0).getTime() || 0))
+          : 0;
+        const daysSince = lastTs > 0 ? Math.floor((now - lastTs) / DAY) : -1;
+
+        let status = 'active';
+        let urgency = 0;
+
+        if (daysSince < 0) {
+          status = 'new';
+        } else if (daysSince <= 14) {
+          status = 'active';
+        } else if (daysSince <= 45) {
+          status = 'cooling'; urgency = 2;
+        } else if (daysSince <= 90) {
+          status = 'cooling'; urgency = 3;
+        } else if (daysSince <= 180) {
+          status = 'dormant'; urgency = 4;
+        } else {
+          status = 'dormant'; urgency = 5;
+        }
+
+        // Warming detection
+        if (daysSince <= 14) {
+          const recent90 = contactTimeline.filter(t => {
+            const ts = new Date(t.date || t.created || 0).getTime() || 0;
+            return ts > now - 90 * DAY;
+          }).length;
+          if (recent90 >= 2) {
+            const prev90 = contactTimeline.filter(t => {
+              const ts = new Date(t.date || t.created || 0).getTime() || 0;
+              return ts > now - 180 * DAY && ts <= now - 90 * DAY;
+            }).length;
+            if (prev90 === 0) {
+              status = 'warming'; urgency = 0;
+            }
+          }
+        }
+
+        if (urgency >= 3) {
+          classifications.push({ name: c.name, company: c.company || '', status, urgency, days_since: daysSince });
+        }
+      }
+
+      // Only push if there are relationships needing attention
+      if (classifications.length === 0) {
+        console.log(`[health_warning] ${clerkUserId}: no warnings, skipping`);
+        continue;
+      }
+
+      // Build warning message
+      const cooling = classifications.filter(c => c.status === 'cooling');
+      const dormant = classifications.filter(c => c.status === 'dormant');
+
+      let msg = '💚 关系健康预警\n\n';
+      if (cooling.length > 0) {
+        msg += `⚠️ 正在冷却（${cooling.length}人）：\n`;
+        cooling.slice(0, 5).forEach(c => {
+          msg += `· ${c.name}${c.company ? `（${c.company}）` : ''} — ${c.days_since}天未联系\n`;
+        });
+        if (cooling.length > 5) msg += `...等${cooling.length}人\n`;
+        msg += '\n';
+      }
+      if (dormant.length > 0) {
+        msg += `🔴 关系休眠（${dormant.length}人）：\n`;
+        dormant.slice(0, 3).forEach(c => {
+          msg += `· ${c.name}${c.company ? `（${c.company}）` : ''} — ${c.days_since}天未联系\n`;
+        });
+        if (dormant.length > 3) msg += `...等${dormant.length}人\n`;
+        msg += '\n';
+      }
+      msg += '建议尽快找个自然切入点重新互动。\n';
+      msg += '登录 welian.app 查看完整健康分析 →';
+
+      // Push to WeChat queue (if WeChat-bound)
+      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
+      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      queue.push({ type: 'health_warning', content: msg, timestamp: new Date().toISOString() });
+      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+
+      // Push to IM channels (TG/飞书/钉钉)
+      pushToIMChannels(env, clerkUserId, msg).catch(e =>
+        console.error(`[health_warning] IM push failed for ${clerkUserId}:`, e.message)
+      );
+
+      console.log(`[health_warning] Pushed to ${clerkUserId}: ${classifications.length} warnings`);
+    } catch (e) {
+      console.error(`[health_warning] Failed for ${clerkUserId}:`, e.message);
+    }
+  }
 }
 
 // ── Scheduled push: generate weekly reports for WeChat-bound users ──
@@ -6583,6 +8065,11 @@ async function handleScheduledPush(env) {
       queue.push({ type: 'weekly_report', content: msg, timestamp: now.toISOString() });
       await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
 
+      // Also push to IM channels (Telegram/飞书/钉钉)
+      pushToIMChannels(env, clerkUserId, msg).catch(e =>
+        console.error(`[im_push] weekly report failed for ${clerkUserId}:`, e.message)
+      );
+
       // Also send weekly report via email (async, don't block)
       getUserEmailFromClerk(env, clerkUserId).then(email => {
         if (email) {
@@ -6600,6 +8087,422 @@ async function handleScheduledPush(env) {
       console.log(`Weekly report queued for ${clerkUserId}`);
     } catch (e) {
       console.error(`Push failed for ${clerkUserId}:`, e.message);
+    }
+  }
+}
+
+// ── Funnel metrics: aggregate acquisition/activation/retention/paid/viral ──
+
+async function handleFunnelMetrics(env) {
+  // Cache for 1 hour to avoid expensive KV scans
+  const cacheKey = 'funnel_metrics_cache';
+  const cached = await env.USER_DATA.get(cacheKey);
+  if (cached) {
+    try { return { status: 200, data: JSON.parse(cached) }; } catch { /* cache parse error */ }
+  }
+
+  // 1. List all users via billing: prefix (paginated)
+  const userIds = new Set();
+  let cursor;
+  do {
+    const listOpts = { prefix: 'billing:', limit: 1000 };
+    if (cursor) listOpts.cursor = cursor;
+    const result = await env.USER_DATA.list(listOpts);
+    for (const k of result.keys) {
+      userIds.add(k.name.replace('billing:', ''));
+    }
+    cursor = result.list_complete ? undefined : result.cursor;
+  } while (cursor);
+
+  const totalUsers = userIds.size;
+
+  // 2. For each user, fetch billing + contacts + metrics in parallel batches
+  const userIdArr = [...userIds];
+  let activated = 0;      // ≥3 contacts AND ≥1 action in first 7 days
+  let active7d = 0;       // any metrics activity in last 7 days
+  let paid = 0;           // plan !== 'free' or has subscription
+  let totalContacts = 0;
+  let totalActions = 0;
+
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 86400000;
+  const thirtyDaysAgo = now - 30 * 86400000;
+
+  // Process in batches of 20 to avoid overwhelming KV
+  for (let i = 0; i < userIdArr.length; i += 20) {
+    const batch = userIdArr.slice(i, i + 20);
+    const results = await Promise.all(batch.map(async (uid) => {
+      const [billingRaw, contactsRaw, metricsRaw] = await Promise.all([
+        env.USER_DATA.get(`billing:${uid}`),
+        env.USER_DATA.get(`contacts:${uid}`),
+        env.USER_DATA.get(`metrics:${uid}`),
+      ]);
+      return { uid, billingRaw, contactsRaw, metricsRaw };
+    }));
+
+    for (const { billingRaw, contactsRaw, metricsRaw } of results) {
+      // Paid check
+      if (billingRaw) {
+        try {
+          const billing = JSON.parse(billingRaw);
+          if (billing.plan && billing.plan !== 'free') paid++;
+          if (billing.subscription) paid++;
+        } catch { /* billing parse error */ }
+      }
+
+      // Activation check: ≥3 contacts
+      let contactCount = 0;
+      let firstContactTs = null;
+      if (contactsRaw) {
+        try {
+          const contacts = JSON.parse(contactsRaw);
+          contactCount = contacts.length;
+          totalContacts += contactCount;
+          if (contacts.length > 0) {
+            const created = contacts.map(c => c.created).filter(Boolean).sort();
+            if (created[0]) firstContactTs = new Date(created[0]).getTime();
+          }
+        } catch { /* contacts parse error */ }
+      }
+
+      // Metrics check: any action in last 7 days
+      let hasRecentAction = false;
+      let userActionCount = 0;
+      if (metricsRaw) {
+        try {
+          const metrics = JSON.parse(metricsRaw);
+          const weekly = metrics.weekly || {};
+          for (const [wk, data] of Object.entries(weekly)) {
+            const weekActions = (data.advise_generated || 0) + (data.todo_completed || 0) +
+              (data.interaction_recorded || 0) + (data.draft_generated || 0) + (data.signal_action || 0);
+            userActionCount += weekActions;
+            // Check if this week is within last 7 days (approximate: check week key year/week)
+            // Simple heuristic: if any weekly key exists for recent weeks
+            const wkDate = new Date(`${wk.split('-')[0]}-01-01`);
+            const wkMs = wkDate.getTime() + (parseInt(wk.split('-')[1]) - 1) * 7 * 86400000;
+            if (wkMs > sevenDaysAgo - 7 * 86400000) hasRecentAction = true;
+          }
+          totalActions += userActionCount;
+        } catch { /* metrics parse error */ }
+      }
+
+      // Activation: ≥3 contacts AND (firstContactTs exists) AND has at least 1 action
+      if (contactCount >= 3 && userActionCount > 0) activated++;
+
+      // Retention: any activity in last ~7 days
+      if (hasRecentAction) active7d++;
+    }
+  }
+
+  // 3. Viral: count invite codes and redemptions
+  let inviteCodes = 0;
+  let inviteRedemptions = 0;
+  cursor = undefined;
+  do {
+    const listOpts = { prefix: 'invite_code_reverse:', limit: 1000 };
+    if (cursor) listOpts.cursor = cursor;
+    const result = await env.USER_DATA.list(listOpts);
+    for (const k of result.keys) inviteCodes++;
+    cursor = result.list_complete ? undefined : result.cursor;
+  } while (cursor);
+
+  cursor = undefined;
+  do {
+    const listOpts = { prefix: 'invited_by:', limit: 1000 };
+    if (cursor) listOpts.cursor = cursor;
+    const result = await env.USER_DATA.list(listOpts);
+    for (const k of result.keys) inviteRedemptions++;
+    cursor = result.list_complete ? undefined : result.cursor;
+  } while (cursor);
+
+  const data = {
+    ok: true,
+    generated_at: new Date().toISOString(),
+    funnel: {
+      acquisition: { total: totalUsers, label: '注册用户' },
+      activation: { count: activated, total: totalUsers, rate: totalUsers > 0 ? (activated / totalUsers * 100).toFixed(1) : '0', label: '激活（≥3联系人+1动作）' },
+      retention: { count: active7d, total: totalUsers, rate: totalUsers > 0 ? (active7d / totalUsers * 100).toFixed(1) : '0', label: '7天活跃' },
+      paid: { count: paid, total: totalUsers, rate: totalUsers > 0 ? (paid / totalUsers * 100).toFixed(1) : '0', label: '付费用户' },
+      viral: { codes: inviteCodes, redemptions: inviteRedemptions, rate: inviteCodes > 0 ? (inviteRedemptions / inviteCodes * 100).toFixed(1) : '0', label: '邀请转化' },
+    },
+    aggregates: {
+      total_contacts: totalContacts,
+      total_actions: totalActions,
+      avg_contacts_per_user: totalUsers > 0 ? (totalContacts / totalUsers).toFixed(1) : '0',
+      avg_actions_per_user: totalUsers > 0 ? (totalActions / totalUsers).toFixed(1) : '0',
+    },
+  };
+
+  // Cache for 1 hour
+  await env.USER_DATA.put(cacheKey, JSON.stringify(data), { expirationTtl: 3600 });
+  return { status: 200, data };
+}
+
+// ── Daily signals → WeChat official account article publish ──
+
+async function handleDailySignalsPush(env) {
+  console.log('[daily_signals] Starting daily signals article publish');
+
+  // Generate the signals preview (reuse the public preview logic)
+  const previewResult = await handleSignalsPreview(new Request('https://internal/signals_preview'), env);
+  if (!previewResult.data?.ok || !previewResult.data?.report?.signals?.length) {
+    console.log('[daily_signals] No signals generated, skipping');
+    return;
+  }
+
+  const report = previewResult.data.report;
+  const signals = report.signals || [];
+  const themes = report.themes || [];
+  const today = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+
+  // Save daily snapshot to KV for history (30-day TTL)
+  const todayKey = new Date().toISOString().slice(0, 10);
+  await env.USER_DATA.put(`signals_history:${todayKey}`, JSON.stringify({
+    date: todayKey,
+    greeting: report.greeting || '',
+    signals,
+    themes,
+    closing: report.closing || '',
+  }), { expirationTtl: 2592000 }); // 30 days
+
+  // Build article title (max 32 chars)
+  const title = `📡 今日信号 · ${today}`;
+
+  // Build article digest (max 120 chars)
+  const topTitles = signals.slice(0, 3).map(s => s.title).join('、');
+  const digest = `${themes.join('、')}${themes.length > 0 ? '；' : ''}${topTitles}`.substring(0, 120);
+
+  // Build HTML content for the article
+  let html = '<section style="padding:16px;font-size:16px;line-height:1.8;color:#333;">';
+
+  if (report.greeting) {
+    html += `<p style="color:#666;font-size:15px;margin-bottom:20px;">${escWechat(report.greeting)}</p>`;
+  }
+
+  if (themes.length > 0) {
+    html += '<section style="margin-bottom:24px;">';
+    html += '<h2 style="font-size:18px;color:#4A6741;border-left:4px solid #4A6741;padding-left:12px;margin-bottom:12px;">🔥 热点主题</h2>';
+    themes.forEach(t => {
+      html += `<span style="display:inline-block;background:#4A6741;color:#fff;padding:4px 14px;border-radius:14px;font-size:14px;margin:3px;">${escWechat(t)}</span>`;
+    });
+    html += '</section>';
+  }
+
+  html += '<section style="margin-bottom:24px;">';
+  html += '<h2 style="font-size:18px;color:#4A6741;border-left:4px solid #4A6741;padding-left:12px;margin-bottom:16px;">📊 关键信号</h2>';
+
+  signals.forEach((s, i) => {
+    const sourceTag = s.source ? `<span style="font-size:12px;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;margin-left:6px;">${escWechat(s.source)}</span>` : '';
+    const pts = s.points ? ` · ${s.points}pts` : '';
+    html += `<section style="background:#FAFAF7;border:1px solid #E8E0D6;border-radius:12px;padding:16px;margin-bottom:14px;">`;
+    html += `<h3 style="font-size:16px;font-weight:600;margin-bottom:8px;">${escWechat(s.title || '')}${sourceTag}</h3>`;
+    html += `<p style="font-size:13px;color:#999;margin-bottom:10px;">${pts}${s.source ? ` · 来源：${escWechat(s.source)}` : ''}</p>`;
+    html += `<p style="font-size:15px;color:#555;line-height:1.7;"><strong style="color:#4A6741;">为什么重要：</strong>${escWechat(s.why || '')}</p>`;
+    if (s.tags && s.tags.length > 0) {
+      html += '<p style="margin-top:10px;">';
+      s.tags.forEach(t => {
+        html += `<span style="display:inline-block;background:#fff;border:1px solid #ddd;padding:2px 8px;border-radius:8px;font-size:12px;color:#888;margin:2px;">${escWechat(t)}</span>`;
+      });
+      html += '</p>';
+    }
+    html += '</section>';
+  });
+
+  html += '</section>';
+
+  // CTA section — no <a> tag (WeChat strips links in article body), use text + 阅读原文
+  html += `<section style="background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:16px;padding:24px;text-align:center;margin-top:20px;">
+    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">获取个性化信号</h2>
+    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">登录 Welian，信号会结合你的行业、联系人网络和关系目标</p>
+    <p style="color:#fff;font-size:15px;font-weight:600;">点击底部「阅读原文」体验 →</p>
+  </section>`;
+
+  if (report.closing) {
+    html += `<p style="text-align:center;color:#999;font-size:14px;margin-top:20px;">${escWechat(report.closing)}</p>`;
+  }
+
+  html += `<p style="text-align:center;color:#ccc;font-size:12px;margin-top:16px;">— 用 Welian 管理你的关系 · welian.app —</p>`;
+  html += '</section>';
+
+  // Get WeChat access token
+  const accessToken = await getWechatAccessToken(env);
+  if (!accessToken) {
+    console.log('[daily_signals] No WeChat access token, skipping article publish');
+    return;
+  }
+
+  // Step 1: Upload cover image as permanent material
+  const thumbMediaId = await uploadWechatCoverImage(env, accessToken, themes, signals);
+  if (!thumbMediaId) {
+    console.error('[daily_signals] Failed to upload cover image, skipping publish');
+    return;
+  }
+
+  // Step 2: Create draft
+  const draftResp = await fetch(`https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${accessToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      articles: [{
+        title: title.substring(0, 32),
+        author: 'Welian 小维',
+        digest: digest.substring(0, 120),
+        content: html,
+        content_source_url: 'https://welian.app/signals.html',
+        thumb_media_id: thumbMediaId,
+        need_open_comment: 1,
+        only_fans_can_comment: 0,
+      }],
+    }),
+  });
+  const draftData = await draftResp.json();
+
+  if (draftData.errcode || !draftData.media_id) {
+    console.error('[daily_signals] Draft add failed:', JSON.stringify(draftData));
+    return;
+  }
+
+  console.log('[daily_signals] Draft created:', draftData.media_id);
+
+  // Step 3: Submit for publish
+  const publishResp = await fetch(`https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token=${accessToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ media_id: draftData.media_id }),
+  });
+  const publishData = await publishResp.json();
+
+  if (publishData.errcode) {
+    console.error('[daily_signals] Publish submit failed:', JSON.stringify(publishData));
+    return;
+  }
+
+  console.log('[daily_signals] Article published! publish_id:', publishData.publish_id);
+
+  // Also push text summary to queues (for bot pickup / Telegram)
+  let msg = `📡 今日信号 · ${today}\n\n`;
+  if (report.greeting) msg += `${report.greeting}\n\n`;
+  if (themes.length > 0) msg += `🔥 ${themes.join('、')}\n\n`;
+  signals.slice(0, 5).forEach(s => {
+    msg += `· ${s.title} [${s.source || ''}]\n  ${s.why || ''}\n`;
+  });
+  msg += `\n完整文章已发布到公众号\n${report.closing || ''}\n\n— 用 Welian 管理你的关系：welian.app`;
+  await pushSignalsToQueues(env, msg);
+}
+
+// Escape HTML for WeChat article content
+function escWechat(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Upload a cover image to WeChat as permanent material
+async function uploadWechatCoverImage(env, accessToken, themes, signals) {
+  // Generate a simple cover image (900x383, WeChat recommended ratio 2.35:1)
+  // Use a solid color background with text — we'll use an SVG converted to PNG via a simple approach
+  // Since Cloudflare Workers can't easily generate PNGs, we'll use a pre-uploaded permanent thumb
+  // Strategy: check if we already have a cached thumb_media_id (reusable permanent material)
+  const cachedThumb = await env.USER_DATA.get('wechat_thumb_media_id');
+  if (cachedThumb) {
+    console.log('[daily_signals] Using cached cover thumb_media_id:', cachedThumb);
+    return cachedThumb;
+  }
+
+  // No cached cover — upload a default one from a URL
+  // WeChat requires uploading via multipart/form-data to material/add_material
+  try {
+    // Download a default cover image
+    const coverUrl = 'https://welian.app/wechat-cover.png'; // site cover image
+    const imgResp = await fetch(coverUrl);
+    if (!imgResp.ok) {
+      console.error('[daily_signals] Cover image fetch failed:', imgResp.status);
+      return null;
+    }
+    const imgBlob = await imgResp.blob();
+
+    // Upload as permanent material (type=image)
+    const formData = new FormData();
+    formData.append('type', 'image');
+    formData.append('media', imgBlob, 'cover.png');
+
+    const uploadResp = await fetch(`https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${accessToken}`, {
+      method: 'POST',
+      body: formData,
+    });
+    const uploadData = await uploadResp.json();
+
+    if (uploadData.errcode || !uploadData.media_id) {
+      console.error('[daily_signals] Cover upload failed:', JSON.stringify(uploadData));
+      return null;
+    }
+
+    // Cache the media_id permanently (it's a permanent material, won't expire)
+    await env.USER_DATA.put('wechat_thumb_media_id', uploadData.media_id);
+    console.log('[daily_signals] Cover uploaded, media_id:', uploadData.media_id);
+    return uploadData.media_id;
+  } catch (e) {
+    console.error('[daily_signals] Cover upload error:', e.message);
+    return null;
+  }
+}
+
+async function getWechatAccessToken(env) {
+  if (!env.WECHAT_APP_ID || !env.WECHAT_APP_SECRET) return null;
+
+  // Check cache first (token valid for 2h, cache 1.5h)
+  const cached = await env.USER_DATA.get('wechat_access_token');
+  if (cached) return cached;
+
+  try {
+    // Use stable_token API (POST) — more reliable than GET /cgi-bin/token
+    const resp = await fetch('https://api.weixin.qq.com/cgi-bin/stable_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credential',
+        appid: env.WECHAT_APP_ID,
+        secret: env.WECHAT_APP_SECRET,
+        force_refresh: false,
+      }),
+    });
+    const data = await resp.json();
+    if (data.access_token) {
+      await env.USER_DATA.put('wechat_access_token', data.access_token, { expirationTtl: 5400 }); // 1.5h
+      return data.access_token;
+    }
+    console.error('[wechat] Token error:', data.errmsg);
+  } catch (e) {
+    console.error('[wechat] Token fetch error:', e.message);
+  }
+  return null;
+}
+
+async function pushSignalsToQueues(env, msg) {
+  // Push to all WeChat-bound users' queues (for bot pickup)
+  const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+  const pushedUsers = new Set();
+  for (const key of listResult.keys) {
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) {
+      pushedUsers.add(clerkUserId);
+      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
+      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      queue.push({ type: 'daily_signals', content: msg, timestamp: new Date().toISOString() });
+      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+    }
+  }
+
+  // Also push to IM channels (Telegram/飞书/钉钉) for IM-bound users
+  // Find all im_user: bindings
+  const imList = await env.USER_DATA.list({ prefix: 'im_user:' });
+  const imUsers = new Set();
+  for (const key of imList.keys) {
+    // key.name = "im_user:<clerkUserId>:<platform>"
+    const clerkUserId = key.name.split(':')[1];
+    if (clerkUserId && !pushedUsers.has(clerkUserId) && !imUsers.has(clerkUserId)) {
+      imUsers.add(clerkUserId);
+      pushToIMChannels(env, clerkUserId, msg).catch(e =>
+        console.error(`[im_push] signals push failed for ${clerkUserId}:`, e.message)
+      );
     }
   }
 }
@@ -6765,32 +8668,39 @@ async function searchBrave(query, env, limit = 5) {
 }
 
 // Tavily Search API — AI-optimized, free 1000/month, needs TAVILY_API_KEY
-async function searchTavily(query, env, limit = 5) {
+async function searchTavily(query, env, limit = 5, days = null) {
   const apiKey = env.TAVILY_API_KEY;
   if (!apiKey) return null; // not configured
   return withRetry(async () => {
+    const body = {
+      api_key: apiKey,
+      query,
+      max_results: limit,
+      search_depth: 'basic',
+    };
+    if (days) body.days = days;
     const resp = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query,
-        max_results: limit,
-        search_depth: 'basic',
-      }),
+      body: JSON.stringify(body),
     });
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data.results || !Array.isArray(data.results)) return [];
-    return data.results.map(r => ({ title: r.title || '', snippet: r.content || '', url: r.url || '' }));
+    return data.results.map(r => ({
+      title: r.title || '',
+      snippet: r.content || '',
+      url: r.url || '',
+      published_date: r.published_date || '',
+    }));
   });
 }
 
 // Unified search: Tavily > Brave > DuckDuckGo API > DuckDuckGo HTML > Google > Mojeek > Sogou > cn.bing > Wikipedia
 // Free no-key sources: DuckDuckGo, Google, Mojeek, Sogou, cn.bing, Wikipedia
-async function webSearch(query, env, limit = 5) {
+async function webSearch(query, env, limit = 5, days = null) {
   // 1. Tavily (best for AI, 1000/month free, needs key)
-  const tavilyResults = await searchTavily(query, env, limit);
+  const tavilyResults = await searchTavily(query, env, limit, days);
   if (tavilyResults && tavilyResults.length > 0) {
     return { provider: 'tavily', results: tavilyResults };
   }

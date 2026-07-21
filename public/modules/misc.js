@@ -3,9 +3,9 @@
 import { CLOUD_URL, I18N, authBtn, body, cachedUserProfile, cachedUserProfileObj, clerkInstance, currentLang, input, isAuthed, mineCache, mineCurrentTab, setCachedUserProfile, setCachedUserProfileObj, setCurrentLang, setMineCurrentTab, simulationData, simulationMode } from './state.js';
 import { addMsg, healthRingSvg } from './chat.js';
 import { getClerkToken, onSignedOut } from './auth.js';
-import { loadBillingTab } from './billing.js';
+import { loadBillingTab, loadInviteSection } from './billing.js';
 import { loadContactsTab } from './contacts.js';
-import { loadMonthlyTab, loadSignalsTab, loadWeeklyTab } from './proactive.js';
+import { loadMonthlyTab, loadSignalsTab, loadWeeklyTab, loadAnnualTab, buildShareCard, showShareModal } from './proactive.js';
 import { loadTimelineTab } from './timeline.js';
 import { loadTodosTab } from './todos.js';
 import { loadMeetingsTab } from './meetings.js';
@@ -51,7 +51,9 @@ export async function openMine() {
   document.getElementById('mine-panel').classList.add('show');
   document.getElementById('mineTitle').textContent = I18N[currentLang].mine_title;
   const savedTab = localStorage.getItem('welian_mine_tab') || 'overview';
-  switchMineTab(savedTab);
+  // Map old tab names to new ones
+  const tabMap = { timeline: 'contacts', weekly: 'reports', monthly: 'reports', signals: 'reports', billing: 'settings' };
+  switchMineTab(tabMap[savedTab] || savedTab);
 }
 
 export function closeMine() {
@@ -74,9 +76,9 @@ export function openSupport() {
       <div class="mine-card" style="padding:16px">
         <div class="mine-card-title" style="color:var(--accent);margin-bottom:8px">${zh ? '📖 常见问题' : '📖 FAQ'}</div>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:.85em">
-          <details><summary style="cursor:pointer;color:var(--text)">${zh ? '数据存储在哪里？' : 'Where is my data stored?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? '数据存储在 Cloudflare 全球边缘网络，加密传输。' : 'Data is stored on Cloudflare\'s global edge network with encrypted transit.'}</div></details>
+          <details><summary style="cursor:pointer;color:var(--text)">${zh ? '数据存储在哪里？' : 'Where is my data stored?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? '数据存储在 Cloudflare 全球边缘网络，加密传输，不存储在你的设备上。可随时导出或删除。' : 'Data is stored on Cloudflare\'s global edge network with encrypted transit, not on your device. You can export or delete it anytime.'}</div></details>
           <details><summary style="cursor:pointer;color:var(--text)">${zh ? '如何导出我的数据？' : 'How do I export my data?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? '在「我的」→「概览」中点击「导出数据」，可导出全部联系人和互动记录。' : 'Go to "Me" → "Overview" and click "Export Data" to download all contacts and interactions.'}</div></details>
-          <details><summary style="cursor:pointer;color:var(--text)">${zh ? 'Live 模式和 Cloud 模式有什么区别？' : 'What\'s the difference between Live and Cloud mode?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? 'Live 模式支持 Agent 能力，目前支持 Devin，其它还在逐步接入当中。Cloud 模式数据在云端，无需安装。' : 'Live mode supports Agent capabilities, currently Devin with more being integrated. Cloud mode stores data in the cloud, no installation needed.'}</div></details>
+          <details><summary style="cursor:pointer;color:var(--text)">${zh ? 'Live 模式和 Cloud 模式有什么区别？' : 'What\'s the difference between Live and Cloud mode?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? 'Live 模式通过本地 Agent（Devin CLI）处理消息，支持多步骤任务和工具调用。Cloud 模式直接调用云端 LLM，无需安装。两种模式的数据都存储在云端，加密传输。' : 'Live mode processes messages through a local Agent (Devin CLI), supporting multi-step tasks and tool calls. Cloud mode calls cloud LLM directly, no installation needed. Both modes store data in the cloud with encrypted transit.'}</div></details>
           <details><summary style="cursor:pointer;color:var(--text)">${zh ? '如何注销账户？' : 'How do I delete my account?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? '在「我的」→「设置」中点击「注销账户」，所有数据将被永久删除。' : 'Go to "Me" → "Settings" and click "Delete account". All data will be permanently deleted.'}</div></details>
           <details><summary style="cursor:pointer;color:var(--text)">${zh ? '待办事项如何同步到手机日历？' : 'How to sync todos to my phone calendar?'}</summary><div style="margin-top:6px;color:var(--dim)">${zh ? '在「我的」→「设置」→「日历同步」中复制订阅链接，粘贴到手机日历应用（iPhone 日历、华为日历、Outlook 等）的「添加订阅日历」中。待办和重要日期会自动同步，定期更新。' : 'Go to "Me" → "Settings" → "Calendar Sync", copy the subscription URL, and paste it into your phone calendar app (Apple Calendar, Huawei Calendar, Outlook, etc.) under "Add Subscription Calendar". Todos and important dates will sync automatically.'}</div></details>
         </div>
@@ -109,7 +111,7 @@ export function switchMineTab(tab) {
   });
   // Update title
   const d = I18N[currentLang];
-  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, todos: d.todo_title, timeline: d.tab_timeline, weekly: d.mine_weekly_title, monthly: d.monthly_title, signals: currentLang==='zh'?'📡 HN 信号':'📡 Signals', billing: d.billing_title, settings: d.tab_settings, meetings: currentLang==='zh'?'🎯 会议':'🎯 Meetings' };
+  const titles = { overview: d.mine_overview_title, contacts: d.tab_contacts, todos: d.todo_title, meetings: currentLang==='zh'?'🎯 会议':'🎯 Meetings', reports: currentLang==='zh'?'📋 报告':'📋 Reports', settings: d.tab_settings };
   document.getElementById('mineTitle').textContent = titles[tab] || d.mine_title;
   // Load content
   const content = document.getElementById('mineContent');
@@ -117,13 +119,42 @@ export function switchMineTab(tab) {
   if (tab === 'overview') loadOverview();
   else if (tab === 'contacts') loadContactsTab();
   else if (tab === 'todos') loadTodosTab();
-  else if (tab === 'timeline') loadTimelineTab();
   else if (tab === 'meetings') loadMeetingsTab();
-  else if (tab === 'weekly') loadWeeklyTab();
-  else if (tab === 'monthly') loadMonthlyTab();
-  else if (tab === 'signals') loadSignalsTab();
-  else if (tab === 'billing') loadBillingTab();
+  else if (tab === 'reports') loadReportsTab();
   else if (tab === 'settings') loadSettingsTab();
+}
+
+// Reports tab: sub-tabs for weekly/monthly/signals
+let _reportsSubtab = 'weekly';
+export function loadReportsTab(subtab) {
+  if (subtab) _reportsSubtab = subtab;
+  const zh = currentLang === 'zh';
+  const content = document.getElementById('mineContent');
+  content.innerHTML = `<div class="mine-subtab" id="reportsSubtab">
+    <button class="mine-subtab-item ${_reportsSubtab==='weekly'?'active':''}" onclick="switchReportsSubtab('weekly')">📋 ${zh?'周报':'Weekly'}</button>
+    <button class="mine-subtab-item ${_reportsSubtab==='monthly'?'active':''}" onclick="switchReportsSubtab('monthly')">📅 ${zh?'月度':'Monthly'}</button>
+    <button class="mine-subtab-item ${_reportsSubtab==='annual'?'active':''}" onclick="switchReportsSubtab('annual')">🏆 ${zh?'年度':'Annual'}</button>
+    <button class="mine-subtab-item ${_reportsSubtab==='signals'?'active':''}" onclick="switchReportsSubtab('signals')">📡 ${zh?'信号':'Signals'}</button>
+  </div>
+  <div id="reportsContent"><div class="mine-empty">${I18N[currentLang].mine_loading}</div></div>`;
+  // The load functions write to getElementById('mineContent'), so temporarily swap IDs
+  const real = document.getElementById('mineContent');
+  const target = document.getElementById('reportsContent');
+  real.id = '_mineContentTemp';
+  target.id = 'mineContent';
+  const loadFn = _reportsSubtab === 'weekly' ? loadWeeklyTab : _reportsSubtab === 'monthly' ? loadMonthlyTab : _reportsSubtab === 'annual' ? loadAnnualTab : loadSignalsTab;
+  loadFn().then(() => {
+    // Restore IDs after content loads
+    document.getElementById('mineContent').id = 'reportsContent';
+    document.getElementById('_mineContentTemp').id = 'mineContent';
+  }).catch(() => {
+    document.getElementById('mineContent').id = 'reportsContent';
+    document.getElementById('_mineContentTemp').id = 'mineContent';
+  });
+}
+
+export function switchReportsSubtab(subtab) {
+  loadReportsTab(subtab);
 }
 
 export async function mineApi(path, method = 'GET', body = null) {
@@ -144,14 +175,25 @@ export async function loadOverview() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
   try {
-    const [contactsRes, todosRes, timelineRes] = await Promise.all([
+    const [contactsRes, todosRes, timelineRes, memoryRes, goalRes, profileRes] = await Promise.all([
       mineApi('/data/contacts'),
       mineApi('/data/todos'),
       mineApi('/data/timeline'),
+      mineApi('/data/memory?limit=100').catch(() => ({ memories: [] })),
+      mineApi('/data/goals').catch(() => ({ goals: [] })),
+      mineApi('/data/profile').catch(() => ({ profile: {} })),
     ]);
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
     const allTimeline = timelineRes.timeline || [];
+    const memories = memoryRes.memories || [];
+    const goals = (goalRes.goals || []).filter(g => g.status !== 'completed');
+    const profile = profileRes.profile || {};
+
+    // Profile completeness
+    const profileKeys = ['name', 'occupation', 'company', 'industry', 'location', 'communication_style', 'address_habit', 'focus_areas', 'message_tone', 'career_goal', 'current_projects', 'network_direction'];
+    const profileFieldsTotal = profileKeys.length;
+    const profileFieldsFilled = profileKeys.filter(k => profile[k] && String(profile[k]).trim()).length;
 
     // Cache contacts for detail view
     mineCache.contacts = contacts;
@@ -167,6 +209,13 @@ export async function loadOverview() {
     const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const monthTimeline = allTimeline.filter(t => (t.date || '').startsWith(monthPrefix));
     const monthContacts = new Set(monthTimeline.map(t => t.contact).filter(Boolean));
+
+    // Cache overview data for share function
+    window._overviewInteractionCount = allTimeline.length;
+    window._overviewMemoryCount = memories.length;
+    window._overviewProfileFilled = profileFieldsFilled;
+    window._overviewActiveGoals = goals.length;
+    window._overviewMonthInteractions = monthTimeline.length;
 
     // ── Role classification ──
     // Friend: nurture/dual with non-family relations, or any contact with friend keywords
@@ -265,6 +314,102 @@ export async function loadOverview() {
             ${zh ? `本月已联系 ${monthContacts.size} 人，覆盖率 ${contacts.length > 0 ? Math.round(monthContacts.size/contacts.length*100) : 0}%` : `${monthContacts.size} contacted this month, ${contacts.length > 0 ? Math.round(monthContacts.size/contacts.length*100) : 0}% coverage`}
           </div>
         </div>
+        <div id="healthAnalysis" style="margin-top:12px"></div>
+        <button onclick="loadHealthAnalysis()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9em;font-family:inherit;margin-top:8px">
+          ${zh ? '🔍 AI 健康分析' : '🔍 AI Health Analysis'}
+        </button>
+      </div>
+    `;
+
+    // ── Evolution milestone panel ──
+    const contactCount = contacts.length;
+    const interactionCount = allTimeline.length;
+    const memoryCount = memories.length;
+    const stages = [
+      { name: zh ? '初生' : 'Newborn',   icon: '🌱', minContacts: 0,  minInteractions: 0 },
+      { name: zh ? '启蒙' : 'Awakening', icon: '✨', minContacts: 3,  minInteractions: 1 },
+      { name: zh ? '成长' : 'Growing',   icon: '🌿', minContacts: 10, minInteractions: 20 },
+      { name: zh ? '成熟' : 'Mature',    icon: '🌳', minContacts: 30, minInteractions: 100 },
+      { name: zh ? '精通' : 'Master',    icon: '🏆', minContacts: 50, minInteractions: 300 },
+    ];
+    let currentStageIdx = 0;
+    for (let i = stages.length - 1; i >= 0; i--) {
+      if (contactCount >= stages[i].minContacts && interactionCount >= stages[i].minInteractions) {
+        currentStageIdx = i;
+        break;
+      }
+    }
+    const currentStage = stages[currentStageIdx];
+    const nextStage = stages[currentStageIdx + 1];
+    const stageProgress = nextStage
+      ? Math.round(
+          (Math.min(1, Math.max(0, (contactCount - currentStage.minContacts) / (nextStage.minContacts - currentStage.minContacts))) +
+           Math.min(1, Math.max(0, (interactionCount - currentStage.minInteractions) / (nextStage.minInteractions - currentStage.minInteractions)))) / 2 * 100
+        )
+      : 100;
+
+    // Check for stage upgrade (persist in localStorage)
+    const prevStageKey = 'welian_evolution_stage';
+    const prevStage = parseInt(localStorage.getItem(prevStageKey) || '0');
+    if (currentStageIdx > prevStage) {
+      localStorage.setItem(prevStageKey, String(currentStageIdx));
+      setTimeout(() => {
+        addMsg('ai', `🎉 ${zh ? '你的小维进化到了' : 'Your Welian has evolved to'}「${currentStage.name}」${zh ? '阶段' : ''}！\n${zh ? '它现在掌握了 ' + contactCount + ' 段关系和 ' + interactionCount + ' 条互动记忆' : 'It now knows ' + contactCount + ' relationships and ' + interactionCount + ' interactions'}`);
+      }, 500);
+    } else if (prevStage === 0 && currentStageIdx === 0) {
+      localStorage.setItem(prevStageKey, '0');
+    }
+
+    html += `
+      <!-- Evolution milestone -->
+      <div class="mine-card" style="border:1px solid var(--accent);position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4A6741,#7ec47e,#4A6741)"></div>
+        <div class="mine-card-title">${zh ? '🧬 进化阶段' : '🧬 Evolution Stage'}</div>
+        <div style="display:flex;align-items:center;gap:12px;margin:8px 0">
+          <span style="font-size:2em">${currentStage.icon}</span>
+          <div style="flex:1">
+            <div style="font-size:1.3em;font-weight:600;color:var(--accent)">${currentStage.name}</div>
+            ${nextStage ? `<div style="font-size:.75em;color:var(--dim)">${zh ? '下一阶段' : 'Next'}: ${nextStage.name} ${nextStage.icon}</div>` : `<div style="font-size:.75em;color:var(--accent)">${zh ? '已达到最高阶段' : 'Max stage reached'}</div>`}
+          </div>
+        </div>
+        ${nextStage ? `
+        <div style="background:var(--surface);border-radius:8px;height:8px;overflow:hidden;margin-bottom:6px">
+          <div style="width:${stageProgress}%;height:100%;background:linear-gradient(90deg,#4A6741,#7ec47e);transition:width .5s"></div>
+        </div>
+        <div style="font-size:.72em;color:var(--dim);display:flex;justify-content:space-between">
+          <span>${stageProgress}%</span>
+          <span>${zh ? `还需 ${Math.max(0, nextStage.minContacts - contactCount)} 联系人 · ${Math.max(0, nextStage.minInteractions - interactionCount)} 互动` : `${Math.max(0, nextStage.minContacts - contactCount)} contacts · ${Math.max(0, nextStage.minInteractions - interactionCount)} interactions to go`}</span>
+        </div>
+        ` : ''}
+        <div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">
+          ${stages.map((s, i) => `<span style="font-size:.7em;padding:2px 8px;border-radius:8px;${i <= currentStageIdx ? 'background:var(--accent);color:#fff' : 'background:var(--surface);color:var(--dim)'}">${s.icon} ${s.name}</span>`).join('')}
+        </div>
+      </div>
+
+      <!-- Evolution metrics dashboard -->
+      <div class="mine-card">
+        <div class="mine-card-title">${zh ? '📊 进化指标' : '📊 Evolution Metrics'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px">
+            <div style="font-size:1.4em;font-weight:600;color:var(--accent)">${monthTimeline.length}</div>
+            <div style="font-size:.7em;color:var(--dim)">${zh ? '本月互动' : 'This month'}</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px">
+            <div style="font-size:1.4em;font-weight:600;color:var(--accent)">${memoryCount}</div>
+            <div style="font-size:.7em;color:var(--dim)">${zh ? '记忆总数' : 'Memories'}</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px">
+            <div style="font-size:1.4em;font-weight:600;color:var(--accent)">${profileFieldsFilled}/${profileFieldsTotal}</div>
+            <div style="font-size:.7em;color:var(--dim)">${zh ? '画像完整度' : 'Profile'}</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px">
+            <div style="font-size:1.4em;font-weight:600;color:var(--accent)">${goals.length}</div>
+            <div style="font-size:.7em;color:var(--dim)">${zh ? '活跃目标' : 'Active goals'}</div>
+          </div>
+        </div>
+        <button onclick="shareOverview()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9em;font-family:inherit;margin-top:12px">
+          ${zh ? '📤 分享我的进化' : '📤 Share My Evolution'}
+        </button>
       </div>
     `;
 
@@ -329,6 +474,35 @@ export async function loadOverview() {
       html += `</div>`;
     }
 
+    // ── North star: weekly action trend ──
+    if (allTimeline.length > 0) {
+      const weeks = [];
+      const now2 = new Date();
+      for (let w = 7; w >= 0; w--) {
+        const weekEnd = new Date(now2.getTime() - w * 7 * 86400000);
+        const weekStart = new Date(weekEnd.getTime() - 7 * 86400000);
+        const count = allTimeline.filter(t => {
+          const d2 = new Date(t.date || '');
+          return d2 >= weekStart && d2 < weekEnd;
+        }).length;
+        weeks.push(count);
+      }
+      const maxWeek = Math.max(...weeks, 1);
+      const weekLabels = zh ? ['8周前','7','6','5','4','3','2','本周'] : ['8w ago','7','6','5','4','3','2','this'];
+      const avgActions = (weeks.reduce((a, b) => a + b, 0) / weeks.length).toFixed(1);
+      html += `
+        <div class="mine-card">
+          <div class="mine-card-title">${zh ? '⭐ 关系行动趋势' : '⭐ Action Trend'} <span style="font-size:.7em;color:var(--dim);font-weight:400">${zh ? '近8周均 ' + avgActions + ' 条/周' : 'avg ' + avgActions + '/wk'}</span></div>
+          <div style="display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:8px">
+            ${weeks.map((c, i) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="width:100%;background:${i === weeks.length - 1 ? 'var(--accent)' : 'var(--border)'};border-radius:3px 3px 0 0;height:${Math.max(2, (c / maxWeek) * 50)}px;transition:height .3s"></div><div style="font-size:.6em;color:var(--dim)">${c}</div></div>`).join('')}
+          </div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            ${weekLabels.map((l, i) => `<div style="flex:1;text-align:center;font-size:.6em;color:var(--dim)">${i === weekLabels.length - 1 ? '<b style="color:var(--accent)">' + l + '</b>' : l}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     // ── Recent interactions ──
     if (allTimeline.length > 0) {
       html += `<div class="mine-section-title">${d.mine_interactions}</div>`;
@@ -340,6 +514,70 @@ export async function loadOverview() {
         html += `<div class="mine-contact" style="cursor:pointer" onclick="openContactDetail('${escapeHtml(t.contact || '')}')"><div><div class="mine-contact-name">${escapeHtml(contactName)}</div><div class="mine-contact-sub">${dt} · ${escapeHtml(summary)}</div></div></div>`;
       });
       html += `</div>`;
+    }
+
+    // ── Funnel metrics (admin only) ──
+    try {
+      const token = await getClerkToken();
+      if (token) {
+        const adminResp = await fetch(`${CLOUD_URL}/ai/admin/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ session_token: token }),
+        });
+        const adminResult = await adminResp.json();
+        if (adminResult.is_admin) {
+          const funnelResp = await fetch(`${CLOUD_URL}/ai/funnel_metrics`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const funnelData = await funnelResp.json();
+          if (funnelData.ok) {
+            const f = funnelData.funnel;
+            const a = funnelData.aggregates;
+            const funnelBar = (label, count, total, rate, color) => `
+              <div style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;font-size:.78em;margin-bottom:3px">
+                  <span style="color:var(--text)">${label}</span>
+                  <span style="color:var(--dim)">${count}/${total} · ${rate}%</span>
+                </div>
+                <div style="background:var(--surface);border-radius:6px;height:6px;overflow:hidden">
+                  <div style="width:${total > 0 ? (count/total*100) : 0}%;height:100%;background:${color};transition:width .5s"></div>
+                </div>
+              </div>
+            `;
+            html += `
+              <div class="mine-card" style="border:1px solid var(--accent)">
+                <div class="mine-card-title">${zh ? '📈 漏斗指标' : '📈 Funnel Metrics'} <span style="font-size:.65em;color:var(--dim);font-weight:400">admin</span></div>
+                ${funnelBar('注册用户', f.acquisition.total, f.acquisition.total, 100, '#4A6741')}
+                ${funnelBar(f.activation.label, f.activation.count, f.activation.total, f.activation.rate, '#5a7a51')}
+                ${funnelBar(f.retention.label, f.retention.count, f.retention.total, f.retention.rate, '#7ec47e')}
+                ${funnelBar(f.paid.label, f.paid.count, f.paid.total, f.paid.rate, '#4A6741')}
+                ${funnelBar(f.viral.label + ` (${f.viral.redemptions}/${f.viral.codes})`, f.viral.redemptions, f.viral.codes, f.viral.rate, '#5a7a51')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+                  <div style="text-align:center">
+                    <div style="font-size:1.2em;font-weight:600;color:var(--accent)">${a.total_contacts}</div>
+                    <div style="font-size:.68em;color:var(--dim)">${zh ? '总联系人' : 'Total contacts'}</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:1.2em;font-weight:600;color:var(--accent)">${a.total_actions}</div>
+                    <div style="font-size:.68em;color:var(--dim)">${zh ? '总行动数' : 'Total actions'}</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:1.2em;font-weight:600;color:var(--accent)">${a.avg_contacts_per_user}</div>
+                    <div style="font-size:.68em;color:var(--dim)">${zh ? '人均联系人' : 'Avg contacts'}</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:1.2em;font-weight:600;color:var(--accent)">${a.avg_actions_per_user}</div>
+                    <div style="font-size:.68em;color:var(--dim)">${zh ? '人均行动' : 'Avg actions'}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[funnel] admin check failed:', e.message);
     }
 
     if (contacts.length === 0 && todos.length === 0 && allTimeline.length === 0) {
@@ -357,6 +595,17 @@ export async function loadSettingsTab() {
   const zh = currentLang === 'zh';
   const content = document.getElementById('mineContent');
   content.innerHTML = `
+    <div class="mine-card">
+      <div class="mine-card-title" class="flex-between" style="cursor:pointer" onclick="toggleSection('billingSection','billingToggle')">
+        <span>💳 ${zh ? '订阅与套餐' : 'Subscription & Billing'}</span>
+        <span id="billingToggle" style="font-size:.7em;color:var(--dim)">▾</span>
+      </div>
+      <div id="billingSection" style="display:none">
+        <div id="billingContent" style="font-size:.85em">
+          <div class="mine-empty">${zh ? '加载中…' : 'Loading…'}</div>
+        </div>
+      </div>
+    </div>
     <div class="mine-card">
       <div class="mine-card-title">🤖 ${zh ? '模型选择' : 'Model Tier'}</div>
       <div class="mine-contact-sub" style="margin-bottom:12px">${zh ? '选择 AI 模型等级，影响回复质量和消耗' : 'Choose AI model tier, affects quality and cost'}</div>
@@ -440,7 +689,43 @@ export async function loadSettingsTab() {
         <div class="label-muted-sm">${zh ? '触发意图（逗号分隔：greeting,congratulate,ask_for_help）' : 'Triggers (comma-separated)'}</div>
       </div>
     </div>
+    <div class="mine-card">
+      <div class="mine-card-title">👥 ${zh ? '邀请好友' : 'Invite Friends'}</div>
+      <div style="font-size:.82em;color:var(--dim);margin-bottom:10px;line-height:1.6">${zh ? '邀请好友注册，你和好友各得 <strong style="color:var(--accent)">100 联点</strong>奖励（最多 50 人）' : 'Invite friends — you and your friend each get <strong style="color:var(--accent)">100 credits</strong> (max 50)'}</div>
+      <div id="inviteContent" style="font-size:.85em;color:var(--dim)">${zh ? '加载中…' : 'Loading…'}</div>
+    </div>
+    <div class="mine-card">
+      <div class="mine-card-title" class="flex-between" style="cursor:pointer" onclick="toggleSection('supportSection','supportToggle')">
+        <span>💬 ${zh ? '联系支持' : 'Contact Support'}</span>
+        <span id="supportToggle" style="font-size:.7em;color:var(--dim)">▾</span>
+      </div>
+      <div id="supportSection" style="display:none">
+        <div style="font-size:.85em;color:var(--dim);margin-bottom:10px">${zh ? '遇到问题？发邮件给我们，通常 24 小时内回复。' : 'Having issues? Email us, typically replied within 24 hours.'}</div>
+        <a href="mailto:contact@welian.app" style="display:inline-block;padding:8px 16px;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-size:.85em">contact@welian.app</a>
+      </div>
+    </div>
   `;
+  // Lazy-load billing content into billingSection
+  setTimeout(() => {
+    const bc = document.getElementById('billingContent');
+    if (bc && bc.innerHTML.includes('加载中')) {
+      // Swap mineContent id temporarily so loadBillingTab writes to billingContent
+      const real = document.getElementById('mineContent');
+      if (real) {
+        real.id = '_mineContentTemp';
+        bc.id = 'mineContent';
+        loadBillingTab().then(() => {
+          document.getElementById('mineContent').id = 'billingContent';
+          document.getElementById('_mineContentTemp').id = 'mineContent';
+        }).catch(() => {
+          document.getElementById('mineContent').id = 'billingContent';
+          document.getElementById('_mineContentTemp').id = 'mineContent';
+        });
+      }
+    }
+  }, 100);
+  // Load invite section async
+  setTimeout(() => loadInviteSection(), 200);
 }
 
 export async function loadCalendarFeedUrl() {
@@ -503,13 +788,23 @@ export async function loadMemoryList() {
   const el = document.getElementById('memoryList');
   if (!el) return;
   try {
-    const resp = await mineApi('/data/memory?limit=20');
+    const resp = await mineApi('/data/memory?limit=100');
     const memories = resp.memories || [];
+    // Growth header
+    let headerHtml = '';
+    if (memories.length > 0) {
+      const recent3 = memories.slice(0, 3);
+      headerHtml = `<div style="margin-bottom:12px;padding:10px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent)">
+        <div style="font-size:.85em;color:var(--accent);font-weight:600">${zh ? `🧠 已记住 ${memories.length} 条` : `🧠 ${memories.length} memories`}</div>
+        <div style="font-size:.75em;color:var(--dim);margin-top:6px">${zh ? '最近学会：' : 'Recently learned:'}</div>
+        ${recent3.map(m => `<div style="font-size:.78em;color:var(--text);margin-top:3px;padding-left:8px;border-left:2px solid var(--border)">"${escapeHtml((m.title || '').substring(0, 40))}"</div>`).join('')}
+      </div>`;
+    }
     if (memories.length === 0) {
       el.innerHTML = `<div class="mine-empty">${zh ? '还没有记忆。对话中说"我一般不在周末联系客户"之类的话，AI 会自动记住。' : 'No memories yet. AI auto-learns from conversations.'}</div>`;
       return;
     }
-    el.innerHTML = memories.map(m => `
+    el.innerHTML = headerHtml + memories.map(m => `
       <div class="card-item">
         <div class="flex-between-start">
           <div style="flex:1">
@@ -874,6 +1169,55 @@ export async function deleteMyAccount() {
   }
 }
 
+export async function loadHealthAnalysis() {
+  const zh = currentLang === 'zh';
+  const container = document.getElementById('healthAnalysis');
+  if (!container) return;
+  container.innerHTML = `<div style="color:var(--dim);padding:8px">${zh ? '分析中…' : 'Analyzing…'}</div>`;
+  try {
+    const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
+    const resp = await fetch(`${CLOUD_URL}/ai/relationship_health`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.ok) throw new Error('analysis failed');
+    const s = data.summary;
+    const statusLabel = {
+      active: zh ? '活跃' : 'Active',
+      warming: zh ? '升温中' : 'Warming',
+      cooling: zh ? '冷却中' : 'Cooling',
+      dormant: zh ? '休眠' : 'Dormant',
+      new: zh ? '待连接' : 'New',
+    };
+    const statusColor = {
+      active: '#4A6741', warming: '#e67e22', cooling: '#e74c3c', dormant: '#95a5a6', new: '#3498db',
+    };
+    let html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">`;
+    for (const [key, label] of Object.entries(statusLabel)) {
+      const count = s[key] || 0;
+      if (count > 0) html += `<span style="background:${statusColor[key]}20;color:${statusColor[key]};padding:3px 10px;border-radius:12px;font-size:.8em">${label} ${count}</span>`;
+    }
+    html += `</div>`;
+    // Top priorities
+    if (data.priorities && data.priorities.length > 0) {
+      html += `<div style="font-size:.85em;color:var(--dim);margin-bottom:6px">${zh ? '⚠️ 需要关注：' : '⚠️ Needs attention:'}</div>`;
+      for (const p of data.priorities.slice(0, 5)) {
+        html += `<div style="padding:8px 10px;background:var(--surface);border-radius:8px;margin-bottom:6px">
+          <div style="font-weight:500">${escapeHtml(p.name)}${p.company ? ` · ${escapeHtml(p.company)}` : ''}</div>
+          <div style="font-size:.78em;color:${statusColor[p.status]};margin-top:2px">${statusLabel[p.status]} · ${p.recommendation}</div>
+        </div>`;
+      }
+    } else {
+      html += `<div style="font-size:.85em;color:var(--dim)">${zh ? '所有经营型关系都在正常范围内 👍' : 'All leverage relationships are healthy 👍'}</div>`;
+    }
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--dim);padding:8px">${zh ? '分析失败' : 'Analysis failed'}: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
 export function confirmPop(ev, message) {
   return new Promise(resolve => {
     const zh = currentLang === 'zh';
@@ -916,4 +1260,52 @@ export function acceptCookies() {
   localStorage.setItem('welian_cookie_ok', '1');
   const banner = document.getElementById('cookie-banner');
   if (banner) banner.style.display = 'none';
+}
+
+export function shareOverview() {
+  const zh = currentLang === 'zh';
+  const content = document.getElementById('mineContent');
+  if (!content) return;
+
+  // Build text summary for clipboard fallback
+  const c = mineCache.contacts || [];
+  const contactCount = c.length;
+  const interactionCount = (window._overviewInteractionCount) || 0;
+  const memoryCount = (window._overviewMemoryCount) || 0;
+  const profileFilled = (window._overviewProfileFilled) || 0;
+  const activeGoals = (window._overviewActiveGoals) || 0;
+  const monthInteractions = (window._overviewMonthInteractions) || 0;
+  let text = zh ? `📊 我的概览\n` : `📊 My Overview\n`;
+  text += zh ? `· ${contactCount} 段关系\n` : `· ${contactCount} relationships\n`;
+  text += zh ? `· ${interactionCount} 条互动记忆\n` : `· ${interactionCount} interactions\n`;
+  text += zh ? `· ${memoryCount} 条记忆\n` : `· ${memoryCount} memories\n`;
+  text += zh ? `· 画像完整度 ${profileFilled}/12\n` : `· Profile ${profileFilled}/12\n`;
+  text += zh ? `· ${activeGoals} 个活跃目标\n` : `· ${activeGoals} active goals\n`;
+  text += zh ? `· 本月 ${monthInteractions} 次互动\n` : `· ${monthInteractions} interactions this month\n`;
+  text += `\n— Welian 小维 · welian.app`;
+
+  // Clone the entire overview content for screenshot
+  // Temporarily hide the share button itself and AI analysis button to avoid clutter
+  const clone = content.cloneNode(true);
+  clone.querySelectorAll('button').forEach(b => b.style.display = 'none');
+  // Add a header
+  const header = document.createElement('div');
+  header.style.cssText = 'text-align:center;padding:16px 0 12px;border-bottom:1px solid #e8e0d6;margin-bottom:12px';
+  header.innerHTML = `
+    <div style="font-size:18px;font-weight:700;color:#333">${zh ? '📊 我的概览' : '📊 My Overview'}</div>
+    <div style="font-size:12px;color:#999;margin-top:4px">Welian 小维 · welian.app</div>
+  `;
+  clone.insertBefore(header, clone.firstChild);
+  // Add footer
+  const footer = document.createElement('div');
+  footer.style.cssText = 'text-align:center;padding:12px 0 4px;border-top:1px solid #e8e0d6;margin-top:12px';
+  footer.innerHTML = `<div style="font-size:11px;color:#999">用 Welian 管理你的关系 · <span style="color:#4A6741;font-weight:600">welian.app</span></div>`;
+  clone.appendChild(footer);
+
+  // Style the clone for screenshot
+  clone.style.cssText = 'position:fixed;left:-9999px;top:0;width:375px;background:#f8f6f1;padding:20px 16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB",sans-serif;color:#333;box-sizing:border-box;max-height:none';
+  // Remove IDs to avoid conflicts
+  clone.querySelectorAll('[id]').forEach(el => { if (el.id !== 'mineContent') el.removeAttribute('id'); });
+
+  showShareModal(text, zh, clone);
 }

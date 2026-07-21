@@ -143,7 +143,11 @@ export function renderTodosTab(d, doneCount) {
           }
           const contactName = contactMap[t.contact] || '';
           const priorityBadge = t.priority === 'P1' ? '<span style="color:var(--accent);font-size:.7em">●</span>' : (t.priority === 'P0' ? '<span style="color:#e74c3c;font-size:.7em">●</span>' : '');
-          const sourceBadge = t.source === 'ai_extract' ? '<span style="font-size:.65em;color:var(--dimmer);background:var(--surface);padding:1px 4px;border-radius:3px;margin-left:4px">AI</span>' : '';
+          const sourceBadge = t.source === 'ai_extract' ? '<span style="font-size:.65em;color:var(--dimmer);background:var(--surface);padding:1px 4px;border-radius:3px;margin-left:4px">AI</span>'
+            : (t.source === 'visit' || t.source === 'visit_prep' || t.source === 'visit_followup') ? '<span style="font-size:.65em;color:#4A6741;background:#FAFAF7;padding:1px 4px;border-radius:3px;margin-left:4px">🚗拜访</span>'
+            : (t.source === 'dinner' || t.source === 'dinner_prep' || t.source === 'dinner_followup') ? '<span style="font-size:.65em;color:#B85C00;background:#FFF8F0;padding:1px 4px;border-radius:3px;margin-left:4px">🍽️聚餐</span>'
+            : (t.source && t.source.startsWith('meeting:')) ? '<span style="font-size:.65em;color:var(--dimmer);background:var(--surface);padding:1px 4px;border-radius:3px;margin-left:4px">🎯会议</span>'
+            : '';
           const taskText = t.task || '';
           const taskDisplay = taskText ? escapeHtml(taskText) : `<span style="color:#e74c3c;font-style:italic">（空待办，建议删除）</span>`;
           // Format due date: show absolute date + relative label

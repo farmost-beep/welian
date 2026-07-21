@@ -264,7 +264,7 @@ export async function getSystemPrompt(userQuery, intent) {
     console.log('[getSystemPrompt] Failed to load AGENTS.md:', e.message);
   }
   // Fallback to hardcoded prompt
-  setCachedSystemPrompt(`你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+  setCachedSystemPrompt(`你是 Welian，一个关系网络智能体。你理解用户的关系网络，记住每段关系，主动提醒该联系谁、该聊什么，并在持续进化中越来越懂用户。
 
 基于诚实原则，不编造事实和数据。如果数据中没有相关信息，如实告知用户。
 
@@ -274,7 +274,7 @@ export async function getSystemPrompt(userQuery, intent) {
 - 回复不要太长，重点突出
 - 如果用户在记录事情，确认记下了并简要复述
 - 如果用户在查待办，只列出数据中有的待办，按紧急程度分组
-- 如果用户在闲聊，自然回应，可以引导到关系管理话题
+- 如果用户在闲聊，自然回应，可以引导到关系网络话题
 
 你会收到用户的原始消息和相关数据上下文。请严格基于数据回答，不要编造。
 对话是连续的，请结合上下文理解用户的意图。`);
@@ -473,6 +473,18 @@ export function addMsg(who, text) {
     // Store AI-generated suggestions for addSuggestions to use
     if (aiSuggestions) window._lastAiSuggestions = aiSuggestions;
   }
+  scrollToBottom();
+}
+
+// Show a contextual support hint after error messages
+export function addSupportHint() {
+  const zh = currentLang === 'zh';
+  const lastMsg = document.querySelector('#chatMessages .message:last-child, #chatMessages .msg:last-child');
+  if (!lastMsg) return;
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:12px;color:#888;padding:4px 12px;margin-top:4px;';
+  hint.innerHTML = `<a href="mailto:contact@welian.app" style="color:var(--accent);text-decoration:none">${zh ? '💬 遇到问题？联系支持' : '💬 Need help? Contact support'}</a>`;
+  lastMsg.appendChild(hint);
   scrollToBottom();
 }
 
@@ -848,7 +860,9 @@ export async function send() {
       if (e.name === 'AbortError') {
         addMsg('ai', '已停止生成。');
       } else {
-        addMsg('ai', I18N[currentLang].cloud_error + e.message);
+        const errMsg = I18N[currentLang].cloud_error + e.message;
+        addMsg('ai', errMsg);
+        if (/联点|402|额度|用完|network|网络/i.test(errMsg)) addSupportHint();
       }
     }
   } else if (isAuthed) {
@@ -866,7 +880,9 @@ export async function send() {
       if (e.name === 'AbortError') {
         addMsg('ai', '已停止生成。');
       } else {
-        addMsg('ai', I18N[currentLang].cloud_error + e.message);
+        const errMsg = I18N[currentLang].cloud_error + e.message;
+        addMsg('ai', errMsg);
+        if (/联点|402|额度|用完|network|网络/i.test(errMsg)) addSupportHint();
       }
     }
   } else {

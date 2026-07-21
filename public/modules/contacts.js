@@ -74,6 +74,7 @@ export function renderContactsResults(keyword, d) {
       <button class="mine-subtab-item active" onclick="switchContactsSubtab('all')">${d.mine_all}</button>
       <button class="mine-subtab-item" onclick="switchContactsSubtab('leverage')">🌳 ${d.mine_leverage}</button>
       <button class="mine-subtab-item" onclick="switchContactsSubtab('nurture')">🌸 ${d.mine_nurture}</button>
+      <button class="mine-subtab-item" onclick="switchContactsSubtab('timeline')">📝 ${currentLang==='zh'?'互动':'Timeline'}</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button onclick="document.getElementById('importFileInput').click()" style="flex:1;padding:10px;background:var(--surface);border:1px dashed var(--accent);border-radius:10px;cursor:pointer;font-family:inherit;font-size:.85em;color:var(--accent)">📥 ${currentLang==='zh'?'导入联系人（名片/文件）':'Import contacts (card/file)'}</button>
@@ -217,10 +218,44 @@ export function renderContactItem(c, d) {
 
 export function switchContactsSubtab(subtab) {
   setCurrentContactsFilter(subtab);
+  // Update active state
   document.querySelectorAll('#contactsSubtab .mine-subtab-item').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.includes(subtab === 'leverage' ? '🌳' : subtab === 'nurture' ? '🌸' : I18N[currentLang].mine_all));
+    const isActive = subtab === 'leverage' ? btn.textContent.includes('🌳') :
+                     subtab === 'nurture' ? btn.textContent.includes('🌸') :
+                     subtab === 'timeline' ? btn.textContent.includes('📝') :
+                     btn.textContent.includes(I18N[currentLang].mine_all);
+    btn.classList.toggle('active', isActive);
   });
-  renderContactsList(subtab, I18N[currentLang]);
+  if (subtab === 'timeline') {
+    // Hide contacts-specific UI, load timeline into the contacts content area
+    const resultsEl = document.getElementById('contactsResults');
+    if (resultsEl) {
+      // Keep subtab bar, replace rest with timeline container
+      const subtabBar = document.getElementById('contactsSubtab');
+      resultsEl.innerHTML = '';
+      resultsEl.appendChild(subtabBar);
+      const tlDiv = document.createElement('div');
+      tlDiv.id = 'timelineInContacts';
+      resultsEl.appendChild(tlDiv);
+      // Load timeline into this div by temporarily swapping mineContent id
+      const real = document.getElementById('mineContent');
+      if (real) {
+        real.id = '_mineContentTemp';
+        tlDiv.id = 'mineContent';
+        import('./timeline.js').then(({ loadTimelineTab }) => {
+          loadTimelineTab().then(() => {
+            document.getElementById('mineContent').id = 'timelineInContacts';
+            document.getElementById('_mineContentTemp').id = 'mineContent';
+          }).catch(() => {
+            document.getElementById('mineContent').id = 'timelineInContacts';
+            document.getElementById('_mineContentTemp').id = 'mineContent';
+          });
+        });
+      }
+    }
+  } else {
+    renderContactsList(subtab, I18N[currentLang]);
+  }
 }
 
 export function getContactGroups(contacts, groupBy, d) {
@@ -467,6 +502,14 @@ export async function openContactDetail(contactId) {
       html += `</div>`;
     }
 
+    // Web search: recent public activity
+    html += `<div class="mine-detail-section">`;
+    html += `<div class="mine-detail-section-title" style="display:flex;justify-content:space-between;align-items:center">🌐 ${zh ? '近期动态' : 'Web Activity'}
+      <button onclick="searchContactWeb('${escapeHtml(contactId)}')" id="webSearchBtn" style="font-size:.75em;padding:3px 10px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit">${zh ? '🔍 搜索' : '🔍 Search'}</button>
+    </div>`;
+    html += `<div id="contactWebResults"></div>`;
+    html += `</div>`;
+
     // Timeline
     html += `<div class="mine-detail-section">`;
     html += `<div class="mine-detail-section-title" style="display:flex;justify-content:space-between;align-items:center">${d.detail_timeline}
@@ -498,6 +541,44 @@ export async function openContactDetail(contactId) {
     window._currentDetailTimeline = timeline;
   } catch (e) {
     document.getElementById('detailBody').innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+// Search contact's recent public activity on the web
+export async function searchContactWeb(contactId) {
+  const zh = currentLang === 'zh';
+  const contact = (mineCache.contacts || []).find(c => c.id === contactId)
+    || (chatDataCache.contacts || []).find(c => c.id === contactId);
+  if (!contact) return;
+
+  const resultsEl = document.getElementById('contactWebResults');
+  const btn = document.getElementById('webSearchBtn');
+  if (!resultsEl) return;
+  if (btn) { btn.disabled = true; btn.textContent = zh ? '⏳ 搜索中…' : '⏳ Searching…'; }
+  resultsEl.innerHTML = `<div class="mine-detail-item" style="color:var(--dim)">${zh ? '正在搜索互联网公开信息…' : 'Searching public web…'}</div>`;
+
+  try {
+    const resp = await mineApi('/ai/contact_web_search', 'POST', {
+      contact_name: contact.name,
+      company: contact.company || '',
+    });
+    if (resp.ok && resp.results && resp.results.length > 0) {
+      let html = '';
+      resp.results.forEach(r => {
+        html += `<div class="mine-detail-item" style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:.88em;font-weight:500">${escapeHtml(r.title)}</div>
+          <div style="font-size:.78em;color:var(--dim);margin-top:4px;line-height:1.5">${escapeHtml(r.snippet)}</div>
+          <a href="${escapeHtml(r.url)}" target="_blank" style="font-size:.72em;color:var(--accent);margin-top:2px;display:inline-block">${escapeHtml(r.url)}</a>
+        </div>`;
+      });
+      resultsEl.innerHTML = html;
+    } else {
+      resultsEl.innerHTML = `<div class="mine-detail-item" style="color:var(--dimmer)">${zh ? '未搜到相关公开信息' : 'No public results found'}</div>`;
+    }
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="mine-detail-item" style="color:#e74c3c">${zh ? '搜索失败：' : 'Search failed: '}${escapeHtml(e.message)}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = zh ? '🔍 重新搜索' : '🔍 Search'; }
   }
 }
 

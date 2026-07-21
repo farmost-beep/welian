@@ -550,7 +550,7 @@ const I18N = {
     // 角色扮演
     roleplay_btn: '角色扮演',
     roleplay_picker_title: '🎭 选择一个角色开始体验',
-    roleplay_intro: '无需登录，立即体验 Welian 如何帮你管理社交关系。选择一个名人角色，在对话中维护他们的关系网络。',
+    roleplay_intro: '无需登录，立即体验 Welian 如何理解你的关系网络。选择一个名人角色，在对话中维护他们的关系网络。',
     roleplay_howto: '怎么玩？',
     roleplay_step1: '选择一个角色，进入他们的社交网络',
     roleplay_step2: '像和助手聊天一样，用自然语言记录互动、查询待办、拟写消息',
@@ -2256,7 +2256,7 @@ async function getSystemPrompt(userQuery, intent) {
     console.log('[getSystemPrompt] Failed to load AGENTS.md:', e.message);
   }
   // Fallback to hardcoded prompt
-  cachedSystemPrompt = `你是 Welian，一个关系管理 AI 助手。你帮用户管理社交关系、记录互动、提醒待办、拟写消息。
+  cachedSystemPrompt = `你是 Welian，一个关系网络智能体。你理解用户的关系网络，记住每段关系，主动提醒该联系谁、该聊什么，并在持续进化中越来越懂用户。
 
 基于诚实原则，不编造事实和数据。如果数据中没有相关信息，如实告知用户。
 
@@ -2266,7 +2266,7 @@ async function getSystemPrompt(userQuery, intent) {
 - 回复不要太长，重点突出
 - 如果用户在记录事情，确认记下了并简要复述
 - 如果用户在查待办，只列出数据中有的待办，按紧急程度分组
-- 如果用户在闲聊，自然回应，可以引导到关系管理话题
+- 如果用户在闲聊，自然回应，可以引导到关系网络话题
 
 你会收到用户的原始消息和相关数据上下文。请严格基于数据回答，不要编造。
 对话是连续的，请结合上下文理解用户的意图。`;
@@ -4844,6 +4844,7 @@ function copyMsgText(btn) {
 // ── Mine panel ──
 
 let mineCurrentTab = 'overview';
+let mineTabAbortController = null; // abort in-flight tab requests on switch
 let mineCache = {};  // tab → data cache
 
 async function openMine() {
@@ -4906,6 +4907,14 @@ function closeSupport() {
 }
 
 function switchMineTab(tab) {
+  // Abort any in-flight tab request to prevent connection pool exhaustion
+  if (mineTabAbortController) {
+    mineTabAbortController.abort();
+  }
+  mineTabAbortController = new AbortController();
+  const tabRequestId = tab + '_' + Date.now();
+  window._currentTabRequestId = tabRequestId;
+
   mineCurrentTab = tab;
   sessionStorage.setItem('welian_mine_tab', tab);
   localStorage.setItem('welian_mine_tab', tab);
@@ -4933,10 +4942,11 @@ function switchMineTab(tab) {
 
 // ── API helpers ──
 
-async function mineApi(path, method = 'GET', body = null) {
+async function mineApi(path, method = 'GET', body = null, signal = null) {
   const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
   if (!token) throw new Error('No token');
   const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
+  if (signal) opts.signal = signal;
   if (body) {
     // Inject session_token for AI endpoints that need it
     body.session_token = token;
@@ -7345,9 +7355,12 @@ async function loadSignalsTab() {
   const d = I18N[currentLang];
   const zh = currentLang === 'zh';
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
-    const resp = await mineApi('/ai/hn_signals', 'POST', {});
+    const resp = await mineApi('/ai/hn_signals', 'POST', {}, mineTabAbortController?.signal);
+    // Stale check: if user switched to another tab while waiting, discard result
+    if (window._currentTabRequestId !== myRequestId) return;
     const report = resp.report || {};
     const raw = resp.raw_data || {};
     const signals = report.signals || [];
@@ -7392,9 +7405,12 @@ async function loadSignalsTab() {
       html += `<div class="mine-card" style="font-size:.85em;color:var(--dim);text-align:center">${escapeHtml(report.closing)}</div>`;
     }
 
+    if (window._currentTabRequestId !== myRequestId) return; // stale guard before DOM write
     content.innerHTML = html;
     window._signalsReportData = { report, raw };
   } catch (e) {
+    if (e.name === 'AbortError') return; // expected when switching tabs
+    if (window._currentTabRequestId !== myRequestId) return; // stale, don't overwrite
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }

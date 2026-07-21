@@ -36,18 +36,18 @@ describe("billing: point deduction", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    // calcPoints: 1000/1000*1 + 500/1000*2 = 1 + 1 = 2 points (standard tier ×1)
-    expect(data.usage.points).toBe(2);
+    // calcPoints: 1000/1000*0.1 + 500/1000*0.2 = 0.1 + 0.1 = 0.2 points (standard tier ×1)
+    expect(data.usage.points).toBe(0.2);
     expect(data.billing.plan).toBe("free");
-    expect(data.billing.used).toBe(2);
-    expect(data.billing.remaining).toBe(98);
+    expect(data.billing.used).toBe(0.2);
+    expect(data.billing.remaining).toBe(99.8);
 
     // KV persisted the deduction
     const stored = JSON.parse(env.USER_DATA._store.get("billing:testuser"));
-    expect(stored.used).toBe(2);
+    expect(stored.used).toBe(0.2);
     expect(stored.history).toHaveLength(1);
     expect(stored.history[0].action).toBe("chat");
-    expect(stored.history[0].points).toBe(2);
+    expect(stored.history[0].points).toBe(0.2);
   });
 
   it("rejects chat when no auth (401)", async () => {

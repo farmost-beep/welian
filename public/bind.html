@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>Welian — 绑定微信</title>
+<title>Welian — 绑定 IM</title>
 <meta name="theme-color" content="#F5F4EE">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <script defer crossorigin="anonymous"
@@ -54,6 +54,7 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 .user-info .name{font-size:16px;font-weight:600;word-break:break-word}
 .user-info .email{font-size:14px;color:var(--dim);word-break:break-all}
 .user-info .label{font-size:12px;color:var(--dim);margin-bottom:4px}
+.platform-badge{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:13px;color:var(--dim);margin-bottom:16px}
 
 /* 手机端：减小 padding 让 Clerk 自然宽度卡片放下 */
 @media(max-width:480px){
@@ -72,8 +73,9 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 </head>
 <body>
 <div class="card">
-  <h1>🔗 绑定微信</h1>
-  <p class="sub">将你的 Welian 账号绑定到微信</p>
+  <h1 id="page-title">🔗 绑定小维</h1>
+  <p class="sub" id="page-sub">将你的 Welian 账号绑定到 IM</p>
+  <div id="platform-badge-wrap"></div>
 
   <!-- Step 1: Login -->
   <div id="clerk-mount"></div>
@@ -106,7 +108,7 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
       </div>
     </div>
     <p style="color:var(--green);font-size:15px;margin:16px 0">✅ 绑定成功！</p>
-    <p style="color:var(--dim);font-size:13px">现在可以回到微信，和小维聊天了 ✨</p>
+    <p id="bound-hint" style="color:var(--dim);font-size:13px">现在可以回到 IM，和小维聊天了 ✨</p>
   </div>
 
   <div id="status" class="status"></div>
@@ -116,11 +118,50 @@ h1{font-size:24px;margin-bottom:8px;font-weight:600}
 const API = 'https://api.welian.app';
 const PUBLISHABLE_KEY = 'pk_test_ZmFuY3kta2luZ2Zpc2gtODEuY2xlcmsuYWNjb3VudHMuZGV2JA';
 
-const params = new URLSearchParams(location.search);
-const wechatId = params.get('wid') || params.get('wechat_id') || '';
+// ── Platform metadata ──
+const PLATFORMS = {
+  telegram:  { label: 'Telegram',  emoji: '✈️', hint: '回到 Telegram，直接发消息和小维聊天 ✨' },
+  feishu:    { label: '飞书',      emoji: '🐦', hint: '回到飞书，直接发消息和小维聊天 ✨' },
+  lark:      { label: 'Lark',      emoji: '🐦', hint: '回到 Lark，直接发消息和小维聊天 ✨' },
+  dingtalk:  { label: '钉钉',      emoji: '📌', hint: '回到钉钉，直接发消息和小维聊天 ✨' },
+  whatsapp:  { label: 'WhatsApp',  emoji: '💬', hint: '回到 WhatsApp，直接发消息和小维聊天 ✨' },
+  wechat:    { label: '微信',      emoji: '💚', hint: '回到微信，和小维聊天了 ✨' },
+};
 
-if (!wechatId) {
-  showStatus('err', '缺少微信用户 ID。请从微信里的 /login 命令打开此链接。');
+// ── Parse URL params: support both new (platform+code) and legacy (wid/wechat_id) ──
+const params = new URLSearchParams(location.search);
+const platform = params.get('platform') || '';
+const code = params.get('code') || '';
+const wechatId = params.get('wid') || params.get('wechat_id') || '';  // legacy
+
+// Determine bind mode
+const mode = platform && code ? 'im' : (wechatId ? 'wechat' : 'none');
+
+// ── Render header based on mode ──
+function renderHeader() {
+  const titleEl = document.getElementById('page-title');
+  const subEl = document.getElementById('page-sub');
+  const badgeWrap = document.getElementById('platform-badge-wrap');
+
+  if (mode === 'im') {
+    const p = PLATFORMS[platform] || { label: platform, emoji: '🔗' };
+    titleEl.textContent = `🔗 绑定 ${p.label}`;
+    subEl.textContent = `配对码：${code}`;
+    badgeWrap.innerHTML = `<span class="platform-badge">${p.emoji} ${p.label}</span>`;
+  } else if (mode === 'wechat') {
+    titleEl.textContent = '🔗 绑定微信';
+    subEl.textContent = '将你的 Welian 账号绑定到微信';
+    badgeWrap.innerHTML = `<span class="platform-badge">💚 微信</span>`;
+  } else {
+    titleEl.textContent = '🔗 绑定小维';
+    subEl.textContent = '请从 IM 里的 /bind 命令打开此链接';
+  }
+}
+
+renderHeader();
+
+if (mode === 'none') {
+  showStatus('err', '缺少绑定参数。请在 IM 里发 /bind，从返回的链接打开此页面。');
 } else {
   initClerk();
 }
@@ -222,19 +263,34 @@ async function doBind() {
 
     const token = await session.getToken();
 
-    const resp = await fetch(`${API}/ai/bind_wechat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ wechat_user_id: wechatId }),
-    });
+    let resp, data;
+    if (mode === 'im') {
+      // New multi-platform flow: POST /im/bind/confirm { code }
+      resp = await fetch(`${API}/im/bind/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+      data = await resp.json();
+      console.log('IM bind response:', resp.status, data);
+    } else {
+      // Legacy WeChat flow: POST /ai/bind_wechat { wechat_user_id }
+      resp = await fetch(`${API}/ai/bind_wechat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ wechat_user_id: wechatId }),
+      });
+      data = await resp.json();
+      console.log('WeChat bind response:', resp.status, data);
+    }
 
-    const data = await resp.json();
-    console.log('Bind response:', resp.status, data);
-
-    if (resp.ok && data.ok) {
+    if (resp.ok && (data.ok || data.clerk_user_id)) {
       const name = data.name || '';
       const email = data.email || '';
       document.getElementById('bound-name').textContent = name || '已绑定';
@@ -242,7 +298,15 @@ async function doBind() {
       document.getElementById('bound-avatar').textContent = (name || email || '?')[0].toUpperCase();
       document.getElementById('confirm-section').style.display = 'none';
       document.getElementById('bound-section').style.display = 'block';
-      showStatus('ok', '绑定成功！请回到微信查看。');
+
+      // Platform-specific success hint
+      if (mode === 'im') {
+        const p = PLATFORMS[platform] || { hint: '回到 IM，和小维聊天了 ✨' };
+        document.getElementById('bound-hint').textContent = p.hint;
+        showStatus('ok', `绑定成功！请回到 ${p.label || platform}。`);
+      } else {
+        showStatus('ok', '绑定成功！请回到微信查看。');
+      }
     } else {
       showStatus('err', data.error || `绑定失败 (HTTP ${resp.status})`);
     }

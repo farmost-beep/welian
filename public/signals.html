@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日信号 — Welian 小维</title>
+<meta name="description" content="每日科技商业信号：从 Hacker News、36氪、虎嗅筛选关键动态。登录获取个性化信号，结合你的关系网络。">
+<meta name="theme-color" content="#F5F4EE">
+<link rel="canonical" href="https://welian.app/signals.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="今日信号 — Welian 小维">
+<meta property="og:description" content="每日科技商业信号：HN + 36氪 + 虎嗅，结合你的关系网络。">
+<meta property="og:url" content="https://welian.app/signals.html">
+<meta property="og:site_name" content="Welian">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="今日信号 — Welian 小维">
+<meta name="twitter:description" content="每日科技商业信号：HN + 36氪 + 虎嗅，结合你的关系网络。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#4A6741;--bg:#F5F4EE;--surface:#FAFAF7;--border:#E0E0E0;--text:#2C2C2C;--dim:#8B8B8B;--dimmer:#B0B0B0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,'PingFang SC',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+nav{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100}
+nav .brand{font-family:'Newsreader',serif;font-size:1.3em;font-weight:600;color:var(--accent)}
+nav .links{display:flex;gap:20px;align-items:center;font-size:.85em}
+nav .links a{color:var(--dim);transition:.2s}
+nav .links a:hover{color:var(--accent)}
+.btn{padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9em;cursor:pointer;font-family:inherit}
+.container{max-width:680px;margin:0 auto;padding:24px 20px 80px}
+.hero{text-align:center;padding:40px 0 20px}
+.hero h1{font-family:'Newsreader',serif;font-size:2em;font-weight:600;color:var(--text);margin-bottom:8px}
+.hero .sub{font-size:.9em;color:var(--dim)}
+.hero .sources{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.hero .sources span{background:var(--surface);border:1px solid var(--border);padding:3px 12px;border-radius:12px;font-size:.78em;color:var(--dim)}
+.loading{text-align:center;padding:60px 0;color:var(--dim)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.card .title{font-weight:600;font-size:.95em;margin-bottom:6px}
+.card .meta{font-size:.72em;color:var(--dimmer);margin-bottom:8px}
+.card .meta .src{background:var(--bg);padding:1px 6px;border-radius:4px;margin-left:4px}
+.card .why{font-size:.85em;color:var(--dim);line-height:1.6}
+.card .tags{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap}
+.card .tags span{background:var(--bg);border:1px solid var(--border);padding:1px 8px;border-radius:8px;font-size:.7em;color:var(--dim)}
+.themes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.themes span{background:var(--accent);color:#fff;padding:3px 12px;border-radius:12px;font-size:.8em}
+.section-title{font-size:.85em;font-weight:600;color:var(--dim);margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.cta{text-align:center;margin:40px 0;padding:30px;background:linear-gradient(135deg,var(--accent) 0%,#5a7a51 100%);border-radius:16px;color:#fff}
+.cta h2{font-family:'Newsreader',serif;font-size:1.4em;margin-bottom:8px}
+.cta p{font-size:.85em;opacity:.9;margin-bottom:16px}
+.cta .btn{background:#fff;color:var(--accent);font-weight:600;padding:12px 32px;font-size:1em}
+footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);border-top:1px solid var(--border);margin-top:40px}
+.greeting{font-size:.9em;line-height:1.7;padding:12px 0;color:var(--dim)}
+.closing{text-align:center;font-size:.85em;color:var(--dim);padding:16px 0}
+/* Date bar */
+.date-bar{display:flex;gap:6px;overflow-x:auto;padding:8px 0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.date-bar::-webkit-scrollbar{display:none}
+.date-chip{flex:0 0 auto;padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:.8em;color:var(--dim);cursor:pointer;text-align:center;min-width:56px;transition:.2s}
+.date-chip:hover{border-color:var(--accent)}
+.date-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.date-chip .dow{font-size:.7em;opacity:.8}
+.date-chip .day{font-size:1em;font-weight:600;margin-top:2px}
+.date-chip.empty{opacity:.4}
+/* Weekly trend */
+.weekly-trend{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:20px 0}
+.weekly-trend .wt-title{font-size:.85em;font-weight:600;color:var(--dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.weekly-trend .wt-item{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.weekly-trend .wt-item .label{font-size:.82em;color:var(--text);flex:1}
+.weekly-trend .wt-item .bar{height:6px;border-radius:3px;background:var(--accent);min-width:12px;transition:width .3s}
+.weekly-trend .wt-item .count{font-size:.72em;color:var(--dim);min-width:30px;text-align:right}
+.fallback-note{font-size:.75em;color:var(--dim);text-align:center;padding:4px 0 8px;font-style:italic}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="brand">Welian<span class="inf">∞</span></a>
+  <div class="links">
+    <a href="/signals.html" style="color:var(--accent);font-weight:500">信号</a>
+    <a href="/landing.html">介绍</a>
+    <a href="/pricing.html">价格</a>
+    <a href="/" class="btn" style="padding:6px 16px">登录</a>
+  </div>
+</nav>
+<div class="container">
+  <div class="hero">
+    <h1>📡 今日信号</h1>
+    <div class="sub">从 13 个高质量信息源筛选关键动态</div>
+    <div class="sources">
+      <span>HN</span>
+      <span>36氪</span>
+      <span>虎嗅</span>
+      <span>头条</span>
+      <span>微信</span>
+      <span>机器之心</span>
+      <span>华尔街见闻</span>
+      <span>投资界</span>
+      <span>Product Hunt</span>
+      <span>TechCrunch</span>
+      <span>The Verge</span>
+      <span>ArXiv</span>
+      <span>V2EX</span>
+    </div>
+  </div>
+  <div id="dateBar" class="date-bar"></div>
+  <div id="content" class="loading">正在生成今日信号…</div>
+  <div id="weeklyTrend"></div>
+  <div class="cta">
+    <h2>获取个性化信号</h2>
+    <p>登录 Welian，信号会结合你的行业、联系人网络和关系目标，告诉你哪条新闻跟谁有关、该怎么用</p>
+    <a href="/" class="btn">开始</a>
+  </div>
+  <footer>Welian 小维 · 每段关系都值得用心 · welian.app</footer>
+</div>
+<script>
+(async function() {
+  const content = document.getElementById('content');
+  const dateBar = document.getElementById('dateBar');
+  const weeklyTrendEl = document.getElementById('weeklyTrend');
+
+  // Fetch today's signals and history in parallel
+  const [previewRes, historyRes] = await Promise.all([
+    fetch('https://api.welian.app/ai/signals_preview').then(r => r.json()).catch(() => null),
+    fetch('https://api.welian.app/ai/signals_history').then(r => r.json()).catch(() => null),
+  ]);
+
+  const todayReport = previewRes?.report || {};
+  const todaySignals = todayReport.signals || [];
+  const historyDays = historyRes?.days || [];
+  const weeklyThemes = historyRes?.weekly_themes || [];
+
+  // Build date map: dateKey → snapshot
+  const dateMap = {};
+  historyDays.forEach(d => { dateMap[d.date] = d; });
+
+  // Add today as a snapshot if not in history
+  const todayKey = new Date().toISOString().slice(0, 10);
+  if (todaySignals.length > 0 && !dateMap[todayKey]) {
+    dateMap[todayKey] = {
+      date: todayKey,
+      greeting: todayReport.greeting || '',
+      signals: todaySignals,
+      themes: todayReport.themes || [],
+      closing: todayReport.closing || '',
+    };
+  }
+
+  // Build date bar: last 7 days, oldest → newest
+  const dateChips = [];
+  const now = new Date();
+  const dowNames = ['日','一','二','三','四','五','六'];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    const dow = dowNames[d.getDay()];
+    const day = d.getDate();
+    const hasData = !!dateMap[key];
+    dateChips.push({ key, dow, day, hasData, isToday: i === 0 });
+  }
+
+  // Render date bar
+  dateBar.innerHTML = dateChips.map(c => `
+    <div class="date-chip ${c.hasData ? '' : 'empty'}" data-date="${c.key}" onclick="selectDate('${c.key}')">
+      <div class="dow">${c.isToday ? '今天' : '周' + c.dow}</div>
+      <div class="day">${c.day}</div>
+    </div>
+  `).join('');
+
+  // Expose selectDate globally (must be defined before calling)
+  window.selectDate = function(dateKey) {
+    // Update active chip
+    document.querySelectorAll('.date-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.date === dateKey);
+    });
+
+    const snapshot = dateMap[dateKey];
+    if (!snapshot || !snapshot.signals || snapshot.signals.length === 0) {
+      content.innerHTML = `<div class="loading">该日暂无信号数据</div>`;
+      return;
+    }
+
+    let html = '';
+    if (snapshot.greeting) {
+      html += `<div class="greeting">${esc(snapshot.greeting)}</div>`;
+    }
+    if (previewRes?.fallback && dateKey === todayKey) {
+      html += `<div class="fallback-note">（新闻源暂时不可用，展示最近一期信号）</div>`;
+    }
+
+    const themes = snapshot.themes || [];
+    if (themes.length > 0) {
+      html += `<div class="section-title">🔥 热点主题</div><div class="themes">${themes.map(t => `<span>${esc(t)}</span>`).join('')}</div>`;
+    }
+
+    html += `<div class="section-title">📊 关键信号</div>`;
+    snapshot.signals.forEach(s => {
+      const src = s.source ? `<span class="src">${esc(s.source)}</span>` : '';
+      const pts = s.points ? ` · ${s.points}pts` : '';
+      const url = s.url ? ` · <a href="${esc(s.url)}" target="_blank">原文</a>` : '';
+      const tags = (s.tags || []).length > 0 ? `<div class="tags">${s.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : '';
+      const whyHtml = s.why ? `<div class="why">${esc(s.why)}</div>` : '';
+      html += `<div class="card">
+        <div class="title">${esc(s.title || '')}${src}</div>
+        <div class="meta">${pts}${url}</div>
+        ${whyHtml}
+        ${tags}
+      </div>`;
+    });
+
+    if (snapshot.closing) {
+      html += `<div class="closing">${esc(snapshot.closing)}</div>`;
+    }
+
+    content.innerHTML = html;
+  };
+
+  // Auto-select today (or most recent with data)
+  const defaultKey = dateMap[todayKey] ? todayKey : (historyDays[0]?.date || todayKey);
+  selectDate(defaultKey);
+
+  // Render weekly trend
+  if (weeklyThemes.length > 0) {
+    const maxCount = weeklyThemes[0].count;
+    weeklyTrendEl.innerHTML = `
+      <div class="weekly-trend">
+        <div class="wt-title">📈 本周热点趋势</div>
+        ${weeklyThemes.map(t => `
+          <div class="wt-item">
+            <span class="label">${esc(t.theme)}</span>
+            <span class="bar" style="width:${(t.count / maxCount) * 120}px"></span>
+            <span class="count">${t.count}次</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+})();
+</script>
+</body>
+</html>

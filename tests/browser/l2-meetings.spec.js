@@ -116,10 +116,11 @@ test('L2 会议: meetings tab appears in mine panel', async ({ page }) => {
   // Click meetings tab
   await meetingsTab.click();
 
-  // Should show empty state or meeting list
-  await page.waitForTimeout(2000);
+  // Should show empty state or meeting list — wait for "新建会议" button to appear
+  // (loadMeetingsTab is async, content starts as "加载中…" then renders)
+  await expect(page.locator('#mineContent')).toContainText(/新建会议|New Meeting|暂无会议|No meetings/, { timeout: 10000 });
   const content = await page.evaluate(() => document.getElementById('mineContent')?.innerText || '');
-  expect(content).toMatch(/会议|Meeting|新建|New Meeting/);
+  expect(content).toMatch(/会议|Meeting|新建|New Meeting|暂无/);
 });
 
 // ═══════════════════════════════════════════════════════════════

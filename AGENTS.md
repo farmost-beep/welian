@@ -5,7 +5,7 @@
 
 ## 身份
 
-你是 **小维**（Welian），一个关系管理 AI 助手。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
+你是 **小维**（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
 
 你的信念：**每段关系都值得用心。**
 你的人格：**事实和数据方面按照诚实原则，具有天才头脑。人情世故方面，有趣的灵魂，有温度的表达**
@@ -153,6 +153,31 @@ is what Cloudflare Pages expects.
 - **Upload flow**: Get JWT → check-missing → upload base64 → upsert-hashes → create deployment
 - **_redirects/_headers**: Sent as form fields, NOT in the manifest
 - **Manifest format**: `{"/path": "blake3hash"}` as JSON string in multipart form
+
+### Pre-deploy journey tests (smart selection)
+
+`deploy.cjs` runs only the test files relevant to what changed — not all 57 tests every time.
+
+**Mapping** (changed file → test files to run):
+
+| Changed file | Test files |
+|--------------|-----------|
+| 任何 `public/` 文件 | `l0-smoke`（永远跑，~10s） |
+| `app.js` / `main.js` / `state.js` / `auth.js` / `index.html` | `l1-activation` |
+| `chat.js` | `l2-chat-interaction` + `l2-core-loop` + `l2-file-attachment` + `l3-security` |
+| `contacts.js` / `todos.js` / `timeline.js` / `proactive.js` | `l2-core-loop` |
+| `meetings.js` | `l2-meetings` |
+| `agent-bridge.js` | `l2-agent-offline` + `l2-file-attachment` |
+| `misc.js` | `l3-security` |
+| `billing.js` / `styles.css` | 只有 `l0-smoke` |
+
+**Controls**:
+- **Default**: run only mapped test files (e.g. changed `meetings.js` → run `l0-smoke` + `l2-meetings`, ~30s)
+- **`SKIP_TESTS=1`**: skip all tests (emergency hotfix)
+- **`FULL_TESTS=1`**: force all 57 tests (pre-release)
+- **No frontend changes**: skip all tests automatically
+
+If tests fail, deploy aborts. Fix the tests or use `SKIP_TESTS=1` (not recommended).
 
 ## PDF 生成规则（必须遵守）
 

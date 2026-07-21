@@ -25,7 +25,7 @@ async function main() {
     const { execSync } = require('child_process');
     try {
       execSync(
-        `npx wrangler kv key put --namespace-id=98c045b73d874a869493706dc585afb "${key}" --path "${tmpPath}"`,
+        `npx wrangler kv key put --namespace-id=98c045b73d874a869493706dc585bafb "${key}" --path "${tmpPath}"`,
         { stdio: 'pipe', cwd: path.join(__dirname, '..', 'cloud-worker') }
       );
       console.log(`  ✓ ${key}`);

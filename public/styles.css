@@ -14,16 +14,18 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* ── Nav (minimal, floating) ── */
 nav{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;flex-shrink:0;background:rgba(245,244,238,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid transparent;transition:border-color .3s}
 nav.scrolled{border-bottom-color:var(--border)}
-nav .brand{display:flex;align-items:center;gap:3px}
+nav .brand{display:flex;align-items:center;gap:7px}
 nav .brand .name{font-family:'Newsreader',serif;font-size:1.15em;font-weight:500;letter-spacing:-.01em}
-nav .brand .inf{color:var(--accent);font-size:1.05em}
-nav .links{display:flex;gap:10px;align-items:center}
+nav .brand .inf{color:var(--accent);font-size:.95em;opacity:.7}
+nav .links{display:flex;gap:14px;align-items:center}
 nav .links a{font-size:.8em;color:var(--dim);text-decoration:none;transition:color .2s}
 nav .links .cta{background:var(--text);color:var(--bg);padding:6px 16px;border-radius:8px;font-size:.8em;font-weight:500;cursor:pointer;border:none;font-family:inherit;transition:transform .15s}
 nav .links .cta:active{transform:scale(.96)}
 nav .links .desktop-only{display:none}
 nav #langBtn{background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.8em;cursor:pointer;color:var(--dim);font-family:inherit;transition:border-color .2s,color .2s}
 nav #langBtn:active{border-color:var(--accent);color:var(--accent)}
+nav .nav-tool{font-size:.8em;color:var(--dim);background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .2s}
+nav .nav-tool:hover{border-color:var(--accent);color:var(--accent)}
 nav .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
 nav .status-dot.offline{background:var(--dimmer)}
 nav .status-dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(74,124,89,.15)}
@@ -59,7 +61,7 @@ main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .welcome-state{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 20px 140px;z-index:5;pointer-events:auto;transition:opacity .3s}
 .welcome-state.hidden{opacity:0;pointer-events:none}
 .welcome-state .tagline{font-family:'Newsreader',serif;font-size:1.8em;font-weight:400;letter-spacing:-.01em;line-height:1.3;margin-bottom:10px;color:var(--text)}
-.welcome-state .tagline em{font-style:italic;color:var(--accent);font-weight:500}
+.welcome-state .tagline em{font-style:normal;color:var(--accent);font-weight:500}
 .welcome-state .tagline-sub{font-size:.82em;color:var(--dim);margin-bottom:28px}
 
 /* Suggestion cards (ChatGPT-style) */
@@ -124,8 +126,9 @@ footer .privacy{color:var(--dimmer);max-width:400px}
   #clerk-auth .cl-card,.cl-card-socialButtonsBlock,.cl-form{max-width:100%!important;min-width:0!important}
   #clerk-auth .cl-socialButtonsBlockButton{width:100%!important}
   nav{padding:8px 14px}
-  nav .links{gap:8px}
+  nav .links{gap:10px}
   nav .links .desktop-only{display:none}
+  nav #langBtn{display:none}
   .chat-body{padding:16px 14px 130px}
   .welcome-state .tagline{font-size:1.5em}
   .suggestions{grid-template-columns:1fr;gap:8px}
@@ -233,6 +236,7 @@ footer .privacy{color:var(--dimmer);max-width:400px}
 .mine-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:.68em;color:var(--dimmer);transition:color .2s}
 .mine-tab .icon{font-size:1.3em}
 .mine-tab.active{color:var(--accent)}
+.mine-tab-icon{flex:0 0 auto;padding:8px 12px;min-width:auto}
 .mine-tab:active{transform:scale(.95)}
 /* Mine — cards & lists */
 .mine-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}

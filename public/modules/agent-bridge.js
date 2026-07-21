@@ -1635,7 +1635,7 @@ export function showBattleCard(simData, goals, couponCode) {
   ctx.fillStyle = '#a0a0b0';
   ctx.font = '12px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('welian.app · 每段关系都值得用心', 375, 370);
+  ctx.fillText('用 Welian 管理你的关系 · welian.app', 375, 370);
 
   if (couponCode) {
     ctx.fillStyle = '#e8c170';
@@ -1669,7 +1669,7 @@ export async function shareBattleCard(dataUrl) {
     try {
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], 'welian-battle-card.png', { type: 'image/png' });
-      await navigator.share({ files: [file], title: 'Welian 战报', text: '我用 Welian 完成了角色扮演挑战！welian.app' });
+      await navigator.share({ files: [file], title: 'Welian 战报', text: '我用 Welian 完成了角色扮演挑战！用 Welian 管理你的关系：welian.app' });
     } catch (e) {
       // Fallback: copy link
       navigator.clipboard.writeText('https://welian.app').then(() => alert('链接已复制，去微信粘贴分享吧'));

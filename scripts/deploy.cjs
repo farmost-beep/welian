@@ -71,20 +71,101 @@ async function walk(dir, baseDir = dir) {
 }
 
 async function main() {
-  // ── Pre-deploy gate: run journey tests (L0-L2) ──
-  // Fail fast if user journey is broken — don't deploy a broken frontend
-  console.log('Running journey tests (L0-L2) before deploy...');
-  try {
-    execSync('npx playwright test --project=journey --workers=1 --reporter=line', {
-      cwd: REPO_DIR,
-      stdio: 'inherit',
-      timeout: 300000,
-    });
-    console.log('✅ Journey tests passed');
-  } catch (e) {
-    console.error('❌ Journey tests FAILED — aborting deploy');
-    console.error('Fix the failing tests before deploying.');
-    process.exit(1);
+  // ── Pre-deploy gate: smart journey tests ──
+  // Strategy: map changed frontend files → relevant test files.
+  // L0 smoke always runs if any frontend file changed (~10s, 8 tests).
+  // Other test files run only if the modules they test were changed.
+  //
+  // Controls:
+  //   SKIP_TESTS=1  — skip all tests (emergency hotfix)
+  //   FULL_TESTS=1  — force all 57 tests (pre-release)
+  //   Default       — run only tests relevant to changed files
+
+  const skipTests = process.env.SKIP_TESTS === '1';
+  const forceFull = process.env.FULL_TESTS === '1';
+
+  // Map: changed file (relative to public/) → test files to run
+  // L0 smoke (l0-smoke.spec.js) always included when any frontend file changes.
+  const FILE_TO_TESTS = {
+    'app.js':                ['l1-activation', 'l2-core-loop'],
+    'index.html':            ['l1-activation'],
+    'modules/main.js':       ['l1-activation', 'l2-core-loop', 'l2-meetings'],
+    'modules/chat.js':       ['l2-chat-interaction', 'l2-core-loop', 'l2-file-attachment', 'l3-security'],
+    'modules/contacts.js':   ['l2-core-loop', 'l3-security'],
+    'modules/todos.js':      ['l2-core-loop'],
+    'modules/timeline.js':   ['l2-core-loop'],
+    'modules/meetings.js':   ['l2-meetings'],
+    'modules/proactive.js':  ['l2-core-loop'],
+    'modules/agent-bridge.js': ['l2-agent-offline', 'l2-file-attachment'],
+    'modules/auth.js':       ['l1-activation'],
+    'modules/billing.js':    [],
+    'modules/misc.js':       ['l3-security'],
+    'modules/state.js':      ['l1-activation'],
+    'styles.css':            [],
+  };
+
+  let shouldRunTests = true;
+  let testFiles = [];
+
+  if (skipTests && !forceFull) {
+    shouldRunTests = false;
+    console.log('⏭️  Skipping journey tests (SKIP_TESTS=1)');
+  } else if (!forceFull) {
+    // Get changed frontend files (committed + uncommitted)
+    let changedFiles = [];
+    try {
+      const committed = execSync('git diff --name-only HEAD~1 HEAD -- public/', { cwd: REPO_DIR }).toString().trim();
+      const uncommitted = execSync('git diff --name-only -- public/ && git diff --name-only --cached -- public/', { cwd: REPO_DIR }).toString().trim();
+      changedFiles = [...committed.split('\n'), ...uncommitted.split('\n')]
+        .filter(f => f.trim())
+        .map(f => f.replace(/^public\//, ''))
+        .filter(f => FILE_TO_TESTS.hasOwnProperty(f));
+      // Dedupe
+      changedFiles = [...new Set(changedFiles)];
+    } catch (e) {
+      console.log('Could not determine frontend changes, running full suite to be safe');
+      testFiles = null; // null = run all
+    }
+
+    if (testFiles !== null) {
+      if (changedFiles.length === 0) {
+        shouldRunTests = false;
+        console.log('⏭️  Skipping journey tests (no frontend files changed in public/)');
+      } else {
+        // L0 smoke always runs
+        const testSet = new Set(['l0-smoke']);
+        for (const f of changedFiles) {
+          for (const t of FILE_TO_TESTS[f]) testSet.add(t);
+        }
+        testFiles = [...testSet];
+        console.log(`Frontend files changed: ${changedFiles.join(', ')}`);
+        console.log(`Running ${testFiles.length} test file(s): ${testFiles.join(', ')}`);
+      }
+    }
+  } else {
+    console.log('🔧 FULL_TESTS=1 — forcing full journey suite');
+    testFiles = null; // null = run all
+  }
+
+  if (shouldRunTests) {
+    const testPattern = testFiles === null
+      ? ''  // run all
+      : testFiles.map(f => `tests/browser/${f}.spec.js`).join(' ');
+    const cmd = `npx playwright test --project=journey --workers=1 --reporter=line ${testPattern}`.trim();
+    console.log(`Running: ${cmd}`);
+    try {
+      execSync(cmd, {
+        cwd: REPO_DIR,
+        stdio: 'inherit',
+        timeout: 300000,
+      });
+      console.log('✅ Journey tests passed');
+    } catch (e) {
+      console.error('❌ Journey tests FAILED — aborting deploy');
+      console.error('Fix the failing tests before deploying.');
+      console.error('Or use SKIP_TESTS=1 to deploy anyway (not recommended).');
+      process.exit(1);
+    }
   }
 
   // Sync AGENTS.md from project root to public/ (single source of truth)

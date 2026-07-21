@@ -2,16 +2,16 @@
 // Imports all modules, exposes onclick handlers to window, runs init code.
 
 import { currentLang, CLOUD_URL } from './state.js';
-import { applyLang, toggleLang, initCookieBanner, acceptCookies, confirmPop, openMine, closeMine, openSupport, closeSupport, switchMineTab, mineApi, loadOverview, loadSettingsTab, loadCalendarFeedUrl, copyCalendarFeedUrl, toggleSection, loadMemoryList, addMemoryManual, deleteMemoryManual, loadGoalList, loadCustomSkillList, addCustomSkill, deleteCustomSkill, addGoalManual, completeGoal, deleteGoal, loadProfileForm, profileFieldInput, saveProfile, syncContactsToCloud, exportMyData, deleteMyAccount, localDateStr, escapeHtml } from './misc.js';
+import { applyLang, toggleLang, initCookieBanner, acceptCookies, confirmPop, openMine, closeMine, openSupport, closeSupport, switchMineTab, mineApi, loadOverview, loadSettingsTab, loadCalendarFeedUrl, copyCalendarFeedUrl, toggleSection, loadMemoryList, addMemoryManual, deleteMemoryManual, loadGoalList, loadCustomSkillList, addCustomSkill, deleteCustomSkill, addGoalManual, completeGoal, deleteGoal, loadProfileForm, profileFieldInput, saveProfile, syncContactsToCloud, exportMyData, deleteMyAccount, localDateStr, escapeHtml, loadReportsTab, switchReportsSubtab, loadHealthAnalysis, shareOverview } from './misc.js';
 import { getClerkToken, initClerk, wechatLogin, showPhoneLogin, sendSMS, verifySMS, closeAuth, toggleAuth, mountClerkSignIn, mountClerkSignUp, onAuthed, onSignedOut } from './auth.js';
 import { removeBridge, enableCloudMode, generateSessionSummary, agentConfig, devinDirect, agentChat, getAgentContext, saveAgentTurn, getCloudDataContext, cloudSearch, cloudListTodos, cloudListContacts, agentSearch, fetchRoutingConfig, shouldUseLive, shouldFallbackToCloud, extractIntent, cloudChat, autoConnectAgent, tryUpgradeToLive, upgradeToLive, loadAgentConfigToUI, toggleAgentConfig, onAgentEngineChange, saveAgentConfig, tryBridgeConnect, onAgentConnected, onBridgeMessage, showScenarioPicker, closeScenarioPicker, startSimulation, loadSimulationToCloud, updateGoalTracker, toggleGoalTracker, checkSimulationGoals, rewardCoupon, showBattleCard, downloadBattleCard, shareBattleCard, exitSimulation } from './agent-bridge.js';
 import { saveSessionTurn, loadSessionList, loadSession, startNewSession, deleteSession, renderSessionList, filterSessions, toggleSidebar, closeSidebar, openSidebar, getSystemPrompt, getCurrentDateTimeContext, getUpcomingHolidays, getLunarHolidays, hideWelcome, showWelcome, scrollToBottom, addMsg, addSystemMsg, addTyping, removeTyping, buildUserSuggestions, buildContextAwareSuggestions, addSuggestions, clearChat, handleChatFile, clearChatFile, send, stopChat, quickSend, quickNote, quickDraft, quickDraftTo, loadChatEnhancements, renderDailyDashboard, toggleDashboard, snoozeContact, quickAction, updateTabBadges, showReminderCard, dismissReminder, fetchProactiveSuggestions, renderProactiveSuggestions, proactiveClick, dismissProactive, healthRingSvg, renderDesktopSidebar, toggleRsSection, showTodoDetail, showInteractionDetail, toggleEmptyState, fetchWeather, fetchWeatherFromAPI, weatherEmoji, weatherText, weatherGreeting, showDailyGreeting, showWarmthQuote, showStreakBadge, toggleVoiceInput, addMsgActions, extractPdfPaths, downloadPdfViaAgent, agentReadFile, copyMsgText } from './chat.js';
-import { loadContactsTab, renderContactsResults, handleImportFile, changeGroupBy, toggleGroup, renderContactItem, switchContactsSubtab, getContactGroups, renderContactsList, onContactsSearch, openContactDetail, showTimelineForm, hideTimelineForm, saveTimelineEntry, deleteTimelineEntry, closeContactDetail, editContactForm, saveContactEdit, deleteContact, refreshContactsCache, getCooldownInfo, meetingPrepDetail, meetingPrep } from './contacts.js';
+import { loadContactsTab, renderContactsResults, handleImportFile, changeGroupBy, toggleGroup, renderContactItem, switchContactsSubtab, getContactGroups, renderContactsList, onContactsSearch, openContactDetail, showTimelineForm, hideTimelineForm, saveTimelineEntry, deleteTimelineEntry, closeContactDetail, editContactForm, saveContactEdit, deleteContact, refreshContactsCache, getCooldownInfo, meetingPrepDetail, meetingPrep, searchContactWeb } from './contacts.js';
 import { loadTodosTab, renderTodosTab, switchTodosFilter, showTodoForm, filterTodoContacts, hideTodoForm, saveTodo, toggleTodoDone, postponeTodo, cancelTodo, undoTodoDone, deleteTodo } from './todos.js';
 import { loadTimelineTab, renderTimelineTab, filterTimelineSearch, editTimelineEntryFromList, deleteTimelineEntryFromList } from './timeline.js';
-import { loadMeetingsTab, openMeetingDetail, closeMeetingDetail, uploadMeetingPhoto, createMeeting, deleteMeeting, reviewMeeting, shareReviewAsImage } from './meetings.js';
-import { loadBillingTab, renderBillingTab, applyDiscount, savePricing, paddleCheckout, paddleCancelSub, doGiftCredits, doRedeemCoupon, openPayModal, closePayModal, confirmPayment, doUpgrade, doPurchase, setModelTier, updateCostPreview, showModelTierBar, showCostPreview } from './billing.js';
-import { loadWeeklyTab, doShareText, buildShareCard, generateShareImage, canvasToBlob, exportReportPDF, agentPDF, showShareModal, showWeChatShareGuide, shareWeeklyReport, loadSignalsTab, shareSignalsReport, loadMonthlyTab, exportMonthlyPDF, shareMonthlyReport, checkOnboardingNeeded, startOnboarding, closeOnboarding, renderOnboardingChat, submitOnboardingChat, finishOnboarding } from './proactive.js';
+import { loadMeetingsTab, openMeetingDetail, closeMeetingDetail, uploadMeetingPhoto, createMeeting, deleteMeeting, reviewMeeting, viewMeetingReview, shareReviewAsImage, openPhotoViewer } from './meetings.js';
+import { loadBillingTab, renderBillingTab, applyDiscount, savePricing, paddleCheckout, paddleCancelSub, doGiftCredits, doRedeemCoupon, copyInviteCode, copyInviteUrl, openPayModal, closePayModal, confirmPayment, doUpgrade, doPurchase, setModelTier, updateCostPreview, showModelTierBar, showCostPreview } from './billing.js';
+import { loadWeeklyTab, doShareText, buildShareCard, generateShareImage, canvasToBlob, exportReportPDF, agentPDF, showShareModal, showWeChatShareGuide, shareWeeklyReport, loadSignalsTab, shareSignalsReport, refreshSignals, loadMonthlyTab, exportMonthlyPDF, shareMonthlyReport, checkOnboardingNeeded, startOnboarding, closeOnboarding, renderOnboardingChat, submitOnboardingChat, finishOnboarding, toggleSignalDomain, loadAnnualTab, exportAnnualPDF } from './proactive.js';
 
 // ── Expose functions to window for onclick handlers ──
 const w = window;
@@ -79,6 +79,7 @@ w.switchContactsSubtab = switchContactsSubtab;
 w.onContactsSearch = onContactsSearch;
 w.handleImportFile = handleImportFile;
 w.meetingPrepDetail = meetingPrepDetail;
+w.searchContactWeb = searchContactWeb;
 
 // Todos
 w.switchTodosFilter = switchTodosFilter;
@@ -103,7 +104,21 @@ w.uploadMeetingPhoto = uploadMeetingPhoto;
 w.createMeeting = createMeeting;
 w.deleteMeeting = deleteMeeting;
 w.reviewMeeting = reviewMeeting;
+w.viewMeetingReview = viewMeetingReview;
 w.shareReviewAsImage = shareReviewAsImage;
+w.openPhotoViewer = openPhotoViewer;
+
+// Health analysis
+w.loadHealthAnalysis = loadHealthAnalysis;
+
+// Overview share
+w.shareOverview = shareOverview;
+
+// Signal domain toggle
+w.toggleSignalDomain = toggleSignalDomain;
+
+// Annual report
+w.exportAnnualPDF = exportAnnualPDF;
 
 // Billing
 w.applyDiscount = applyDiscount;
@@ -112,6 +127,8 @@ w.paddleCheckout = paddleCheckout;
 w.paddleCancelSub = paddleCancelSub;
 w.doGiftCredits = doGiftCredits;
 w.doRedeemCoupon = doRedeemCoupon;
+w.copyInviteCode = copyInviteCode;
+w.copyInviteUrl = copyInviteUrl;
 w.openPayModal = openPayModal;
 w.closePayModal = closePayModal;
 w.confirmPayment = confirmPayment;
@@ -123,6 +140,7 @@ w.setModelTier = setModelTier;
 w.shareWeeklyReport = shareWeeklyReport;
 w.exportReportPDF = exportReportPDF;
 w.shareSignalsReport = shareSignalsReport;
+w.refreshSignals = refreshSignals;
 w.exportMonthlyPDF = exportMonthlyPDF;
 w.shareMonthlyReport = shareMonthlyReport;
 w.renderOnboardingChat = renderOnboardingChat;
@@ -138,6 +156,7 @@ w.closeMine = closeMine;
 w.openSupport = openSupport;
 w.closeSupport = closeSupport;
 w.switchMineTab = switchMineTab;
+w.switchReportsSubtab = switchReportsSubtab;
 w.copyCalendarFeedUrl = copyCalendarFeedUrl;
 w.toggleSection = toggleSection;
 w.addMemoryManual = addMemoryManual;
