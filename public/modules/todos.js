@@ -2,31 +2,36 @@
 
 import { CLOUD_URL, I18N, body, currentLang, input, mineCache, setTodosCache, setTodosDoneCache, setTodosFilter, simulationData, simulationMode, todosCache, todosDoneCache, todosFilter } from './state.js';
 import { addMsg } from './chat.js';
-import { escapeHtml, localDateStr, mineApi } from './misc.js';
+import { escapeHtml, localDateStr, mineApi, getTabSignal, isStaleTab, currentTabRequestId } from './misc.js';
 import { getClerkToken } from './auth.js';
 
 export async function loadTodosTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     const [todosRes, contactsRes] = await Promise.all([
-      mineApi('/data/todos'),
-      mineApi('/data/contacts').catch(() => ({ contacts: [] })),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/contacts', 'GET', null, sig).catch(() => ({ contacts: [] })),
     ]);
+    if (isStaleTab(myRequestId)) return;
     setTodosCache(todosRes.todos || []);
     const doneCount = todosRes.done_count || 0;
     mineCache.contacts = contactsRes.contacts || [];
     // Load done todos only if switching to done tab or done_count > 0
     if (todosFilter === 'done' && doneCount > 0) {
-      // We need a way to get done todos — use a query param
       try {
-        const doneRes = await mineApi('/data/todos?status=done');
+        const doneRes = await mineApi('/data/todos?status=done', 'GET', null, sig);
         setTodosDoneCache(doneRes.todos || []);
       } catch { setTodosDoneCache([]); }
     }
+    if (isStaleTab(myRequestId)) return;
     renderTodosTab(d, doneCount);
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }

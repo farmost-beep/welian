@@ -5,5 +5,11 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.js"],
     globals: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary"],
+      include: ["src/**/*.js"],
+      exclude: ["src/im/**"],  // IM adapters tested separately
+    },
   },
 });

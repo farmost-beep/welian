@@ -3951,6 +3951,123 @@ async function saveDataset(env, userId, name, data) {
   await env.USER_DATA.put(`${name}:${userId}`, JSON.stringify(data));
 }
 
+// ── Network algorithms: path search, scenario recommendation, graph ──
+
+function contactMatchesName(contact, name) {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  if (contact.name && contact.name.toLowerCase().includes(lower)) return true;
+  if (contact.aliases) {
+    for (const a of contact.aliases) {
+      if (a && a.toLowerCase().includes(lower)) return true;
+    }
+  }
+  if (contact.alias) {
+    for (const a of contact.alias) {
+      if (a && a.toLowerCase().includes(lower)) return true;
+    }
+  }
+  return false;
+}
+
+function findRelationshipPath(contacts, fromName, toName, maxHops = 4) {
+  // BFS through contact.connections to find shortest path from→to
+  const fromContact = contacts.find(c => contactMatchesName(c, fromName));
+  const toContact = contacts.find(c => contactMatchesName(c, toName));
+  if (!fromContact) return { found: false, error: `未找到联系人「${fromName}」` };
+  if (!toContact) return { found: false, error: `未找到联系人「${toName}」` };
+  if (fromContact.id === toContact.id) return { found: true, path: [fromContact.name], hops: 0 };
+
+  // Build adjacency from connections field
+  const adj = {};
+  for (const c of contacts) {
+    adj[c.id] = [];
+    if (c.connections) {
+      for (const conn of c.connections) {
+        if (contacts.find(x => x.id === conn.id)) {
+          adj[c.id].push({ id: conn.id, desc: conn.desc || '' });
+        }
+      }
+    }
+  }
+
+  // BFS
+  const visited = new Set([fromContact.id]);
+  const queue = [{ id: fromContact.id, path: [{ name: fromContact.name, id: fromContact.id }] }];
+  while (queue.length > 0) {
+    const { id, path } = queue.shift();
+    if (path.length - 1 >= maxHops) continue;
+    const neighbors = adj[id] || [];
+    for (const neighbor of neighbors) {
+      if (visited.has(neighbor.id)) continue;
+      visited.add(neighbor.id);
+      const neighborContact = contacts.find(c => c.id === neighbor.id);
+      const newPath = [...path, { name: neighborContact ? neighborContact.name : neighbor.id, id: neighbor.id, desc: neighbor.desc }];
+      if (neighbor.id === toContact.id) {
+        return { found: true, path: newPath, hops: newPath.length - 1 };
+      }
+      queue.push({ id: neighbor.id, path: newPath });
+    }
+  }
+  return { found: false, error: `没有找到从「${fromName}」到「${toName}」的路径（≤${maxHops}跳）` };
+}
+
+function recommendByScenario(contacts, scenario, topN = 10) {
+  const lower = scenario.toLowerCase();
+  const scored = contacts.map(c => {
+    let score = 0;
+    const reasons = [];
+    // Match by tags
+    if (c.tags) {
+      for (const tag of c.tags) {
+        if (tag && lower.includes(tag.toLowerCase())) { score += 3; reasons.push(`标签匹配: ${tag}`); }
+        if (tag && tag.toLowerCase().includes(lower)) { score += 2; reasons.push(`标签相关: ${tag}`); }
+      }
+    }
+    // Match by company
+    if (c.company && lower.includes(c.company.toLowerCase())) { score += 3; reasons.push(`公司: ${c.company}`); }
+    if (c.company && c.company.toLowerCase().includes(lower)) { score += 1; reasons.push(`公司相关: ${c.company}`); }
+    // Match by title/role
+    if (c.title && lower.includes(c.title.toLowerCase())) { score += 2; reasons.push(`职位: ${c.title}`); }
+    if (c.role && lower.includes(c.role.toLowerCase())) { score += 2; reasons.push(`角色: ${c.role}`); }
+    // Match by notes
+    if (c.notes && c.notes.toLowerCase().includes(lower)) { score += 1; reasons.push('备注中有相关关键词'); }
+    // Match by leverage fields
+    if (c.leverage && c.leverage.value && lower.includes(String(c.leverage.value).toLowerCase())) { score += 2; reasons.push(`能提供: ${c.leverage.value}`); }
+    // Boost by strength
+    score += (c.strength || 3) * 0.5;
+    return { contact: { id: c.id, name: c.name, company: c.company, title: c.title, tags: c.tags, nature: c.nature }, score, reasons };
+  }).filter(r => r.score > 0).sort((a, b) => b.score - a.score).slice(0, topN);
+  return scored;
+}
+
+function buildNetworkGraph(contacts) {
+  const nodes = contacts.map(c => ({
+    id: c.id,
+    name: c.name,
+    company: c.company || '',
+    title: c.title || '',
+    nature: c.nature || 'leverage',
+    strength: c.strength || 3,
+    tags: c.tags || [],
+  }));
+  const edges = [];
+  const seen = new Set();
+  for (const c of contacts) {
+    if (!c.connections) continue;
+    for (const conn of c.connections) {
+      const key = [c.id, conn.id].sort().join('→');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const target = contacts.find(x => x.id === conn.id);
+      if (target) {
+        edges.push({ source: c.id, sourceName: c.name, target: conn.id, targetName: target.name, desc: conn.desc || '' });
+      }
+    }
+  }
+  return { nodes, edges, stats: { totalContacts: nodes.length, totalConnections: edges.length } };
+}
+
 // ── Shared data models (single source of truth) ──
 // Mirrors src/welian/models.py — keep in sync.
 function createContact(name, opts = {}) {
@@ -3976,6 +4093,7 @@ function createContact(name, opts = {}) {
     nurture: opts.nurture || {},
     aliases: opts.aliases || [],
     alias: opts.alias || [],
+    connections: opts.connections || [],
     created: opts.created || now,
     updated: opts.updated || now,
   };
@@ -5679,6 +5797,206 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
+      // ── Network: relationship path search & recommendations ──
+
+      if (path === '/ai/network/path' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { from_name, to_name, max_hops = 4 } = body;
+        if (!from_name || !to_name) return jsonResponse({ error: 'from_name and to_name required' }, 400);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const result = findRelationshipPath(contacts, from_name, to_name, max_hops);
+        return jsonResponse(result);
+      }
+
+      if (path === '/ai/network/recommend' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { scenario, top_n = 10 } = body;
+        if (!scenario) return jsonResponse({ error: 'scenario required' }, 400);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const result = recommendByScenario(contacts, scenario, top_n);
+        return jsonResponse({ scenario, recommendations: result });
+      }
+
+      if (path === '/ai/network/graph' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const graph = buildNetworkGraph(contacts);
+        return jsonResponse(graph);
+      }
+
+      if (path === '/ai/network/connect' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { contact_id, target_id, relation_desc = '' } = body;
+        if (!contact_id || !target_id) return jsonResponse({ error: 'contact_id and target_id required' }, 400);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const contact = contacts.find(c => c.id === contact_id);
+        const target = contacts.find(c => c.id === target_id);
+        if (!contact || !target) return jsonResponse({ error: 'contact not found' }, 404);
+        // Add bidirectional connection
+        if (!contact.connections) contact.connections = [];
+        if (!contact.connections.some(c => c.id === target_id)) {
+          contact.connections.push({ id: target_id, name: target.name, desc: relation_desc });
+        }
+        if (!target.connections) target.connections = [];
+        if (!target.connections.some(c => c.id === contact_id)) {
+          target.connections.push({ id: contact_id, name: contact.name, desc: relation_desc });
+        }
+        contact.updated = new Date().toISOString();
+        target.updated = new Date().toISOString();
+        await saveDataset(env, userId, 'contacts', contacts);
+        return jsonResponse({ ok: true, message: `Connected ${contact.name} ↔ ${target.name}` });
+      }
+
+      // ── Advise push history ──
+
+      if (path === '/ai/advise_history' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const listResult = await env.USER_DATA.list({ prefix: `advise_history:${userId}:` });
+        const history = [];
+        for (const key of listResult.keys) {
+          const raw = await env.USER_DATA.get(key.name);
+          if (raw) {
+            try { history.push(JSON.parse(raw)); } catch { /* skip */ }
+          }
+        }
+        history.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        return jsonResponse({ history: history.slice(0, 30) });
+      }
+
+      // ── WeChat contacts import ──
+
+      if (path === '/ai/contacts/import_wechat' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { contacts: importContacts = [] } = body;
+        if (!Array.isArray(importContacts) || importContacts.length === 0) {
+          return jsonResponse({ error: 'contacts array required' }, 400);
+        }
+        const existing = await loadDataset(env, userId, 'contacts');
+        const existingNames = new Set(existing.map(c => c.name.toLowerCase()));
+        let added = 0;
+        let skipped = 0;
+        for (const ic of importContacts) {
+          const name = (ic.name || '').trim();
+          if (!name || existingNames.has(name.toLowerCase())) { skipped++; continue; }
+          const contact = createContact(name, {
+            phone: ic.phone || '',
+            wechat: ic.wechat || ic.wxid || '',
+            company: ic.company || '',
+            title: ic.title || '',
+            tags: ic.tags || [],
+            nature: 'leverage',
+          });
+          if (ic.wechat || ic.wxid) {
+            contact.platforms = { wechat: ic.wechat || ic.wxid };
+          }
+          existing.push(contact);
+          existingNames.add(name.toLowerCase());
+          added++;
+        }
+        if (added > 0) {
+          await saveDataset(env, userId, 'contacts', existing);
+        }
+        return jsonResponse({ ok: true, added, skipped, total: existing.length });
+      }
+
+      // ── Auto-extract interactions from chat messages ──
+
+      if (path === '/ai/interactions/auto_extract' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { messages = [], contact_name = '' } = body;
+        if (!Array.isArray(messages) || messages.length === 0) {
+          return jsonResponse({ error: 'messages array required' }, 400);
+        }
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const timeline = await loadDataset(env, userId, 'timeline');
+
+        // Find matching contact
+        let targetContact = null;
+        if (contact_name) {
+          targetContact = contacts.find(c => contactMatchesName(c, contact_name));
+        }
+        if (!targetContact) {
+          // Try to match from message content
+          const allText = messages.map(m => m.content || m.text || '').join(' ');
+          targetContact = contacts.find(c => allText.includes(c.name));
+        }
+        if (!targetContact) {
+          return jsonResponse({ error: '无法匹配到联系人，请指定 contact_name' }, 404);
+        }
+
+        // Build chat text for LLM extraction
+        const chatText = messages.map(m => {
+          const sender = m.is_me ? '我' : (m.sender || targetContact.name);
+          return `[${m.time || ''}] ${sender}: ${m.content || m.text || ''}`;
+        }).join('\n');
+
+        const extractPrompt = `分析以下与「${targetContact.name}」的微信聊天记录，提取最近互动摘要。
+
+聊天记录：
+${chatText}
+
+请提取：
+1. 互动摘要（1-2句话概括聊天内容）
+2. 关键要点（最多3条）
+3. 待办事项（如果对方提到了需要跟进的事情）
+
+返回JSON格式：
+{"summary":"...","key_points":["..."],"pending":"..."}`;
+
+        const llmResp = await callLLM(extractPrompt, '你是关系管理助手，擅长从聊天记录中提取关键信息。', env, { max_tokens: 512, temperature: 0.3 });
+
+        let extracted = { summary: '', key_points: [], pending: '' };
+        if (llmResp) {
+          try {
+            const jsonMatch = llmResp.text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) extracted = JSON.parse(jsonMatch[0]);
+          } catch { /* fallback */ }
+        }
+        if (!extracted.summary) {
+          extracted.summary = `与${targetContact.name}微信聊天，${messages.length}条消息`;
+        }
+
+        // Create timeline entry
+        const entry = createTimelineEntry(targetContact.id, extracted.summary, {
+          type: 'message',
+          key_points: extracted.key_points || [],
+          pending: extracted.pending || '',
+          date: new Date().toISOString().slice(0, 10),
+        });
+        timeline.push(entry);
+        await saveDataset(env, userId, 'timeline', timeline);
+
+        // Create todo if pending found
+        let todoCreated = false;
+        if (extracted.pending) {
+          const todos = await loadDataset(env, userId, 'todos');
+          const todo = createTodo(targetContact.id, extracted.pending, { priority: 'P1' });
+          todos.push(todo);
+          await saveDataset(env, userId, 'todos', todos);
+          todoCreated = true;
+        }
+
+        return jsonResponse({
+          ok: true,
+          contact: targetContact.name,
+          timeline_entry: entry,
+          todo_created: todoCreated,
+          extracted,
+        });
+      }
+
       // ── Web search ──
 
       if (path === '/ai/search' && method === 'POST') {
@@ -6410,6 +6728,7 @@ export default {
     // Daily 23:00 UTC (07:00 CST) → daily signals push to WeChat
     if (cronExpr === '0 23 * * *') {
       tasks.push(handleDailySignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_signals' } })));
+      tasks.push(handleDailyAdvisePush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_advise' } })));
     }
     // 1st & 15th of month 01:00 UTC (09:00 CST) → biweekly health warning push
     if (cronExpr === '0 1 1,15 * *') {
@@ -8087,6 +8406,133 @@ async function handleScheduledPush(env) {
       console.log(`Weekly report queued for ${clerkUserId}`);
     } catch (e) {
       console.error(`Push failed for ${clerkUserId}:`, e.message);
+    }
+  }
+}
+
+// ── Daily advise push: top 3 people to contact today ──
+
+async function handleDailyAdvisePush(env) {
+  console.log('[daily_advise] Starting daily advise push');
+
+  // Find all wechat-bound users
+  const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+  const boundUsers = [];
+  for (const key of listResult.keys) {
+    const wechatId = key.name.replace('wechat_bind:', '');
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) boundUsers.push({ wechatId, clerkUserId });
+  }
+
+  for (const { wechatId, clerkUserId } of boundUsers) {
+    try {
+      const contacts = await loadDataset(env, clerkUserId, 'contacts');
+      const timeline = await loadDataset(env, clerkUserId, 'timeline');
+      const todos = await loadDataset(env, clerkUserId, 'todos');
+      if (contacts.length === 0) continue;
+
+      // Reuse advise scoring logic
+      const today = new Date();
+      const candidates = [];
+      for (const c of contacts) {
+        if (c.nature !== 'leverage' && c.nature !== '双重' && c.nature !== 'dual') continue;
+        const contactTimeline = timeline
+          .filter(t => t.contact === c.id)
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        const lastDate = contactTimeline[0]?.date || '';
+        let daysSince = 9999;
+        if (lastDate) {
+          const diff = Math.floor((today - new Date(lastDate)) / 86400000);
+          daysSince = isNaN(diff) ? 9999 : diff;
+        }
+        let score = 0;
+        if (daysSince >= 21) score += 30;
+        else if (daysSince >= 14) score += 20;
+        else if (daysSince === 9999) score += 25;
+        if (c.leverage?.confirmed) score += 15;
+        const pendingTodos = todos.filter(t => t.contact === c.id && t.status === 'pending');
+        score += pendingTodos.length * 25;
+        score += (c.strength || 3) * 2;
+        if (daysSince >= 14 || daysSince === 9999 || pendingTodos.length > 0) {
+          candidates.push({
+            name: c.name,
+            daysSince,
+            score,
+            lastInteraction: contactTimeline[0]?.summary || '',
+            pendingTodos: pendingTodos.map(t => t.task),
+            leverageGoals: c.leverage?.goals || [],
+          });
+        }
+      }
+      candidates.sort((a, b) => b.score - a.score);
+      const top3 = candidates.slice(0, 3);
+      if (top3.length === 0) continue;
+
+      // Also check nurture important dates within 7 days
+      const nurtureReminders = [];
+      const todayStr = today.toISOString().slice(5, 10);
+      const weekStr = new Date(today.getTime() + 7 * 86400000).toISOString().slice(5, 10);
+      for (const c of contacts) {
+        if (c.nature !== 'nurture' && c.nature !== '双重' && c.nature !== 'dual') continue;
+        for (const d of (c.important_dates || [])) {
+          if (!d.date) continue;
+          const mmdd = d.date.length === 5 ? d.date : d.date.slice(5, 10);
+          if (mmdd >= todayStr && mmdd <= weekStr) {
+            nurtureReminders.push({ name: c.name, label: d.label || '重要日期', date: d.date });
+          }
+        }
+      }
+
+      // Build push message
+      const dateStr = today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+      let msg = `☀️ 早安 · ${dateStr}\n\n`;
+      msg += `今天最值得联系的 ${top3.length} 个人：\n\n`;
+      for (const c of top3) {
+        const icon = c.daysSince >= 21 ? '🔴' : c.daysSince === 9999 ? '⚪' : '🟡';
+        msg += `${icon} ${c.name}`;
+        msg += c.daysSince === 9999 ? '（从未联系）' : `（${c.daysSince}天没联系）`;
+        if (c.leverageGoals && c.leverageGoals.length > 0) {
+          msg += `\n   🎯 ${Array.isArray(c.leverageGoals) ? c.leverageGoals.join(', ') : String(c.leverageGoals)}`;
+        }
+        if (c.lastInteraction) {
+          msg += `\n   💬 上次：${c.lastInteraction.slice(0, 50)}`;
+        }
+        if (c.pendingTodos.length > 0) {
+          msg += `\n   📌 待办：${c.pendingTodos[0]}`;
+        }
+        msg += '\n\n';
+      }
+      if (nurtureReminders.length > 0) {
+        msg += `💛 别忘记：\n`;
+        for (const r of nurtureReminders.slice(0, 3)) {
+          msg += `  · ${r.name}的${r.label}快到了\n`;
+        }
+        msg += '\n';
+      }
+      msg += `— Welian 小维 · welian.app`;
+
+      // Queue for bot pickup
+      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
+      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      queue.push({ type: 'daily_advise', content: msg, timestamp: today.toISOString() });
+      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+
+      // Push to IM channels
+      pushToIMChannels(env, clerkUserId, msg).catch(e =>
+        console.error(`[im_push] daily advise failed for ${clerkUserId}:`, e.message)
+      );
+
+      // Save to advise push history (30-day TTL)
+      const todayKey = today.toISOString().slice(0, 10);
+      await env.USER_DATA.put(`advise_history:${clerkUserId}:${todayKey}`, JSON.stringify({
+        date: todayKey,
+        topContacts: top3.map(c => ({ name: c.name, daysSince: c.daysSince, score: c.score })),
+        nurtureReminders,
+      }), { expirationTtl: 2592000 });
+
+      console.log(`[daily_advise] Pushed to ${clerkUserId}: ${top3.length} contacts`);
+    } catch (e) {
+      console.error(`[daily_advise] Failed for ${clerkUserId}:`, e.message);
     }
   }
 }

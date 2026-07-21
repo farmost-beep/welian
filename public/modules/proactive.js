@@ -2,7 +2,7 @@
 
 import { CLOUD_URL, I18N, PDF_SANDBOX_URL, body, bridgeFrame, bridgeReady, currentLang, input, mineCache, onboardingExtractedContacts, setMineCache, setOnboardingExtractedContacts, simulationMode } from './state.js';
 import { addMsg } from './chat.js';
-import { escapeHtml, mineApi } from './misc.js';
+import { escapeHtml, mineApi, getTabSignal, isStaleTab, currentTabRequestId } from './misc.js';
 
 // Normalize LLM report fields that might be string or object into display text
 function formatReportField(val, zh) {
@@ -32,13 +32,16 @@ function formatReportField(val, zh) {
 }
 import { getClerkToken } from './auth.js';
 
-export async function loadWeeklyTab() {
+export async function loadWeeklyTab(targetEl) {
   const d = I18N[currentLang];
-  const content = document.getElementById('mineContent');
+  const content = targetEl || document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   content.innerHTML = `<div class="mine-empty">${d.mine_weekly_loading_ai}</div>`;
   try {
     // Use structured weekly_report endpoint
-    const reportRes = await mineApi('/ai/weekly_report', 'POST', {});
+    const reportRes = await mineApi('/ai/weekly_report', 'POST', {}, sig);
+    if (isStaleTab(myRequestId)) return;
     const report = reportRes.report || {};
     const raw = reportRes.raw_data || {};
 
@@ -114,10 +117,13 @@ export async function loadWeeklyTab() {
       html += `<div class="mine-card" style="font-size:.85em;color:var(--dim);text-align:center">${escapeHtml(report.closing)}</div>`;
     }
 
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = html;
     // Store report data for sharing
     window._weeklyReportData = { report, raw, weekRange };
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -489,10 +495,12 @@ export function shareWeeklyReport() {
   showShareModal(text, zh, card);
 }
 
-export async function loadSignalsTab() {
+export async function loadSignalsTab(targetEl) {
   const d = I18N[currentLang];
   const zh = currentLang === 'zh';
-  const content = document.getElementById('mineContent');
+  const content = targetEl || document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
 
   // Load user domain preferences
@@ -511,7 +519,8 @@ export async function loadSignalsTab() {
   } catch (e) {}
 
   try {
-    const resp = await mineApi('/ai/hn_signals', 'POST', {});
+    const resp = await mineApi('/ai/hn_signals', 'POST', {}, sig);
+    if (isStaleTab(myRequestId)) return;
     const report = resp.report || {};
     const raw = resp.raw_data || {};
     const signals = report.signals || [];
@@ -612,9 +621,12 @@ export async function loadSignalsTab() {
       html += `<div class="mine-card" style="font-size:.85em;color:var(--dim);text-align:center">${escapeHtml(report.closing)}</div>`;
     }
 
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = html;
     window._signalsReportData = { report, raw };
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -766,18 +778,21 @@ export function shareSignalsReport() {
   showShareModal(text, zh, card);
 }
 
-export async function loadMonthlyTab() {
+export async function loadMonthlyTab(targetEl) {
   const d = I18N[currentLang];
-  const content = document.getElementById('mineContent');
+  const content = targetEl || document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     // Use structured monthly_report endpoint + local data for dashboard
     const [reportRes, contactsRes, todosRes, timelineRes] = await Promise.all([
-      mineApi('/ai/monthly_report', 'POST', {}).catch(() => null),
-      mineApi('/data/contacts'),
-      mineApi('/data/todos'),
-      mineApi('/data/timeline'),
+      mineApi('/ai/monthly_report', 'POST', {}, sig).catch(() => null),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig),
     ]);
+    if (isStaleTab(myRequestId)) return;
     const report = (reportRes && reportRes.report) || {};
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
@@ -889,6 +904,7 @@ export async function loadMonthlyTab() {
       aiInsightHtml += `</div>`;
     }
 
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `
       <div class="mine-card" style="text-align:center;margin-bottom:12px">
         <div style="font-size:1.2em;font-weight:500">${currentLang==='zh'?'📊 '+monthName+'的你':'📊 '+monthName}</div>
@@ -942,14 +958,16 @@ export async function loadMonthlyTab() {
     // Store report data for sharing
     window._monthlyReportData = { report, monthName, monthTimeline, friendInteractions, familyInteractions, collaboratorInteractions, contacts, doneRate, monthTodosDone, reconnects, upcomingDates, trendDiff, trendArrow };
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
 
-export async function loadAnnualTab() {
+export async function loadAnnualTab(targetEl) {
   const d = I18N[currentLang];
   const zh = currentLang === 'zh';
-  const content = document.getElementById('mineContent');
+  const content = targetEl || document.getElementById('mineContent');
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     const resp = await mineApi('/ai/annual_report', 'POST', {});

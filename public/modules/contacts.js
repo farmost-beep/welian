@@ -2,17 +2,20 @@
 
 import { AGENT_TUNNEL_URL, CLOUD_URL, I18N, body, bridgeReady, chatDataCache, contactsCollapsedGroups, contactsGroupBy, currentContactsFilter, currentLang, input, mineCache, mineCurrentTab, setBridgeReady, setContactsCollapsedGroups, setContactsGroupBy, setCurrentContactsFilter, simulationData, simulationMode } from './state.js';
 import { addMsg, showInteractionDetail } from './chat.js';
-import { confirmPop, escapeHtml, localDateStr, mineApi } from './misc.js';
+import { confirmPop, escapeHtml, localDateStr, mineApi, getTabSignal, isStaleTab, currentTabRequestId } from './misc.js';
 import { getClerkToken } from './auth.js';
 
 export async function loadContactsTab(keyword) {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   try {
     const [res, tlRes] = await Promise.all([
-      mineApi('/data/contacts'),
-      mineApi('/data/timeline').catch(() => ({ timeline: [] })),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig).catch(() => ({ timeline: [] })),
     ]);
+    if (isStaleTab(myRequestId)) return;
     let contacts = res.contacts || [];
     mineCache.contacts = contacts;
     mineCache.timeline = tlRes.timeline || [];
@@ -41,6 +44,8 @@ export async function loadContactsTab(keyword) {
       renderContactsResults('', d);
     }
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }

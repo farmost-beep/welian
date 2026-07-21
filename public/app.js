@@ -4962,12 +4962,15 @@ async function mineApi(path, method = 'GET', body = null, signal = null) {
 async function loadOverview() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   try {
     const [contactsRes, todosRes, timelineRes] = await Promise.all([
-      mineApi('/data/contacts'),
-      mineApi('/data/todos'),
-      mineApi('/data/timeline'),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return; // stale
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
     const allTimeline = timelineRes.timeline || [];
@@ -5161,14 +5164,261 @@ async function loadOverview() {
       html += `</div>`;
     }
 
+    // ── Relationship network card ──
+    if (contacts.length >= 2) {
+      html += `
+        <div class="mine-card" style="border:1px solid var(--accent)">
+          <div class="mine-card-title">🕸️ ${zh ? '关系网络' : 'Network'} <span style="font-size:.7em;color:var(--dim);font-weight:400" id="networkStats"></span></div>
+          <div id="networkGraph" style="width:100%;height:240px;background:var(--surface);border-radius:8px;position:relative;overflow:hidden;cursor:grab">
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-size:.85em">${zh ? '加载中…' : 'Loading…'}</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <input id="pathFromInput" placeholder="${zh ? '从谁' : 'From'}" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85em;font-family:inherit">
+            <span style="align-self:center;color:var(--dim)">→</span>
+            <input id="pathToInput" placeholder="${zh ? '到谁' : 'To'}" style="flex:1;min-width:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85em;font-family:inherit">
+            <button onclick="searchNetworkPath()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.85em;font-family:inherit;white-space:nowrap">${zh ? '找路径' : 'Find'}</button>
+          </div>
+          <div id="pathResult" style="margin-top:8px;font-size:.82em"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <input id="scenarioInput" placeholder="${zh ? '场景：需要一个懂税务的人' : 'Scenario: need a tax expert'}" style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85em;font-family:inherit">
+            <button onclick="recommendByScenario()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.85em;font-family:inherit;white-space:nowrap">${zh ? '推荐' : 'Recommend'}</button>
+          </div>
+          <div id="recommendResult" style="margin-top:8px;font-size:.82em"></div>
+        </div>
+      `;
+      // Load network graph after DOM update
+      setTimeout(() => loadNetworkGraph(), 100);
+    }
+
+    // ── Daily advise push history ──
+    try {
+      const historyResp = await mineApi('/ai/advise_history');
+      if (historyResp.history && historyResp.history.length > 0) {
+        html += `
+          <div class="mine-card">
+            <div class="mine-card-title">☀️ ${zh ? '每日推送历史' : 'Daily Push History'}</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${historyResp.history.slice(0, 7).map(h => `
+                <div style="padding:8px;background:var(--surface);border-radius:8px">
+                  <div style="font-size:.75em;color:var(--dim);margin-bottom:4px">${h.date}</div>
+                  ${h.topContacts.map(c => `<div style="font-size:.82em">· ${escapeHtml(c.name)} <span style="color:var(--dim)">(${c.daysSince === 9999 ? '从未' : c.daysSince + '天'})</span></div>`).join('')}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.log('[advise_history] load failed:', e.message);
+    }
+
     if (contacts.length === 0 && todos.length === 0 && allTimeline.length === 0) {
       html = `<div class="mine-empty">${d.mine_empty}</div>`;
     }
 
+    if (window._currentTabRequestId !== myRequestId) return; // stale guard before DOM write
     content.innerHTML = html;
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
+}
+
+// ── Network graph visualization (force-directed, canvas) ──
+
+async function loadNetworkGraph() {
+  const container = document.getElementById('networkGraph');
+  if (!container) return;
+  try {
+    const graph = await mineApi('/ai/network/graph');
+    const stats = document.getElementById('networkStats');
+    if (stats) stats.textContent = `${graph.nodes.length} ${currentLang === 'zh' ? '人' : 'people'} · ${graph.edges.length} ${currentLang === 'zh' ? '连接' : 'links'}`;
+    if (graph.nodes.length === 0) {
+      container.innerHTML = `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-size:.85em">${currentLang === 'zh' ? '暂无连接数据，在联系人详情中添加「认识谁」' : 'No connections yet'}</div>`;
+      return;
+    }
+    // Simple force-directed layout on canvas
+    const canvas = document.createElement('canvas');
+    const w = container.clientWidth || 300;
+    const h = 240;
+    canvas.width = w * window.devicePixelRatio;
+    canvas.height = h * window.devicePixelRatio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    container.innerHTML = '';
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    // Initialize node positions in a circle
+    const nodes = graph.nodes.map((n, i) => ({
+      ...n,
+      x: w / 2 + Math.cos((i / graph.nodes.length) * Math.PI * 2) * 80,
+      y: h / 2 + Math.sin((i / graph.nodes.length) * Math.PI * 2) * 80,
+      vx: 0, vy: 0,
+    }));
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.id] = n);
+    const edges = graph.edges.filter(e => nodeMap[e.source] && nodeMap[e.target]);
+
+    // Force simulation (simplified)
+    for (let iter = 0; iter < 80; iter++) {
+      // Repulsion
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[j].x - nodes[i].x;
+          const dy = nodes[j].y - nodes[i].y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const force = 600 / (dist * dist);
+          nodes[i].vx -= (dx / dist) * force;
+          nodes[i].vy -= (dy / dist) * force;
+          nodes[j].vx += (dx / dist) * force;
+          nodes[j].vy += (dy / dist) * force;
+        }
+      }
+      // Attraction (edges)
+      for (const e of edges) {
+        const a = nodeMap[e.source], b = nodeMap[e.target];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = (dist - 60) * 0.05;
+        a.vx += (dx / dist) * force;
+        a.vy += (dy / dist) * force;
+        b.vx -= (dx / dist) * force;
+        b.vy -= (dy / dist) * force;
+      }
+      // Center gravity
+      for (const n of nodes) {
+        n.vx += (w / 2 - n.x) * 0.01;
+        n.vy += (h / 2 - n.y) * 0.01;
+        n.x += n.vx * 0.1;
+        n.y += n.vy * 0.1;
+        n.vx *= 0.85;
+        n.vy *= 0.85;
+      }
+    }
+
+    // Draw
+    ctx.clearRect(0, 0, w, h);
+    // Edges
+    ctx.strokeStyle = '#c8c8c0';
+    ctx.lineWidth = 1;
+    for (const e of edges) {
+      const a = nodeMap[e.source], b = nodeMap[e.target];
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    // Nodes
+    for (const n of nodes) {
+      const isLeverage = n.nature === 'leverage' || n.nature === 'dual';
+      ctx.fillStyle = isLeverage ? '#4A6741' : '#e8a838';
+      const r = 4 + (n.strength || 3) * 1.5;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      // Label
+      ctx.fillStyle = '#555';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(n.name.slice(0, 6), n.x, n.y + r + 12);
+    }
+  } catch (e) {
+    container.innerHTML = `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-size:.85em">${e.message}</div>`;
+  }
+}
+
+async function searchNetworkPath() {
+  const from = document.getElementById('pathFromInput')?.value?.trim();
+  const to = document.getElementById('pathToInput')?.value?.trim();
+  const result = document.getElementById('pathResult');
+  if (!result) return;
+  if (!from || !to) { result.innerHTML = `<span style="color:var(--dim)">${currentLang === 'zh' ? '请输入两个名字' : 'Enter both names'}</span>`; return; }
+  result.innerHTML = `<span style="color:var(--dim)">${currentLang === 'zh' ? '搜索中…' : 'Searching…'}</span>`;
+  try {
+    const data = await mineApi('/ai/network/path', 'POST', { from_name: from, to_name: to });
+    if (data.found) {
+      const pathStr = data.path.map((p, i) => i === 0 ? p.name : `→ ${p.name}`).join(' ');
+      result.innerHTML = `<div style="color:var(--accent);font-weight:600">${currentLang === 'zh' ? '找到路径' : 'Path found'} (${data.hops} ${currentLang === 'zh' ? '跳' : 'hops'})</div><div style="margin-top:4px">${escapeHtml(pathStr)}</div>`;
+    } else {
+      result.innerHTML = `<span style="color:var(--dim)">${escapeHtml(data.error || 'No path found')}</span>`;
+    }
+  } catch (e) {
+    result.innerHTML = `<span style="color:#c44">${e.message}</span>`;
+  }
+}
+
+async function recommendByScenario() {
+  const scenario = document.getElementById('scenarioInput')?.value?.trim();
+  const result = document.getElementById('recommendResult');
+  if (!result) return;
+  if (!scenario) { result.innerHTML = `<span style="color:var(--dim)">${currentLang === 'zh' ? '请输入场景' : 'Enter a scenario'}</span>`; return; }
+  result.innerHTML = `<span style="color:var(--dim)">${currentLang === 'zh' ? '推荐中…' : 'Recommending…'}</span>`;
+  try {
+    const data = await mineApi('/ai/network/recommend', 'POST', { scenario });
+    if (data.recommendations && data.recommendations.length > 0) {
+      result.innerHTML = data.recommendations.map(r => {
+        const c = r.contact;
+        const reasons = r.reasons.slice(0, 2).map(escapeHtml).join('、');
+        return `<div style="padding:6px;background:var(--surface);border-radius:6px;margin-bottom:4px;cursor:pointer" onclick="openContactDetail('${escapeHtml(c.id)}')"><span style="font-weight:600">${escapeHtml(c.name)}</span>${c.company ? ` <span style="color:var(--dim)">· ${escapeHtml(c.company)}</span>` : ''}<div style="font-size:.75em;color:var(--dim)">${reasons}</div></div>`;
+      }).join('');
+    } else {
+      result.innerHTML = `<span style="color:var(--dim)">${currentLang === 'zh' ? '没有匹配的联系人' : 'No matches'}</span>`;
+    }
+  } catch (e) {
+    result.innerHTML = `<span style="color:#c44">${e.message}</span>`;
+  }
+}
+
+async function importWechatContacts() {
+  const zh = currentLang === 'zh';
+  // Create a hidden file input
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,.csv,.vcf,.txt';
+  fileInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      let contacts = [];
+      // Try JSON first
+      try {
+        const data = JSON.parse(text);
+        if (Array.isArray(data)) {
+          contacts = data;
+        } else if (data.contacts && Array.isArray(data.contacts)) {
+          contacts = data.contacts;
+        }
+      } catch {
+        // Try CSV (simple parse: name,phone,wechat,company,title)
+        const lines = text.split('\n').filter(l => l.trim());
+        for (const line of lines) {
+          const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+          if (parts.length >= 1 && parts[0] && parts[0] !== 'name' && parts[0] !== '姓名') {
+            contacts.push({ name: parts[0], phone: parts[1] || '', wechat: parts[2] || '', company: parts[3] || '', title: parts[4] || '' });
+          }
+        }
+      }
+      if (contacts.length === 0) {
+        addMsg('ai', zh ? '未能解析联系人数据，支持 JSON、CSV 格式' : 'Could not parse contacts. Supports JSON, CSV.');
+        return;
+      }
+      const result = await mineApi('/ai/contacts/import_wechat', 'POST', { contacts });
+      if (result.ok) {
+        addMsg('ai', zh ? `✅ 导入完成：新增 ${result.added} 人，跳过 ${result.skipped} 人（已存在），共 ${result.total} 人` : `Imported: ${result.added} new, ${result.skipped} skipped, ${result.total} total`);
+        // Reload contacts tab
+        loadContactsTab();
+      } else {
+        addMsg('ai', zh ? '导入失败' : 'Import failed');
+      }
+    } catch (err) {
+      addMsg('ai', `${zh ? '导入失败' : 'Import failed'}: ${err.message}`);
+    }
+  };
+  fileInput.click();
 }
 
 // ── Contacts tab ──
@@ -5179,17 +5429,23 @@ let contactsCollapsedGroups = new Set();
 async function loadContactsTab(keyword) {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   try {
     const [res, tlRes] = await Promise.all([
-      mineApi('/data/contacts'),
-      mineApi('/data/timeline').catch(() => ({ timeline: [] })),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig).catch(() => ({ timeline: [] })),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return;
     let contacts = res.contacts || [];
     mineCache.contacts = contacts;
     mineCache.timeline = tlRes.timeline || [];
 
     // Search input (never rebuilt during search) + results container
-    let html = `<input class="mine-search" placeholder="${d.mine_search_ph}" id="mineSearchInput" autocomplete="off">`;
+    let html = `<div style="display:flex;gap:8px;align-items:center">
+      <input class="mine-search" placeholder="${d.mine_search_ph}" id="mineSearchInput" autocomplete="off" style="flex:1">
+      <button onclick="importWechatContacts()" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85em;font-family:inherit;white-space:nowrap">${currentLang === 'zh' ? '📥 导入微信' : '📥 Import WeChat'}</button>
+    </div>`;
     html += `<div id="contactsResults"></div>`;
     content.innerHTML = html;
 
@@ -5212,6 +5468,8 @@ async function loadContactsTab(keyword) {
       renderContactsResults('', d);
     }
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -5747,10 +6005,13 @@ function closeContactDetail() {
 async function loadWeeklyTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   content.innerHTML = `<div class="mine-empty">${d.mine_weekly_loading_ai}</div>`;
   try {
     // Use structured weekly_report endpoint
-    const reportRes = await mineApi('/ai/weekly_report', 'POST', {});
+    const reportRes = await mineApi('/ai/weekly_report', 'POST', {}, sig);
+    if (window._currentTabRequestId !== myRequestId) return;
     const report = reportRes.report || {};
     const raw = reportRes.raw_data || {};
 
@@ -5826,10 +6087,13 @@ async function loadWeeklyTab() {
       html += `<div class="mine-card" style="font-size:.85em;color:var(--dim);text-align:center">${escapeHtml(report.closing)}</div>`;
     }
 
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = html;
     // Store report data for sharing
     window._weeklyReportData = { report, raw, weekRange };
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -6214,9 +6478,11 @@ function shareWeeklyReport() {
 async function loadBillingTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
   content.innerHTML = `<div class="mine-empty">${d.billing_loading}</div>`;
   const token = await getClerkToken();
   if (!token) {
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${d.billing_not_authed}</div>`;
     return;
   }
@@ -6239,8 +6505,10 @@ async function loadBillingTab() {
     const pricing = await pricingResp.json();
     window._currentPricing = pricing; // cache for cost preview
     const adminResult = await adminResp.json();
+    if (window._currentTabRequestId !== myRequestId) return;
     renderBillingTab(info, pricing, adminResult.is_admin);
   } catch (e) {
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${d.billing_error}${e.message}</div>`;
   }
 }
@@ -7455,15 +7723,18 @@ function shareSignalsReport() {
 async function loadMonthlyTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     // Use structured monthly_report endpoint + local data for dashboard
     const [reportRes, contactsRes, todosRes, timelineRes] = await Promise.all([
-      mineApi('/ai/monthly_report', 'POST', {}).catch(() => null),
-      mineApi('/data/contacts'),
-      mineApi('/data/todos'),
-      mineApi('/data/timeline'),
+      mineApi('/ai/monthly_report', 'POST', {}, sig).catch(() => null),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return;
     const report = (reportRes && reportRes.report) || {};
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
@@ -7575,6 +7846,7 @@ async function loadMonthlyTab() {
       aiInsightHtml += `</div>`;
     }
 
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `
       <div class="mine-card" style="text-align:center;margin-bottom:12px">
         <div style="font-size:1.2em;font-weight:500">${currentLang==='zh'?'📊 '+monthName+'的你':'📊 '+monthName}</div>
@@ -7628,6 +7900,8 @@ async function loadMonthlyTab() {
     // Store report data for sharing
     window._monthlyReportData = { report, monthName, monthTimeline, friendInteractions, familyInteractions, collaboratorInteractions, contacts, doneRate, monthTodosDone, reconnects, upcomingDates, trendDiff, trendArrow };
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -7884,16 +8158,22 @@ let timelineCache = [];
 async function loadTimelineTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     const [timelineRes, contactsRes] = await Promise.all([
-      mineApi('/data/timeline'),
-      mineApi('/data/contacts').catch(() => ({ contacts: [] })),
+      mineApi('/data/timeline', 'GET', null, sig),
+      mineApi('/data/contacts', 'GET', null, sig).catch(() => ({ contacts: [] })),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return;
     timelineCache = timelineRes.timeline || [];
     mineCache.contacts = contactsRes.contacts || [];
+    if (window._currentTabRequestId !== myRequestId) return;
     renderTimelineTab();
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
@@ -8014,25 +8294,30 @@ let todosCache = [];
 async function loadTodosTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     const [todosRes, contactsRes] = await Promise.all([
-      mineApi('/data/todos'),
-      mineApi('/data/contacts').catch(() => ({ contacts: [] })),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/contacts', 'GET', null, sig).catch(() => ({ contacts: [] })),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return;
     todosCache = todosRes.todos || [];
     const doneCount = todosRes.done_count || 0;
     mineCache.contacts = contactsRes.contacts || [];
     // Load done todos only if switching to done tab or done_count > 0
     if (todosFilter === 'done' && doneCount > 0) {
-      // We need a way to get done todos — use a query param
       try {
-        const doneRes = await mineApi('/data/todos?status=done');
+        const doneRes = await mineApi('/data/todos?status=done', 'GET', null, sig);
         todosDoneCache = doneRes.todos || [];
       } catch { todosDoneCache = []; }
     }
+    if (window._currentTabRequestId !== myRequestId) return;
     renderTodosTab(d, doneCount);
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }

@@ -15,8 +15,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e . pytest -q
-      - run: pytest tests/ --ignore=tests/e2e -q --tb=short
+      - run: pip install -e . pytest pytest-cov -q
+      - run: pytest tests/ --ignore=tests/e2e -q --tb=short --cov=src/welian --cov-report=term-missing
 
   # ── Worker unit tests (vitest, fast) ──
   worker-unit:
@@ -29,8 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install
-      - run: npx vitest run
+      - run: npm ci
+      - run: npx vitest run --coverage
 
   # ── E2E tests (real LLM, ~2 min) ──
   e2e:
@@ -58,11 +58,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run journey tests (L0 smoke + L1 activation + L2 core loop)
         run: npx playwright test --project=journey --reporter=line
-        timeout-minutes: 3
+        timeout-minutes: 5
 
   # ── Auth tests (mock + real Clerk, non-blocking info) ──
   auth-tests:
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run auth tests (mock + real Clerk)
         env:

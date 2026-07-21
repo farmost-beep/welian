@@ -10,6 +10,13 @@ import { loadTimelineTab } from './timeline.js';
 import { loadTodosTab } from './todos.js';
 import { loadMeetingsTab } from './meetings.js';
 
+let mineTabAbortController = null; // abort in-flight tab requests on switch
+
+// Helpers for tab modules to respect abort/stale guards
+export function getTabSignal() { return mineTabAbortController?.signal || null; }
+export function isStaleTab(myRequestId) { return window._currentTabRequestId !== myRequestId; }
+export function currentTabRequestId() { return window._currentTabRequestId; }
+
 export function applyLang(lang) {
   setCurrentLang(lang);
   localStorage.setItem('welian_lang', lang);
@@ -102,6 +109,14 @@ export function closeSupport() {
 }
 
 export function switchMineTab(tab) {
+  // Abort any in-flight tab request to prevent connection pool exhaustion
+  if (mineTabAbortController) {
+    mineTabAbortController.abort();
+  }
+  mineTabAbortController = new AbortController();
+  const tabRequestId = tab + '_' + Date.now();
+  window._currentTabRequestId = tabRequestId;
+
   setMineCurrentTab(tab);
   sessionStorage.setItem('welian_mine_tab', tab);
   localStorage.setItem('welian_mine_tab', tab);
@@ -137,30 +152,23 @@ export function loadReportsTab(subtab) {
     <button class="mine-subtab-item ${_reportsSubtab==='signals'?'active':''}" onclick="switchReportsSubtab('signals')">📡 ${zh?'信号':'Signals'}</button>
   </div>
   <div id="reportsContent"><div class="mine-empty">${I18N[currentLang].mine_loading}</div></div>`;
-  // The load functions write to getElementById('mineContent'), so temporarily swap IDs
-  const real = document.getElementById('mineContent');
+  // Pass the reportsContent element directly to loadFn — no ID swapping needed.
+  // (Previous ID-swap approach caused race conditions when users clicked subtabs
+  // or switched tabs before async load completed, leaving mineContent ID orphaned.)
   const target = document.getElementById('reportsContent');
-  real.id = '_mineContentTemp';
-  target.id = 'mineContent';
   const loadFn = _reportsSubtab === 'weekly' ? loadWeeklyTab : _reportsSubtab === 'monthly' ? loadMonthlyTab : _reportsSubtab === 'annual' ? loadAnnualTab : loadSignalsTab;
-  loadFn().then(() => {
-    // Restore IDs after content loads
-    document.getElementById('mineContent').id = 'reportsContent';
-    document.getElementById('_mineContentTemp').id = 'mineContent';
-  }).catch(() => {
-    document.getElementById('mineContent').id = 'reportsContent';
-    document.getElementById('_mineContentTemp').id = 'mineContent';
-  });
+  loadFn(target);
 }
 
 export function switchReportsSubtab(subtab) {
   loadReportsTab(subtab);
 }
 
-export async function mineApi(path, method = 'GET', body = null) {
+export async function mineApi(path, method = 'GET', body = null, signal = null) {
   const token = simulationMode ? `demo_${simulationData.id}:demo_secret` : await getClerkToken();
   if (!token) throw new Error('No token');
   const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
+  if (signal) opts.signal = signal;
   if (body) {
     // Inject session_token for AI endpoints that need it
     body.session_token = token;
@@ -174,15 +182,18 @@ export async function mineApi(path, method = 'GET', body = null) {
 export async function loadOverview() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = window._currentTabRequestId;
+  const sig = mineTabAbortController?.signal;
   try {
     const [contactsRes, todosRes, timelineRes, memoryRes, goalRes, profileRes] = await Promise.all([
-      mineApi('/data/contacts'),
-      mineApi('/data/todos'),
-      mineApi('/data/timeline'),
-      mineApi('/data/memory?limit=100').catch(() => ({ memories: [] })),
-      mineApi('/data/goals').catch(() => ({ goals: [] })),
-      mineApi('/data/profile').catch(() => ({ profile: {} })),
+      mineApi('/data/contacts', 'GET', null, sig),
+      mineApi('/data/todos', 'GET', null, sig),
+      mineApi('/data/timeline', 'GET', null, sig),
+      mineApi('/data/memory?limit=100', 'GET', null, sig).catch(() => ({ memories: [] })),
+      mineApi('/data/goals', 'GET', null, sig).catch(() => ({ goals: [] })),
+      mineApi('/data/profile', 'GET', null, sig).catch(() => ({ profile: {} })),
     ]);
+    if (window._currentTabRequestId !== myRequestId) return; // stale
     const contacts = contactsRes.contacts || [];
     const todos = todosRes.todos || [];
     const allTimeline = timelineRes.timeline || [];
@@ -584,8 +595,11 @@ export async function loadOverview() {
       html = `<div class="mine-empty">${d.mine_empty}</div>`;
     }
 
+    if (window._currentTabRequestId !== myRequestId) return; // stale guard
     content.innerHTML = html;
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (window._currentTabRequestId !== myRequestId) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }

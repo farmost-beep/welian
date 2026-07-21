@@ -1,23 +1,29 @@
 // Auto-generated from app.js — do not edit manually
 
 import { CLOUD_URL, I18N, currentLang, input, mineCache, setTimelineCache, setTimelineSearchQuery, simulationData, simulationMode, timelineCache, timelineSearchQuery } from './state.js';
-import { confirmPop, escapeHtml, localDateStr, mineApi } from './misc.js';
+import { confirmPop, escapeHtml, localDateStr, mineApi, getTabSignal, isStaleTab, currentTabRequestId } from './misc.js';
 import { getClerkToken } from './auth.js';
 import { openContactDetail, showTimelineForm } from './contacts.js';
 
 export async function loadTimelineTab() {
   const d = I18N[currentLang];
   const content = document.getElementById('mineContent');
+  const myRequestId = currentTabRequestId();
+  const sig = getTabSignal();
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
   try {
     const [timelineRes, contactsRes] = await Promise.all([
-      mineApi('/data/timeline'),
-      mineApi('/data/contacts').catch(() => ({ contacts: [] })),
+      mineApi('/data/timeline', 'GET', null, sig),
+      mineApi('/data/contacts', 'GET', null, sig).catch(() => ({ contacts: [] })),
     ]);
+    if (isStaleTab(myRequestId)) return;
     setTimelineCache(timelineRes.timeline || []);
     mineCache.contacts = contactsRes.contacts || [];
+    if (isStaleTab(myRequestId)) return;
     renderTimelineTab();
   } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (isStaleTab(myRequestId)) return;
     content.innerHTML = `<div class="mine-empty">${e.message}</div>`;
   }
 }
