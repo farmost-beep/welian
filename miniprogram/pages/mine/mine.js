@@ -108,6 +108,7 @@ Page({
         if (res.statusCode === 200 && res.data.ok) {
           api.clearToken();
           wx.setStorageSync('welian_token', res.data.token);
+          wx.setStorageSync('welian_registered', true);
           this.setData({
             binding: false,
             isBound: true,
@@ -153,6 +154,7 @@ Page({
             if (res.statusCode === 200 && res.data.ok) {
               api.clearToken();
               wx.setStorageSync('welian_token', res.data.token);
+              wx.removeStorageSync('welian_registered');
               this.setData({
                 isBound: false,
                 bindMsg: '',

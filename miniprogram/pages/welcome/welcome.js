@@ -36,6 +36,7 @@ Page({
         if (res.statusCode === 200 && res.data.ok) {
           api.clearToken();
           wx.setStorageSync('welian_token', res.data.token);
+          wx.setStorageSync('welian_registered', true);
           this.setData({ registering: false });
           wx.showToast({ title: '注册成功', icon: 'success' });
           // 跳转到首页

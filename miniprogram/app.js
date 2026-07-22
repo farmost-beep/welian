@@ -40,16 +40,18 @@ App({
     }
   },
 
-  // 检查绑定状态：未绑定的用户跳转 welcome 页
+  // 检查注册/绑定状态
   checkBindingStatus() {
     const token = api.getToken();
     if (!token) return;
-    // token 以 user_ 开头 = 已绑定/已注册
-    // token 以 wxmp_ 开头 = 未绑定，需要注册或绑定
+    // token 以 user_ 开头 = 已绑定 Web 账号
+    // token 以 wxmp_ 开头 = 小程序独立用户（注册或未注册）
     const isBound = token.startsWith('user_');
     this.globalData.isBound = isBound;
-    if (!isBound) {
-      // 未绑定 → 跳转 welcome 页
+    // 检查是否已注册
+    const isRegistered = wx.getStorageSync('welian_registered');
+    if (!isBound && !isRegistered) {
+      // 未注册也未绑定 → 跳转 welcome 页
       wx.reLaunch({ url: '/pages/welcome/welcome' });
     }
   },

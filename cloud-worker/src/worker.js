@@ -6053,50 +6053,27 @@ export default {
         if (!openid) {
           return jsonResponse({ error: 'openid required' }, 400);
         }
-        const clerkSecretKey = env.CLERK_SECRET_KEY;
-        if (!clerkSecretKey) {
-          return jsonResponse({ error: 'Server not configured' }, 500);
-        }
-        // Check if already bound
         const wxmpUserId = `wxmp_${openid}`;
+        // Check if already bound to a Web account
         const existingBind = await env.USER_DATA.get(`wechat_bind:${wxmpUserId}`);
         if (existingBind) {
-          // Already registered/bound — return existing token
+          // Already bound — return existing token
           const token = `${existingBind}:${env.WELIAN_SYNC_SECRET}`;
           return jsonResponse({ ok: true, token, is_existing: true, message: '已注册' });
         }
-        // Check if Clerk user with this external_id already exists
-        const searchResp = await fetch(
-          `https://api.clerk.com/v1/users?external_id=wxmp_${openid}`,
-          { headers: { 'Authorization': `Bearer ${clerkSecretKey}` } }
-        );
-        const searchResult = await searchResp.json();
-        let clerkUserId;
-        if (searchResult.response && searchResult.response.length > 0) {
-          clerkUserId = searchResult.response[0].id;
-        } else {
-          // Create new Clerk user with external_id
-          const createResp = await fetch('https://api.clerk.com/v1/users', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${clerkSecretKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              external_id: `wxmp_${openid}`,
-              first_name: nickname || '微信用户',
-              unsafe_metadata: { source: 'wxmp', openid },
-            }),
-          });
-          const created = await createResp.json();
-          if (created.errors) {
-            return jsonResponse({ error: '注册失败', detail: created.errors }, 500);
-          }
-          clerkUserId = created.id;
+        // Check if already registered (self-registered, not bound to Web)
+        const existingReg = await env.USER_DATA.get(`wxmp_registered:${wxmpUserId}`);
+        if (existingReg) {
+          const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+          return jsonResponse({ ok: true, token, is_existing: true, message: '已注册' });
         }
-        // Auto-bind openid → clerk user
-        await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerkUserId);
-        const token = `${clerkUserId}:${env.WELIAN_SYNC_SECRET}`;
+        // New registration: mark as registered, data lives under wxmp_<openid> namespace
+        // No Clerk account needed — getVerifiedUserId returns wxmp_<openid> for unbound wxmp tokens
+        await env.USER_DATA.put(`wxmp_registered:${wxmpUserId}`, JSON.stringify({
+          openid, nickname: nickname || '微信用户',
+          created_at: new Date().toISOString(),
+        }));
+        const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
         return jsonResponse({
           ok: true,
           token,
