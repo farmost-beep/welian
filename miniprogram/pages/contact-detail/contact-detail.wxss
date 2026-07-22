@@ -10,3 +10,44 @@
 .timeline-item { padding: 10px 0; border-bottom: 1px solid #E4E1D6; }
 .timeline-item:last-child { border-bottom: none; }
 .empty-state { padding: 20px 0; text-align: center; }
+
+/* 删除按钮 */
+.action-btn-danger { color: #C65D5D; }
+.action-btn-primary { color: #FAFAF7; background: #4A6741 !important; }
+
+/* 编辑弹窗 */
+.edit-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,25,21,0.5);
+  z-index: 1000;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.edit-modal {
+  background: #FAFAF7;
+  width: 100%; max-width: 500px;
+  max-height: 85vh; overflow-y: auto;
+  border-radius: 20rpx 20rpx 0 0;
+  padding: 24rpx 32rpx 48rpx;
+}
+.edit-title {
+  font-size: 34rpx; font-weight: 600; color: #1A1915;
+  text-align: center; margin-bottom: 20rpx;
+}
+.edit-field { margin-bottom: 16rpx; }
+.edit-label {
+  font-size: 24rpx; color: #6B6860;
+  display: block; margin-bottom: 6rpx;
+}
+.edit-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 10rpx;
+  padding: 14rpx 18rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+  min-height: 40rpx;
+}
+.edit-textarea { min-height: 120rpx; }
+.edit-actions {
+  display: flex; gap: 16rpx; margin-top: 24rpx;
+}
+.edit-actions .action-btn { flex: 1; font-size: 28rpx; padding: 16rpx 0; }

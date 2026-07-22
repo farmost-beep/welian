@@ -71,5 +71,60 @@
         <text class="text-dimmer text-xs">{{item.date}}</text>
       </view>
     </view>
+
+    <!-- 编辑/删除操作 -->
+    <view class="action-bar" style="margin-top:16px">
+      <button class="action-btn" bindtap="editContact">✏️ 编辑</button>
+      <button class="action-btn action-btn-danger" bindtap="deleteContact">🗑️ 删除</button>
+    </view>
   </block>
+</view>
+
+<!-- 编辑联系人弹窗 -->
+<view wx:if="{{showEdit}}" class="edit-overlay" catchtap="closeEdit">
+  <view class="edit-modal" catchtap="">
+    <view class="edit-title">编辑联系人</view>
+    <view class="edit-field">
+      <text class="edit-label">姓名</text>
+      <input class="edit-input" value="{{editForm.name}}" bindinput="onEditInput" data-field="name" placeholder="姓名" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">公司</text>
+      <input class="edit-input" value="{{editForm.company}}" bindinput="onEditInput" data-field="company" placeholder="公司" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">职位</text>
+      <input class="edit-input" value="{{editForm.title}}" bindinput="onEditInput" data-field="title" placeholder="职位" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">关系类型</text>
+      <picker mode="selector" range="{{natureOptions}}" value="{{natureIndex}}" bindchange="onNatureChange">
+        <view class="edit-input">{{natureOptions[natureIndex]}}</view>
+      </picker>
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">关系说明</text>
+      <input class="edit-input" value="{{editForm.relation}}" bindinput="onEditInput" data-field="relation" placeholder="如：前同事、行业前辈" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">电话</text>
+      <input class="edit-input" value="{{editForm.phone}}" bindinput="onEditInput" data-field="phone" placeholder="电话" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">邮箱</text>
+      <input class="edit-input" value="{{editForm.email}}" bindinput="onEditInput" data-field="email" placeholder="邮箱" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">生日</text>
+      <input class="edit-input" value="{{editForm.birthday}}" bindinput="onEditInput" data-field="birthday" placeholder="如：1990-03-15" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">备注</text>
+      <textarea class="edit-input edit-textarea" value="{{editForm.notes}}" bindinput="onEditInput" data-field="notes" placeholder="备注" />
+    </view>
+    <view class="edit-actions">
+      <button class="action-btn" bindtap="closeEdit">取消</button>
+      <button class="action-btn action-btn-primary" bindtap="saveEdit" loading="{{savingEdit}}">保存</button>
+    </view>
+  </view>
 </view>
