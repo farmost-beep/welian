@@ -102,7 +102,7 @@ describe("/ai/wxmp_login", () => {
     expect(JSON.parse(stored).openid).toBe("new_openid_001");
   });
 
-  it("returns bound Clerk token for already-bound user (is_new_user=false)", async () => {
+  it("returns bound Clerk token for already-bound user (is_new_user=false, is_registered=true)", async () => {
     // Pre-seed binding
     await env.USER_DATA.put("wechat_bind:wxmp_bound_openid", "user_clerk_123");
     globalThis.fetch = async () => wechatSessionResponse("bound_openid");
@@ -112,7 +112,24 @@ describe("/ai/wxmp_login", () => {
     const data = await res.json();
     expect(data.ok).toBe(true);
     expect(data.is_new_user).toBe(false);
+    expect(data.is_registered).toBe(true);
     expect(data.token).toContain("user_clerk_123:secret");
+  });
+
+  it("returns is_registered=true for old-flow registered user (no Clerk binding)", async () => {
+    // Pre-seed old-style registration (no clerk_user_id)
+    await env.USER_DATA.put("wxmp_registered:wxmp_old_reg", JSON.stringify({
+      openid: "old_reg", nickname: "老用户", created_at: "2026-01-01",
+    }));
+    globalThis.fetch = async () => wechatSessionResponse("old_reg");
+    const req = jsonReq("/ai/wxmp_login", { body: { code: "valid_code" } });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.is_registered).toBe(true);
+    expect(data.is_new_user).toBe(false);
+    expect(data.token).toContain("wxmp_old_reg:secret");
   });
 });
 
@@ -121,8 +138,12 @@ describe("/ai/wxmp_login", () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe("/ai/wxmp_register", () => {
+  const originalFetch = globalThis.fetch;
   let env;
-  beforeEach(() => { env = baseEnv(); });
+  beforeEach(() => {
+    env = baseEnv({ CLERK_SECRET_KEY: "clerk_test_secret" });
+  });
+  afterEach(() => { globalThis.fetch = originalFetch; });
 
   it("rejects missing openid with 400", async () => {
     const req = jsonReq("/ai/wxmp_register", { body: {} });
@@ -130,7 +151,15 @@ describe("/ai/wxmp_register", () => {
     expect(res.status).toBe(400);
   });
 
-  it("registers new user and returns token (is_new=true)", async () => {
+  it("registers new user and returns Clerk token (is_new=true)", async () => {
+    globalThis.fetch = async (url) => {
+      if (String(url).includes("api.clerk.com")) {
+        return new Response(JSON.stringify({ id: "user_clerk_new_001" }), {
+          status: 200, headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("ok");
+    };
     const req = jsonReq("/ai/wxmp_register", {
       body: { openid: "reg_openid_001", nickname: "测试用户" },
     });
@@ -139,17 +168,26 @@ describe("/ai/wxmp_register", () => {
     const data = await res.json();
     expect(data.ok).toBe(true);
     expect(data.is_new).toBe(true);
-    expect(data.token).toContain("wxmp_reg_openid_001:secret");
-    // Verify registration stored
+    expect(data.token).toContain("user_clerk_new_001:secret");
+    // Verify binding stored
+    const bind = env.USER_DATA._store.get("wechat_bind:wxmp_reg_openid_001");
+    expect(bind).toBe("user_clerk_new_001");
+    // Verify registration stored with clerk_user_id
     const stored = env.USER_DATA._store.get("wxmp_registered:wxmp_reg_openid_001");
     expect(stored).toBeTruthy();
+    expect(JSON.parse(stored).clerk_user_id).toBe("user_clerk_new_001");
     expect(JSON.parse(stored).nickname).toBe("测试用户");
+    // Verify reverse mapping for WeChat Pay
+    const rev = env.USER_DATA._store.get("clerk_to_wxmp:user_clerk_new_001");
+    expect(rev).toBeTruthy();
+    expect(JSON.parse(rev).openid).toBe("reg_openid_001");
   });
 
   it("returns existing token for already-registered user (is_existing=true)", async () => {
-    // Pre-seed registration
+    // Pre-seed registration with Clerk account
     await env.USER_DATA.put("wxmp_registered:wxmp_reg_openid_002", JSON.stringify({
-      openid: "reg_openid_002", nickname: "老用户", created_at: "2026-01-01",
+      openid: "reg_openid_002", clerk_user_id: "user_clerk_old_002",
+      nickname: "老用户", created_at: "2026-01-01",
     }));
     const req = jsonReq("/ai/wxmp_register", {
       body: { openid: "reg_openid_002" },
@@ -159,6 +197,7 @@ describe("/ai/wxmp_register", () => {
     const data = await res.json();
     expect(data.ok).toBe(true);
     expect(data.is_existing).toBe(true);
+    expect(data.token).toContain("user_clerk_old_002:secret");
   });
 
   it("returns bound Clerk token if already bound to Web account", async () => {

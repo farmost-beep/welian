@@ -35,7 +35,7 @@ function login() {
           success: (resp) => {
             if (resp.statusCode === 200 && resp.data.ok) {
               setToken(resp.data.token);
-              resolve({ token: resp.data.token, isNewUser: resp.data.is_new_user });
+              resolve({ token: resp.data.token, isNewUser: resp.data.is_new_user, is_registered: resp.data.is_registered });
             } else {
               reject(new Error(resp.data.error || '登录失败'));
             }
