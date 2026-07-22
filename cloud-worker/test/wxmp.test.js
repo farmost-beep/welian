@@ -201,15 +201,31 @@ describe("/ai/wxmp_bind_sendcode", () => {
     expect(res2.status).toBe(400);
   });
 
-  it("returns 400 when email not found in Clerk", async () => {
-    globalThis.fetch = async () => clerkUsersResponse([]); // no users
+  it("sends code for new email (not in Clerk) with is_new_user=true", async () => {
+    globalThis.fetch = async (url) => {
+      if (String(url).includes("api.clerk.com")) {
+        return clerkUsersResponse([]); // no users found
+      }
+      if (String(url).includes("api.resend.com")) {
+        return resendEmailResponse();
+      }
+      return new Response("{}", { status: 404 });
+    };
     const req = jsonReq("/ai/wxmp_bind_sendcode", {
-      body: { openid: "test_openid", email: "notfound@test.com" },
+      body: { openid: "test_openid_new", email: "newuser@test.com" },
     });
     const res = await worker.fetch(req, env, {});
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.error).toContain("未找到");
+    expect(data.ok).toBe(true);
+    expect(data.is_new_user).toBe(true);
+    expect(data.message).toContain("注册");
+    // Verify code stored with is_new flag
+    const stored = env.USER_DATA._store.get("wxmp_bindcode:test_openid_new");
+    expect(stored).toBeTruthy();
+    const parsed = JSON.parse(stored);
+    expect(parsed.is_new).toBe(true);
+    expect(parsed.clerkUserId).toBeNull();
   });
 
   it("sends verification code and stores it in KV with 5min TTL", async () => {
@@ -307,6 +323,42 @@ describe("/ai/wxmp_bind_verify", () => {
     expect(binding).toBe("user_clerk_ok");
     // Verify code consumed (deleted)
     expect(env.USER_DATA._store.get("wxmp_bindcode:ok_openid")).toBeUndefined();
+  });
+
+  it("creates Clerk account and binds for new user (is_new=true)", async () => {
+    env = baseEnv({ CLERK_SECRET_KEY: "clerk_secret" });
+    // Pre-seed code with is_new flag
+    await env.USER_DATA.put("wxmp_bindcode:new_openid", JSON.stringify({
+      code: "111222", email: "newuser@test.com", clerkUserId: null,
+      is_new: true, created_at: Date.now(),
+    }));
+    // Mock Clerk create user API
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => {
+      if (String(url).includes("api.clerk.com") && opts?.method === "POST") {
+        return new Response(JSON.stringify({
+          id: "user_new_clerk_001",
+          email_addresses: [{ email_address: "newuser@test.com" }],
+        }), { status: 201, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response("{}", { status: 404 });
+    };
+    const req = jsonReq("/ai/wxmp_bind_verify", {
+      body: { openid: "new_openid", code: "111222" },
+    });
+    const res = await worker.fetch(req, env, {});
+    globalThis.fetch = originalFetch;
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.is_new_user).toBe(true);
+    expect(data.token).toContain("user_new_clerk_001:secret");
+    expect(data.message).toContain("注册并绑定");
+    // Verify binding stored
+    const binding = env.USER_DATA._store.get("wechat_bind:wxmp_new_openid");
+    expect(binding).toBe("user_new_clerk_001");
+    // Verify code consumed
+    expect(env.USER_DATA._store.get("wxmp_bindcode:new_openid")).toBeUndefined();
   });
 });
 

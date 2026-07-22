@@ -22,8 +22,8 @@
 
   <!-- 账号绑定 -->
   <view wx:if="{{!isBound && openid}}" class="card bind-card">
-    <text class="bind-title">🔗 绑定 Web 账号</text>
-    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入 welian.app 注册邮箱，验证后同步联系人数据</text>
+    <text class="bind-title">🔗 绑定 / 注册 Web 账号</text>
+    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入邮箱验证后同步数据。新邮箱将自动注册。</text>
     <input
       class="bind-input"
       type="text"

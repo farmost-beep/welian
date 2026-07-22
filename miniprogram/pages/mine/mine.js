@@ -77,7 +77,9 @@ Page({
           this.setData({
             codeSent: true,
             sendingCode: false,
-            bindMsg: '验证码已发到邮箱，请查收',
+            bindMsg: res.data.is_new_user
+              ? '验证码已发送，验证后将自动注册新账号'
+              : '验证码已发到邮箱，请查收',
           });
         } else {
           this.setData({
@@ -115,7 +117,7 @@ Page({
             bindMsg: res.data.message,
             codeSent: false,
           });
-          wx.showToast({ title: '绑定成功', icon: 'success' });
+          wx.showToast({ title: res.data.is_new_user ? '注册并绑定成功' : '绑定成功', icon: 'success' });
         } else {
           this.setData({ binding: false, bindMsg: res.data.error || '绑定失败' });
         }

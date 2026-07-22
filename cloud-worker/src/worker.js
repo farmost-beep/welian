@@ -6407,16 +6407,16 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           return jsonResponse({ error: 'openid and email required' }, 400);
         }
         const normalizedEmail = email.trim().toLowerCase();
-        // Verify email exists in Clerk
+        // Check if email exists in Clerk
         const clerkUserId = await getClerkUserIdByEmail(normalizedEmail, env);
-        if (!clerkUserId) {
-          return jsonResponse({ error: '未找到该邮箱对应的账号' }, 400);
-        }
-        // Generate 6-digit code
+        const isNewUser = !clerkUserId;
+        // Generate 6-digit code regardless — works for both existing and new users
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const codeKey = `wxmp_bindcode:${openid}`;
         await env.USER_DATA.put(codeKey, JSON.stringify({
-          code, email: normalizedEmail, clerkUserId,
+          code, email: normalizedEmail,
+          clerkUserId: clerkUserId || null,
+          is_new: isNewUser,
           created_at: Date.now(),
         }), { expirationTtl: 300 }); // 5 minutes
 
@@ -6428,7 +6428,11 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           <p style="color:#999;font-size:13px">5 分钟内有效。如非本人操作请忽略。</p>
         </body></html>`;
         await sendEmail(env, normalizedEmail, 'Welian 绑定验证码', html);
-        return jsonResponse({ ok: true, message: '验证码已发送到邮箱' });
+        return jsonResponse({
+          ok: true,
+          message: isNewUser ? '验证码已发送，验证后将自动注册新账号' : '验证码已发送到邮箱',
+          is_new_user: isNewUser,
+        });
       }
 
       // ── Bind mini program: verify code and bind (public) ──
@@ -6447,9 +6451,40 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         if (parsed.code !== String(code)) {
           return jsonResponse({ error: '验证码错误' }, 400);
         }
-        // Code correct — bind
+        // Code correct — bind or create+bind
         const wxmpUserId = `wxmp_${openid}`;
-        const clerkUserId = parsed.clerkUserId;
+        let clerkUserId = parsed.clerkUserId;
+
+        // New user: create Clerk account with email
+        if (parsed.is_new || !clerkUserId) {
+          const clerkSecretKey = env.CLERK_SECRET_KEY;
+          if (!clerkSecretKey) {
+            return jsonResponse({ error: '服务器未配置认证服务，请联系管理员' }, 500);
+          }
+          try {
+            const createResp = await fetch('https://api.clerk.com/v1/users', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${clerkSecretKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                email_address: [parsed.email],
+                email_verified: true, // Verified via our code
+                unsafe_metadata: { registered_from: 'wxmp', wxmp_openid: openid },
+              }),
+            });
+            const created = await createResp.json();
+            if (created.errors) {
+              return jsonResponse({ error: '注册失败', detail: created.errors }, 500);
+            }
+            clerkUserId = created.id;
+          } catch (e) {
+            console.error('[wxmp_bind_verify] Clerk create error:', e.message);
+            return jsonResponse({ error: '注册失败，请重试' }, 500);
+          }
+        }
+
         await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerkUserId);
         await env.USER_DATA.delete(codeKey); // consume code
         const token = `${clerkUserId}:${env.WELIAN_SYNC_SECRET}`;
@@ -6458,7 +6493,10 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         return jsonResponse({
           ok: true,
           token,
-          message: `绑定成功（${contacts.length} 个联系人）`,
+          is_new_user: !!parsed.is_new,
+          message: parsed.is_new
+            ? `注册并绑定成功，开始使用吧`
+            : `绑定成功（${contacts.length} 个联系人）`,
         });
       }
 
