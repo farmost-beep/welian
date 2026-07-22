@@ -9,7 +9,8 @@
     "pages/welcome/welcome",
     "pages/weekly/weekly",
     "pages/billing/billing",
-    "pages/contact-detail/contact-detail"
+    "pages/contact-detail/contact-detail",
+    "pages/article/article"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F5F4EE",

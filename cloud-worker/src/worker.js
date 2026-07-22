@@ -6042,6 +6042,88 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
 
     // Routes
     try {
+      // ── Article proxy for mini program web-view ──
+      // Fetches original article HTML, injects readable styles, returns full page.
+      // Only needs api.welian.app in WeChat business domain whitelist (not every source).
+      if (path === '/ai/proxy_article' && method === 'GET') {
+        const targetUrl = url.searchParams.get('url');
+        if (!targetUrl) return new Response('Missing url', { status: 400 });
+        // Only allow http/https
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          return new Response('Invalid url', { status: 400 });
+        }
+        try {
+          const resp = await fetch(targetUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; WelianBot/1.0)',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+            redirect: 'follow',
+          });
+          const contentType = resp.headers.get('content-type') || '';
+          // Non-HTML: redirect directly (PDF, images, etc.)
+          if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+            return new Response(
+              `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+              <style>body{font-family:-apple-system,sans-serif;padding:40px;text-align:center;color:#666}
+              a{color:#4A6741;font-size:18px;text-decoration:none;padding:12px 24px;border:1px solid #4A6741;border-radius:8px;display:inline-block;margin-top:20px}</style>
+              </head><body><p>此内容不支持在应用内阅读</p><a href="${targetUrl}">在浏览器中打开</a></body></html>`,
+              { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
+            );
+          }
+          let html = await resp.text();
+          // Remove scripts for security
+          html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+          // Remove noscript
+          html = html.replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+          // Inject readable styles + viewport
+          const styleInject = `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+body{max-width:680px;margin:0 auto;padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:17px;line-height:1.8;color:#1A1915;background:#FAFAF7}
+img{max-width:100%;height:auto;border-radius:8px;margin:12px 0}
+h1,h2,h3{color:#1A1915;line-height:1.4}
+h1{font-size:24px;margin:20px 0 12px}
+h2{font-size:20px;margin:18px 0 10px}
+h3{font-size:17px;margin:14px 0 8px}
+p{margin:12px 0}
+a{color:#4A6741;text-decoration:none}
+blockquote{border-left:3px solid #4A6741;margin:12px 0;padding:8px 16px;background:#F5F4EE;color:#6B6860}
+pre{overflow-x:auto;background:#F5F4EE;padding:12px;border-radius:8px;font-size:14px}
+code{font-family:Menlo,monospace}
+table{max-width:100%;border-collapse:collapse}
+td,th{border:1px solid #D9D5C7;padding:6px 10px}
+.welian-proxy-header{position:sticky;top:0;background:#4A6741;color:#FAFAF7;padding:8px 16px;margin:-16px -20px 12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;z-index:100}
+.welian-proxy-header a{color:#FAFAF7;font-size:12px}
+</style>`;
+          // Inject header bar
+          const headerBar = `<div class="welian-proxy-header"><span>📖 Welian 阅读</span><a href="${targetUrl}">查看原文</a></div>`;
+          // Insert after <body> tag
+          html = html.replace(/(<body[^>]*>)/i, `$1${headerBar}`);
+          // Insert styles after <head> tag
+          if (html.includes('<head>')) {
+            html = html.replace('<head>', `<head>${styleInject}`);
+          } else if (html.includes('<head ')) {
+            html = html.replace(/<head /, `<head ${styleInject}<head `);
+          } else {
+            html = `<!DOCTYPE html><html><head>${styleInject}</head>${html}`;
+          }
+          return new Response(html, {
+            status: 200,
+            headers: {
+              'content-type': 'text/html; charset=utf-8',
+              'cache-control': 'public, max-age=3600',
+            },
+          });
+        } catch (e) {
+          return new Response(
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+            <style>body{font-family:-apple-system,sans-serif;padding:40px;text-align:center;color:#666}a{color:#4A6741}</style>
+            </head><body><p>加载失败</p><p style="font-size:13px;color:#999">${e.message}</p><a href="${targetUrl}">在浏览器中打开</a></body></html>`,
+            { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
+          );
+        }
+      }
+
       if (path === '/health' && method === 'GET') {
         return jsonResponse({
           status: 'ok',

@@ -33,18 +33,15 @@ Page({
     setTimeout(() => wx.stopPullDownRefresh(), 1000);
   },
 
-  // 点击信号卡片 → 打开原文
+  // 点击信号卡片 → 打开原文（web-view 代理阅读）
   openSignal(e) {
     const url = e.currentTarget.dataset.url;
     if (!url) {
       wx.showToast({ title: '暂无原文链接', icon: 'none' });
       return;
     }
-    wx.setClipboardData({
-      data: url,
-      success: () => {
-        wx.showToast({ title: '链接已复制，在浏览器打开', icon: 'none', duration: 2500 });
-      },
+    wx.navigateTo({
+      url: `/pages/article/article?url=${encodeURIComponent(url)}`,
     });
   },
 
