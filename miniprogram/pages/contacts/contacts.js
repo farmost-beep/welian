@@ -1,6 +1,8 @@
 // pages/contacts/contacts.js — 关系列表页
 const api = require('../../utils/api.js');
 
+const PAGE_SIZE = 100;
+
 Page({
   data: {
     activeTab: 'leverage',
@@ -9,12 +11,14 @@ Page({
     searchKeyword: '',
     searchResults: null,
     loading: true,
+    loadingMore: false,
     error: '',
     totalContacts: 0,
-    showingCount: 0,
+    currentOffset: 0,
+    hasMore: true,
     // 名片扫描
     scanning: false,
-    scanResult: null,  // { contact, is_duplicate, message }
+    scanResult: null,
     scanError: '',
   },
 
@@ -23,18 +27,42 @@ Page({
   },
 
   loadContacts() {
-    this.setData({ loading: true, error: '' });
-    api.getContacts().then((res) => {
+    this.setData({ loading: true, error: '', currentOffset: 0, hasMore: true });
+    api.getContacts(0, PAGE_SIZE).then((res) => {
       this.setData({
         leverageList: res.leverage || [],
         nurtureList: res.nurture || [],
         totalContacts: res.total || 0,
-        showingCount: (res.leverage || []).length + (res.nurture || []).length,
+        currentOffset: PAGE_SIZE,
+        hasMore: res.hasMore,
         loading: false,
       });
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
     });
+  },
+
+  // 加载更多
+  loadMore() {
+    const { currentOffset, hasMore, loadingMore, activeTab } = this.data;
+    if (!hasMore || loadingMore) return;
+    this.setData({ loadingMore: true });
+    api.getContacts(currentOffset, PAGE_SIZE).then((res) => {
+      this.setData({
+        leverageList: this.data.leverageList.concat(res.leverage || []),
+        nurtureList: this.data.nurtureList.concat(res.nurture || []),
+        currentOffset: currentOffset + PAGE_SIZE,
+        hasMore: res.hasMore,
+        loadingMore: false,
+      });
+    }).catch(() => {
+      this.setData({ loadingMore: false });
+    });
+  },
+
+  // 触底加载
+  onReachBottom() {
+    this.loadMore();
   },
 
   switchTab(e) {
@@ -81,16 +109,13 @@ Page({
 
   uploadAndScan(filePath) {
     this.setData({ scanning: true, scanError: '', scanResult: null });
-    // 读取图片为 base64
     wx.getFileSystemManager().readFile({
       filePath,
       encoding: 'base64',
       success: (fileRes) => {
         const base64 = fileRes.data;
-        // 判断图片类型
         const ext = filePath.split('.').pop().toLowerCase();
         const mediaType = ext === 'png' ? 'image/png' : 'image/jpeg';
-        // 调后端识别
         wx.request({
           url: 'https://api.welian.app/ai/wxmp_card_scan',
           method: 'POST',
@@ -101,7 +126,6 @@ Page({
           data: { base64, media_type: mediaType },
           success: (res) => {
             if (res.statusCode === 200 && res.data && res.data.ok) {
-              // 确保所有字段是字符串
               const c = res.data.contact || {};
               const s = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
               const scanResult = {

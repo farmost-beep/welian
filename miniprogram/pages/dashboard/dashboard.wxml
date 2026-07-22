@@ -21,20 +21,20 @@
     <!-- 统计概览 -->
     <view wx:if="{{!isEmpty}}" class="stats-bar">
       <view class="stat-item">
-        <text class="stat-num">{{stats.totalContacts}}</text>
+        <text class="stat-num">{{stats.total}}</text>
         <text class="stat-label text-dimmer text-xs">联系人</text>
       </view>
       <view class="stat-item">
-        <text class="stat-num">{{stats.monthInteractions}}</text>
-        <text class="stat-label text-dimmer text-xs">本月互动</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-num">{{stats.leverageCount}}</text>
+        <text class="stat-num">{{stats.leverage}}</text>
         <text class="stat-label text-dimmer text-xs">经营型</text>
       </view>
       <view class="stat-item">
-        <text class="stat-num">{{stats.nurtureCount}}</text>
+        <text class="stat-num">{{stats.nurture}}</text>
         <text class="stat-label text-dimmer text-xs">陪伴型</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.dual}}</text>
+        <text class="stat-label text-dimmer text-xs">双重型</text>
       </view>
     </view>
 

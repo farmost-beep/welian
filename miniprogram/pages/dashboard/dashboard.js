@@ -29,14 +29,14 @@ Page({
       return;
     }
 
-    // 并行获取 contacts + timeline
+    // 并行获取 contacts(前100) + timeline + stats(全量统计)
     Promise.all([
       this.fetchContacts(),
       this.fetchTimeline(),
-    ]).then(([contacts, timeline]) => {
+      this.fetchStats(),
+    ]).then(([contacts, timeline, stats]) => {
       const roles = this.buildRoles(contacts, timeline);
-      const stats = this.buildStats(contacts, timeline);
-      const isEmpty = contacts.length === 0;
+      const isEmpty = stats.total === 0;
       this.setData({
         month: this.getMonthName(),
         roles,
@@ -64,6 +64,23 @@ Page({
           }
         },
         fail: () => resolve([]),
+      });
+    });
+  },
+
+  fetchStats() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/ai/wxmp_contact_stats',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.stats) {
+            resolve(res.data.stats);
+          } else {
+            resolve({ total: 0, leverage: 0, nurture: 0, dual: 0 });
+          }
+        },
+        fail: () => resolve({ total: 0, leverage: 0, nurture: 0, dual: 0 }),
       });
     });
   },
@@ -172,18 +189,6 @@ Page({
 
       return { key: cfg.key, label: cfg.label, icon: cfg.icon, items };
     });
-  },
-
-  buildStats(contacts, timeline) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthTimeline = timeline.filter(t => new Date(t.date || '') >= monthStart);
-    return {
-      totalContacts: contacts.length,
-      monthInteractions: monthTimeline.length,
-      leverageCount: contacts.filter(c => ['leverage', 'dual', '双重'].includes(c.nature)).length,
-      nurtureCount: contacts.filter(c => ['nurture', 'dual', '双重'].includes(c.nature)).length,
-    };
   },
 
   getMonthName() {

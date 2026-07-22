@@ -186,3 +186,9 @@
   padding-top: 12rpx;
   border-top: 1rpx solid #D9D5C7;
 }
+
+/* ── 加载更多 ── */
+.load-more {
+  text-align: center;
+  padding: 32rpx 0;
+}

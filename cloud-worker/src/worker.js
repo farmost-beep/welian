@@ -6046,6 +6046,22 @@ export default {
         });
       }
 
+      // ── Contact stats (mini program, lightweight) ──
+      if (path === '/ai/wxmp_contact_stats' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) {
+          return jsonResponse({ error: 'Authentication required' }, 401);
+        }
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const stats = {
+          total: contacts.length,
+          leverage: contacts.filter(c => ['leverage', 'dual', '双重'].includes(c.nature)).length,
+          nurture: contacts.filter(c => ['nurture', 'dual', '双重'].includes(c.nature)).length,
+          dual: contacts.filter(c => ['dual', '双重'].includes(c.nature)).length,
+        };
+        return jsonResponse({ ok: true, stats });
+      }
+
       // ── Scan business card and create contact (mini program) ──
       if (path === '/ai/wxmp_card_scan' && method === 'POST') {
         const body = await request.json().catch(() => ({}));

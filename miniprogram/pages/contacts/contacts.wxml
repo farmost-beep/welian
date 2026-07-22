@@ -100,6 +100,12 @@
           <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
         </view>
       </view>
+      <view wx:if="{{hasMore}}" class="load-more" bindtap="loadMore">
+        <text class="text-dim text-sm">{{loadingMore ? '加载中…' : '加载更多'}}</text>
+      </view>
+      <view wx:else class="load-more">
+        <text class="text-dimmer text-xs">已加载全部</text>
+      </view>
     </block>
 
     <!-- 维系型列表 -->
@@ -121,6 +127,12 @@
         <view wx:if="{{item.nextDate}}" class="next-date">
           <text class="text-accent text-sm">📅 {{item.nextDate}}</text>
         </view>
+      </view>
+      <view wx:if="{{hasMore}}" class="load-more" bindtap="loadMore">
+        <text class="text-dim text-sm">{{loadingMore ? '加载中…' : '加载更多'}}</text>
+      </view>
+      <view wx:else class="load-more">
+        <text class="text-dimmer text-xs">已加载全部</text>
       </view>
     </block>
   </block>

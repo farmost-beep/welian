@@ -118,9 +118,9 @@ module.exports = {
     });
   },
 
-  // 关系列表（compact 模式，分页加载前 100 个）
-  getContacts() {
-    return request('/data/contacts?limit=100&compact=1').then((data) => {
+  // 关系列表（compact 模式，分页加载）
+  getContacts(offset = 0, limit = 100) {
+    return request('/data/contacts?limit=' + limit + '&offset=' + offset + '&compact=1').then((data) => {
       const contacts = data.contacts || [];
       const leverage = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重');
       const nurture = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual' || c.nature === '双重');
@@ -128,6 +128,8 @@ module.exports = {
         leverage: leverage.map(formatContact),
         nurture: nurture.map(formatContact),
         total: data.total || contacts.length,
+        offset: data.offset || 0,
+        hasMore: (data.offset || 0) + (data.limit || limit) < (data.total || 0),
       };
     });
   },
