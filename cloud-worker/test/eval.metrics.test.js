@@ -97,6 +97,9 @@ describe("eval: metrics — advice adoption tracking (P0-2)", () => {
   beforeEach(() => {
     env = baseEnv();
     globalThis.fetch = async () => llmResponse();
+    // Clear trackAction dedup cache between tests
+    // (same user+actionType would be skipped otherwise)
+    if (globalThis._clearTrackActionCache) globalThis._clearTrackActionCache();
   });
   afterEach(() => {
     globalThis.fetch = originalFetch;

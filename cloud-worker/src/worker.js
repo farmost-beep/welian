@@ -929,7 +929,11 @@ async function getBillingData(env, userId) {
 }
 
 async function saveBillingData(env, userId, data) {
-  await env.USER_DATA.put(`billing:${userId}`, JSON.stringify(data));
+  try {
+    await env.USER_DATA.put(`billing:${userId}`, JSON.stringify(data));
+  } catch (e) {
+    console.error('[saveBillingData] KV write failed (quota?):', e.message);
+  }
 }
 
 // Reverse lookup: find user_id by Paddle subscription_id
@@ -4112,7 +4116,12 @@ async function saveDataset(env, userId, name, data) {
     const sizeMB = (serialized.length / 1024 / 1024).toFixed(1);
     throw new Error(`Dataset ${name} exceeds 25MB KV limit (${sizeMB}MB). Consider archiving old data.`);
   }
-  await env.USER_DATA.put(`${name}:${userId}`, serialized);
+  try {
+    await env.USER_DATA.put(`${name}:${userId}`, serialized);
+  } catch (e) {
+    console.error(`[saveDataset] KV write failed for ${name}:${userId} (quota?):`, e.message);
+    throw new Error(`数据保存失败，请稍后重试`);
+  }
 }
 
 // ── Network algorithms: path search, scenario recommendation, graph ──
@@ -4302,7 +4311,11 @@ async function loadMetrics(env, userId) {
 }
 
 async function saveMetrics(env, userId, metrics) {
-  await env.USER_DATA.put(`metrics:${userId}`, JSON.stringify(metrics));
+  try {
+    await env.USER_DATA.put(`metrics:${userId}`, JSON.stringify(metrics));
+  } catch (e) {
+    console.error('[saveMetrics] KV write failed (quota?):', e.message);
+  }
 }
 
 function getWeekKey(dateStr) {
@@ -4360,9 +4373,34 @@ async function handleDauStats(env) {
   };
 }
 
+// In-memory dedup cache: {userId_actionType: timestamp}
+// Prevents redundant KV writes when the same action fires repeatedly within 5 min.
+const _trackActionCache = new Map();
+const TRACK_ACTION_DEDUP_MS = 300000; // 5 minutes
+// Test helper: clear dedup cache between tests
+if (typeof globalThis !== 'undefined') {
+  globalThis._clearTrackActionCache = () => _trackActionCache.clear();
+}
+
 // Track a relationship action event (North Star metric)
 async function trackAction(env, userId, actionType, meta = {}) {
   if (!userId) return;
+  // Dedup: skip if same user+action tracked within 5 min (saves KV writes)
+  const cacheKey = `${userId}:${actionType}`;
+  const lastTracked = _trackActionCache.get(cacheKey);
+  if (lastTracked && (Date.now() - lastTracked) < TRACK_ACTION_DEDUP_MS) {
+    // Still track DAU (cheap — only writes once per user per day)
+    trackDAU(env, userId).catch(() => {});
+    return;
+  }
+  _trackActionCache.set(cacheKey, Date.now());
+  // Clean old entries periodically
+  if (_trackActionCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of _trackActionCache) {
+      if (now - v > TRACK_ACTION_DEDUP_MS) _trackActionCache.delete(k);
+    }
+  }
   // Track DAU (fire-and-forget, non-blocking)
   trackDAU(env, userId).catch(() => {});
   const metrics = await loadMetrics(env, userId);
@@ -6323,26 +6361,9 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
       }
 
       // ── Anonymous pageview & event tracking (public) ──
+      // No-op: KV writes are too expensive on free plan (1,000/day limit).
+      // Use Cloudflare Analytics for pageview tracking instead.
       if (path === '/ai/track_pageview' && method === 'POST') {
-        const body = await request.json().catch(() => ({}));
-        const page = body.page || 'unknown';
-        const todayKey = new Date().toISOString().slice(0, 10);
-        const pvKey = `pageviews:${todayKey}`;
-        const existing = await env.USER_DATA.get(pvKey);
-        const count = existing ? parseInt(existing) : 0;
-        await env.USER_DATA.put(pvKey, String(count + 1), { expirationTtl: 86400 });
-        // Also track per-page views
-        const pageKey = `pageviews:${page}:${todayKey}`;
-        const pageExisting = await env.USER_DATA.get(pageKey);
-        const pageCount = pageExisting ? parseInt(pageExisting) : 0;
-        await env.USER_DATA.put(pageKey, String(pageCount + 1), { expirationTtl: 86400 });
-        // Track events (e.g., CTA clicks for funnel conversion)
-        if (body.event) {
-          const eventKey = `events:${body.event}:${page}:${todayKey}`;
-          const eventExisting = await env.USER_DATA.get(eventKey);
-          const eventCount = eventExisting ? parseInt(eventExisting) : 0;
-          await env.USER_DATA.put(eventKey, String(eventCount + 1), { expirationTtl: 86400 });
-        }
         return jsonResponse({ ok: true });
       }
 
