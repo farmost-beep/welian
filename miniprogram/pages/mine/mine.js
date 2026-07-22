@@ -30,7 +30,17 @@ Page({
 
   checkBinding() {
     const token = api.getToken();
-    if (!token) return;
+    if (!token) {
+      // 没有token → 自动微信登录获取openid
+      api.ensureLogin().then((t) => {
+        this.checkBindingWithToken(t);
+      }).catch(() => {});
+      return;
+    }
+    this.checkBindingWithToken(token);
+  },
+
+  checkBindingWithToken(token) {
     const isBound = token.startsWith('user_');
     this.setData({ isBound });
     if (!isBound && token.startsWith('wxmp_')) {
