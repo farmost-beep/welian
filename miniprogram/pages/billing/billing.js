@@ -90,14 +90,15 @@ Page({
     wx.showActionSheet({
       itemList: ['Pro 月度 ¥29/月（500点/月）', 'Pro 年度 ¥299/年（省14%）'],
       success: (r) => {
-        const planKey = r.tapIndex === 0 ? 'pro_monthly' : 'pro_yearly';
+        const product = r.tapIndex === 0 ? 'pro_monthly' : 'pro_yearly';
         const label = r.tapIndex === 0 ? 'Pro 月度（¥29/月）' : 'Pro 年度（¥299/年）';
         wx.showModal({
           title: '升级套餐',
-          content: `确定升级到 ${label} 吗？`,
+          content: `确定升级到 ${label} 吗？将通过微信支付完成。`,
+          confirmText: '去支付',
           success: (modal) => {
             if (modal.confirm) {
-              this.doUpgrade(planKey);
+              this.wxPay(product);
             }
           },
         });
@@ -105,62 +106,58 @@ Page({
     });
   },
 
-  doUpgrade(planKey) {
-    const token = api.getToken();
-    wx.showLoading({ title: '升级中…' });
-    wx.request({
-      url: 'https://api.welian.app/ai/upgrade',
-      method: 'POST',
-      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      data: { plan: planKey },
-      success: (res) => {
-        wx.hideLoading();
-        if (res.statusCode === 200 && res.data.ok) {
-          wx.showToast({ title: '已升级到 Pro', icon: 'success' });
-          this.loadBilling();
-        } else {
-          wx.showToast({ title: res.data.error || '升级失败', icon: 'none' });
-        }
-      },
-      fail: () => {
-        wx.hideLoading();
-        wx.showToast({ title: '网络错误', icon: 'none' });
-      },
-    });
-  },
-
   // 购买加油包
   buyCredits(e) {
     const pack = e.currentTarget.dataset.pack;
+    const product = pack === '500' ? 'credits_500' : 'credits_100';
     const points = pack === '500' ? 500 : 100;
     const price = pack === '500' ? '¥7.99' : '¥1.99';
     wx.showModal({
       title: '购买加油包',
-      content: `购买 ${points} 联点包（${price}）？`,
-      confirmText: '购买',
+      content: `购买 ${points} 联点包（${price}）？将通过微信支付完成。`,
+      confirmText: '去支付',
       success: (r) => {
         if (r.confirm) {
-          this.doPurchase(pack, points);
+          this.wxPay(product);
         }
       },
     });
   },
 
-  doPurchase(pack, points) {
+  // 微信支付
+  wxPay(product) {
     const token = api.getToken();
-    wx.showLoading({ title: '购买中…' });
+    wx.showLoading({ title: '创建订单…' });
     wx.request({
-      url: 'https://api.welian.app/ai/purchase_credits',
+      url: 'https://api.welian.app/ai/wxmp_pay/create',
       method: 'POST',
       header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      data: { pack },
+      data: { product },
       success: (res) => {
         wx.hideLoading();
-        if (res.statusCode === 200 && res.data.ok) {
-          wx.showToast({ title: `已购买 ${points} 联点`, icon: 'success' });
-          this.loadBilling();
+        if (res.statusCode === 200 && res.data.ok && res.data.payment) {
+          // 调起微信支付
+          wx.requestPayment({
+            timeStamp: res.data.payment.timeStamp,
+            nonceStr: res.data.payment.nonceStr,
+            package: res.data.payment.package,
+            signType: res.data.payment.signType,
+            paySign: res.data.payment.paySign,
+            success: () => {
+              wx.showToast({ title: '支付成功', icon: 'success' });
+              // 支付成功后刷新（回调可能需要几秒处理）
+              setTimeout(() => this.loadBilling(), 1500);
+            },
+            fail: (err) => {
+              if (err.errMsg && err.errMsg.includes('cancel')) {
+                wx.showToast({ title: '已取消支付', icon: 'none' });
+              } else {
+                wx.showToast({ title: '支付失败', icon: 'none' });
+              }
+            },
+          });
         } else {
-          wx.showToast({ title: res.data.error || '购买失败', icon: 'none' });
+          wx.showToast({ title: res.data.error || '创建订单失败', icon: 'none' });
         }
       },
       fail: () => {

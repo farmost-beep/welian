@@ -1362,6 +1362,353 @@ async function handleListOrders(req, env) {
   return { status: 200, data: { orders } };
 }
 
+// ── WeChat Pay (mini program JSAPI) ──
+
+// Product catalog for WeChat Pay (prices in CNY cents)
+function getWxmpPayProducts(pricing) {
+  return {
+    pro_monthly:  { type: 'upgrade',  id: 'pro_monthly',  amount_cents: 2900,  name: 'Pro月度' },
+    pro_yearly:   { type: 'upgrade',  id: 'pro_yearly',   amount_cents: 29900, name: 'Pro年度' },
+    credits_100:  { type: 'purchase', id: '100',          amount_cents: 199,   name: '100联点包' },
+    credits_500:  { type: 'purchase', id: '500',          amount_cents: 799,   name: '500联点包' },
+  };
+}
+
+// MD5 sign for WeChat Pay API (Cloudflare Workers don't have crypto.createHash('md5'))
+// We use a manual MD5 implementation since SubtleCrypto only supports SHA.
+function md5Hex(str) {
+  // Simple MD5 implementation for Workers environment
+  function safeAdd(x, y) {
+    const lsw = (x & 0xffff) + (y & 0xffff);
+    const msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+    return (msw << 16) | (lsw & 0xffff);
+  }
+  function bitRol(num, cnt) { return (num << cnt) | (num >>> (32 - cnt)); }
+  function cmn(q, a, b, x, s, t) { return safeAdd(bitRol(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b); }
+  function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
+  function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
+  function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+  function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
+
+  function binlMD5(x, len) {
+    x[len >> 5] |= 0x80 << (len % 32);
+    x[(((len + 64) >>> 9) << 4) + 14] = len;
+    let a = 1732584193, b = -271733879, c = -1732584194, d = 271733878;
+    for (let i = 0; i < x.length; i += 16) {
+      const olda = a, oldb = b, oldc = c, oldd = d;
+      a = ff(a, b, c, d, x[i], 7, -680876936);
+      d = ff(d, a, b, c, x[i+1], 12, -389564586);
+      c = ff(c, d, a, b, x[i+2], 17, 606105819);
+      b = ff(b, c, d, a, x[i+3], 22, -1044525330);
+      a = ff(a, b, c, d, x[i+4], 7, -176418897);
+      d = ff(d, a, b, c, x[i+5], 12, 1200080426);
+      c = ff(c, d, a, b, x[i+6], 17, -1473231341);
+      b = ff(b, c, d, a, x[i+7], 22, -45705983);
+      a = ff(a, b, c, d, x[i+8], 7, 1770035416);
+      d = ff(d, a, b, c, x[i+9], 12, -1958414417);
+      c = ff(c, d, a, b, x[i+10], 17, -42063);
+      b = ff(b, c, d, a, x[i+11], 22, -1990404162);
+      a = ff(a, b, c, d, x[i+12], 7, 1804603682);
+      d = ff(d, a, b, c, x[i+13], 12, -40341101);
+      c = ff(c, d, a, b, x[i+14], 17, -1502002290);
+      b = ff(b, c, d, a, x[i+15], 22, 1236535329);
+      a = gg(a, b, c, d, x[i+1], 5, -165796510);
+      d = gg(d, a, b, c, x[i+6], 9, -1069501632);
+      c = gg(c, d, a, b, x[i+11], 14, 643717713);
+      b = gg(b, c, d, a, x[i], 20, -373897302);
+      a = gg(a, b, c, d, x[i+5], 5, -701558691);
+      d = gg(d, a, b, c, x[i+10], 9, 38016083);
+      c = gg(c, d, a, b, x[i+15], 14, -660478335);
+      b = gg(b, c, d, a, x[i+4], 20, -405537848);
+      a = gg(a, b, c, d, x[i+9], 5, 568446438);
+      d = gg(d, a, b, c, x[i+14], 9, -1019803690);
+      c = gg(c, d, a, b, x[i+3], 14, -187363961);
+      b = gg(b, c, d, a, x[i+8], 20, 1163531501);
+      a = gg(a, b, c, d, x[i+13], 5, -1444681467);
+      d = gg(d, a, b, c, x[i+2], 9, -51403784);
+      c = gg(c, d, a, b, x[i+7], 14, 1735328473);
+      b = gg(b, c, d, a, x[i+12], 20, -1926607734);
+      a = hh(a, b, c, d, x[i+5], 4, -378558);
+      d = hh(d, a, b, c, x[i+8], 11, -2022574463);
+      c = hh(c, d, a, b, x[i+11], 16, 1839030562);
+      b = hh(b, c, d, a, x[i+14], 23, -35309556);
+      a = hh(a, b, c, d, x[i+1], 4, -1530992060);
+      d = hh(d, a, b, c, x[i+4], 11, 1272893353);
+      c = hh(c, d, a, b, x[i+7], 16, -155497632);
+      b = hh(b, c, d, a, x[i+10], 23, -1094730640);
+      a = hh(a, b, c, d, x[i+13], 4, 681279174);
+      d = hh(d, a, b, c, x[i], 11, -358537222);
+      c = hh(c, d, a, b, x[i+3], 16, -722521979);
+      b = hh(b, c, d, a, x[i+6], 23, 76029189);
+      a = hh(a, b, c, d, x[i+9], 4, -640364487);
+      d = hh(d, a, b, c, x[i+12], 11, -421815835);
+      c = hh(c, d, a, b, x[i+15], 16, 530742520);
+      b = hh(b, c, d, a, x[i+2], 23, -995338651);
+      a = ii(a, b, c, d, x[i], 6, -198630844);
+      d = ii(d, a, b, c, x[i+7], 10, 1126891415);
+      c = ii(c, d, a, b, x[i+14], 15, -1416354905);
+      b = ii(b, c, d, a, x[i+5], 21, -57434055);
+      a = ii(a, b, c, d, x[i+12], 6, 1700485571);
+      d = ii(d, a, b, c, x[i+3], 10, -1894986606);
+      c = ii(c, d, a, b, x[i+10], 15, -1051523);
+      b = ii(b, c, d, a, x[i+1], 21, -2054922799);
+      a = ii(a, b, c, d, x[i+8], 6, 1873313359);
+      d = ii(d, a, b, c, x[i+15], 10, -30611744);
+      c = ii(c, d, a, b, x[i+6], 15, -1560198380);
+      b = ii(b, c, d, a, x[i+13], 21, 1309151649);
+      a = ii(a, b, c, d, x[i+4], 6, -145523070);
+      d = ii(d, a, b, c, x[i+11], 10, -1120210379);
+      c = ii(c, d, a, b, x[i+2], 15, 718787259);
+      b = ii(b, c, d, a, x[i+9], 21, -343485551);
+      a = safeAdd(a, olda); b = safeAdd(b, oldb);
+      c = safeAdd(c, oldc); d = safeAdd(d, oldd);
+    }
+    return [a, b, c, d];
+  }
+
+  function binl2hex(binarray) {
+    const hexTab = '0123456789abcdef';
+    let str = '';
+    for (let i = 0; i < binarray.length * 4; i++) {
+      str += hexTab.charAt((binarray[i >> 2] >> ((i % 4) * 8 + 4)) & 0xF) +
+             hexTab.charAt((binarray[i >> 2] >> ((i % 4) * 8)) & 0xF);
+    }
+    return str;
+  }
+
+  function str2binl(str) {
+    const bin = [];
+    const mask = (1 << 8) - 1;
+    for (let i = 0; i < str.length * 8; i += 8) {
+      bin[i >> 5] |= (str.charCodeAt(i / 8) & mask) << (i % 32);
+    }
+    return bin;
+  }
+
+  // Handle UTF-8 encoding
+  const utf8 = unescape(encodeURIComponent(str));
+  return binl2hex(binlMD5(str2binl(utf8), utf8.length * 8));
+}
+
+// Generate nonce string
+function genNonce() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// Build sorted query string for signing
+function buildSignString(params) {
+  const keys = Object.keys(params).filter(k => params[k] !== '' && params[k] !== undefined).sort();
+  return keys.map(k => `${k}=${params[k]}`).join('&');
+}
+
+// POST /ai/wxmp_pay/create — create WeChat Pay unified order, return payment params for wx.requestPayment
+async function handleWxmpPayCreate(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { product } = body; // 'pro_monthly' | 'pro_yearly' | 'credits_100' | 'credits_500'
+  const products = getWxmpPayProducts();
+  const prod = products[product];
+  if (!prod) return { status: 400, data: { error: 'invalid product' } };
+
+  const mchId = env.WXMP_MCH_ID;
+  const mchKey = env.WXMP_MCH_KEY;
+  const appId = env.WXMP_APP_ID || env.WECHAT_APP_ID;
+  if (!mchId || !mchKey || !appId) {
+    return { status: 500, data: { error: 'WeChat Pay not configured' } };
+  }
+
+  // Get openid from token (wxmp_{openid}:{secret})
+  let openid = null;
+  if (userId.startsWith('wxmp_')) {
+    openid = userId.substring(5);
+  } else {
+    // For bound users, get their wxmp openid from KV
+    const wxmpData = await env.USER_DATA.get(`clerk_to_wxmp:${userId}`);
+    if (wxmpData) {
+      openid = JSON.parse(wxmpData).openid;
+    }
+  }
+  if (!openid) {
+    return { status: 400, data: { error: 'openid required — only available for mini program users' } };
+  }
+
+  const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const nonceStr = genNonce();
+
+  // Create order in KV
+  const order = {
+    order_id: orderId,
+    user_id: userId,
+    type: prod.type,
+    id: prod.id,
+    amount: prod.amount_cents / 100,
+    amount_cents: prod.amount_cents,
+    status: 'pending',
+    product,
+    created_at: new Date().toISOString(),
+    confirmed_at: null,
+  };
+  await env.USER_DATA.put(`order:${orderId}`, JSON.stringify(order));
+  const userOrdersRaw = await env.USER_DATA.get(`orders:${userId}`) || '[]';
+  const userOrders = JSON.parse(userOrdersRaw);
+  userOrders.push(orderId);
+  await env.USER_DATA.put(`orders:${userId}`, JSON.stringify(userOrders.slice(-50)));
+
+  // Call WeChat unified order API (JSAPI)
+  const notifyUrl = `https://api.welian.app/ai/wxmp_pay/notify`;
+  const unifiedParams = {
+    appid: appId,
+    mch_id: mchId,
+    nonce_str: nonceStr,
+    body: `Welian ${prod.name}`,
+    out_trade_no: orderId,
+    total_fee: prod.amount_cents,
+    spbill_create_ip: '127.0.0.1',
+    notify_url: notifyUrl,
+    trade_type: 'JSAPI',
+    openid: openid,
+  };
+
+  // Sign
+  const signStr = buildSignString(unifiedParams) + `&key=${mchKey}`;
+  unifiedParams.sign = md5Hex(signStr).toUpperCase();
+
+  // Build XML
+  const xml = '<xml>' + Object.entries(unifiedParams).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</xml>';
+
+  // Call WeChat API
+  let prepayId = null;
+  try {
+    const wxResp = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xml,
+    });
+    const wxText = await wxResp.text();
+    // Parse XML response (simple regex, no DOM parser in Workers)
+    const returnCodeMatch = wxText.match(/<return_code><!\[CDATA\[(.+?)\]\]><\/return_code>/) || wxText.match(/<return_code>(.+?)<\/return_code>/);
+    const resultCodeMatch = wxText.match(/<result_code><!\[CDATA\[(.+?)\]\]><\/result_code>/) || wxText.match(/<result_code>(.+?)<\/result_code>/);
+    const prepayIdMatch = wxText.match(/<prepay_id><!\[CDATA\[(.+?)\]\]><\/prepay_id>/) || wxText.match(/<prepay_id>(.+?)<\/prepay_id>/);
+    const errMsgMatch = wxText.match(/<err_code_des><!\[CDATA\[(.+?)\]\]><\/err_code_des>/) || wxText.match(/<err_code_des>(.+?)<\/err_code_des>/);
+
+    if (returnCodeMatch && returnCodeMatch[1] === 'SUCCESS' &&
+        resultCodeMatch && resultCodeMatch[1] === 'SUCCESS' &&
+        prepayIdMatch) {
+      prepayId = prepayIdMatch[1];
+    } else {
+      const errMsg = errMsgMatch ? errMsgMatch[1] : 'WeChat Pay API error';
+      console.error('[wxmp_pay] unified order failed:', wxText);
+      return { status: 500, data: { error: errMsg } };
+    }
+  } catch (e) {
+    console.error('[wxmp_pay] fetch error:', e.message);
+    return { status: 500, data: { error: 'WeChat Pay request failed' } };
+  }
+
+  // Build payment params for wx.requestPayment (timeStamp, nonceStr, package, signType, paySign)
+  const timeStamp = String(Math.floor(Date.now() / 1000));
+  const payNonceStr = genNonce();
+  const packageStr = `prepay_id=${prepayId}`;
+  const paySignParams = {
+    appId: appId,
+    timeStamp: timeStamp,
+    nonceStr: payNonceStr,
+    package: packageStr,
+    signType: 'MD5',
+  };
+  const paySignStr = buildSignString(paySignParams) + `&key=${mchKey}`;
+  const paySign = md5Hex(paySignStr).toUpperCase();
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      order_id: orderId,
+      payment: {
+        timeStamp,
+        nonceStr: payNonceStr,
+        package: packageStr,
+        signType: 'MD5',
+        paySign,
+      },
+    },
+  };
+}
+
+// POST /ai/wxmp_pay/notify — WeChat Pay callback (XML)
+async function handleWxmpPayNotify(req, env) {
+  try {
+    const xmlText = await req.text();
+    // Parse XML (simple regex)
+    const get = (tag) => {
+      const m = xmlText.match(new RegExp(`<${tag}><!\\[CDATA\\[(.+?)\\]\\]></${tag}>`)) ||
+                xmlText.match(new RegExp(`<${tag}>(.+?)</${tag}>`));
+      return m ? m[1] : null;
+    };
+
+    const returnCode = get('return_code');
+    const resultCode = get('result_code');
+    const outTradeNo = get('out_trade_no');
+    const totalFee = get('total_fee');
+    const transactionId = get('transaction_id');
+
+    if (returnCode !== 'SUCCESS' || resultCode !== 'SUCCESS' || !outTradeNo) {
+      console.error('[wxmp_pay/notify] payment failed or missing data');
+      return { status: 200, data: '<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[ERROR]]></return_msg></xml>' };
+    }
+
+    // Load order
+    const raw = await env.USER_DATA.get(`order:${outTradeNo}`);
+    if (!raw) {
+      console.error('[wxmp_pay/notify] order not found:', outTradeNo);
+      return { status: 200, data: '<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[ORDER_NOT_FOUND]]></return_msg></xml>' };
+    }
+
+    const order = JSON.parse(raw);
+    if (order.status === 'confirmed') {
+      // Already confirmed — idempotent response
+      return { status: 200, data: '<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>' };
+    }
+
+    // Verify amount
+    if (parseInt(totalFee) !== order.amount_cents) {
+      console.error('[wxmp_pay/notify] amount mismatch:', totalFee, 'vs', order.amount_cents);
+      return { status: 200, data: '<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[AMOUNT_MISMATCH]]></return_msg></xml>' };
+    }
+
+    // Confirm order
+    order.status = 'confirmed';
+    order.confirmed_at = new Date().toISOString();
+    order.transaction_id = transactionId;
+    await env.USER_DATA.put(`order:${outTradeNo}`, JSON.stringify(order));
+
+    // Apply purchase
+    const billing = await getBillingData(env, order.user_id);
+    if (order.type === 'upgrade') {
+      const now = new Date();
+      let expire = new Date(now);
+      if (order.id === 'pro_yearly') expire.setFullYear(expire.getFullYear() + 1);
+      else expire.setMonth(expire.getMonth() + 1);
+      billing.plan = 'pro';
+      billing.subscription = { plan: order.id, start: now.toISOString(), expire: expire.toISOString() };
+      billing.history.push({ date: now.toISOString(), action: 'upgrade', points: 0, detail: `微信支付 ¥${order.amount} for ${order.id}` });
+    } else if (order.type === 'purchase') {
+      const points = order.id === '500' ? 500 : 100;
+      billing.purchased += points;
+      billing.history.push({ date: new Date().toISOString(), action: 'purchase', points, detail: `微信支付 ¥${order.amount} for ${points} credits` });
+    }
+    if (billing.history.length > 100) billing.history = billing.history.slice(-100);
+    await saveBillingData(env, order.user_id, billing);
+
+    return { status: 200, data: '<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>' };
+  } catch (e) {
+    console.error('[wxmp_pay/notify] error:', e.message);
+    return { status: 200, data: '<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[INTERNAL_ERROR]]></return_msg></xml>' };
+  }
+}
+
 // ── Paddle checkout + webhook ──
 
 async function handlePaddleCheckout(req, env) {
@@ -7286,7 +7633,19 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
-      // ── WeChat Pay orders ──
+      // ── WeChat Pay (mini program) ──
+
+      if (path === '/ai/wxmp_pay/create' && method === 'POST') {
+        const r = await handleWxmpPayCreate(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/wxmp_pay/notify' && method === 'POST') {
+        const r = await handleWxmpPayNotify(request, env);
+        return new Response(r.data, { status: r.status, headers: { 'Content-Type': 'application/xml' } });
+      }
+
+      // ── WeChat Pay orders (legacy) ──
 
       if (path === '/ai/create_order' && method === 'POST') {
         const r = await handleCreateOrder(request, env);

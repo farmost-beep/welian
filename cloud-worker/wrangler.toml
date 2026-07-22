@@ -70,9 +70,19 @@ preview_id = "98c045b73d874a869493706dc585bafb"
 # PADDLE_PRICE_CREDITS_500 — price_id for 500 credits ($7.99)
 # Paddle webhook URL: https://api.welian.app/ai/paddle/webhook
 
+# ── WeChat Pay (mini program, CNY) ──
+# Set via: wrangler secret put <NAME>
+# WXMP_MCH_ID              — 微信支付商户号
+# WXMP_MCH_KEY             — 微信支付商户API密钥(32位)
+# WXMP_APP_ID              — 小程序AppID (已用于wxmp_login)
+# WXMP_APP_SECRET          — 小程序AppSecret (已用于wxmp_login)
+# 支付回调URL: https://api.welian.app/ai/wxmp_pay/notify
+# 商品价格(分): pro_monthly=2900, pro_yearly=29900, credits_100=199, credits_500=799
+
 # Cron: weekly report push every Monday 09:00 CST (01:00 UTC)
 # Cron: daily signals push 07:00 CST (23:00 UTC previous day)
 # Cron: evening recap push 22:00 CST (14:00 UTC)
+# Cron: festival & important date reminder 21:00 CST (13:00 UTC) — 3 days ahead
 # Cron: health warning push biweekly (1st & 15th) 09:00 CST (01:00 UTC)
 [triggers]
-crons = ["0 1 * * 1", "0 23 * * *", "0 14 * * *", "0 1 1,15 * *"]
+crons = ["0 1 * * 1", "0 23 * * *", "0 14 * * *", "0 13 * * *", "0 1 1,15 * *"]
