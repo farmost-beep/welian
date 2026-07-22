@@ -5971,24 +5971,35 @@ export default {
       // ── Bind mini program to existing Web account (public) ──
       if (path === '/ai/wxmp_bind' && method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const { openid, clerk_user_id } = body;
-        if (!openid || !clerk_user_id) {
-          return jsonResponse({ error: 'openid and clerk_user_id required' }, 400);
+        const { openid, email, clerk_user_id } = body;
+        if (!openid) {
+          return jsonResponse({ error: 'openid required' }, 400);
+        }
+        // Resolve email → clerk_user_id if email provided
+        let resolvedUserId = clerk_user_id;
+        if (!resolvedUserId && email) {
+          resolvedUserId = await getClerkUserIdByEmail(email.trim().toLowerCase(), env);
+          if (!resolvedUserId) {
+            return jsonResponse({ error: '未找到该邮箱对应的 Web 账号，请确认邮箱正确' }, 400);
+          }
+        }
+        if (!resolvedUserId) {
+          return jsonResponse({ error: '请提供 email 或 clerk_user_id' }, 400);
         }
         const wxmpUserId = `wxmp_${openid}`;
         // Verify the clerk_user_id has data (contacts exist)
-        const contacts = await loadDataset(env, clerk_user_id, 'contacts');
+        const contacts = await loadDataset(env, resolvedUserId, 'contacts');
         if (contacts.length === 0) {
-          return jsonResponse({ error: '该 Web 账号没有联系人数据，请确认 user_id 正确' }, 400);
+          return jsonResponse({ error: '该账号暂无联系人数据' }, 400);
         }
         // Create binding
-        await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerk_user_id);
+        await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, resolvedUserId);
         // Return new token bound to Clerk user
-        const token = `${clerk_user_id}:${env.WELIAN_SYNC_SECRET}`;
+        const token = `${resolvedUserId}:${env.WELIAN_SYNC_SECRET}`;
         return jsonResponse({
           ok: true,
           token,
-          message: `已绑定到 Web 账号（${contacts.length} 个联系人）`,
+          message: `已绑定（${contacts.length} 个联系人）`,
         });
       }
 

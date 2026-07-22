@@ -23,12 +23,12 @@
   <!-- 账号绑定 -->
   <view wx:if="{{!isBound && openid}}" class="card bind-card">
     <text class="bind-title">🔗 绑定 Web 账号</text>
-    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">绑定后可同步你在 Web 端的联系人、互动记录和待办</text>
+    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入你在 welian.app 注册的邮箱，绑定后同步联系人数据</text>
     <input
       class="bind-input"
       type="text"
-      placeholder="输入 Web 端 user_id（user_3GT...）"
-      value="{{bindUserId}}"
+      placeholder="你的注册邮箱"
+      value="{{bindEmail}}"
       bindinput="onBindInput"
     />
     <button class="btn btn-block" style="margin-top:10px" bindtap="bindWebAccount">绑定</button>

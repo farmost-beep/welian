@@ -9,7 +9,7 @@ Page({
     credits: 100,
     openid: '',
     isBound: false,
-    bindUserId: '',
+    bindEmail: '',
     bindMsg: '',
   },
 
@@ -46,14 +46,18 @@ Page({
   },
 
   onBindInput(e) {
-    this.setData({ bindUserId: e.detail.value });
+    this.setData({ bindEmail: e.detail.value });
   },
 
   // 绑定 Web 账号
   bindWebAccount() {
-    const { openid, bindUserId } = this.data;
-    if (!openid || !bindUserId) {
-      this.setData({ bindMsg: '请输入 Web 端 user_id' });
+    const { openid, bindEmail } = this.data;
+    if (!openid) {
+      this.setData({ bindMsg: '请先登录' });
+      return;
+    }
+    if (!bindEmail || !bindEmail.includes('@')) {
+      this.setData({ bindMsg: '请输入有效邮箱' });
       return;
     }
     this.setData({ bindMsg: '绑定中…' });
@@ -61,11 +65,10 @@ Page({
       url: 'https://api.welian.app/ai/wxmp_bind',
       method: 'POST',
       header: { 'Content-Type': 'application/json' },
-      data: { openid, clerk_user_id: bindUserId },
+      data: { openid, email: bindEmail.trim().toLowerCase() },
       success: (res) => {
         if (res.statusCode === 200 && res.data.ok) {
           api.clearToken();
-          // Set new token directly
           wx.setStorageSync('welian_token', res.data.token);
           this.setData({ bindMsg: res.data.message, isBound: true });
           wx.showToast({ title: '绑定成功', icon: 'success' });
