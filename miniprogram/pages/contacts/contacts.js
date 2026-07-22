@@ -12,6 +12,10 @@ Page({
     error: '',
     totalContacts: 0,
     showingCount: 0,
+    // 名片扫描
+    scanning: false,
+    scanResult: null,  // { contact, is_duplicate, message }
+    scanError: '',
   },
 
   onShow() {
@@ -59,6 +63,82 @@ Page({
   tapContact(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/contact-detail/contact-detail?id=${id}` });
+  },
+
+  // ── 名片扫描 ──
+  scanCard() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const tempFile = res.tempFiles[0];
+        this.uploadAndScan(tempFile.tempFilePath);
+      },
+    });
+  },
+
+  uploadAndScan(filePath) {
+    this.setData({ scanning: true, scanError: '', scanResult: null });
+    // 读取图片为 base64
+    wx.getFileSystemManager().readFile({
+      filePath,
+      encoding: 'base64',
+      success: (fileRes) => {
+        const base64 = fileRes.data;
+        // 判断图片类型
+        const ext = filePath.split('.').pop().toLowerCase();
+        const mediaType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        // 调后端识别
+        wx.request({
+          url: 'https://api.welian.app/ai/wxmp_card_scan',
+          method: 'POST',
+          header: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + api.getToken(),
+          },
+          data: { base64, media_type: mediaType },
+          success: (res) => {
+            if (res.statusCode === 200 && res.data.ok) {
+              this.setData({
+                scanning: false,
+                scanResult: res.data,
+              });
+              // 刷新列表
+              this.loadContacts();
+              wx.showToast({ title: res.data.message, icon: 'success' });
+            } else {
+              this.setData({
+                scanning: false,
+                scanError: res.data.error || '识别失败',
+              });
+              wx.showToast({ title: res.data.error || '识别失败', icon: 'none' });
+            }
+          },
+          fail: () => {
+            this.setData({ scanning: false, scanError: '网络错误' });
+            wx.showToast({ title: '网络错误', icon: 'none' });
+          },
+        });
+      },
+      fail: () => {
+        this.setData({ scanning: false, scanError: '读取图片失败' });
+        wx.showToast({ title: '读取图片失败', icon: 'none' });
+      },
+    });
+  },
+
+  closeScanResult() {
+    this.setData({ scanResult: null });
+  },
+
+  viewScannedContact() {
+    const result = this.data.scanResult;
+    if (result && result.contact && result.contact.id) {
+      wx.navigateTo({ url: `/pages/contact-detail/contact-detail?id=${result.contact.id}` });
+      this.setData({ scanResult: null });
+    }
   },
 
   onPullDownRefresh() {

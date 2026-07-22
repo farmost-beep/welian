@@ -1,6 +1,6 @@
 <!-- pages/contacts/contacts.wxml — 关系列表页 -->
 <view class="container">
-  <!-- 搜索框 -->
+  <!-- 搜索框 + 扫描按钮 -->
   <view class="search-bar">
     <input
       class="search-input"
@@ -11,6 +11,33 @@
       confirm-type="search"
     />
     <text wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">×</text>
+    <view class="scan-btn" bindtap="scanCard">
+      <text class="scan-icon">📷</text>
+    </view>
+  </view>
+
+  <!-- 扫描中 -->
+  <view wx:if="{{scanning}}" class="scan-loading">
+    <text class="text-accent">正在识别名片…</text>
+  </view>
+
+  <!-- 扫描结果弹窗 -->
+  <view wx:if="{{scanResult}}" class="scan-result-mask" bindtap="closeScanResult">
+    <view class="scan-result-card" catchtap="">
+      <text class="scan-result-title">{{scanResult.message}}</text>
+      <view class="scan-result-info">
+        <view class="info-row"><text class="info-label">姓名</text><text class="info-value">{{scanResult.contact.name}}</text></view>
+        <view wx:if="{{scanResult.contact.company}}" class="info-row"><text class="info-label">公司</text><text class="info-value">{{scanResult.contact.company}}</text></view>
+        <view wx:if="{{scanResult.contact.title}}" class="info-row"><text class="info-label">职位</text><text class="info-value">{{scanResult.contact.title}}</text></view>
+        <view wx:if="{{scanResult.contact.phone}}" class="info-row"><text class="info-label">电话</text><text class="info-value">{{scanResult.contact.phone}}</text></view>
+        <view wx:if="{{scanResult.contact.email}}" class="info-row"><text class="info-label">邮箱</text><text class="info-value">{{scanResult.contact.email}}</text></view>
+        <view wx:if="{{scanResult.contact.relation}}" class="info-row"><text class="info-label">关系</text><text class="info-value">{{scanResult.contact.relation}}</text></view>
+      </view>
+      <view class="scan-result-actions">
+        <button wx:if="{{!scanResult.is_duplicate && scanResult.contact.id}}" class="btn btn-block" bindtap="viewScannedContact">查看详情</button>
+        <button class="btn btn-block" style="margin-top:8px" bindtap="closeScanResult">关闭</button>
+      </view>
+    </view>
   </view>
 
   <!-- 搜索结果 -->

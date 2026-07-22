@@ -6046,6 +6046,94 @@ export default {
         });
       }
 
+      // ── Scan business card and create contact (mini program) ──
+      if (path === '/ai/wxmp_card_scan' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = await getVerifiedUserId(request, env, body);
+        if (!userId) {
+          return jsonResponse({ error: 'Authentication required' }, 401);
+        }
+        const { base64, media_type } = body;
+        if (!base64) {
+          return jsonResponse({ error: 'base64 required' }, 400);
+        }
+        // LLM multimodal: extract card info
+        const imageBlock = {
+          type: 'image',
+          source: { type: 'base64', media_type: media_type || 'image/jpeg', data: base64 },
+        };
+        const cardPrompt = `请分析这张名片照片，提取信息以JSON格式返回：
+{
+  "name": "姓名（必填，识别不到也要猜一个）",
+  "company": "公司（如能识别，否则空字符串）",
+  "title": "职位（如能识别，否则空字符串）",
+  "phone": "电话（如能识别，否则空字符串）",
+  "email": "邮箱（如能识别，否则空字符串）",
+  "relation": "关系类型推断（同行/客户/合作方/校友/朋友/其他，默认同行）"
+}
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块。`;
+        const result = await callLLM(null, 'You extract business card info. Respond with JSON only.', env, {
+          max_tokens: 512,
+          model_tier: 'enhanced',
+          messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: '请分析这张名片并提取信息。' }] }],
+        });
+        if (!result) {
+          return jsonResponse({ error: '识别失败，请重试' }, 500);
+        }
+        let card;
+        try {
+          const jsonText = result.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          card = JSON.parse(jsonText);
+        } catch (e) {
+          const match = result.text.match(/\{[\s\S]*\}/);
+          if (match) {
+            card = JSON.parse(match[0]);
+          } else {
+            return jsonResponse({ error: '识别失败', raw_text: result.text }, 500);
+          }
+        }
+        if (!card.name) {
+          return jsonResponse({ error: '未识别到姓名', raw_text: result.text }, 400);
+        }
+        // Create contact
+        const contacts = await loadDataset(env, userId, 'contacts');
+        // Check duplicate by name
+        const existing = contacts.find(c => c.name === card.name);
+        if (existing) {
+          return jsonResponse({
+            ok: true,
+            contact: card,
+            is_duplicate: true,
+            existing_id: existing.id,
+            message: `「${card.name}」已在你的联系人中`,
+          });
+        }
+        const newContact = {
+          id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: card.name,
+          company: card.company || '',
+          title: card.title || '',
+          phone: card.phone || '',
+          email: card.email || '',
+          relation: card.relation || '同行',
+          nature: 'leverage',
+          strength: 3,
+          tags: ['名片扫描'],
+          memories: [],
+          important_dates: [],
+          created_at: new Date().toISOString(),
+          updated: new Date().toISOString(),
+        };
+        contacts.push(newContact);
+        await saveDataset(env, userId, 'contacts', contacts);
+        return jsonResponse({
+          ok: true,
+          contact: newContact,
+          is_duplicate: false,
+          message: `已添加「${card.name}」`,
+        });
+      }
+
       // ── Register new account from mini program (public) ──
       if (path === '/ai/wxmp_register' && method === 'POST') {
         const body = await request.json().catch(() => ({}));
