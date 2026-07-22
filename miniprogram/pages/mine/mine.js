@@ -15,6 +15,7 @@ Page({
     codeSent: false,
     sendingCode: false,
     binding: false,
+    showCelebration: false,
   },
 
   onShow() {
@@ -117,7 +118,15 @@ Page({
             bindMsg: res.data.message,
             codeSent: false,
           });
-          wx.showToast({ title: res.data.is_new_user ? '注册并绑定成功' : '绑定成功', icon: 'success' });
+          if (res.data.is_new_user) {
+            // 新用户：显示庆祝动画
+            this.setData({ showCelebration: true });
+            setTimeout(() => {
+              this.setData({ showCelebration: false });
+            }, 2500);
+          } else {
+            wx.showToast({ title: '绑定成功', icon: 'success' });
+          }
         } else {
           this.setData({ binding: false, bindMsg: res.data.error || '绑定失败' });
         }
@@ -181,5 +190,9 @@ Page({
       title: 'Welian ∞ — 更用心，更好的关系',
       path: '/pages/welcome/welcome',
     };
+  },
+
+  dismissCelebration() {
+    this.setData({ showCelebration: false });
   },
 });

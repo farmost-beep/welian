@@ -6470,7 +6470,6 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
               },
               body: JSON.stringify({
                 email_address: [parsed.email],
-                email_verified: true, // Verified via our code
                 unsafe_metadata: { registered_from: 'wxmp', wxmp_openid: openid },
               }),
             });

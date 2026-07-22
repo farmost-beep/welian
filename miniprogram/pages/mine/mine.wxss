@@ -109,3 +109,95 @@
   gap: 8rpx;
   padding: 40rpx 0;
 }
+
+/* ── 注册成功庆祝动画 ── */
+.celebration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 25, 21, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.celebration-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 48rpx;
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.celebration-icon-wrap {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32rpx;
+}
+
+.celebration-check {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #4A6741;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  color: #FAFAF7;
+  font-weight: 700;
+  animation: checkPop 0.4s ease 0.1s both;
+}
+
+.spark {
+  position: absolute;
+  font-size: 32rpx;
+  animation: sparkFly 1s ease-out 0.3s both;
+}
+.spark-1 { top: 0; left: -20rpx; animation-delay: 0.3s; }
+.spark-2 { top: -10rpx; right: -10rpx; animation-delay: 0.4s; }
+.spark-3 { bottom: 0; left: 10rpx; animation-delay: 0.5s; }
+.spark-4 { bottom: -10rpx; right: -20rpx; animation-delay: 0.6s; }
+
+.celebration-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #FAFAF7;
+  margin-bottom: 12rpx;
+}
+
+.celebration-subtitle {
+  font-size: 26rpx;
+  color: #C4BFB3;
+  text-align: center;
+  line-height: 1.5;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes checkPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@keyframes sparkFly {
+  0% { transform: scale(0) translate(0, 0); opacity: 0; }
+  50% { transform: scale(1.2) translate(10rpx, -20rpx); opacity: 1; }
+  100% { transform: scale(0.8) translate(30rpx, -60rpx); opacity: 0; }
+}

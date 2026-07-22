@@ -74,3 +74,18 @@
     <text class="text-dimmer text-xs">© 2026 Welian ∞</text>
   </view>
 </view>
+
+<!-- 注册成功庆祝动画 -->
+<view wx:if="{{showCelebration}}" class="celebration-overlay" catchtap="dismissCelebration">
+  <view class="celebration-content">
+    <view class="celebration-icon-wrap">
+      <view class="celebration-check">✓</view>
+      <view class="spark spark-1">✨</view>
+      <view class="spark spark-2">🎉</view>
+      <view class="spark spark-3">🌱</view>
+      <view class="spark spark-4">✨</view>
+    </view>
+    <text class="celebration-title">注册成功！</text>
+    <text class="celebration-subtitle text-dim">欢迎加入 Welian，开始用心经营你的关系网络</text>
+  </view>
+</view>
