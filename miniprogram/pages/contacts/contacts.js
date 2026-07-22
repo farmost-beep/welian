@@ -10,6 +10,8 @@ Page({
     searchResults: null,
     loading: true,
     error: '',
+    totalContacts: 0,
+    showingCount: 0,
   },
 
   onShow() {
@@ -22,6 +24,8 @@ Page({
       this.setData({
         leverageList: res.leverage || [],
         nurtureList: res.nurture || [],
+        totalContacts: res.total || 0,
+        showingCount: (res.leverage || []).length + (res.nurture || []).length,
         loading: false,
       });
     }).catch((err) => {

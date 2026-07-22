@@ -58,7 +58,7 @@
     <!-- 撬动型列表 -->
     <block wx:if="{{activeTab === 'leverage' && !loading}}">
       <view class="list-header">
-        <text class="text-dim text-sm">用心栽培，定期照料，静候收获</text>
+        <text class="text-dim text-sm">用心栽培，定期照料，静候收获（{{leverageList.length}}/{{totalContacts}}）</text>
       </view>
       <view wx:for="{{leverageList}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
         <view class="contact-row">

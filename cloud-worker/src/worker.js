@@ -4269,7 +4269,7 @@ async function handleContactsCRUD(req, env, method) {
   if (method === 'GET') {
     const contacts = await loadDataset(env, userId, 'contacts');
     // Return list with key fields for display
-    const list = contacts.map(c => ({
+    let list = contacts.map(c => ({
       id: c.id, name: c.name, relation: c.relation || '',
       sub_relation: c.sub_relation || '', company: c.company || '',
       title: c.title || '', nature: c.nature || 'leverage',
@@ -4286,7 +4286,19 @@ async function handleContactsCRUD(req, env, method) {
       presence_events: c.presence_events || [],
       updated: c.updated || '',
     }));
-    return { status: 200, data: { contacts: list, total: contacts.length } };
+    // Pagination support (for mini program with large contact lists)
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get('limit') || '0');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const search = url.searchParams.get('q') || '';
+    if (search) {
+      list = list.filter(c => (c.name || '').includes(search) || (c.aliases || []).some(a => a.includes(search)));
+    }
+    const total = list.length;
+    if (limit > 0) {
+      list = list.slice(offset, offset + limit);
+    }
+    return { status: 200, data: { contacts: list, total, offset, limit: limit || total } };
   }
 
   if (method === 'POST') {

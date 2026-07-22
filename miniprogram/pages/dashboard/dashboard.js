@@ -54,7 +54,7 @@ Page({
   fetchContacts() {
     return new Promise((resolve) => {
       wx.request({
-        url: 'https://api.welian.app/data/contacts',
+        url: 'https://api.welian.app/data/contacts?limit=100',
         header: { 'Authorization': 'Bearer ' + api.getToken() },
         success: (res) => {
           if (res.statusCode === 200 && res.data) {

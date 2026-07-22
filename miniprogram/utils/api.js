@@ -118,22 +118,23 @@ module.exports = {
     });
   },
 
-  // 关系列表
+  // 关系列表（分页加载，默认前 100 个）
   getContacts() {
-    return request('/data/contacts').then((data) => {
+    return request('/data/contacts?limit=100').then((data) => {
       const contacts = data.contacts || [];
       const leverage = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重');
       const nurture = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual' || c.nature === '双重');
       return {
         leverage: leverage.map(formatContact),
         nurture: nurture.map(formatContact),
+        total: data.total || contacts.length,
       };
     });
   },
 
   // 联系人详情
   getContactDetail(contactId) {
-    return request('/data/contacts').then((data) => {
+    return request('/data/contacts?limit=500').then((data) => {
       const contacts = data.contacts || [];
       const contact = contacts.find(c => c.id === contactId);
       if (!contact) throw new Error('联系人不存在');
@@ -213,12 +214,10 @@ module.exports = {
     return request('/ai/billing/upgrade', { plan: planKey }, 'POST');
   },
 
-  // 搜索联系人
+  // 搜索联系人（用后端搜索，避免加载全部）
   searchContacts(keyword) {
-    return request('/data/contacts').then((data) => {
-      const contacts = data.contacts || [];
-      if (!keyword) return contacts.map(formatContact);
-      return contacts.filter(c => (c.name || '').includes(keyword)).map(formatContact);
+    return request('/data/contacts?q=' + encodeURIComponent(keyword) + '&limit=50').then((data) => {
+      return (data.contacts || []).map(formatContact);
     });
   },
 
