@@ -100,20 +100,31 @@ Page({
           },
           data: { base64, media_type: mediaType },
           success: (res) => {
-            if (res.statusCode === 200 && res.data.ok) {
-              this.setData({
-                scanning: false,
-                scanResult: res.data,
-              });
-              // 刷新列表
+            if (res.statusCode === 200 && res.data && res.data.ok) {
+              // 确保所有字段是字符串
+              const c = res.data.contact || {};
+              const s = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+              const scanResult = {
+                ok: true,
+                message: s(res.data.message),
+                is_duplicate: !!res.data.is_duplicate,
+                contact: {
+                  id: s(c.id),
+                  name: s(c.name),
+                  company: s(c.company),
+                  title: s(c.title),
+                  phone: s(c.phone),
+                  email: s(c.email),
+                  relation: s(c.relation),
+                },
+              };
+              this.setData({ scanning: false, scanResult });
               this.loadContacts();
-              wx.showToast({ title: res.data.message, icon: 'success' });
+              wx.showToast({ title: scanResult.message, icon: 'success' });
             } else {
-              this.setData({
-                scanning: false,
-                scanError: res.data.error || '识别失败',
-              });
-              wx.showToast({ title: res.data.error || '识别失败', icon: 'none' });
+              const errMsg = (res.data && res.data.error) || '识别失败';
+              this.setData({ scanning: false, scanError: errMsg });
+              wx.showToast({ title: errMsg, icon: 'none' });
             }
           },
           fail: () => {

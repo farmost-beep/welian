@@ -6095,6 +6095,21 @@ export default {
         if (!card.name) {
           return jsonResponse({ error: '未识别到姓名', raw_text: result.text }, 400);
         }
+        // Ensure all fields are strings (LLM may return objects for some fields)
+        const str = (v) => {
+          if (v == null) return '';
+          if (typeof v === 'string') return v;
+          if (typeof v === 'object') return JSON.stringify(v);
+          return String(v);
+        };
+        card = {
+          name: str(card.name),
+          company: str(card.company),
+          title: str(card.title),
+          phone: str(card.phone),
+          email: str(card.email),
+          relation: str(card.relation) || '同行',
+        };
         // Create contact
         const contacts = await loadDataset(env, userId, 'contacts');
         // Check duplicate by name
@@ -6111,11 +6126,11 @@ export default {
         const newContact = {
           id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           name: card.name,
-          company: card.company || '',
-          title: card.title || '',
-          phone: card.phone || '',
-          email: card.email || '',
-          relation: card.relation || '同行',
+          company: card.company,
+          title: card.title,
+          phone: card.phone,
+          email: card.email,
+          relation: card.relation,
           nature: 'leverage',
           strength: 3,
           tags: ['名片扫描'],
