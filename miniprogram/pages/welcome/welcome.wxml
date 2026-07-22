@@ -1,0 +1,58 @@
+<!-- pages/welcome/welcome.wxml — 新用户引导注册 -->
+<view class="welcome">
+  <!-- 品牌头 -->
+  <view class="brand-section">
+    <text class="brand-name">Welian</text>
+    <text class="brand-inf">∞</text>
+  </view>
+  <text class="brand-tagline">更用心 — 更好的朋友、更好的家人、更好的合作者</text>
+
+  <!-- 价值主张 -->
+  <view class="value-props">
+    <view class="prop-item">
+      <text class="prop-icon">📊</text>
+      <view class="prop-text">
+        <text class="prop-title">仪表盘</text>
+        <text class="prop-desc">每月行为回顾，按朋友/家人/合作者分组</text>
+      </view>
+    </view>
+    <view class="prop-item">
+      <text class="prop-icon">🤝</text>
+      <view class="prop-text">
+        <text class="prop-title">关系管理</text>
+        <text class="prop-desc">4766+ 联系人，互动记录、冷却预警、重要日期</text>
+      </view>
+    </view>
+    <view class="prop-item">
+      <text class="prop-icon">📋</text>
+      <view class="prop-text">
+        <text class="prop-title">待办事项</text>
+        <text class="prop-desc">该联系谁、该做什么，一目了然</text>
+      </view>
+    </view>
+    <view class="prop-item">
+      <text class="prop-icon">📡</text>
+      <view class="prop-text">
+        <text class="prop-title">科技商业信号</text>
+        <text class="prop-desc">每日精选科技商业动态，发现合作机会</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 注册按钮 -->
+  <view class="cta-section">
+    <button class="btn btn-primary btn-block" bindtap="register" loading="{{registering}}">
+      {{registering ? '注册中…' : '一键注册，开始使用'}}
+    </button>
+    <view class="alt-option">
+      <text class="text-dim text-sm">已有 Web 账号？</text>
+      <text class="text-accent text-sm" bindtap="goBind" style="text-decoration:underline;margin-left:4px">去绑定</text>
+    </view>
+  </view>
+
+  <!-- 底部 -->
+  <view class="footer">
+    <text class="text-dimmer text-xs">注册即同意 Welian 隐私政策</text>
+    <text class="text-dimmer text-xs">你的数据只属于你，不会用于商业目的</text>
+  </view>
+</view>

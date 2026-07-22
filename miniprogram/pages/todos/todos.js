@@ -178,4 +178,11 @@ Page({
       },
     });
   },
+
+  onShareAppMessage() {
+    return {
+      title: 'Welian — 该联系谁、该做什么，一目了然',
+      path: '/pages/welcome/welcome',
+    };
+  },
 });

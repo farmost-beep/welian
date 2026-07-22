@@ -151,6 +151,8 @@ Page({
                 codeSent: false,
               });
               wx.showToast({ title: '已解绑', icon: 'none' });
+              // 解绑后跳回 welcome 页
+              setTimeout(() => wx.reLaunch({ url: '/pages/welcome/welcome' }), 1500);
             } else {
               wx.showToast({ title: res.data.error || '解绑失败', icon: 'none' });
             }
@@ -159,5 +161,12 @@ Page({
         });
       },
     });
+  },
+
+  onShareAppMessage() {
+    return {
+      title: 'Welian ∞ — 更用心，更好的关系',
+      path: '/pages/welcome/welcome',
+    };
   },
 });

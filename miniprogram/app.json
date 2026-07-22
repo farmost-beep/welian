@@ -5,6 +5,7 @@
     "pages/contacts/contacts",
     "pages/todos/todos",
     "pages/mine/mine",
+    "pages/welcome/welcome",
     "pages/weekly/weekly",
     "pages/billing/billing",
     "pages/contact-detail/contact-detail"

@@ -1,0 +1,95 @@
+/* pages/welcome/welcome.wxss */
+.welcome {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 48rpx 60rpx;
+}
+
+/* 品牌 */
+.brand-section {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  margin-bottom: 12rpx;
+}
+.brand-name {
+  font-size: 72rpx;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #1A1915;
+}
+.brand-inf {
+  font-size: 64rpx;
+  color: #C96442;
+}
+.brand-tagline {
+  font-size: 28rpx;
+  color: #6B6860;
+  margin-bottom: 64rpx;
+  text-align: center;
+}
+
+/* 价值主张 */
+.value-props {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+  margin-bottom: 64rpx;
+}
+.prop-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+.prop-icon {
+  font-size: 44rpx;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+.prop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.prop-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+.prop-desc {
+  font-size: 26rpx;
+  color: #6B6860;
+  line-height: 1.5;
+}
+
+/* CTA */
+.cta-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: auto;
+}
+.btn-primary {
+  background: #C96442;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.alt-option {
+  display: flex;
+  align-items: center;
+}
+
+/* 底部 */
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  margin-top: 40rpx;
+}

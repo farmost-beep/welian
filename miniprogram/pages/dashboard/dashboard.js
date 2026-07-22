@@ -194,4 +194,11 @@ Page({
   goContacts() {
     wx.switchTab({ url: '/pages/contacts/contacts' });
   },
+
+  onShareAppMessage() {
+    return {
+      title: 'Welian — 更好的朋友、更好的家人、更好的合作者',
+      path: '/pages/welcome/welcome',
+    };
+  },
 });

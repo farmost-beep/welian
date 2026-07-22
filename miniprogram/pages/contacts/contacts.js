@@ -65,4 +65,11 @@ Page({
     this.loadContacts();
     setTimeout(() => wx.stopPullDownRefresh(), 1000);
   },
+
+  onShareAppMessage() {
+    return {
+      title: 'Welian — 管好你的关系网络',
+      path: '/pages/welcome/welcome',
+    };
+  },
 });

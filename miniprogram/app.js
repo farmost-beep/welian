@@ -9,6 +9,7 @@ App({
     plan: 'free',
     credits: 100,
     isLoggedIn: false,
+    isBound: false,
     theme: {
       bg: '#F5F4EE',
       surface: '#EDEBE3',
@@ -27,16 +28,29 @@ App({
     console.log('Welian 小程序启动 — 更用心 ∞');
     // Auto-login on launch
     if (!api.isLoggedIn()) {
-      api.login().then((result) => {
+      api.login().then(() => {
         this.globalData.isLoggedIn = true;
-        if (result.isNewUser) {
-          console.log('[app] New user logged in');
-        }
+        this.checkBindingStatus();
       }).catch((err) => {
         console.error('[app] Login failed:', err.message);
       });
     } else {
       this.globalData.isLoggedIn = true;
+      this.checkBindingStatus();
+    }
+  },
+
+  // 检查绑定状态：未绑定的用户跳转 welcome 页
+  checkBindingStatus() {
+    const token = api.getToken();
+    if (!token) return;
+    // token 以 user_ 开头 = 已绑定/已注册
+    // token 以 wxmp_ 开头 = 未绑定，需要注册或绑定
+    const isBound = token.startsWith('user_');
+    this.globalData.isBound = isBound;
+    if (!isBound) {
+      // 未绑定 → 跳转 welcome 页
+      wx.reLaunch({ url: '/pages/welcome/welcome' });
     }
   },
 });
