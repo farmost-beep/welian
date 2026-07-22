@@ -56,6 +56,11 @@
 
   <!-- 功能入口 -->
   <view class="menu-group">
+    <view class="menu-item" bindtap="goChat">
+      <text class="menu-icon">💬</text>
+      <text class="menu-text">和小维对话</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
     <view class="menu-item" bindtap="goWeekly">
       <text class="menu-icon">📋</text>
       <text class="menu-text">周报</text>

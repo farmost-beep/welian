@@ -37,10 +37,6 @@
         "text": "关系"
       },
       {
-        "pagePath": "pages/chat/chat",
-        "text": "对话"
-      },
-      {
         "pagePath": "pages/todos/todos",
         "text": "待办"
       },

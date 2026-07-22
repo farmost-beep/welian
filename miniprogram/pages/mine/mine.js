@@ -43,6 +43,10 @@ Page({
     wx.navigateTo({ url: '/pages/weekly/weekly' });
   },
 
+  goChat() {
+    wx.navigateTo({ url: '/pages/chat/chat' });
+  },
+
   goBilling() {
     wx.navigateTo({ url: '/pages/billing/billing' });
   },
