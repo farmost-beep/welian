@@ -1,2 +1,37 @@
-<!-- pages/article/article.wxml — 原文阅读页 -->
-<web-view src="{{articleUrl}}"></web-view>
+<!-- pages/article/article.wxml — 原文阅读页（rich-text） -->
+<view class="article-page">
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <view class="loading-spinner"></view>
+    <text class="text-dim">正在加载原文…</text>
+  </view>
+
+  <!-- 加载失败 -->
+  <view wx:elif="{{error}}" class="error-wrap">
+    <text class="error-icon">📄</text>
+    <text class="error-text">{{error}}</text>
+    <view class="error-actions">
+      <button class="btn btn-block" bindtap="copyLink">复制链接在浏览器打开</button>
+    </view>
+  </view>
+
+  <!-- 不支持的内容类型 -->
+  <view wx:elif="{{unsupported}}" class="error-wrap">
+    <text class="error-icon">📄</text>
+    <text class="error-text">此内容不支持在应用内阅读</text>
+    <view class="error-actions">
+      <button class="btn btn-block" bindtap="copyLink">复制链接在浏览器打开</button>
+    </view>
+  </view>
+
+  <!-- 文章正文 -->
+  <block wx:else>
+    <view class="article-title">{{title}}</view>
+    <rich-text class="article-content" nodes="{{content}}"></rich-text>
+    <view class="article-footer">
+      <view class="copy-link-btn" bindtap="copyLink">
+        <text>📋 复制原文链接</text>
+      </view>
+    </view>
+  </block>
+</view>
