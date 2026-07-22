@@ -360,5 +360,6 @@ async function loadClerkUI(publishableKey) {
 <!-- Sentry error monitoring -->
 <script src="https://browser.sentry-cdn.com/8-54.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
 <script>Sentry.init({dsn:"https://299717381c6a6d0a0eef20ff89ada9e8@o4511748781047808.ingest.us.sentry.io/4511748980604928",tracesSampleRate:0.1});</script>
+<script>fetch('https://api.welian.app/ai/track_pageview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({page:'app'})}).catch(()=>{})</script>
 </body>
 </html>

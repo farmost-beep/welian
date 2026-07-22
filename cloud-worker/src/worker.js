@@ -4152,9 +4152,55 @@ function getWeekKey(dateStr) {
   return `${date.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
 }
 
+// ── DAU tracking ──
+// Stores daily active users as a comma-separated list in KV (lightweight set)
+// Key: dau:YYYY-MM-DD, TTL: 35 days
+async function trackDAU(env, userId) {
+  if (!userId) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `dau:${today}`;
+  const existing = await env.USER_DATA.get(key);
+  const users = existing ? existing.split(',').filter(Boolean) : [];
+  if (!users.includes(userId)) {
+    users.push(userId);
+    await env.USER_DATA.put(key, users.join(','), { expirationTtl: 3024000 }); // 35 days
+  }
+}
+
+// Get DAU stats for last N days (public, no auth required)
+async function handleDauStats(env) {
+  const days = 14;
+  const stats = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateKey = d.toISOString().slice(0, 10);
+    const data = await env.USER_DATA.get(`dau:${dateKey}`);
+    const count = data ? data.split(',').filter(Boolean).length : 0;
+    stats.push({ date: dateKey, dau: count });
+  }
+  // Also track anonymous pageviews (signals.html visitors)
+  const todayKey = now.toISOString().slice(0, 10);
+  const pvData = await env.USER_DATA.get(`pageviews:${todayKey}`);
+  const pageviews = pvData ? parseInt(pvData) : 0;
+  return {
+    status: 200,
+    data: {
+      days: stats,
+      today_dau: stats[stats.length - 1]?.dau || 0,
+      avg_dau_7d: Math.round(stats.slice(-7).reduce((a, b) => a + b.dau, 0) / 7),
+      pageviews_today: pageviews,
+      goal: 1000,
+      progress: Math.round(((stats[stats.length - 1]?.dau || 0) / 1000) * 100),
+    },
+  };
+}
+
 // Track a relationship action event (North Star metric)
 async function trackAction(env, userId, actionType, meta = {}) {
   if (!userId) return;
+  // Track DAU (fire-and-forget, non-blocking)
+  trackDAU(env, userId).catch(() => {});
   const metrics = await loadMetrics(env, userId);
   const wk = getWeekKey(new Date().toISOString());
   if (!metrics.weekly[wk]) {
@@ -5229,24 +5275,39 @@ async function handleCalendarFeed(req, env) {
   const dtstamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   let events = [];
 
+  // Helper: compute next day for DTEND (all-day events require DTEND in Outlook)
+  function nextDay(yyyymmdd) {
+    const y = parseInt(yyyymmdd.slice(0, 4));
+    const m = parseInt(yyyymmdd.slice(4, 6));
+    const d = parseInt(yyyymmdd.slice(6, 8));
+    const dt = new Date(y, m - 1, d + 1);
+    return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+  }
+
   // Pending todos with due dates → VEVENT (all-day)
   todos.forEach(t => {
     if (t.status && t.status !== 'pending') return;
     if (!t.due) return;
     const due = t.due.length === 10 ? t.due : t.due.substring(0, 10);
     if (!due) return;
+    const dueCompact = due.replace(/-/g, '');
     const summary = escapeICal(t.task || '待办');
     const contactName = (contacts.find(c => c.id === t.contact) || {}).name;
     const desc = contactName ? escapeICal(`联系人: ${contactName}`) : '';
     const priorityMap = { P1: '1', P2: '5', P3: '9' };
+    // LAST-MODIFIED: use todo's updated/created timestamp if available, else now
+    const modTs = t.updated_at || t.created_at || t.timestamp;
+    const lastMod = modTs ? new Date(modTs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z' : dtstamp;
     events.push(
       `BEGIN:VEVENT` +
       `\nUID:${t.id}@welian.app` +
       `\nDTSTAMP:${dtstamp}` +
-      `\nDTSTART;VALUE=DATE:${due.replace(/-/g, '')}` +
+      `\nDTSTART;VALUE=DATE:${dueCompact}` +
+      `\nDTEND;VALUE=DATE:${nextDay(dueCompact)}` +
       `\nSUMMARY:${summary}` +
       (desc ? `\nDESCRIPTION:${desc}` : '') +
       (t.priority ? `\nPRIORITY:${priorityMap[t.priority] || '5'}` : '') +
+      `\nLAST-MODIFIED:${lastMod}` +
       `\nSTATUS:CONFIRMED` +
       `\nEND:VEVENT`
     );
@@ -5267,8 +5328,10 @@ async function handleCalendarFeed(req, env) {
         `\nUID:${c.id}-${mmdd}@welian.app` +
         `\nDTSTAMP:${dtstamp}` +
         `\nDTSTART;VALUE=DATE:${yyyymmdd}` +
+        `\nDTEND;VALUE=DATE:${nextDay(yyyymmdd)}` +
         `\nSUMMARY:${escapeICal(c.name)} - ${escapeICal(label)}` +
         `\nRRULE:FREQ=YEARLY` +
+        `\nLAST-MODIFIED:${dtstamp}` +
         `\nSTATUS:CONFIRMED` +
         `\nEND:VEVENT`
       );
@@ -5295,7 +5358,7 @@ async function handleCalendarFeed(req, env) {
     status: 200,
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Cache-Control': 'no-cache, max-age=3600',
+      'Cache-Control': 'max-age=300, must-revalidate',
       'Access-Control-Allow-Origin': '*',
     },
   });
@@ -5727,6 +5790,18 @@ export default {
         return jsonResponse({ ok: true, message: 'Daily signals push triggered' });
       }
 
+      // ── Manual trigger for evening recap push (admin only) ──
+
+      if (path === '/ai/evening_recap_push' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = await getVerifiedUserId(request, env, body);
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const admin = await isAdmin(userId, env);
+        if (!admin) return jsonResponse({ error: 'Admin only' }, 403);
+        const result = await handleEveningSignalsPush(env);
+        return jsonResponse({ ok: true, message: 'Evening recap push triggered' });
+      }
+
       // ── Diagnostic: WeChat token + signals push status (admin only) ──
 
       if (path === '/ai/wechat_diagnostic' && method === 'GET') {
@@ -5795,6 +5870,97 @@ export default {
         if (!admin) return jsonResponse({ error: 'Admin only' }, 403);
         const r = await handleFunnelMetrics(env);
         return jsonResponse(r.data, r.status);
+      }
+
+      // ── DAU stats (public, no auth) ──
+      if (path === '/ai/dau_stats' && method === 'GET') {
+        const r = await handleDauStats(env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── Anonymous pageview tracking (public) ──
+      if (path === '/ai/track_pageview' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const page = body.page || 'unknown';
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const pvKey = `pageviews:${todayKey}`;
+        const existing = await env.USER_DATA.get(pvKey);
+        const count = existing ? parseInt(existing) : 0;
+        await env.USER_DATA.put(pvKey, String(count + 1), { expirationTtl: 86400 });
+        // Also track per-page views
+        const pageKey = `pageviews:${page}:${todayKey}`;
+        const pageExisting = await env.USER_DATA.get(pageKey);
+        const pageCount = pageExisting ? parseInt(pageExisting) : 0;
+        await env.USER_DATA.put(pageKey, String(pageCount + 1), { expirationTtl: 86400 });
+        return jsonResponse({ ok: true });
+      }
+
+      // ── Email subscription for daily signals digest (public) ──
+      if (path === '/ai/subscribe' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const email = (body.email || '').trim().toLowerCase();
+        if (!email || !email.includes('@') || !email.includes('.')) {
+          return jsonResponse({ error: '请输入有效邮箱' }, 400);
+        }
+        // Store subscription (dedup by email)
+        const subKey = `sub:${email}`;
+        const existing = await env.USER_DATA.get(subKey);
+        if (existing) {
+          return jsonResponse({ ok: true, message: '已订阅，无需重复' });
+        }
+        const subId = `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await env.USER_DATA.put(subKey, JSON.stringify({
+          email, subId, subscribed_at: new Date().toISOString(),
+        }));
+        // Add to daily digest list
+        const listKey = 'subscribers:daily_signals';
+        const list = await env.USER_DATA.get(listKey);
+        const emails = list ? JSON.parse(list) : [];
+        if (!emails.includes(email)) {
+          emails.push(email);
+          await env.USER_DATA.put(listKey, JSON.stringify(emails));
+        }
+        // Send welcome email
+        const welcomeHtml = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:20px;color:#2C2C2C">
+          <h1 style="color:#4A6741">订阅成功 ✅</h1>
+          <p>每天早上 7:00，你会收到今日科技商业信号摘要：</p>
+          <ul>
+            <li>📊 15 条高信号新闻（按价值排序）</li>
+            <li>🔥 当日热点主题</li>
+            <li>💡 AI 解读为什么重要</li>
+          </ul>
+          <p>覆盖 AI、投资、科技金融三大领域，从 23 个信息源筛选。</p>
+          <p style="margin-top:24px;font-size:13px;color:#999">
+            不想再收到？<a href="https://api.welian.app/ai/unsubscribe?email=${encodeURIComponent(email)}&id=${subId}" style="color:#4A6741">取消订阅</a>
+          </p>
+          <p style="margin-top:16px"><a href="https://welian.app/signals.html" style="display:inline-block;padding:10px 24px;background:#4A6741;color:#fff;border-radius:8px;text-decoration:none">查看完整信号 →</a></p>
+        </body></html>`;
+        await sendEmail(env, email, '订阅成功 | Welian 每日信号', welcomeHtml);
+        return jsonResponse({ ok: true, message: '订阅成功，请查收确认邮件' });
+      }
+
+      // ── Unsubscribe (public, GET with query params) ──
+      if (path === '/ai/unsubscribe' && method === 'GET') {
+        const email = (url.searchParams.get('email') || '').trim().toLowerCase();
+        const subId = url.searchParams.get('id') || '';
+        if (!email) return jsonResponse({ error: '缺少参数' }, 400);
+        const subKey = `sub:${email}`;
+        const existing = await env.USER_DATA.get(subKey);
+        if (existing) {
+          const parsed = JSON.parse(existing);
+          if (parsed.subId === subId || !subId) {
+            await env.USER_DATA.delete(subKey);
+            // Remove from list
+            const listKey = 'subscribers:daily_signals';
+            const list = await env.USER_DATA.get(listKey);
+            if (list) {
+              const emails = JSON.parse(list).filter(e => e !== email);
+              await env.USER_DATA.put(listKey, JSON.stringify(emails));
+            }
+            return new Response('<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px"><h1 style="color:#4A6741">已取消订阅</h1><p>不会再收到每日信号邮件了。</p><p><a href="https://welian.app/signals.html">仍可随时访问网页版 →</a></p></body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+          }
+        }
+        return new Response('<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>链接已失效</h1><p>可能是已取消或链接过期。</p></body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
       }
 
       // ── Network: relationship path search & recommendations ──
@@ -6730,6 +6896,10 @@ ${chatText}
       tasks.push(handleDailySignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_signals' } })));
       tasks.push(handleDailyAdvisePush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_advise' } })));
     }
+    // Daily 14:00 UTC (22:00 CST) → evening recap push to WeChat
+    if (cronExpr === '0 14 * * *') {
+      tasks.push(handleEveningSignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'evening_recap' } })));
+    }
     // 1st & 15th of month 01:00 UTC (09:00 CST) → biweekly health warning push
     if (cronExpr === '0 1 1,15 * *') {
       tasks.push(handleHealthWarningPush(env).catch(e => captureException(env, e, { tags: { handler: 'health_warning' } })));
@@ -7016,7 +7186,7 @@ Return JSON with this exact structure:
     {
       "title": "标题（中文）",
       "url": "原始链接",
-      "source": "来源（HN/36氪/虎嗅/头条/微信/机器之心/华尔街见闻/投资界/Product Hunt/TechCrunch/The Verge/ArXiv/V2EX）",
+      "source": "来源（HN/36氪/36氪快讯/虎嗅/头条/微信/机器之心/华尔街见闻/投资界/Product Hunt/TechCrunch/The Verge/ArXiv/V2EX/财联社/新浪财经/证监会/GitHub/InfoQ/雪球/第一财经/Reddit ML/HuggingFace）",
       "points": 分数或0,
       "why": "为什么这对用户重要（结合用户行业/联系人上下文）",
       "action": "建议行动：可以跟谁聊/分享给谁/关注什么",
@@ -7044,7 +7214,7 @@ Return JSON with this exact structure:
 }
 
 Rules:
-- 最多选 10 条高信号故事（从所有来源中筛选）
+- 最多选 15 条高信号故事（从所有来源中筛选）
 - "why" 必须结合用户的行业和联系人网络
 - "action" 要具体：提到可以分享给的联系人类型或具体方向
 - **related_contacts 是核心功能**：对每条 signal，检查用户联系人列表，找出最相关的 1-3 个联系人。匹配依据：
@@ -7241,31 +7411,10 @@ async function handleAnnualReport(req, env) {
   }
 }
 
-async function handleHnSignals(req, env) {
-  const body = await req.json().catch(() => ({}));
-  const userId = await getVerifiedUserId(req, env, body);
-  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
-
-  // Cache: same-day cache (25h TTL), bypass with refresh=1
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const cacheKey = `hn_signals:${userId}:${todayKey}`;
-  if (!body.refresh) {
-    const cached = await env.USER_DATA.get(cacheKey);
-    if (cached) {
-      return { status: 200, data: JSON.parse(cached) };
-    }
-  }
-
-  // ── Load user signal domain preferences ──
-  let userDomains = ['investment', 'ai', 'tech_finance']; // default: all three
-  try {
-    const domainsRaw = await env.USER_DATA.get(`signal_domains:${userId}`);
-    if (domainsRaw) userDomains = JSON.parse(domainsRaw);
-  } catch { /* domain prefs optional */ }
-
-  // ── Fetch from multiple sources in parallel ──
-  // Sources are tagged with domains: investment, ai, tech_finance, general
-  const [hnStories, kr36Stories, huxiuStories, jiqizhixinStories, wallstreetStories, bbtStories, toutiaoStories, weixinStories, producthuntStories, techcrunchStories, vergeStories, arxivStories, v2exStories] = await Promise.all([
+// ── Shared: fetch all signal sources in parallel ──
+// userDomains controls which domain-filtered sources are fetched (pass all 5 for public preview)
+async function fetchAllSignalSources(userDomains) {
+  const [hnStories, kr36Stories, huxiuStories, kr36FlashStories, jiqizhixinStories, wallstreetStories, bbtStories, toutiaoStories, weixinStories, producthuntStories, techcrunchStories, vergeStories, arxivStories, v2exStories, clsStories, sinaFinanceStories, csrcStories, githubStories, infoqStories, xueqiuStories, yicaiStories, redditMLStories, hfPapersStories] = await Promise.all([
     // Source 1: Hacker News (Algolia API) — general/ai/tech
     (async () => {
       try {
@@ -7282,7 +7431,7 @@ async function handleHnSignals(req, env) {
             comments: h.num_comments || 0,
             hn_url: `https://news.ycombinator.com/item?id=${h.objectID}`,
             domains: ['ai', 'tech_finance', 'general'],
-          })).filter(s => s.title).slice(0, 20);
+          })).filter(s => s.title).slice(0, 12);
         }
       } catch (e) { console.error('HN fetch error:', e.message); }
       return [];
@@ -7293,20 +7442,31 @@ async function handleHnSignals(req, env) {
         const resp = await fetch('https://36kr.com/feed', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, '36氪', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+          return parseRssItems(xml, '36氪', 8).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
         }
       } catch (e) { console.error('36kr fetch error:', e.message); }
       return [];
     })(),
-    // Source 3: 虎嗅 RSS (via RSSHub mirror) — general/tech_finance
+    // Source 3: 虎嗅 RSS (via RSSHub) — general/tech_finance
     (async () => {
       try {
         const resp = await fetch('https://rsshub.rssforever.com/huxiu/article', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, '虎嗅', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+          return parseRssItems(xml, '虎嗅', 8).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
         }
       } catch (e) { console.error('huxiu fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 3b: 36氪快讯 (via RSSHub) — tech_finance/general, faster newsflashes
+    (async () => {
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/36kr/newsflashes', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '36氪快讯', 10).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+        }
+      } catch (e) { console.error('36kr newsflashes fetch error:', e.message); }
       return [];
     })(),
     // Source 4: 机器之心 RSS (via RSSHub) — ai
@@ -7316,7 +7476,7 @@ async function handleHnSignals(req, env) {
         const resp = await fetch('https://rsshub.rssforever.com/jiqizhixin/article', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, '机器之心', 15).map(s => ({ ...s, domains: ['ai'] }));
+          return parseRssItems(xml, '机器之心', 8).map(s => ({ ...s, domains: ['ai'] }));
         }
       } catch (e) { console.error('jiqizhixin fetch error:', e.message); }
       return [];
@@ -7328,7 +7488,7 @@ async function handleHnSignals(req, env) {
         const resp = await fetch('https://rsshub.rssforever.com/wallstreetcn/news/global', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, '华尔街见闻', 15).map(s => ({ ...s, domains: ['investment'] }));
+          return parseRssItems(xml, '华尔街见闻', 10).map(s => ({ ...s, domains: ['investment'] }));
         }
       } catch (e) { console.error('wallstreetcn fetch error:', e.message); }
       return [];
@@ -7408,7 +7568,7 @@ async function handleHnSignals(req, env) {
         const resp = await fetch('https://techcrunch.com/feed/', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, 'TechCrunch', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+          return parseRssItems(xml, 'TechCrunch', 8).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
         }
       } catch (e) { console.error('techcrunch fetch error:', e.message); }
       return [];
@@ -7419,7 +7579,7 @@ async function handleHnSignals(req, env) {
         const resp = await fetch('https://www.theverge.com/rss/index.xml', { headers: { 'User-Agent': 'Welian/1.0' } });
         if (resp.ok) {
           const xml = await resp.text();
-          return parseRssItems(xml, 'The Verge', 15).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
+          return parseRssItems(xml, 'The Verge', 8).map(s => ({ ...s, domains: ['tech_finance', 'general'] }));
         }
       } catch (e) { console.error('verge fetch error:', e.message); }
       return [];
@@ -7465,15 +7625,184 @@ async function handleHnSignals(req, env) {
       } catch (e) { console.error('v2ex fetch error:', e.message); }
       return [];
     })(),
+    // Source 14: 财联社电报 (via RSSHub) — investment, A股实时快讯
+    (async () => {
+      if (!userDomains.includes('investment') && !userDomains.includes('policy')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/cls/telegraph', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '财联社', 10).map(s => ({ ...s, domains: ['investment'] }));
+        }
+      } catch (e) { console.error('cls fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 15: 新浪财经 (RSS) — investment, A股/港股/银行
+    (async () => {
+      if (!userDomains.includes('investment')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/sina/finance', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '新浪财经', 8).map(s => ({ ...s, domains: ['investment'] }));
+        }
+      } catch (e) { console.error('sina finance fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 16: 证监会 (via RSSHub) — policy, 监管政策
+    (async () => {
+      if (!userDomains.includes('policy')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/gov/zhengjianhui/bulletin', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '证监会', 10).map(s => ({ ...s, domains: ['policy', 'investment'] }));
+        }
+      } catch (e) { console.error('csrc fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 17: GitHub Trending (HTML scrape) — ai/tech_finance, open source trends
+    (async () => {
+      try {
+        const resp = await fetch('https://github.com/trending?since=daily', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const html = await resp.text();
+          const items = [];
+          const repoRegex = /<h2[^>]*>\s*<a href="\/([^"]+)"[^>]*>/g;
+          let match;
+          while ((match = repoRegex.exec(html)) && items.length < 15) {
+            const repo = match[1];
+            items.push({
+              title: repo,
+              url: `https://github.com/${repo}`,
+              source: 'GitHub',
+              points: 0,
+              domains: ['ai', 'tech_finance', 'general'],
+            });
+          }
+          return items;
+        }
+      } catch (e) { console.error('github trending fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 18: InfoQ 中文 (RSS) — ai/tech_finance, 架构/技术落地
+    (async () => {
+      if (!userDomains.includes('ai') && !userDomains.includes('tech_finance')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/infoq/recommend', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, 'InfoQ', 8).map(s => ({ ...s, domains: ['ai', 'tech_finance'] }));
+        }
+      } catch (e) { console.error('infoq fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 19: 雪球热帖 (via RSSHub) — investment, A股投资社区
+    (async () => {
+      if (!userDomains.includes('investment')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/xueqiu/trending', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '雪球', 8).map(s => ({ ...s, domains: ['investment'] }));
+        }
+      } catch (e) { console.error('xueqiu fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 20: 第一财经 (RSS) — investment/tech_finance, 财经+科技交叉
+    (async () => {
+      if (!userDomains.includes('investment') && !userDomains.includes('tech_finance')) return [];
+      try {
+        const resp = await fetch('https://rsshub.rssforever.com/yicai/news', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const xml = await resp.text();
+          return parseRssItems(xml, '第一财经', 8).map(s => ({ ...s, domains: ['investment', 'tech_finance'] }));
+        }
+      } catch (e) { console.error('yicai fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 21: Reddit r/MachineLearning (JSON API) — ai, 学术圈讨论
+    (async () => {
+      if (!userDomains.includes('ai')) return [];
+      try {
+        const resp = await fetch('https://www.reddit.com/r/MachineLearning/hot.json?limit=10', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const data = await resp.json();
+          return (data.data?.children || []).slice(0, 10).map(p => ({
+            title: p.data?.title || '',
+            url: `https://www.reddit.com${p.data?.permalink || ''}`,
+            source: 'Reddit ML',
+            points: p.data?.score || 0,
+            domains: ['ai'],
+          })).filter(s => s.title);
+        }
+      } catch (e) { console.error('reddit ML fetch error:', e.message); }
+      return [];
+    })(),
+    // Source 22: Hugging Face Daily Papers (HTML scrape) — ai, 精选AI论文
+    (async () => {
+      if (!userDomains.includes('ai')) return [];
+      try {
+        const resp = await fetch('https://huggingface.co/papers', { headers: { 'User-Agent': 'Welian/1.0' } });
+        if (resp.ok) {
+          const html = await resp.text();
+          const items = [];
+          const paperRegex = /<a href="\/papers\/([^"]+)"[^>]*>/g;
+          const seen = new Set();
+          let match;
+          while ((match = paperRegex.exec(html)) && items.length < 10) {
+            const paperId = match[1];
+            if (seen.has(paperId)) continue;
+            seen.add(paperId);
+            items.push({
+              title: paperId,
+              url: `https://huggingface.co/papers/${paperId}`,
+              source: 'HuggingFace',
+              points: 0,
+              domains: ['ai'],
+            });
+          }
+          return items;
+        }
+      } catch (e) { console.error('huggingface papers fetch error:', e.message); }
+      return [];
+    })(),
   ]);
 
-  // Filter stories by user's domain preferences
-  let allStories = [...hnStories, ...kr36Stories, ...huxiuStories, ...jiqizhixinStories, ...wallstreetStories, ...bbtStories, ...toutiaoStories, ...weixinStories, ...producthuntStories, ...techcrunchStories, ...vergeStories, ...arxivStories, ...v2exStories];
-  // Filter: keep stories that have at least one domain matching user preferences, or have no domain tag (legacy)
+  // Merge and filter by user's domain preferences
+  let allStories = [...hnStories, ...kr36Stories, ...huxiuStories, ...kr36FlashStories, ...jiqizhixinStories, ...wallstreetStories, ...bbtStories, ...toutiaoStories, ...weixinStories, ...producthuntStories, ...techcrunchStories, ...vergeStories, ...arxivStories, ...v2exStories, ...clsStories, ...sinaFinanceStories, ...csrcStories, ...githubStories, ...infoqStories, ...xueqiuStories, ...yicaiStories, ...redditMLStories, ...hfPapersStories];
   allStories = allStories.filter(s => {
-    if (!s.domains || s.domains.length === 0) return true; // legacy stories without domain tag
+    if (!s.domains || s.domains.length === 0) return true;
     return s.domains.some(d => userDomains.includes(d) || d === 'general');
   });
+
+  return allStories;
+}
+
+async function handleHnSignals(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  // Cache: same-day cache (25h TTL), bypass with refresh=1
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const cacheKey = `hn_signals:${userId}:${todayKey}`;
+  if (!body.refresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      return { status: 200, data: JSON.parse(cached) };
+    }
+  }
+
+  // ── Load user signal domain preferences ──
+  let userDomains = ['investment', 'ai', 'tech_finance']; // default: three core domains
+  try {
+    const domainsRaw = await env.USER_DATA.get(`signal_domains:${userId}`);
+    if (domainsRaw) userDomains = JSON.parse(domainsRaw);
+  } catch { /* domain prefs optional */ }
+
+  // ── Fetch from all sources ──
+  const allStories = await fetchAllSignalSources(userDomains);
 
   if (allStories.length === 0) {
     return { status: 200, data: { ok: true, report: { greeting: '今天暂时无法获取新闻数据', signals: [], contact_signals: [], themes: [], closing: '稍后再试' }, raw_data: { stories: [] } } };
@@ -7593,7 +7922,7 @@ async function handleHnSignals(req, env) {
 
   const industryDesc = industry || focusAreas || '金融科技/银行/支付';
 
-  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 虎嗅, 头条, 微信, 机器之心, 华尔街见闻, 投资界, Product Hunt, TechCrunch, The Verge, ArXiv, V2EX):
+  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 36氪快讯, 虎嗅, 头条, 微信, 机器之心, 华尔街见闻, 投资界, Product Hunt, TechCrunch, The Verge, ArXiv, V2EX, 财联社, 新浪财经, 证监会, GitHub, InfoQ, 雪球, 第一财经, Reddit ML, HuggingFace):
 ${storiesText}
 
 ${contactSearchText ? `\nUser's key contacts' company news (from web search):\n${contactSearchText}\n` : ''}
@@ -7690,48 +8019,9 @@ async function handleSignalsPreview(req, env) {
     }
   }
 
-  // Fetch from multiple sources in parallel (same as handleHnSignals but no user context)
-  const [hnStories, kr36Stories, huxiuStories] = await Promise.all([
-    (async () => {
-      try {
-        const resp = await fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', {
-          headers: { 'User-Agent': 'Welian/1.0' },
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          return (data.hits || []).map(h => ({
-            title: h.title || h.story_title || '',
-            url: h.url || h.story_url || '',
-            source: 'HN',
-            points: h.points || 0,
-          })).filter(s => s.title).slice(0, 20);
-        }
-      } catch (e) { console.error('HN fetch error:', e.message); }
-      return [];
-    })(),
-    (async () => {
-      try {
-        const resp = await fetch('https://36kr.com/feed', { headers: { 'User-Agent': 'Welian/1.0' } });
-        if (resp.ok) {
-          const xml = await resp.text();
-          return parseRssItems(xml, '36氪', 15);
-        }
-      } catch (e) { console.error('36kr fetch error:', e.message); }
-      return [];
-    })(),
-    (async () => {
-      try {
-        const resp = await fetch('https://rsshub.rssforever.com/huxiu/article', { headers: { 'User-Agent': 'Welian/1.0' } });
-        if (resp.ok) {
-          const xml = await resp.text();
-          return parseRssItems(xml, '虎嗅', 15);
-        }
-      } catch (e) { console.error('huxiu fetch error:', e.message); }
-      return [];
-    })(),
-  ]);
-
-  const allStories = [...hnStories, ...kr36Stories, ...huxiuStories];
+  // Fetch from ALL sources (same as personalized mode, but no user context filtering)
+  const allDomains = ['investment', 'ai', 'tech_finance'];
+  const allStories = await fetchAllSignalSources(allDomains);
 
   if (allStories.length === 0) {
     // All news sources failed — try yesterday's snapshot as fallback
@@ -7749,7 +8039,7 @@ async function handleSignalsPreview(req, env) {
     return `${i + 1}. ${pts} [${s.source}] ${s.title}\n   URL: ${s.url || '(no url)'}`;
   }).join('\n');
 
-  const previewSystem = `You are Welian (小维), generating a public tech signal briefing from multiple news sources. This is a PUBLIC preview (no user context available).
+  const previewSystem = `You are Welian (小维), generating a public high-signal briefing from multiple news sources. This is a PUBLIC daily briefing — focus ONLY on high-signal stories, NOT personalized to any user.
 
 IMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences.
 
@@ -7760,9 +8050,10 @@ Return JSON:
     {
       "title": "标题（中文）",
       "url": "原始链接",
-      "source": "来源（HN/36氪/虎嗅）",
+      "source": "来源（HN/36氪/36氪快讯/虎嗅/头条/微信/机器之心/华尔街见闻/投资界/Product Hunt/TechCrunch/The Verge/ArXiv/V2EX/财联社/新浪财经/证监会/GitHub/InfoQ/雪球/第一财经/Reddit ML/HuggingFace）",
       "points": 分数或0,
-      "why": "为什么值得关注",
+      "value_score": 1到10的整数,
+      "why": "为什么值得关注（面向广泛读者，不关联特定行业或联系人）",
       "tags": ["标签1", "标签2"]
     }
   ],
@@ -7771,16 +8062,25 @@ Return JSON:
 }
 
 Rules:
-- 最多选 8 条高信号故事
+- 最多选 15 条高信号故事（从所有来源中筛选最具广泛影响力的）
+- 高信号标准：重大融资/收购、政策监管变化、技术突破、行业趋势转折点、重大产品发布
+- **按价值高低排序**：signals 数组第 1 条最重要，第 15 条最不重要
+- value_score 评分维度（1-10）：
+  · 影响范围（40%）：全球/全行业=高分，单一公司=低分
+  · 不可逆性（30%）：政策定调/并购完成=高分，产品发布/融资=中分
+  · 时效性（20%）：当天首发/突发=高分，持续讨论=低分
+  · 独家性（10%）：多源印证=高分，单源=低分
+- 不关联特定用户行业或联系人——这是面向公众的通用高信号简报
+- 如果同一条新闻在多个来源出现，合并为一条，source 列出所有来源
 - 中文输出，简洁有力
 - closing 要引导用户登录获取个性化信号（如"登录 welian.app 查看结合你关系网络的个性化信号"）`;
 
-  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 虎嗅):
+  const prompt = `Today's news from multiple sources (Hacker News, 36氪, 36氪快讯, 虎嗅, 头条, 微信, 机器之心, 华尔街见闻, 投资界, Product Hunt, TechCrunch, The Verge, ArXiv, V2EX, 财联社, 新浪财经, 证监会, GitHub, InfoQ, 雪球, 第一财经, Reddit ML, HuggingFace):
 ${storiesText}
 
-Select the most important and interesting stories. Generate a public signal briefing.`;
+Select the 15 most important and high-signal stories. Focus on: major funding/acquisitions, policy/regulatory changes, tech breakthroughs, industry trend shifts, major product launches. Generate a public high-signal briefing.`;
 
-  const llmResp = await callLLM(prompt, previewSystem, env, { max_tokens: 1500, temperature: 0.7 });
+  const llmResp = await callLLM(prompt, previewSystem, env, { max_tokens: 8000, temperature: 0.7 });
 
   let report;
   if (llmResp && llmResp.text) {
@@ -7795,15 +8095,30 @@ Select the most important and interesting stories. Generate a public signal brie
 
   // Fallback: if LLM failed or returned empty signals, build report from raw stories
   if (!report || !report.signals || report.signals.length === 0) {
+    console.log('[signals_preview] LLM failed, using fallback. llmResp:', llmResp ? 'has text' : 'null');
+    // Source priority weights — ensure Chinese sources aren't drowned out by HN points
+    const sourcePriority = {
+      '财联社': 100, '华尔街见闻': 95, '36氪快讯': 90, '新浪财经': 85, '第一财经': 85,
+      '证监会': 80, '雪球': 75, '投资界': 70, '36氪': 65, '虎嗅': 60, 'InfoQ': 60,
+      '机器之心': 55, '头条': 50, '微信': 50,
+      'TechCrunch': 45, 'The Verge': 40, 'Product Hunt': 35,
+      'GitHub': 30, 'HuggingFace': 30, 'ArXiv': 25, 'Reddit ML': 25,
+      'HN': 20, 'V2EX': 15,
+    };
     const fallbackSignals = allStories
-      .sort((a, b) => (b.points || 0) - (a.points || 0))
-      .slice(0, 8)
+      .map(s => ({
+        ...s,
+        // Composite score: source priority + points (normalized)
+        _score: (sourcePriority[s.source] || 10) + Math.min(s.points || 0, 50),
+      }))
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 15)
       .map(s => ({
         title: s.title,
         url: s.url || '',
         source: s.source,
         points: s.points || 0,
-        why: '',
+        why: s.source === 'HN' ? `HN ${s.points}分热帖` : `${s.source}头条`,
         tags: [],
       }));
     report = {
@@ -8739,9 +9054,11 @@ async function handleDailySignalsPush(env) {
 
   signals.forEach((s, i) => {
     const sourceTag = s.source ? `<span style="font-size:12px;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;margin-left:6px;">${escWechat(s.source)}</span>` : '';
+    const score = s.value_score || 0;
+    const scoreTag = score > 0 ? `<span style="font-size:12px;color:${score >= 8 ? '#c0392b' : score >= 6 ? '#e67e22' : '#999'};font-weight:600;margin-left:6px;">★${score}</span>` : '';
     const pts = s.points ? ` · ${s.points}pts` : '';
     html += `<section style="background:#FAFAF7;border:1px solid #E8E0D6;border-radius:12px;padding:16px;margin-bottom:14px;">`;
-    html += `<h3 style="font-size:16px;font-weight:600;margin-bottom:8px;">${escWechat(s.title || '')}${sourceTag}</h3>`;
+    html += `<h3 style="font-size:16px;font-weight:600;margin-bottom:8px;">${i + 1}. ${escWechat(s.title || '')}${sourceTag}${scoreTag}</h3>`;
     html += `<p style="font-size:13px;color:#999;margin-bottom:10px;">${pts}${s.source ? ` · 来源：${escWechat(s.source)}` : ''}</p>`;
     html += `<p style="font-size:15px;color:#555;line-height:1.7;"><strong style="color:#4A6741;">为什么重要：</strong>${escWechat(s.why || '')}</p>`;
     if (s.tags && s.tags.length > 0) {
@@ -8766,6 +9083,13 @@ async function handleDailySignalsPush(env) {
   if (report.closing) {
     html += `<p style="text-align:center;color:#999;font-size:14px;margin-top:20px;">${escWechat(report.closing)}</p>`;
   }
+
+  // Disclaimer
+  html += `<section style="margin-top:24px;padding:14px 16px;background:#f9f9f9;border-radius:8px;border-left:3px solid #ddd;">
+    <p style="font-size:12px;color:#999;line-height:1.7;margin:0;">
+      <strong style="color:#888;">免责声明</strong>：本内容由 AI 自动聚合公开信息生成，仅供信息参考，不构成任何投资、交易或商业决策建议。市场有风险，决策需谨慎。请以官方来源和专业人士意见为准。
+    </p>
+  </section>`;
 
   html += `<p style="text-align:center;color:#ccc;font-size:12px;margin-top:16px;">— 用 Welian 管理你的关系 · welian.app —</p>`;
   html += '</section>';
@@ -8834,6 +9158,346 @@ async function handleDailySignalsPush(env) {
   });
   msg += `\n完整文章已发布到公众号\n${report.closing || ''}\n\n— 用 Welian 管理你的关系：welian.app`;
   await pushSignalsToQueues(env, msg);
+
+  // Also send email digest to subscribers
+  await handleDailyEmailDigest(env, report).catch(e => console.error('[daily_email_digest] error:', e.message));
+}
+
+// Send daily signals digest to all email subscribers
+async function handleDailyEmailDigest(env, report) {
+  const listKey = 'subscribers:daily_signals';
+  const list = await env.USER_DATA.get(listKey);
+  if (!list) {
+    console.log('[daily_email_digest] No subscribers');
+    return;
+  }
+  const emails = JSON.parse(list);
+  if (emails.length === 0) return;
+
+  console.log(`[daily_email_digest] Sending to ${emails.length} subscribers`);
+
+  const today = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+  const signals = report.signals || [];
+  const themes = report.themes || [];
+
+  // Build email HTML
+  let html = `<!DOCTYPE html><html><body style="font-family:-apple-system,'PingFang SC',sans-serif;max-width:560px;margin:0 auto;padding:20px;color:#2C2C2C;background:#F5F4EE">`;
+  html += `<div style="background:#FAFAF7;border-radius:12px;padding:24px;margin-bottom:16px">`;
+  html += `<h1 style="color:#4A6741;font-size:22px;margin:0 0 8px">📡 今日信号 · ${today}</h1>`;
+  if (report.greeting) {
+    html += `<p style="color:#666;font-size:14px;line-height:1.7;margin:0">${report.greeting}</p>`;
+  }
+  html += `</div>`;
+
+  if (themes.length > 0) {
+    html += `<div style="margin-bottom:16px"><p style="font-size:13px;color:#888;margin:0 0 8px">🔥 热点主题</p>`;
+    themes.forEach(t => {
+      html += `<span style="display:inline-block;background:#4A6741;color:#fff;padding:3px 12px;border-radius:12px;font-size:13px;margin:2px">${t}</span>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div style="background:#FAFAF7;border-radius:12px;padding:20px;margin-bottom:16px">`;
+  html += `<p style="font-size:13px;color:#888;margin:0 0 12px">📊 关键信号（按价值排序）</p>`;
+  signals.slice(0, 10).forEach((s, i) => {
+    const score = s.value_score || 0;
+    const scoreTag = score > 0 ? ` <span style="color:${score >= 8 ? '#c0392b' : '#e67e22'};font-weight:600">★${score}</span>` : '';
+    html += `<div style="border-bottom:1px solid #eee;padding:12px 0">`;
+    html += `<p style="font-size:15px;font-weight:600;margin:0 0 4px">${i + 1}. ${s.title || ''}${scoreTag}</p>`;
+    html += `<p style="font-size:12px;color:#999;margin:0 0 6px">来源：${s.source || ''}</p>`;
+    if (s.why) {
+      html += `<p style="font-size:14px;color:#555;line-height:1.6;margin:0"><strong style="color:#4A6741">为什么重要：</strong>${s.why}</p>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  html += `<div style="text-align:center;padding:20px;background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:12px;margin-bottom:16px">`;
+  html += `<p style="color:#fff;font-size:16px;margin:0 0 8px">登录获取个性化信号</p>`;
+  html += `<p style="color:#fff;font-size:13px;opacity:0.9;margin:0 0 12px">结合你的行业、联系人网络和关系目标</p>`;
+  html += `<a href="https://welian.app/signals.html" style="display:inline-block;padding:10px 28px;background:#fff;color:#4A6741;border-radius:8px;text-decoration:none;font-weight:600">查看完整信号 →</a>`;
+  html += `</div>`;
+
+  html += `<p style="font-size:12px;color:#999;text-align:center;margin:16px 0">`;
+  html += `不想再收到？<a href="https://api.welian.app/ai/unsubscribe?email=EMAIL_PLACEHOLDER" style="color:#4A6741">取消订阅</a>`;
+  html += `</p>`;
+  html += `<p style="font-size:11px;color:#ccc;text-align:center">Welian 小维 · welian.app</p>`;
+  html += `</body></html>`;
+
+  const subject = `📡 今日信号 · ${today} | ${themes[0] || '科技商业快讯'}`;
+
+  let sent = 0, failed = 0;
+  for (const email of emails) {
+    // Replace placeholder with real unsubscribe link
+    const personalizedHtml = html.replace('EMAIL_PLACEHOLDER', encodeURIComponent(email));
+    const ok = await sendEmail(env, email, subject, personalizedHtml);
+    if (ok) sent++; else failed++;
+  }
+  console.log(`[daily_email_digest] Sent: ${sent}, Failed: ${failed}`);
+}
+
+// ── Evening recap push (22:00 CST) — summary + review of the day ──
+
+async function handleEveningSignalsPush(env) {
+  console.log('[evening_recap] Starting evening recap article publish');
+
+  // Load today's morning signals snapshot as the base
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const morningSnapshot = await env.USER_DATA.get(`signals_history:${todayKey}`);
+  let morningSignals = [];
+  let morningThemes = [];
+  if (morningSnapshot) {
+    const parsed = JSON.parse(morningSnapshot);
+    morningSignals = parsed.signals || [];
+    morningThemes = parsed.themes || [];
+  }
+
+  // Fetch fresh evening sources to catch afternoon updates
+  const allDomains = ['investment', 'ai', 'tech_finance'];
+  const eveningStories = await fetchAllSignalSources(allDomains);
+
+  if (eveningStories.length === 0 && morningSignals.length === 0) {
+    console.log('[evening_recap] No data available, skipping');
+    return;
+  }
+
+  // Build combined context: morning signals + fresh evening stories
+  const morningText = morningSignals.map((s, i) =>
+    `${i + 1}. [${s.source || '?'}] ${s.title || ''}${s.why ? `\n   早上解读: ${s.why}` : ''}`
+  ).join('\n');
+
+  const eveningText = eveningStories.map((s, i) => {
+    const pts = s.points ? ` [${s.points}pts]` : '';
+    return `${i + 1}. ${pts} [${s.source}] ${s.title}\n   URL: ${s.url || '(no url)'}`;
+  }).join('\n');
+
+  const today = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+
+  const recapSystem = `You are Welian (小维), generating an evening recap briefing. This is a PUBLIC daily review published at 22:00 CST — a reflective summary of the day, NOT a morning news dump.
+
+IMPORTANT: Return ONLY a valid JSON object. No markdown, no code fences.
+
+Return JSON:
+{
+  "greeting": "晚上开场，回顾今天的整体基调（1-2句）",
+  "top5": [
+    {
+      "title": "今日最值得记住的5件事之一",
+      "source": "来源",
+      "why": "为什么这件事今天最重要（回顾视角，确认趋势或标记转折）",
+      "morning_update": "早上提到过吗？如果有，今天有什么新进展或验证；如果没有，为什么下午才浮出"
+    }
+  ],
+  "trend_confirmation": "今天确认了什么趋势？（早上的判断被验证了还是反转了）",
+  "missed": "今天最容易忽略但可能重要的一条（不在头条但值得留意）",
+  "tomorrow_watch": "明天值得关注的1-2个方向",
+  "closing": "晚安式收尾，引导用户登录 welian.app"
+}
+
+Rules:
+- top5 是从全天（早上+下午）信号中选出最值得记住的5件，不是简单重复早上
+- trend_confirmation 是回顾视角：早上的热点主题今天走势如何
+- missed 是"隐藏信号"——不在头条但可能影响未来
+- tomorrow_watch 是前瞻：基于今天的走势，明天该盯什么
+- 中文输出，回顾语气，像朋友晚上聊天复盘今天
+- closing 要温暖，如"今天辛苦了，早点休息。登录 welian.app 查看个性化回顾"`;
+
+  const prompt = `Today is ${today}.
+
+Morning signals (published at 07:00 CST, ${morningSignals.length} items):
+${morningText}
+
+Morning themes: ${morningThemes.join('、')}
+
+Fresh evening stories (fetched at 22:00 CST, ${eveningStories.length} items):
+${eveningText}
+
+Generate an evening recap that reviews the day, confirms or updates the morning's trends, and previews tomorrow.`;
+
+  const llmResp = await callLLM(prompt, recapSystem, env, { max_tokens: 4000, temperature: 0.7 });
+
+  let report;
+  if (llmResp && llmResp.text) {
+    try {
+      let cleaned = llmResp.text.trim();
+      if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      report = JSON.parse(cleaned);
+    } catch (e) {
+      console.error('[evening_recap] JSON parse failed:', e.message);
+      report = null;
+    }
+  }
+
+  // Fallback: if LLM failed, build a simple recap from morning signals
+  if (!report || !report.top5 || report.top5.length === 0) {
+    const fallbackTop5 = morningSignals.slice(0, 5).map(s => ({
+      title: s.title || '',
+      source: s.source || '',
+      why: s.why || '',
+      morning_update: '早上已发布',
+    }));
+    report = {
+      greeting: '今日回顾',
+      top5: fallbackTop5,
+      trend_confirmation: morningThemes.join('、'),
+      missed: '',
+      tomorrow_watch: '',
+      closing: '今天辛苦了，早点休息。登录 welian.app 查看个性化回顾',
+    };
+    console.log('[evening_recap] Using fallback (LLM failed)');
+  }
+
+  // Save evening snapshot to KV (30-day TTL)
+  await env.USER_DATA.put(`evening_recap:${todayKey}`, JSON.stringify({
+    date: todayKey,
+    ...report,
+  }), { expirationTtl: 2592000 });
+
+  // Build article title
+  const title = `🌙 今日回顾 · ${today}`;
+
+  // Build article digest
+  const top5Titles = (report.top5 || []).slice(0, 3).map(s => s.title).join('、');
+  const digest = `${report.trend_confirmation || ''}${top5Titles}`.substring(0, 120);
+
+  // Build HTML content
+  let html = '<section style="padding:16px;font-size:16px;line-height:1.8;color:#333;">';
+
+  if (report.greeting) {
+    html += `<p style="color:#666;font-size:15px;margin-bottom:20px;">${escWechat(report.greeting)}</p>`;
+  }
+
+  // Top 5 section
+  html += '<section style="margin-bottom:24px;">';
+  html += '<h2 style="font-size:18px;color:#4A6741;border-left:4px solid #4A6741;padding-left:12px;margin-bottom:16px;">⭐ 今日最值得记住的5件事</h2>';
+
+  (report.top5 || []).forEach((s, i) => {
+    const sourceTag = s.source ? `<span style="font-size:12px;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;margin-left:6px;">${escWechat(s.source)}</span>` : '';
+    html += `<section style="background:#FAFAF7;border:1px solid #E8E0D6;border-radius:12px;padding:16px;margin-bottom:14px;">`;
+    html += `<h3 style="font-size:16px;font-weight:600;margin-bottom:8px;">${i + 1}. ${escWechat(s.title || '')}${sourceTag}</h3>`;
+    if (s.why) {
+      html += `<p style="font-size:15px;color:#555;line-height:1.7;"><strong style="color:#4A6741;">为什么重要：</strong>${escWechat(s.why)}</p>`;
+    }
+    if (s.morning_update) {
+      html += `<p style="font-size:13px;color:#888;margin-top:8px;font-style:italic;">${escWechat(s.morning_update)}</p>`;
+    }
+    html += '</section>';
+  });
+
+  html += '</section>';
+
+  // Trend confirmation
+  if (report.trend_confirmation) {
+    html += `<section style="background:#f0f4ed;border-radius:12px;padding:16px;margin-bottom:20px;">
+      <h2 style="font-size:16px;color:#4A6741;margin-bottom:8px;">📊 趋势确认</h2>
+      <p style="font-size:15px;color:#555;line-height:1.7;">${escWechat(report.trend_confirmation)}</p>
+    </section>`;
+  }
+
+  // Missed
+  if (report.missed) {
+    html += `<section style="background:#fff8e1;border-radius:12px;padding:16px;margin-bottom:20px;border-left:4px solid #ffa000;">
+      <h2 style="font-size:16px;color:#e65100;margin-bottom:8px;">👀 今天容易忽略的</h2>
+      <p style="font-size:15px;color:#555;line-height:1.7;">${escWechat(report.missed)}</p>
+    </section>`;
+  }
+
+  // Tomorrow watch
+  if (report.tomorrow_watch) {
+    html += `<section style="background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:12px;padding:16px;margin-bottom:20px;">
+      <h2 style="color:#fff;font-size:16px;margin-bottom:8px;">🔭 明天值得关注</h2>
+      <p style="color:#fff;font-size:15px;line-height:1.7;opacity:0.95;">${escWechat(report.tomorrow_watch)}</p>
+    </section>`;
+  }
+
+  // CTA
+  html += `<section style="background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:16px;padding:24px;text-align:center;margin-top:20px;">
+    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">个性化回顾</h2>
+    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">登录 Welian，查看结合你关系网络的全天回顾</p>
+    <p style="color:#fff;font-size:15px;font-weight:600;">点击底部「阅读原文」体验 →</p>
+  </section>`;
+
+  if (report.closing) {
+    html += `<p style="text-align:center;color:#999;font-size:14px;margin-top:20px;">${escWechat(report.closing)}</p>`;
+  }
+
+  // Disclaimer
+  html += `<section style="margin-top:24px;padding:14px 16px;background:#f9f9f9;border-radius:8px;border-left:3px solid #ddd;">
+    <p style="font-size:12px;color:#999;line-height:1.7;margin:0;">
+      <strong style="color:#888;">免责声明</strong>：本内容由 AI 自动聚合公开信息生成，仅供信息参考，不构成任何投资、交易或商业决策建议。市场有风险，决策需谨慎。请以官方来源和专业人士意见为准。
+    </p>
+  </section>`;
+
+  html += `<p style="text-align:center;color:#ccc;font-size:12px;margin-top:16px;">— 用 Welian 管理你的关系 · welian.app —</p>`;
+  html += '</section>';
+
+  // Get WeChat access token
+  const accessToken = await getWechatAccessToken(env);
+  if (!accessToken) {
+    console.log('[evening_recap] No WeChat access token, skipping');
+    return;
+  }
+
+  // Upload cover (reuse same cover variant as morning — same day)
+  const thumbMediaId = await uploadWechatCoverImage(env, accessToken, [], []);
+  if (!thumbMediaId) {
+    console.error('[evening_recap] Failed to upload cover, skipping');
+    return;
+  }
+
+  // Create draft
+  const draftResp = await fetch(`https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${accessToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      articles: [{
+        title: title.substring(0, 32),
+        author: 'Welian 小维',
+        digest: digest.substring(0, 120),
+        content: html,
+        content_source_url: 'https://welian.app/signals.html',
+        thumb_media_id: thumbMediaId,
+        need_open_comment: 1,
+        only_fans_can_comment: 0,
+      }],
+    }),
+  });
+  const draftData = await draftResp.json();
+
+  if (draftData.errcode || !draftData.media_id) {
+    console.error('[evening_recap] Draft add failed:', JSON.stringify(draftData));
+    return;
+  }
+
+  console.log('[evening_recap] Draft created:', draftData.media_id);
+
+  // Submit for publish
+  const publishResp = await fetch(`https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token=${accessToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ media_id: draftData.media_id }),
+  });
+  const publishData = await publishResp.json();
+
+  if (publishData.errcode) {
+    console.error('[evening_recap] Publish submit failed:', JSON.stringify(publishData));
+    return;
+  }
+
+  console.log('[evening_recap] Article published! publish_id:', publishData.publish_id);
+
+  // Push text summary to queues
+  let msg = `🌙 今日回顾 · ${today}\n\n`;
+  if (report.greeting) msg += `${report.greeting}\n\n`;
+  msg += `⭐ 今日5件事：\n`;
+  (report.top5 || []).slice(0, 5).forEach((s, i) => {
+    msg += `${i + 1}. ${s.title} [${s.source || ''}]\n`;
+  });
+  if (report.trend_confirmation) msg += `\n📊 趋势确认：${report.trend_confirmation}\n`;
+  if (report.missed) msg += `\n👀 容易忽略：${report.missed}\n`;
+  if (report.tomorrow_watch) msg += `\n🔭 明天关注：${report.tomorrow_watch}\n`;
+  msg += `\n${report.closing || ''}\n\n— 用 Welian 管理你的关系：welian.app`;
+  await pushSignalsToQueues(env, msg);
 }
 
 // Escape HTML for WeChat article content
@@ -8842,53 +9506,60 @@ function escWechat(s) {
 }
 
 // Upload a cover image to WeChat as permanent material
+// Uses 7 pre-generated cover variants (one per weekday) with Welian brand elements + random variation
 async function uploadWechatCoverImage(env, accessToken, themes, signals) {
-  // Generate a simple cover image (900x383, WeChat recommended ratio 2.35:1)
-  // Use a solid color background with text — we'll use an SVG converted to PNG via a simple approach
-  // Since Cloudflare Workers can't easily generate PNGs, we'll use a pre-uploaded permanent thumb
-  // Strategy: check if we already have a cached thumb_media_id (reusable permanent material)
-  const cachedThumb = await env.USER_DATA.get('wechat_thumb_media_id');
+  // Select cover variant by day of week (0=Mon … 6=Sun)
+  const dayIdx = new Date().getDay(); // 0=Sun, 1=Mon, ...
+  const coverIdx = (dayIdx + 6) % 7;  // convert to Mon=0 … Sun=6
+  const kvKey = `wechat_thumb_media_id_${coverIdx}`;
+
+  // Check if this day's cover is already uploaded (permanent material, reusable)
+  const cachedThumb = await env.USER_DATA.get(kvKey);
   if (cachedThumb) {
-    console.log('[daily_signals] Using cached cover thumb_media_id:', cachedThumb);
+    console.log(`[daily_signals] Using cached cover #${coverIdx} thumb_media_id:`, cachedThumb);
     return cachedThumb;
   }
 
-  // No cached cover — upload a default one from a URL
-  // WeChat requires uploading via multipart/form-data to material/add_material
+  // Upload the cover variant for today's weekday
   try {
-    // Download a default cover image
-    const coverUrl = 'https://welian.app/wechat-cover.png'; // site cover image
+    const coverUrl = `https://welian.app/covers/cover-${coverIdx}.png`;
     const imgResp = await fetch(coverUrl);
     if (!imgResp.ok) {
-      console.error('[daily_signals] Cover image fetch failed:', imgResp.status);
-      return null;
+      console.error(`[daily_signals] Cover image fetch failed for #${coverIdx}:`, imgResp.status);
+      // Fallback to default cover
+      const fallbackResp = await fetch('https://welian.app/wechat-cover.png');
+      if (!fallbackResp.ok) return null;
+      const imgBlob = await fallbackResp.blob();
+      return await _uploadCoverBlob(env, accessToken, imgBlob, kvKey, coverIdx);
     }
     const imgBlob = await imgResp.blob();
-
-    // Upload as permanent material (type=image)
-    const formData = new FormData();
-    formData.append('type', 'image');
-    formData.append('media', imgBlob, 'cover.png');
-
-    const uploadResp = await fetch(`https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${accessToken}`, {
-      method: 'POST',
-      body: formData,
-    });
-    const uploadData = await uploadResp.json();
-
-    if (uploadData.errcode || !uploadData.media_id) {
-      console.error('[daily_signals] Cover upload failed:', JSON.stringify(uploadData));
-      return null;
-    }
-
-    // Cache the media_id permanently (it's a permanent material, won't expire)
-    await env.USER_DATA.put('wechat_thumb_media_id', uploadData.media_id);
-    console.log('[daily_signals] Cover uploaded, media_id:', uploadData.media_id);
-    return uploadData.media_id;
+    return await _uploadCoverBlob(env, accessToken, imgBlob, kvKey, coverIdx);
   } catch (e) {
     console.error('[daily_signals] Cover upload error:', e.message);
     return null;
   }
+}
+
+async function _uploadCoverBlob(env, accessToken, imgBlob, kvKey, coverIdx) {
+  const formData = new FormData();
+  formData.append('type', 'image');
+  formData.append('media', imgBlob, `cover-${coverIdx}.png`);
+
+  const uploadResp = await fetch(`https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${accessToken}`, {
+    method: 'POST',
+    body: formData,
+  });
+  const uploadData = await uploadResp.json();
+
+  if (uploadData.errcode || !uploadData.media_id) {
+    console.error(`[daily_signals] Cover #${coverIdx} upload failed:`, JSON.stringify(uploadData));
+    return null;
+  }
+
+  // Cache the media_id permanently (permanent material won't expire)
+  await env.USER_DATA.put(kvKey, uploadData.media_id);
+  console.log(`[daily_signals] Cover #${coverIdx} uploaded, media_id:`, uploadData.media_id);
+  return uploadData.media_id;
 }
 
 async function getWechatAccessToken(env) {

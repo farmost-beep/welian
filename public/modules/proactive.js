@@ -504,7 +504,7 @@ export async function loadSignalsTab(targetEl) {
   content.innerHTML = `<div class="mine-empty">${d.mine_loading}</div>`;
 
   // Load user domain preferences
-  let userDomains = ['investment', 'ai', 'tech_finance'];
+  let userDomains = ['investment', 'ai', 'tech_finance', 'policy', 'crypto'];
   try {
     const token = simulationMode ? `demo_sim:demo_secret` : await getClerkToken();
     if (token) {
@@ -543,7 +543,7 @@ export async function loadSignalsTab(targetEl) {
     const domainSelector = domainOptions.map(opt => {
       const checked = userDomains.includes(opt.key) ? 'checked' : '';
       return `<label style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px;cursor:pointer;font-size:.85em">
-        <input type="checkbox" ${checked} onchange="toggleSignalDomain('${opt.key}', this.checked)" style="cursor:pointer">
+        <input type="checkbox" ${checked} onchange="window._pendingDomainChange=true" style="cursor:pointer">
         ${opt.icon} ${opt.label}
       </label>`;
     }).join('');
@@ -557,8 +557,9 @@ export async function loadSignalsTab(targetEl) {
 
     // Domain selector
     html += `<div class="mine-card" style="margin-bottom:12px">
-      <div style="font-size:.8em;color:var(--dim);margin-bottom:6px">${zh ? '关注领域（切换后刷新生效）' : 'Focus domains (refresh after toggle)'}</div>
+      <div style="font-size:.8em;color:var(--dim);margin-bottom:6px">${zh ? '关注领域' : 'Focus domains'}</div>
       <div>${domainSelector}</div>
+      <button onclick="applyDomainChange()" style="margin-top:8px;font-size:.75em;padding:4px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">${zh ? '应用并刷新' : 'Apply & Refresh'}</button>
     </div>`;
 
     if (report.greeting) {
@@ -1358,24 +1359,18 @@ async function trackSignalAction(type, title) {
   } catch (e) { /* fire-and-forget */ }
 }
 
-// Toggle signal domain preference and refresh
-export async function toggleSignalDomain(domain, enabled) {
+// Apply domain selection (read all checkboxes, save, then refresh)
+export async function applyDomainChange() {
   try {
     const token = simulationMode ? `demo_sim:demo_secret` : await getClerkToken();
     if (!token) return;
-    // Get current domains
-    const resp = await fetch(`${CLOUD_URL}/ai/signal_domains`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+    // Read current checkbox states from DOM
+    const domainOptions = ['investment', 'ai', 'tech_finance'];
+    const checkboxes = document.querySelectorAll('.mine-card input[type="checkbox"]');
+    const domains = [];
+    checkboxes.forEach((cb, i) => {
+      if (cb.checked && domainOptions[i]) domains.push(domainOptions[i]);
     });
-    let domains = ['investment', 'ai', 'tech_finance'];
-    if (resp.ok) {
-      const data = await resp.json();
-      domains = data.domains || domains;
-    }
-    // Toggle
-    if (enabled && !domains.includes(domain)) domains.push(domain);
-    if (!enabled) domains = domains.filter(d => d !== domain);
-    // Save (ensure at least one domain)
     if (domains.length === 0) {
       alert(currentLang === 'zh' ? '至少需要选择一个领域' : 'At least one domain required');
       return;
@@ -1385,9 +1380,15 @@ export async function toggleSignalDomain(domain, enabled) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ domains }),
     });
-    // Auto-refresh signals after domain change
+    window._pendingDomainChange = false;
+    // Refresh signals after domain change
     setTimeout(() => refreshSignals(), 300);
   } catch (e) {
-    console.error('[signal_domains] toggle failed:', e.message);
+    console.error('[signal_domains] apply failed:', e.message);
   }
+}
+
+// Legacy toggle (kept for backward compat, redirects to apply)
+export async function toggleSignalDomain(domain, enabled) {
+  // No longer used — applyDomainChange handles batch selection
 }

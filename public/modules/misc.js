@@ -704,6 +704,14 @@ export async function loadSettingsTab() {
       </div>
     </div>
     <div class="mine-card">
+      <div class="mine-card-title">📅 ${zh ? '日历同步' : 'Calendar Sync'}</div>
+      <div style="font-size:.82em;color:var(--dim);margin-bottom:10px;line-height:1.6">${zh ? '复制订阅链接，粘贴到 Outlook / iPhone 日历 / 华为日历等应用的「添加订阅日历」中。待办和重要日期会自动同步。' : 'Copy the subscription URL and paste it into Outlook / Apple Calendar / Huawei Calendar under "Add Subscription Calendar". Todos and important dates sync automatically.'}</div>
+      <div id="calendarFeedUrl" style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:.85em;color:var(--dimmer)">${zh ? '加载中…' : 'Loading…'}</span>
+      </div>
+      <div id="calendarSyncResult" style="margin-top:8px"></div>
+    </div>
+    <div class="mine-card">
       <div class="mine-card-title">👥 ${zh ? '邀请好友' : 'Invite Friends'}</div>
       <div style="font-size:.82em;color:var(--dim);margin-bottom:10px;line-height:1.6">${zh ? '邀请好友注册，你和好友各得 <strong style="color:var(--accent)">100 联点</strong>奖励（最多 50 人）' : 'Invite friends — you and your friend each get <strong style="color:var(--accent)">100 credits</strong> (max 50)'}</div>
       <div id="inviteContent" style="font-size:.85em;color:var(--dim)">${zh ? '加载中…' : 'Loading…'}</div>
@@ -740,6 +748,8 @@ export async function loadSettingsTab() {
   }, 100);
   // Load invite section async
   setTimeout(() => loadInviteSection(), 200);
+  // Load calendar feed URL async
+  setTimeout(() => loadCalendarFeedUrl(), 300);
 }
 
 export async function loadCalendarFeedUrl() {

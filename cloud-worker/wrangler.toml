@@ -72,6 +72,7 @@ preview_id = "98c045b73d874a869493706dc585bafb"
 
 # Cron: weekly report push every Monday 09:00 CST (01:00 UTC)
 # Cron: daily signals push 07:00 CST (23:00 UTC previous day)
+# Cron: evening recap push 22:00 CST (14:00 UTC)
 # Cron: health warning push biweekly (1st & 15th) 09:00 CST (01:00 UTC)
 [triggers]
-crons = ["0 1 * * 1", "0 23 * * *", "0 1 1,15 * *"]
+crons = ["0 1 * * 1", "0 23 * * *", "0 14 * * *", "0 1 1,15 * *"]

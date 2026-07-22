@@ -3,18 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>今日信号 — Welian 小维</title>
-<meta name="description" content="每日科技商业信号：从 Hacker News、36氪、虎嗅筛选关键动态。登录获取个性化信号，结合你的关系网络。">
+<title>今日科技商业信号 | AI融资、政策监管、行业趋势 — Welian</title>
+<meta name="description" content="每日从23个信息源（HN、36氪、华尔街见闻、财联社、TechCrunch等）筛选15条高信号新闻，按价值排序，附AI解读。覆盖AI、投资、科技金融三大领域。">
+<meta name="keywords" content="科技信号,商业信号,AI新闻,融资动态,行业趋势,每日简报,科技金融,投资信号,Hacker News,36氪,华尔街见闻">
 <meta name="theme-color" content="#F5F4EE">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://welian.app/signals.html">
-<meta property="og:type" content="website">
-<meta property="og:title" content="今日信号 — Welian 小维">
-<meta property="og:description" content="每日科技商业信号：HN + 36氪 + 虎嗅，结合你的关系网络。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="今日科技商业信号 | AI融资·政策·行业趋势">
+<meta property="og:description" content="23源筛选·15条高信号·AI解读·按价值排序。覆盖AI、投资、科技金融。">
 <meta property="og:url" content="https://welian.app/signals.html">
 <meta property="og:site_name" content="Welian">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://welian.app/og-signals.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="今日信号 — Welian 小维">
-<meta name="twitter:description" content="每日科技商业信号：HN + 36氪 + 虎嗅，结合你的关系网络。">
+<meta name="twitter:title" content="今日科技商业信号 | Welian">
+<meta name="twitter:description" content="23源筛选·15条高信号·AI解读·按价值排序">
+<meta name="twitter:image" content="https://welian.app/og-signals.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "今日科技商业信号",
+  "description": "每日从23个信息源筛选15条高信号新闻，按价值排序，附AI解读",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Welian",
+    "url": "https://welian.app"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "Welian 小维"
+  },
+  "isAccessibleForFree": true,
+  "inLanguage": "zh-CN"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Welian 信号",
+  "url": "https://welian.app/signals.html",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://welian.app/signals.html?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -69,6 +106,23 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
 .weekly-trend .wt-item .bar{height:6px;border-radius:3px;background:var(--accent);min-width:12px;transition:width .3s}
 .weekly-trend .wt-item .count{font-size:.72em;color:var(--dim);min-width:30px;text-align:right}
 .fallback-note{font-size:.75em;color:var(--dim);text-align:center;padding:4px 0 8px;font-style:italic}
+.domain-filter{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0 12px}
+.domain-filter label{display:inline-flex;align-items:center;gap:4px;font-size:.82em;color:var(--dim);cursor:pointer}
+.domain-filter label input{cursor:pointer}
+.domain-filter .apply-btn{padding:4px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.78em;cursor:pointer;font-family:inherit}
+.card .score{font-size:.78em;font-weight:600;margin-left:6px}
+.card .score.high{color:#c0392b}
+.card .score.mid{color:#e67e22}
+.card .score.low{color:#999}
+.dau-badge{text-align:center;font-size:.78em;color:var(--dim);padding:4px 0 8px}
+.dau-badge .live{display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:12px;font-weight:500}
+.dau-badge .live::before{content:'';width:6px;height:6px;background:#2e7d32;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.dau-badge .goal-bar{display:inline-block;width:120px;height:6px;background:var(--border);border-radius:3px;margin-left:8px;vertical-align:middle;overflow:hidden}
+.dau-badge .goal-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+.email-sub{text-align:center;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:20px 0}
+.email-sub h3{font-family:'Newsreader',serif;font-size:1.2em;color:var(--accent);margin-bottom:6px}
+.email-sub p{font-size:.85em;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -84,10 +138,11 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
 <div class="container">
   <div class="hero">
     <h1>📡 今日信号</h1>
-    <div class="sub">从 13 个高质量信息源筛选关键动态</div>
+    <div class="sub">从 23 个高质量信息源筛选关键动态，按价值排序</div>
     <div class="sources">
       <span>HN</span>
       <span>36氪</span>
+      <span>36氪快讯</span>
       <span>虎嗅</span>
       <span>头条</span>
       <span>微信</span>
@@ -99,15 +154,35 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
       <span>The Verge</span>
       <span>ArXiv</span>
       <span>V2EX</span>
+      <span>财联社</span>
+      <span>新浪财经</span>
+      <span>证监会</span>
+      <span>GitHub</span>
+      <span>InfoQ</span>
+      <span>雪球</span>
+      <span>第一财经</span>
+      <span>Reddit ML</span>
+      <span>HuggingFace</span>
     </div>
   </div>
   <div id="dateBar" class="date-bar"></div>
+  <div id="dauBadge" class="dau-badge"></div>
+  <div id="domainFilter" class="domain-filter"></div>
   <div id="content" class="loading">正在生成今日信号…</div>
   <div id="weeklyTrend"></div>
   <div class="cta">
     <h2>获取个性化信号</h2>
     <p>登录 Welian，信号会结合你的行业、联系人网络和关系目标，告诉你哪条新闻跟谁有关、该怎么用</p>
     <a href="/" class="btn">开始</a>
+  </div>
+  <div class="email-sub">
+    <h3>📧 每日邮件订阅</h3>
+    <p>每天早上 7:00 收到今日信号摘要，不用打开微信</p>
+    <div style="display:flex;gap:8px;max-width:400px;margin:12px auto">
+      <input type="email" id="subEmail" placeholder="你的邮箱" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.9em;font-family:inherit">
+      <button onclick="subscribeEmail()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.9em">订阅</button>
+    </div>
+    <p id="subMsg" style="font-size:.8em;color:var(--dim);margin-top:8px"></p>
   </div>
   <footer>Welian 小维 · 每段关系都值得用心 · welian.app</footer>
 </div>
@@ -116,6 +191,85 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
   const content = document.getElementById('content');
   const dateBar = document.getElementById('dateBar');
   const weeklyTrendEl = document.getElementById('weeklyTrend');
+  const domainFilterEl = document.getElementById('domainFilter');
+  const dauBadgeEl = document.getElementById('dauBadge');
+
+  // Track pageview (fire-and-forget)
+  fetch('https://api.welian.app/ai/track_pageview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: 'signals' }),
+  }).catch(() => {});
+
+  // Fetch DAU stats for social proof
+  fetch('https://api.welian.app/ai/dau_stats').then(r => r.json()).then(dau => {
+    if (!dau) return;
+    const progress = Math.min(dau.progress || 0, 100);
+    dauBadgeEl.innerHTML = `<span class="live">${dau.today_dau} 人在用</span> ` +
+      `<span class="goal-bar"><span class="goal-fill" style="width:${progress}%"></span></span> ` +
+      `<span>目标 ${dau.goal} DAU · ${progress}%</span>`;
+  }).catch(() => {});
+
+  // Email subscription
+  window.subscribeEmail = async function() {
+    const email = document.getElementById('subEmail').value.trim();
+    const msg = document.getElementById('subMsg');
+    if (!email || !email.includes('@')) {
+      msg.textContent = '请输入有效邮箱';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    msg.textContent = '订阅中…';
+    msg.style.color = 'var(--dim)';
+    try {
+      const resp = await fetch('https://api.welian.app/ai/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        msg.textContent = data.message || '订阅成功！请查收确认邮件';
+        msg.style.color = '#2e7d32';
+        document.getElementById('subEmail').value = '';
+      } else {
+        msg.textContent = data.error || '订阅失败';
+        msg.style.color = '#c0392b';
+      }
+    } catch (e) {
+      msg.textContent = '网络错误，请稍后重试';
+      msg.style.color = '#c0392b';
+    }
+  };
+
+  // Domain options (no crypto/policy)
+  const domainOptions = [
+    { key: 'investment', label: '投资', icon: '📈' },
+    { key: 'ai', label: 'AI', icon: '🤖' },
+    { key: 'tech_finance', label: '科技金融', icon: '💳' },
+  ];
+  let selectedDomains = ['investment', 'ai', 'tech_finance']; // default: all
+
+  // Render domain filter (checkboxes + apply button)
+  function renderDomainFilter() {
+    domainFilterEl.innerHTML = domainOptions.map(opt => {
+      const checked = selectedDomains.includes(opt.key) ? 'checked' : '';
+      return `<label><input type="checkbox" ${checked} data-domain="${opt.key}"> ${opt.icon} ${opt.label}</label>`;
+    }).join('') + `<button class="apply-btn" onclick="applyDomains()">应用并刷新</button>`;
+  }
+  renderDomainFilter();
+
+  window.applyDomains = function() {
+    selectedDomains = domainOptions.filter(opt => {
+      const cb = domainFilterEl.querySelector(`input[data-domain="${opt.key}"]`);
+      return cb && cb.checked;
+    }).map(opt => opt.key);
+    if (selectedDomains.length === 0) {
+      alert('至少需要选择一个领域');
+      return;
+    }
+    selectDate(currentDateKey);
+  };
 
   // Fetch today's signals and history in parallel
   const [previewRes, historyRes] = await Promise.all([
@@ -165,8 +319,11 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
     </div>
   `).join('');
 
+  let currentDateKey = todayKey;
+
   // Expose selectDate globally (must be defined before calling)
   window.selectDate = function(dateKey) {
+    currentDateKey = dateKey;
     // Update active chip
     document.querySelectorAll('.date-chip').forEach(c => {
       c.classList.toggle('active', c.dataset.date === dateKey);
@@ -177,6 +334,11 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
       content.innerHTML = `<div class="loading">该日暂无信号数据</div>`;
       return;
     }
+
+    // Filter signals by selected domains (match any tag or source domain)
+    let filteredSignals = snapshot.signals;
+    // No domain filtering on public page — all signals are already high-signal
+    // (domain filter is for personalized mode, public page shows all)
 
     let html = '';
     if (snapshot.greeting) {
@@ -191,15 +353,18 @@ footer{text-align:center;padding:30px 0;font-size:.78em;color:var(--dimmer);bord
       html += `<div class="section-title">🔥 热点主题</div><div class="themes">${themes.map(t => `<span>${esc(t)}</span>`).join('')}</div>`;
     }
 
-    html += `<div class="section-title">📊 关键信号</div>`;
-    snapshot.signals.forEach(s => {
+    html += `<div class="section-title">📊 关键信号（按价值排序）</div>`;
+    filteredSignals.forEach((s, i) => {
       const src = s.source ? `<span class="src">${esc(s.source)}</span>` : '';
+      const score = s.value_score || 0;
+      const scoreClass = score >= 8 ? 'high' : score >= 6 ? 'mid' : 'low';
+      const scoreTag = score > 0 ? `<span class="score ${scoreClass}">★${score}</span>` : '';
       const pts = s.points ? ` · ${s.points}pts` : '';
       const url = s.url ? ` · <a href="${esc(s.url)}" target="_blank">原文</a>` : '';
       const tags = (s.tags || []).length > 0 ? `<div class="tags">${s.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : '';
       const whyHtml = s.why ? `<div class="why">${esc(s.why)}</div>` : '';
       html += `<div class="card">
-        <div class="title">${esc(s.title || '')}${src}</div>
+        <div class="title">${i + 1}. ${esc(s.title || '')}${src}${scoreTag}</div>
         <div class="meta">${pts}${url}</div>
         ${whyHtml}
         ${tags}

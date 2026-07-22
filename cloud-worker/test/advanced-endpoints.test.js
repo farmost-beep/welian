@@ -230,6 +230,13 @@ describe("/data/calendar/feed", () => {
   beforeEach(() => { env = baseEnv(); });
 
   it("returns iCal format with valid token", async () => {
+    // Seed a pending todo with a due date so the feed has VEVENTs
+    env.USER_DATA._store.set("todos:testuser_sync", JSON.stringify([
+      { id: "todo-cal-1", task: "跟进老许", due: "2026-07-25", status: "pending", priority: "P1", contact: "c1" },
+    ]));
+    env.USER_DATA._store.set("contacts:testuser_sync", JSON.stringify([
+      { id: "c1", name: "老许", important_dates: [{ date: "11-29", label: "生日" }] },
+    ]));
     const req = new Request(
       "https://worker.test/data/calendar/feed?token=testuser_sync:secret",
       { method: "GET" }
@@ -239,6 +246,12 @@ describe("/data/calendar/feed", () => {
     const text = await res.text();
     expect(text).toContain("BEGIN:VCALENDAR");
     expect(text).toContain("END:VCALENDAR");
+    // Outlook requires DTEND for all-day events (RFC 5545 says optional, but Outlook errors without it)
+    expect(text).toContain("DTEND;VALUE=DATE:");
+    // LAST-MODIFIED helps Outlook detect updates
+    expect(text).toContain("LAST-MODIFIED:");
+    // Contact birthday should produce a YEARLY recurring event
+    expect(text).toContain("RRULE:FREQ=YEARLY");
   });
 
   it("rejects missing token (401)", async () => {
