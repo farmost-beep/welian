@@ -21,7 +21,7 @@
     </view>
 
     <!-- 信号列表 -->
-    <view wx:for="{{signals}}" wx:key="index" class="card signal-card">
+    <view wx:for="{{signals}}" wx:key="index" class="card signal-card" bindtap="openSignal" data-url="{{item.url}}" data-title="{{item.title}}">
       <view class="signal-header">
         <text class="signal-index">{{index + 1}}</text>
         <text class="signal-title">{{item.title}}</text>
@@ -32,6 +32,9 @@
       <text class="signal-source text-dimmer text-xs">来源：{{item.source}}</text>
       <view wx:if="{{item.why}}" class="signal-why">
         <text class="text-dim text-sm">{{item.why}}</text>
+      </view>
+      <view wx:if="{{item.url}}" class="signal-read-more">
+        <text class="read-more-text">点击查看原文 ↗</text>
       </view>
     </view>
 
