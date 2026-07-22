@@ -6108,15 +6108,31 @@ export default {
       // ── Unbind mini program from Web account (public) ──
       if (path === '/ai/wxmp_unbind' && method === 'POST') {
         const body = await request.json().catch(() => ({}));
-        const { openid } = body;
-        if (!openid) {
-          return jsonResponse({ error: 'openid required' }, 400);
+        const { openid, clerk_user_id } = body;
+        // Prefer openid; fallback to clerk_user_id (for bound users whose token is user_ prefix)
+        if (openid) {
+          const wxmpUserId = `wxmp_${openid}`;
+          await env.USER_DATA.delete(`wechat_bind:${wxmpUserId}`);
+          const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+          return jsonResponse({ ok: true, token, message: '已解绑' });
         }
-        const wxmpUserId = `wxmp_${openid}`;
-        await env.USER_DATA.delete(`wechat_bind:${wxmpUserId}`);
-        // Return a fresh wxmp token (unbound state)
-        const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
-        return jsonResponse({ ok: true, token, message: '已解绑' });
+        if (clerk_user_id) {
+          // Find the wxmp binding that points to this clerk user
+          // List all wechat_bind: keys and find the one matching clerk_user_id
+          const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+          for (const key of listResult.keys || []) {
+            const val = await env.USER_DATA.get(key.name);
+            if (val === clerk_user_id) {
+              await env.USER_DATA.delete(key.name);
+              // Extract openid from key name: wechat_bind:wxmp_<openid>
+              const openidFromKey = key.name.replace('wechat_bind:wxmp_', '');
+              const token = `wxmp_${openidFromKey}:${env.WELIAN_SYNC_SECRET}`;
+              return jsonResponse({ ok: true, token, message: '已解绑' });
+            }
+          }
+          return jsonResponse({ error: '未找到绑定记录' }, 400);
+        }
+        return jsonResponse({ error: 'openid or clerk_user_id required' }, 400);
       }
 
       // ── Bind mini program to existing Web account (legacy, public) ──

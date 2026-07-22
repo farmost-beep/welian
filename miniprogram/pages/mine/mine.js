@@ -126,7 +126,14 @@ Page({
   // 解绑
   unbind() {
     const { openid } = this.data;
-    if (!openid) return;
+    const token = api.getToken();
+    // 已绑定用户 token 是 user_xxx:secret，提取 clerk_user_id
+    // 未绑定用户 token 是 wxmp_<openid>:secret，用 openid
+    const clerkUserId = token && token.startsWith('user_') ? token.substring(0, token.indexOf(':')) : null;
+    if (!openid && !clerkUserId) {
+      wx.showToast({ title: '无法解绑，请重新登录', icon: 'none' });
+      return;
+    }
     wx.showModal({
       title: '确认解绑',
       content: '解绑后小程序将无法访问你的联系人数据，确定解绑吗？',
@@ -134,11 +141,14 @@ Page({
       confirmColor: '#C96442',
       success: (res) => {
         if (!res.confirm) return;
+        const data = {};
+        if (openid) data.openid = openid;
+        if (clerkUserId) data.clerk_user_id = clerkUserId;
         wx.request({
           url: 'https://api.welian.app/ai/wxmp_unbind',
           method: 'POST',
           header: { 'Content-Type': 'application/json' },
-          data: { openid },
+          data,
           success: (res) => {
             if (res.statusCode === 200 && res.data.ok) {
               api.clearToken();
@@ -151,7 +161,6 @@ Page({
                 codeSent: false,
               });
               wx.showToast({ title: '已解绑', icon: 'none' });
-              // 解绑后跳回 welcome 页
               setTimeout(() => wx.reLaunch({ url: '/pages/welcome/welcome' }), 1500);
             } else {
               wx.showToast({ title: res.data.error || '解绑失败', icon: 'none' });

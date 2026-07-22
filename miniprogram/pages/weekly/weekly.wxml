@@ -2,7 +2,7 @@
 <view class="container">
   <!-- 标题 -->
   <view class="header">
-    <text class="page-title">📋 社交周报</text>
+    <text class="page-title">📋 关系周报</text>
     <text class="page-subtitle">{{weekRange}}</text>
   </view>
 
