@@ -6040,6 +6040,166 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
       return new Response(null, { status: 101, webSocket: client });
     }
 
+    // ── Mini program → Local Agent WebSocket proxy ──
+    // Authenticates wxmp user, discovers tunnel URL, pipes WebSocket to local agent.
+    // Falls back with error if no local agent is online.
+    if (path === '/ai/wxmp_agent_ws' && request.headers.get('Upgrade') === 'websocket') {
+      const token = url.searchParams.get('token');
+      if (!token) return new Response('Missing token', { status: 401 });
+
+      // Verify token (same logic as wxmp_chat_ws)
+      let userId = null;
+      let clerkUserId = null;
+      if (token.includes(':') && !token.startsWith('eyJ')) {
+        const [uid, secret] = token.split(':');
+        if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
+          if (uid.startsWith('wxmp_')) {
+            const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
+            clerkUserId = bound || null;
+            userId = bound || uid;
+          } else {
+            clerkUserId = uid;
+            userId = uid;
+          }
+        }
+      }
+      if (!userId) return new Response('Invalid token', { status: 401 });
+
+      // Discover local agent tunnel URL
+      let tunnelUrl = null;
+      if (clerkUserId) {
+        try {
+          // Direct lookup
+          const devData = await env.DEVICES.get(`dev:${clerkUserId}`);
+          if (devData) {
+            const parsed = JSON.parse(devData);
+            tunnelUrl = parsed.tunnel_url;
+          } else {
+            // Indirect lookup via user→device mapping
+            const deviceId = await env.DEVICES.get(`user:${clerkUserId}`);
+            if (deviceId) {
+              const linkedData = await env.DEVICES.get(`dev:${deviceId}`);
+              if (linkedData) {
+                const parsed = JSON.parse(linkedData);
+                tunnelUrl = parsed.tunnel_url;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[wxmp_agent_ws] discovery error:', e.message);
+        }
+      }
+
+      if (!tunnelUrl) {
+        // No local agent — return a WebSocket that immediately sends error and closes
+        const pair = new WebSocketPair();
+        const client = pair[0];
+        const server = pair[1];
+        server.accept();
+        server.send(JSON.stringify({ type: 'error', error: 'no_local_agent', message: '没有找到本地 Agent' }));
+        server.close();
+        return new Response(null, { status: 101, webSocket: client });
+      }
+
+      // Connect to local agent via tunnel
+      const agentWsUrl = tunnelUrl.replace(/^http/, 'ws') + '/ws' +
+        (clerkUserId ? '?clerk_uid=' + encodeURIComponent(clerkUserId) : '');
+
+      try {
+        const agentResp = await fetch(agentWsUrl, {
+          headers: { 'Upgrade': 'websocket' },
+        });
+        if (agentResp.status !== 101 || !agentResp.webSocket) {
+          // Local agent unreachable
+          const pair = new WebSocketPair();
+          const client = pair[0];
+          const server = pair[1];
+          server.accept();
+          server.send(JSON.stringify({ type: 'error', error: 'agent_unreachable', message: '本地 Agent 无法连接' }));
+          server.close();
+          return new Response(null, { status: 101, webSocket: client });
+        }
+
+        const agentWs = agentResp.webSocket;
+        agentWs.accept();
+
+        // Accept client WebSocket
+        const pair = new WebSocketPair();
+        const client = pair[0];
+        const server = pair[1];
+        server.accept();
+
+        // Notify client: connected to local agent
+        server.send(JSON.stringify({ type: 'agent_connected' }));
+
+        // Client → Agent: pipe messages, translating protocol
+        server.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            // Translate mini program protocol → local agent protocol
+            if (data.type === 'chat') {
+              agentWs.send(JSON.stringify({
+                cmd: 'chat',
+                id: data.id || `msg_${Date.now()}`,
+                text: data.message || '',
+                history: data.history || [],
+              }));
+            } else {
+              // Pass through other commands
+              agentWs.send(event.data);
+            }
+          } catch {
+            agentWs.send(event.data);
+          }
+        });
+
+        // Agent → Client: pipe messages, translating protocol
+        agentWs.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            // Translate local agent protocol → mini program protocol
+            if (data.type === 'stream') {
+              server.send(JSON.stringify({ type: 'chunk', text: data.text || data.chunk || '' }));
+            } else if (data.type === 'response') {
+              server.send(JSON.stringify({ type: 'done', text: data.text || '' }));
+            } else if (data.type === 'auth_ok') {
+              server.send(JSON.stringify({ type: 'auth_ok' }));
+            } else if (data.type === 'error') {
+              server.send(JSON.stringify({ type: 'error', error: data.error || 'agent error' }));
+            } else {
+              // Pass through unknown types
+              server.send(event.data);
+            }
+          } catch {
+            server.send(event.data);
+          }
+        });
+
+        // Close handling
+        server.addEventListener('close', () => {
+          try { agentWs.close(); } catch {}
+        });
+        agentWs.addEventListener('close', () => {
+          server.send(JSON.stringify({ type: 'error', error: 'agent_disconnected', message: '本地 Agent 已断开' }));
+          try { server.close(); } catch {}
+        });
+        agentWs.addEventListener('error', () => {
+          server.send(JSON.stringify({ type: 'error', error: 'agent_error', message: '本地 Agent 连接错误' }));
+        });
+
+        return new Response(null, { status: 101, webSocket: client });
+      } catch (e) {
+        console.error('[wxmp_agent_ws] connect error:', e.message);
+        const pair = new WebSocketPair();
+        const client = pair[0];
+        const server = pair[1];
+        server.accept();
+        server.send(JSON.stringify({ type: 'error', error: 'agent_connect_failed', message: e.message }));
+        server.close();
+        return new Response(null, { status: 101, webSocket: client });
+      }
+    }
+
     // Routes
     try {
       // ── Article content API for mini program rich-text ──

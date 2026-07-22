@@ -5,7 +5,7 @@
     <text class="chat-title">小维</text>
     <view class="chat-status">
       <view class="status-dot {{connected ? 'online' : 'offline'}}"></view>
-      <text class="status-text text-dimmer text-xs">{{connected ? '在线' : '连接中…'}}</text>
+      <text class="status-text text-dimmer text-xs">{{connected ? (agentMode === 'live' ? 'Live' : 'Cloud') : '连接中…'}}</text>
     </view>
     <view class="clear-btn" bindtap="clearHistory">
       <text class="text-dimmer text-xs">清空</text>

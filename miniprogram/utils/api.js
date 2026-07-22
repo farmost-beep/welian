@@ -99,6 +99,7 @@ module.exports = {
   clearToken,
   isLoggedIn() { return !!getToken(); },
   getChatUrl,
+  getAgentUrl,
 
   // 仪表盘（从 advise_cloud 获取建议）
   getDashboard() {
@@ -284,4 +285,11 @@ function getChatUrl() {
   const token = getToken();
   if (!token) return '';
   return `wss://api.welian.app/ai/wxmp_chat_ws?token=${encodeURIComponent(token)}`;
+}
+
+// ── WebSocket local agent URL ──
+function getAgentUrl() {
+  const token = getToken();
+  if (!token) return '';
+  return `wss://api.welian.app/ai/wxmp_agent_ws?token=${encodeURIComponent(token)}`;
 }
