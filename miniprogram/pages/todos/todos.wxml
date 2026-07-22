@@ -90,7 +90,7 @@
 
 <!-- 待办操作菜单 -->
 <view wx:if="{{showActions}}" class="action-overlay" bindtap="closeActions">
-  <view class="action-sheet" catchtap="">
+  <view class="action-sheet" catchtap="noop">
     <view class="action-sheet-title">{{actionTodo.task}}</view>
     <block wx:if="{{actionTodo.status !== 'done' && !actionTodo.done}}">
       <view class="action-sheet-item" bindtap="doMarkDone">✓ 标记完成</view>
@@ -108,7 +108,7 @@
 
 <!-- 推迟选择 -->
 <view wx:if="{{showPostpone}}" class="action-overlay" bindtap="closePostpone">
-  <view class="action-sheet" catchtap="">
+  <view class="action-sheet" catchtap="noop">
     <view class="action-sheet-title">推迟到…</view>
     <view class="action-sheet-item" bindtap="applyPostpone" data-days="1">明天</view>
     <view class="action-sheet-item" bindtap="applyPostpone" data-days="3">3天后</view>
@@ -120,7 +120,7 @@
 
 <!-- 编辑待办弹窗 -->
 <view wx:if="{{showEdit}}" class="edit-overlay" catchtap="closeEdit">
-  <view class="edit-modal" catchtap="">
+  <view class="edit-modal" catchtap="noop">
     <view class="edit-title">编辑待办</view>
     <view class="edit-field">
       <text class="edit-label">待办内容</text>

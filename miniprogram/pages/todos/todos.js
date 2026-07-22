@@ -367,6 +367,8 @@ Page({
     this.setData({ showEdit: false });
   },
 
+  noop() {},
+
   saveEdit() {
     const form = this.data.editForm;
     if (!form.task || !form.task.trim()) {

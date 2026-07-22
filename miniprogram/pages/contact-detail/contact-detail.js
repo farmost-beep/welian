@@ -165,6 +165,8 @@ Page({
     this.setData({ showEdit: false });
   },
 
+  noop() {},
+
   saveEdit() {
     const c = this.data.contact;
     if (!c) return;
