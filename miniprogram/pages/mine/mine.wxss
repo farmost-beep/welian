@@ -48,6 +48,24 @@
   color: #4A7C59;
 }
 
+/* ── 绑定卡片 ── */
+.bind-card {
+  margin-bottom: 32rpx;
+  padding: 24rpx 28rpx;
+}
+.bind-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+.bind-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  background: #F5F4EE;
+}
+
 /* ── 菜单 ── */
 .menu-group {
   background: #EDEBE3;

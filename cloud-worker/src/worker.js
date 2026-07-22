@@ -5956,6 +5956,30 @@ export default {
         });
       }
 
+      // ── Bind mini program to existing Web account (public) ──
+      if (path === '/ai/wxmp_bind' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const { openid, clerk_user_id } = body;
+        if (!openid || !clerk_user_id) {
+          return jsonResponse({ error: 'openid and clerk_user_id required' }, 400);
+        }
+        const wxmpUserId = `wxmp_${openid}`;
+        // Verify the clerk_user_id has data (contacts exist)
+        const contacts = await loadDataset(env, clerk_user_id, 'contacts');
+        if (contacts.length === 0) {
+          return jsonResponse({ error: '该 Web 账号没有联系人数据，请确认 user_id 正确' }, 400);
+        }
+        // Create binding
+        await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerk_user_id);
+        // Return new token bound to Clerk user
+        const token = `${clerk_user_id}:${env.WELIAN_SYNC_SECRET}`;
+        return jsonResponse({
+          ok: true,
+          token,
+          message: `已绑定到 Web 账号（${contacts.length} 个联系人）`,
+        });
+      }
+
       // ── Email subscription for daily signals digest (public) ──
       if (path === '/ai/subscribe' && method === 'POST') {
         const body = await request.json().catch(() => ({}));

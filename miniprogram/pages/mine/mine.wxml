@@ -20,6 +20,25 @@
     <button class="btn btn-block" bindtap="goBilling">管理套餐 / 充值</button>
   </view>
 
+  <!-- 账号绑定 -->
+  <view wx:if="{{!isBound && openid}}" class="card bind-card">
+    <text class="bind-title">🔗 绑定 Web 账号</text>
+    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">绑定后可同步你在 Web 端的联系人、互动记录和待办</text>
+    <input
+      class="bind-input"
+      type="text"
+      placeholder="输入 Web 端 user_id（user_3GT...）"
+      value="{{bindUserId}}"
+      bindinput="onBindInput"
+    />
+    <button class="btn btn-block" style="margin-top:10px" bindtap="bindWebAccount">绑定</button>
+    <text wx:if="{{bindMsg}}" class="text-sm {{bindMsg === '绑定中…' ? 'text-dim' : 'text-accent'}}" style="display:block;margin-top:8px">{{bindMsg}}</text>
+  </view>
+
+  <view wx:if="{{isBound}}" class="card" style="padding:12px 16px">
+    <text class="text-green text-sm">✓ 已绑定 Web 账号，数据已同步</text>
+  </view>
+
   <!-- 功能入口 -->
   <view class="menu-group">
     <view class="menu-item" bindtap="goWeekly">
