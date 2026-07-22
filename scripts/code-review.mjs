@@ -278,12 +278,45 @@ async function main() {
   // ── Step 1-3: Launch 4 agents in parallel ──
   console.log("\n🤖 Launching 4 review agents in parallel...");
 
+  // Track LLM failures separately so we can report them instead of
+  // silently posting "✅ No issues found" when the review didn't actually run.
+  const llmErrors = [];
+  function trackError(agentName) {
+    return (e) => {
+      llmErrors.push({ agent: agentName, error: e.message });
+      return `[] // error: ${e.message}`;
+    };
+  }
+
   const [mdResult1, mdResult2, bugResult, secResult] = await Promise.all([
-    callLLM(agentPrompt_claudeMd(diff, claudeMdFiles, prInfo), COMMON_SYSTEM, MODEL).catch(e => `[] // error: ${e.message}`),
-    callLLM(agentPrompt_claudeMd(diff, claudeMdFiles, prInfo), COMMON_SYSTEM, MODEL).catch(e => `[] // error: ${e.message}`),
-    callLLM(agentPrompt_bugDetector(diff, prInfo), COMMON_SYSTEM, MODEL_STRONG).catch(e => `[] // error: ${e.message}`),
-    callLLM(agentPrompt_securityReviewer(diff, prInfo), COMMON_SYSTEM, MODEL_STRONG).catch(e => `[] // error: ${e.message}`),
+    callLLM(agentPrompt_claudeMd(diff, claudeMdFiles, prInfo), COMMON_SYSTEM, MODEL).catch(trackError("CLAUDE.md #1")),
+    callLLM(agentPrompt_claudeMd(diff, claudeMdFiles, prInfo), COMMON_SYSTEM, MODEL).catch(trackError("CLAUDE.md #2")),
+    callLLM(agentPrompt_bugDetector(diff, prInfo), COMMON_SYSTEM, MODEL_STRONG).catch(trackError("Bug detector")),
+    callLLM(agentPrompt_securityReviewer(diff, prInfo), COMMON_SYSTEM, MODEL_STRONG).catch(trackError("Security/logic")),
   ]);
+
+  // If all 4 agents failed, the review didn't run — post a warning instead of "no issues"
+  if (llmErrors.length === 4) {
+    console.error("⚠️  All 4 review agents failed — LLM may be unavailable.");
+    for (const err of llmErrors) {
+      console.error(`   ${err.agent}: ${err.error}`);
+    }
+    if (shouldComment && prNumber) {
+      const errorList = llmErrors.map(e => `- **${e.agent}**: ${e.error}`).join("\n");
+      execSync(`gh pr comment ${prNumber} --repo farmost-beep/welian --body ${JSON.stringify(
+        `## ⚠️ Code review did not run\n\nAll 4 review agents failed (LLM unavailable). Please review manually.\n\n**Errors:**\n${errorList}`
+      )}`);
+      console.log("   Posted LLM-unavailable warning to PR.");
+    }
+    process.exit(1);
+  }
+
+  if (llmErrors.length > 0) {
+    console.log(`⚠️  ${llmErrors.length}/4 agents failed (partial review):`);
+    for (const err of llmErrors) {
+      console.log(`   ${err.agent}: ${err.error}`);
+    }
+  }
 
   // Parse issues from each agent
   function parseIssues(text) {
@@ -321,7 +354,12 @@ async function main() {
   if (allIssues.length === 0) {
     console.log("\n✅ No issues found. Checked for bugs, security, and CLAUDE.md compliance.");
     if (shouldComment && prNumber) {
-      execSync(`gh pr comment ${prNumber} --repo farmost-beep/welian --body "## Code review\n\n✅ No issues found. Checked for bugs, security, and CLAUDE.md compliance."`);
+      const partialNote = llmErrors.length > 0
+        ? `\n\n⚠️ Note: ${llmErrors.length}/4 agents failed. Review may be incomplete.`
+        : "";
+      execSync(`gh pr comment ${prNumber} --repo farmost-beep/welian --body ${JSON.stringify(
+        `## Code review\n\n✅ No issues found. Checked for bugs, security, and CLAUDE.md compliance.${partialNote}`
+      )}`);
       console.log("   Posted clean review comment.");
     }
     return;

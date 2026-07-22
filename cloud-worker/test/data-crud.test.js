@@ -1,6 +1,6 @@
 // Tests for /data/* CRUD endpoints — contacts, timeline, todos, delete_account.
 // No real LLM calls. KV is mocked. Auth uses sync-secret bypass.
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import worker from "../src/worker.js";
 import { baseEnv, authHeader, jsonReq } from "./helpers.js";
 
@@ -382,5 +382,161 @@ describe("/data/pull", () => {
     const req = jsonReq("/data/pull", { method: "GET" });
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(401);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Data integrity regression tests
+// Guards against known bugs documented in CLAUDE.md:
+//   1. saveDataset must NOT set expirationTtl (caused data loss)
+//   2. add_timeline and add_todo contact lookup must be consistent
+//      (add_timeline uses aliases, add_todo must too)
+//   3. nature field must handle leverage/nurture/dual/双重 variants
+// ═══════════════════════════════════════════════════════════════
+
+// Mock KV that records put() options for TTL assertion
+function trackingKV(initial = {}) {
+  const store = new Map(Object.entries(initial));
+  const putCalls = [];
+  return {
+    async get(key) { return store.has(key) ? store.get(key) : null; },
+    async put(key, value, options) {
+      store.set(key, value);
+      putCalls.push({ key, options: options || null });
+    },
+    async delete(key) { store.delete(key); },
+    async list({ prefix } = {}) {
+      const keys = [];
+      for (const key of store.keys()) {
+        if (!prefix || key.startsWith(prefix)) keys.push({ name: key });
+      }
+      return { keys, list_complete: true };
+    },
+    _store: store,
+    _putCalls: putCalls,
+  };
+}
+
+describe("Data integrity: saveDataset must not set expirationTtl", () => {
+  it("contacts save has no TTL (regression: 7-day TTL caused data loss)", async () => {
+    const kv = trackingKV();
+    const env = baseEnv({ USER_DATA: kv });
+    // Create a contact → triggers saveDataset
+    await worker.fetch(jsonReq("/data/contacts", {
+      body: { name: "TTL测试", company: "测试公司" },
+      headers: authHeader(),
+    }), env, {});
+    // Find the contacts put call
+    const contactsPut = kv._putCalls.find(c => c.key.startsWith("contacts:"));
+    expect(contactsPut).toBeTruthy();
+    // Must not have expirationTtl
+    expect(contactsPut.options).toBeNull();
+  });
+
+  it("todos save has no TTL", async () => {
+    const kv = trackingKV();
+    const env = baseEnv({ USER_DATA: kv });
+    await worker.fetch(jsonReq("/data/todos", {
+      body: { contact: "c-1", task: "TTL测试待办" },
+      headers: authHeader(),
+    }), env, {});
+    const todosPut = kv._putCalls.find(c => c.key.startsWith("todos:"));
+    expect(todosPut).toBeTruthy();
+    expect(todosPut.options).toBeNull();
+  });
+
+  it("timeline save has no TTL", async () => {
+    const kv = trackingKV();
+    const env = baseEnv({ USER_DATA: kv });
+    await worker.fetch(jsonReq("/data/timeline", {
+      body: { contact: "c-1", summary: "TTL测试", date: "2026-07-15" },
+      headers: authHeader(),
+    }), env, {});
+    const timelinePut = kv._putCalls.find(c => c.key.startsWith("timeline:"));
+    expect(timelinePut).toBeTruthy();
+    expect(timelinePut.options).toBeNull();
+  });
+});
+
+describe("Data integrity: add_timeline and add_todo contact lookup consistency", () => {
+  const originalFetch = globalThis.fetch;
+  let env;
+
+  function intentResponse(intent, actions = []) {
+    return new Response(
+      JSON.stringify({
+        content: [{ type: "text", text: JSON.stringify({ intent, actions, contact_name: "", keywords: [] }) }],
+        usage: { input_tokens: 100, output_tokens: 50 },
+        stop_reason: "end_turn",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
+
+  beforeEach(() => { env = baseEnv(); });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it("add_timeline finds contact by alias (aliases.some includes)", async () => {
+    // Seed a contact with alias "老许" but name "许志远"
+    await env.USER_DATA.put("contacts:testuser", JSON.stringify([
+      { id: "c-xzy", name: "许志远", aliases: ["老许"] },
+    ]));
+    globalThis.fetch = async () => intentResponse("record", [
+      { type: "add_timeline", contact_name: "老许", summary: "聊了项目", date: "2026-07-22" },
+    ]);
+    const req = jsonReq("/ai/extract_intent", {
+      body: { text: "记一下今天和老许聊了项目" },
+      headers: authHeader(),
+    });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(200);
+    const timeline = JSON.parse(env.USER_DATA._store.get("timeline:testuser"));
+    expect(timeline[0].contact).toBe("c-xzy"); // matched by alias
+  });
+
+  it("add_todo finds contact by alias (regression: was missing aliases check)", async () => {
+    // Seed a contact with alias "老许" but name "许志远"
+    await env.USER_DATA.put("contacts:testuser", JSON.stringify([
+      { id: "c-xzy", name: "许志远", aliases: ["老许"] },
+    ]));
+    globalThis.fetch = async () => intentResponse("record", [
+      { type: "add_todo", task: "联系老许", contact_name: "老许", due: "2026-07-29", priority: "P1" },
+    ]);
+    const req = jsonReq("/ai/extract_intent", {
+      body: { text: "提醒我下周联系老许" },
+      headers: authHeader(),
+    });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(200);
+    const todos = JSON.parse(env.USER_DATA._store.get("todos:testuser"));
+    // The todo should be linked to c-xzy (found by alias), not a new contact
+    expect(todos[0].contact).toBe("c-xzy");
+    // And no new contact should have been created
+    const contacts = JSON.parse(env.USER_DATA._store.get("contacts:testuser"));
+    expect(contacts.length).toBe(1); // still just 许志远
+  });
+});
+
+describe("Data integrity: nature field handles all variants", () => {
+  let env;
+  beforeEach(() => { env = baseEnv(); });
+
+  it("wxmp_contact_stats counts leverage/nurture/dual/双重 correctly", async () => {
+    await env.USER_DATA.put("contacts:testuser", JSON.stringify([
+      { id: "c1", name: "A", nature: "leverage" },
+      { id: "c2", name: "B", nature: "nurture" },
+      { id: "c3", name: "C", nature: "dual" },
+      { id: "c4", name: "D", nature: "双重" },
+    ]));
+    const req = new Request("https://worker.test/ai/wxmp_contact_stats", {
+      method: "GET",
+      headers: authHeader(),
+    });
+    const res = await worker.fetch(req, env, {});
+    const data = await res.json();
+    expect(data.stats.total).toBe(4);
+    expect(data.stats.leverage).toBe(3); // leverage + dual + 双重
+    expect(data.stats.nurture).toBe(3);  // nurture + dual + 双重
+    expect(data.stats.dual).toBe(2);     // dual + 双重
   });
 });

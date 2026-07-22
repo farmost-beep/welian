@@ -104,6 +104,13 @@ async function main() {
     'styles.css':            [],
   };
 
+  // Map: changed file (relative to repo root, not public/) → vitest test files
+  // Used for cloud-worker and miniprogram changes (backend tests, not journey tests).
+  const BACKEND_FILE_TO_TESTS = {
+    'cloud-worker/src/worker.js': ['test/wxmp.test.js', 'test/data-crud.test.js', 'test/advanced-endpoints.test.js'],
+    'miniprogram/':               ['test/wxmp.test.js'],
+  };
+
   let shouldRunTests = true;
   let testFiles = [];
 
@@ -165,6 +172,46 @@ async function main() {
       console.error('Fix the failing tests before deploying.');
       console.error('Or use SKIP_TESTS=1 to deploy anyway (not recommended).');
       process.exit(1);
+    }
+  }
+
+  // ── Pre-deploy gate: backend vitest tests (cloud-worker + miniprogram) ──
+  // Run relevant vitest tests if cloud-worker/src/worker.js or miniprogram/ changed.
+  if (!skipTests || forceFull) {
+    let backendTestFiles = [];
+    try {
+      const allChanged = execSync('git diff --name-only HEAD~1 HEAD && git diff --name-only && git diff --name-only --cached', {
+        cwd: REPO_DIR, encoding: 'utf-8',
+      }).trim().split('\n').filter(f => f.trim());
+
+      const testSet = new Set();
+      for (const f of allChanged) {
+        for (const [prefix, tests] of Object.entries(BACKEND_FILE_TO_TESTS)) {
+          if (f.startsWith(prefix)) {
+            for (const t of tests) testSet.add(t);
+          }
+        }
+      }
+      backendTestFiles = [...testSet];
+    } catch {
+      // git diff failed — skip backend tests
+    }
+
+    if (backendTestFiles.length > 0) {
+      console.log(`\nBackend files changed → running vitest: ${backendTestFiles.join(', ')}`);
+      const vitestCmd = `npx vitest run ${backendTestFiles.join(' ')}`;
+      try {
+        execSync(vitestCmd, {
+          cwd: join(REPO_DIR, 'cloud-worker'),
+          stdio: 'inherit',
+          timeout: 120000,
+        });
+        console.log('✅ Backend vitest tests passed');
+      } catch (e) {
+        console.error('❌ Backend vitest tests FAILED — aborting deploy');
+        console.error('Fix the failing tests or use SKIP_TESTS=1 to deploy anyway.');
+        process.exit(1);
+      }
     }
   }
 

@@ -51,10 +51,9 @@ jobs:
         run: pytest tests/e2e/ -v --tb=short
         timeout-minutes: 5
 
-  # ── L0-L2 Journey tests (browser tests, non-blocking — flaky on CI) ──
+  # ── L0-L2 Journey tests (browser tests, publish-blocking) ──
   journey:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,9 +83,23 @@ jobs:
         timeout-minutes: 3
         continue-on-error: true  # Auth tests are informational, don't block deploy
 
-  # ── Deploy (only on main push, after publish-blocking tests pass) ──
+  # ── k6 smoke performance test (no-auth endpoint, ~35s) ──
+  perf-smoke:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Performance is informational, don't block deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/perf/k6-ci.js
+          flags: --env BASE_URL=https://api.welian.app
+        timeout-minutes: 3
+
+  # ── Deploy (only on main push, after deterministic tests pass) ──
+  # e2e is continue-on-error (LLM non-deterministic), so not listed in needs.
+  # journey is publish-blocking (L0-L2 user journeys must pass).
   deploy:
-    needs: [python-unit, worker-unit, e2e, journey]
+    needs: [python-unit, worker-unit, journey]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

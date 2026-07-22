@@ -179,6 +179,36 @@ is what Cloudflare Pages expects.
 
 If tests fail, deploy aborts. Fix the tests or use `SKIP_TESTS=1` (not recommended).
 
+### Pre-deploy backend tests (vitest)
+
+`deploy.cjs` also runs vitest tests when backend files change:
+
+| Changed file | vitest test files |
+|--------------|-------------------|
+| `cloud-worker/src/worker.js` | `test/wxmp.test.js` + `test/data-crud.test.js` + `test/advanced-endpoints.test.js` |
+| 任何 `miniprogram/` 文件 | `test/wxmp.test.js` |
+
+These run in addition to journey tests. Same `SKIP_TESTS=1` / `FULL_TESTS=1` controls apply.
+
+### Runtime monitoring (post-deploy observability)
+
+验证体系的最后一环是运行时观测。以下在 Cloudflare dashboard 配置（不是代码变更）：
+
+1. **Worker 错误率告警** — Cloudflare Dashboard → Workers & Pages → welian-ai → Analytics → Alerts
+   - 5xx 错误率 > 5% 持续 5 分钟 → 邮件通知
+   - 总请求数骤降 > 50% 持续 10 分钟 → 邮件通知
+
+2. **LLM 超时监控** — Worker 代码已 `console.error` LLM 失败。在 Cloudflare → Logs → Worker logs 配置 filter：
+   - 搜索 `LLM error` / `LLM fetch error` → 超过 10 次/小时 → 告警
+
+3. **KV 读写失败** — 搜索 `KV` + error 级别日志
+
+4. **关键端点健康检查** — 可选：用 UptimeRobot 或 Cloudflare Health Checks 监控：
+   - `GET https://api.welian.app/ai/config` — 期望 200
+   - `GET https://api.welian.app/ai/pricing` — 期望 200
+
+5. **小程序登录链路** — 定期手动验证 `POST /ai/wxmp_login` 返回 200（需微信 code，无法自动化）
+
 ## PDF 生成规则（必须遵守）
 
 当用户要求生成 PDF 文件时，**必须使用 Welian 品牌模板脚本**，不要用 reportlab 从零写。

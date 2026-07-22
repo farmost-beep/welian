@@ -2813,7 +2813,9 @@ actions 元素格式：
           let contactId = '';
           if (action.contact_name) {
             const c = contacts.find(c => c.name === action.contact_name ||
-              c.name.includes(action.contact_name));
+              c.name.includes(action.contact_name) ||
+              (c.aliases && c.aliases.some(a => a.includes(action.contact_name))) ||
+              (c.alias && c.alias.some(a => a.includes(action.contact_name))));
             if (c) {
               contactId = c.id;
             } else {
