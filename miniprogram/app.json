@@ -3,6 +3,7 @@
     "pages/signals/signals",
     "pages/dashboard/dashboard",
     "pages/contacts/contacts",
+    "pages/chat/chat",
     "pages/todos/todos",
     "pages/mine/mine",
     "pages/welcome/welcome",
@@ -34,6 +35,10 @@
       {
         "pagePath": "pages/contacts/contacts",
         "text": "关系"
+      },
+      {
+        "pagePath": "pages/chat/chat",
+        "text": "对话"
       },
       {
         "pagePath": "pages/todos/todos",

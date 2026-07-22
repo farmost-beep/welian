@@ -576,6 +576,106 @@ async function callLLM(prompt, system, env, options = {}) {
   return null;
 }
 
+// ── Streaming LLM call (for WebSocket chat) ──
+// Calls LLM with stream:true, returns an async generator yielding text deltas.
+async function* callLLMStream(prompt, system, env, options = {}) {
+  const apiKey = env.LLM_API_KEY;
+  if (!apiKey) {
+    console.error('LLM_API_KEY not set');
+    return null;
+  }
+
+  const tier = options.model_tier || 'standard';
+  const tierModels = {
+    standard: env.LLM_MODEL || 'MiniMax-M3',
+    enhanced: env.LLM_MODEL_ENHANCED || 'claude-sonnet-4-6',
+    premium: env.LLM_MODEL_PREMIUM || 'claude-opus-4-6',
+  };
+  const tierBaseUrls = {
+    standard: env.LLM_BASE_URL || 'https://api.minimaxi.com/anthropic',
+    enhanced: env.LLM_BASE_URL_ENHANCED || 'https://api.anthropic.com',
+    premium: env.LLM_BASE_URL_PREMIUM || 'https://api.anthropic.com',
+  };
+  const tierApiKeys = {
+    standard: apiKey,
+    enhanced: env.LLM_API_KEY_ENHANCED || apiKey,
+    premium: env.LLM_API_KEY_PREMIUM || apiKey,
+  };
+
+  const model = tierModels[tier] || tierModels.standard;
+  const baseUrl = tierBaseUrls[tier] || tierBaseUrls.standard;
+  const useApiKey = tierApiKeys[tier] || apiKey;
+
+  const body = {
+    model,
+    max_tokens: options.max_tokens || 1024,
+    messages: options.messages || [{ role: 'user', content: prompt }],
+    stream: true,
+  };
+  if (system) body.system = system;
+  if (options.temperature !== undefined) body.temperature = options.temperature;
+
+  const resp = await fetch(`${baseUrl}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': useApiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error(`LLM stream error: ${resp.status} ${errText.substring(0, 300)}`);
+    return null;
+  }
+
+  // Parse SSE stream: events separated by \n\n, each has "event: ..." and "data: ..."
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let totalUsage = { input_tokens: 0, output_tokens: 0 };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Process complete SSE events
+    let idx;
+    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+      const eventStr = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+
+      // Extract data line
+      const dataMatch = eventStr.match(/^data: (.+)$/m);
+      if (!dataMatch) continue;
+
+      try {
+        const data = JSON.parse(dataMatch[1]);
+        // content_block_delta has the text delta
+        if (data.type === 'content_block_delta' && data.delta?.text) {
+          yield data.delta.text;
+        }
+        // message_delta has usage info
+        if (data.type === 'message_delta' && data.usage) {
+          totalUsage.output_tokens = data.usage.output_tokens || totalUsage.output_tokens;
+        }
+        // message_start has input usage
+        if (data.type === 'message_start' && data.message?.usage) {
+          totalUsage.input_tokens = data.message.usage.input_tokens || 0;
+        }
+      } catch (e) {
+        // Not valid JSON, skip
+      }
+    }
+  }
+
+  // Store usage for the caller to read after generator completes
+  callLLMStream._lastUsage = totalUsage;
+}
+
 // ── Route handlers ──
 
 async function handleDraft(req, env) {
@@ -5666,6 +5766,240 @@ export default {
     // CORS preflight
     if (method === 'OPTIONS') {
       return new Response(null, { headers: { ...CORS_HEADERS, 'Cache-Control': 'no-store' } });
+    }
+
+    // ── WebSocket upgrade for mini program chat ──
+    if (path === '/ai/wxmp_chat_ws' && request.headers.get('Upgrade') === 'websocket') {
+      const token = url.searchParams.get('token');
+      if (!token) return new Response('Missing token', { status: 401 });
+
+      // Verify sync token (same logic as getVerifiedUserId but without Request)
+      let userId = null;
+      if (token.includes(':') && !token.startsWith('eyJ')) {
+        const [uid, secret] = token.split(':');
+        if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
+          if (uid.startsWith('wxmp_')) {
+            const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
+            userId = bound || uid;
+          } else {
+            userId = uid;
+          }
+        }
+      }
+      if (!userId) return new Response('Invalid token', { status: 401 });
+
+      const pair = new WebSocketPair();
+      const client = pair[0];
+      const server = pair[1];
+      server.accept();
+
+      server.addEventListener('message', async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type !== 'chat') return;
+
+          const message = data.message || '';
+          const history = data.history || [];
+          if (!message) {
+            server.send(JSON.stringify({ type: 'error', error: 'message required' }));
+            return;
+          }
+
+          // 1. Check billing
+          const billing = await getBillingData(env, userId);
+          const now = new Date();
+          const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          if (billing.monthKey !== monthKey) {
+            billing.monthKey = monthKey;
+            billing.used = 0;
+          }
+          const remaining = await getRemaining(billing, env);
+          if (remaining <= 0) {
+            server.send(JSON.stringify({
+              type: 'error',
+              error: '联点已用完',
+              code: 'OUT_OF_CREDITS',
+            }));
+            return;
+          }
+
+          // 2. Extract intent (lightweight — just for data context)
+          const _chatIntentFallback = `你是一个关系网络智能体。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
+今天是 ${new Date().toISOString().slice(0, 10)}。
+JSON格式：{"intent":"query_contact|query_todo|record|draft|advise|report|chat","contact_name":"","keywords":[],"actions":[]}
+intent说明：query_contact=查询某人,query_todo=查看待办,record=记录互动/添加待办,draft=拟写消息,advise=建议联系谁,report=回顾,chat=闲聊
+actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要","date":"YYYY-MM-DD"},{"type":"add_todo","task":"内容","contact_name":"人名","due":"YYYY-MM-DD","priority":"P1"},{"type":"add_contact","name":"人名","relation":"关系"},{"type":"complete_todo","task":"关键词"}
+只有用户明确表达记录/提醒/添加/完成意图时才生成actions，否则actions=[]。`;
+          const intentResp = await callLLM(message, await getPrompt(env, 'intent', _chatIntentFallback), env, {
+            max_tokens: 800, temperature: 0,
+          });
+          let intent = { intent: 'chat', contact_name: '', keywords: [], actions: [] };
+          if (intentResp) {
+            try {
+              const jsonMatch = intentResp.text.match(/\{[\s\S]*\}/);
+              intent = jsonMatch ? JSON.parse(jsonMatch[0]) : intent;
+            } catch {}
+          }
+
+          // 3. Execute data actions (record/todo/contact) from intent
+          if (intent.actions && intent.actions.length > 0) {
+            let contacts = null, todos = null, timeline = null;
+            let contactsDirty = false, todosDirty = false, timelineDirty = false;
+            for (const action of intent.actions) {
+              try {
+                if (action.type === 'add_timeline' && action.summary) {
+                  if (timeline === null) timeline = await loadDataset(env, userId, 'timeline');
+                  if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                  let contactId = '';
+                  if (action.contact_name) {
+                    const c = contacts.find(c => c.name === action.contact_name ||
+                      c.name.includes(action.contact_name) ||
+                      (c.aliases && c.aliases.some(a => a.includes(action.contact_name))));
+                    if (c) contactId = c.id;
+                    if (!c) {
+                      const nc = createContact(action.contact_name);
+                      contacts.push(nc); contactsDirty = true; contactId = nc.id;
+                    }
+                  }
+                  timeline.push(createTimelineEntry(contactId, action.summary, { date: action.date || new Date().toISOString().slice(0, 10) }));
+                  timelineDirty = true;
+                  trackAction(env, userId, 'interaction_recorded', { contact_name: action.contact_name || '' }).catch(() => {});
+                }
+                if (action.type === 'add_todo' && action.task) {
+                  if (todos === null) todos = await loadDataset(env, userId, 'todos');
+                  if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                  let contactId = '';
+                  if (action.contact_name) {
+                    const c = contacts.find(c => c.name === action.contact_name ||
+                      c.name.includes(action.contact_name) ||
+                      (c.aliases && c.aliases.some(a => a.includes(action.contact_name))) ||
+                      (c.alias && c.alias.some(a => a.includes(action.contact_name))));
+                    if (c) contactId = c.id;
+                    if (!c) {
+                      const nc = createContact(action.contact_name);
+                      contacts.push(nc); contactsDirty = true; contactId = nc.id;
+                    }
+                  }
+                  const dueDate = action.due || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+                  todos.push({
+                    id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    task: action.task, contact: contactId, due: dueDate,
+                    priority: action.priority || 'P1', status: 'pending',
+                    source: action.source || 'wxmp_chat', created_at: new Date().toISOString(),
+                  });
+                  todosDirty = true;
+                }
+                if (action.type === 'add_contact' && action.name) {
+                  if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                  if (!contacts.find(c => c.name === action.name)) {
+                    contacts.push(createContact(action.name, { relation: action.relation, notes: action.notes }));
+                    contactsDirty = true;
+                  }
+                }
+                if (action.type === 'complete_todo' && action.task) {
+                  if (todos === null) todos = await loadDataset(env, userId, 'todos');
+                  const t = todos.find(t => t.task.includes(action.task) && t.status === 'pending');
+                  if (t) { t.status = 'completed'; t.completed_at = new Date().toISOString(); todosDirty = true; }
+                }
+              } catch (e) { console.error('[wxmp_chat] action error:', e.message); }
+            }
+            if (contactsDirty) await saveDataset(env, userId, 'contacts', contacts);
+            if (todosDirty) await saveDataset(env, userId, 'todos', todos);
+            if (timelineDirty) await saveDataset(env, userId, 'timeline', timeline);
+          }
+
+          // 4. Build data context from KV
+          const contacts = await loadDataset(env, userId, 'contacts');
+          const todos = await loadDataset(env, userId, 'todos');
+          const timeline = await loadDataset(env, userId, 'timeline');
+          let dataContext = '';
+          if (intent.contact_name) {
+            const c = contacts.find(c => c.name === intent.contact_name ||
+              c.name.includes(intent.contact_name) ||
+              (c.aliases && c.aliases.some(a => a.includes(intent.contact_name))));
+            if (c) {
+              const cTimeline = timeline.filter(t => t.contact === c.id).slice(-5);
+              const cTodos = todos.filter(t => t.contact === c.id && t.status === 'pending');
+              dataContext = `【联系人信息】\n姓名: ${c.name}\n公司: ${c.company || ''}\n职位: ${c.title || ''}\n关系: ${c.relation || ''}\n性质: ${c.nature || ''}\n备注: ${c.notes || ''}\n`;
+              if (cTimeline.length) dataContext += `最近互动: ${cTimeline.map(t => `${t.date}: ${t.summary}`).join('; ')}\n`;
+              if (cTodos.length) dataContext += `待办: ${cTodos.map(t => t.task).join('; ')}\n`;
+            }
+          }
+          if (!dataContext && intent.intent === 'advise') {
+            // Provide top contacts for advise intent
+            const top = contacts.slice(0, 10).map(c => `- ${c.name} (${c.relation || c.nature || ''})`).join('\n');
+            dataContext = `【联系人列表】\n${top}\n`;
+          }
+          if (intent.intent === 'query_todo') {
+            const pending = todos.filter(t => t.status === 'pending').slice(0, 15);
+            dataContext = `【待办列表】\n${pending.map(t => `- ${t.task} (due: ${t.due || '无'})`).join('\n')}\n`;
+          }
+
+          // 5. Build system prompt (小维人格 + 数据上下文)
+          const chatSystem = `你是小维（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者。
+
+你的信念：每段关系都值得用心。
+你的人格：事实和数据方面按照诚实原则，具有天才头脑。人情世故方面，有趣的灵魂，有温度的表达。
+
+回复风格：
+- 简洁友好，像朋友在聊天，不是助理在汇报
+- 中文回复，适当用 emoji
+- 回复不要太长，重点突出
+- 记录时：确认记下了并简要复述
+- 查待办时：只列出数据中有的，按紧急程度分组
+- 闲聊时：自然回应，可以引导到关系管理话题
+- 拟写消息时：给出完整可发送的草稿
+
+${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataContext}` : ''}
+
+每次回复末尾附上 3-4 条与当前对话上下文直接相关的后续操作建议，格式：
+<<<SUGGESTIONS>>>
+建议1
+建议2
+建议3`;
+
+          // 6. Build messages with history
+          const messages = [
+            ...history.slice(-6).map(h => ({ role: h.role || 'user', content: h.content || '' })),
+            { role: 'user', content: message },
+          ];
+
+          // 7. Call LLM with streaming
+          server.send(JSON.stringify({ type: 'start' }));
+          const gen = callLLMStream(null, chatSystem, env, {
+            messages, max_tokens: 1024, temperature: 0.7, model_tier: 'standard',
+          });
+
+          let fullText = '';
+          for await (const chunk of gen) {
+            fullText += chunk;
+            server.send(JSON.stringify({ type: 'chunk', text: chunk }));
+          }
+
+          // 8. Billing deduction
+          const usage = callLLMStream._lastUsage || { input_tokens: 0, output_tokens: 0 };
+          const points = (usage.input_tokens * 0.0001 + usage.output_tokens * 0.0003) * 1;
+          billing.used = (billing.used || 0) + points;
+          await saveBillingData(env, userId, billing);
+
+          server.send(JSON.stringify({
+            type: 'done',
+            intent: intent.intent,
+            actions: intent.actions || [],
+            usage,
+            billing: { plan: billing.plan, used: billing.used, remaining: remaining - points },
+          }));
+        } catch (e) {
+          console.error('[wxmp_chat_ws] error:', e.message);
+          server.send(JSON.stringify({ type: 'error', error: e.message }));
+        }
+      });
+
+      server.addEventListener('close', () => {
+        console.log('[wxmp_chat_ws] connection closed');
+      });
+
+      return new Response(null, { status: 101, webSocket: client });
     }
 
     // Routes

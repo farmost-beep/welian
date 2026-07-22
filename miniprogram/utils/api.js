@@ -98,6 +98,7 @@ module.exports = {
   getToken,
   clearToken,
   isLoggedIn() { return !!getToken(); },
+  getChatUrl,
 
   // 仪表盘（从 advise_cloud 获取建议）
   getDashboard() {
@@ -276,4 +277,11 @@ function formatBirthday(birthday) {
   const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   if (days <= 30) return `🎂 ${mmdd} 生日（${days}天后）`;
   return `🎂 ${mmdd} 生日`;
+}
+
+// ── WebSocket chat URL ──
+function getChatUrl() {
+  const token = getToken();
+  if (!token) return '';
+  return `wss://api.welian.app/ai/wxmp_chat_ws?token=${encodeURIComponent(token)}`;
 }
