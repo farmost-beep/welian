@@ -127,7 +127,19 @@ Page({
           success: (res) => {
             if (res.statusCode === 200 && res.data && res.data.ok) {
               const c = res.data.contact || {};
-              const s = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+              const s = (v) => {
+                if (v == null) return '';
+                if (typeof v === 'string') return v;
+                if (typeof v === 'number') return String(v);
+                if (Array.isArray(v)) return v.find(e => typeof e === 'string') || '';
+                if (typeof v === 'object') {
+                  for (const k of ['name', 'type', 'value', 'label', 'text']) {
+                    if (typeof v[k] === 'string') return v[k];
+                  }
+                  return Object.values(v).find(e => typeof e === 'string') || '';
+                }
+                return String(v);
+              };
               const scanResult = {
                 ok: true,
                 message: s(res.data.message),
