@@ -16,57 +16,136 @@
     <view class="card status-card">
       <view class="status-row">
         <text class="status-label">当前套餐</text>
-        <text class="tag tag-{{plan === 'pro' ? 'leverage' : 'dual'}}">{{planLabel}}</text>
+        <text class="tag tag-{{plan === 'pro' ? 'leverage' : 'dual'}}">{{plan === 'pro' ? 'Pro' : 'Free'}}</text>
       </view>
-      <view class="status-row">
-        <text class="status-label">剩余额度</text>
-        <text class="status-credits">{{credits}} / {{creditsTotal}} 点</text>
+
+      <!-- 额度详情 -->
+      <view class="credits-detail">
+        <view class="credits-main">
+          <text class="credits-num">{{remaining}}</text>
+          <text class="credits-unit text-dimmer text-xs">剩余联点</text>
+        </view>
+        <view class="credits-breakdown">
+          <view class="breakdown-row">
+            <text class="text-dim text-xs">月度配额</text>
+            <text class="text-dim text-xs">{{allowance}}</text>
+          </view>
+          <view wx:if="{{rollover > 0}}" class="breakdown-row">
+            <text class="text-dim text-xs">滚存</text>
+            <text class="text-dim text-xs">{{rollover}}</text>
+          </view>
+          <view wx:if="{{purchased > 0}}" class="breakdown-row">
+            <text class="text-dim text-xs">已购买</text>
+            <text class="text-dim text-xs">{{purchased}}</text>
+          </view>
+          <view class="breakdown-row">
+            <text class="text-dim text-xs">本月已用</text>
+            <text class="text-dim text-xs">{{used}}</text>
+          </view>
+        </view>
       </view>
-      <!-- 额度进度条 -->
+
+      <!-- 进度条 -->
       <view class="credits-bar">
-        <view class="credits-fill" style="width: {{credits / creditsTotal * 100}}%"></view>
+        <view class="credits-fill" style="width: {{allowance > 0 ? (used / allowance * 100) : 0}}%"></view>
       </view>
-      <text class="text-dimmer text-xs">额度将于 {{creditsResetAt}} 重置</text>
+      <text class="text-dimmer text-xs">额度将于下月1日重置</text>
+
+      <!-- 订阅信息 -->
+      <view wx:if="{{subscription}}" class="subscription-info">
+        <text class="text-dim text-xs">订阅到期：{{subscription.expire}}</text>
+      </view>
     </view>
 
-    <!-- 套餐选择 -->
-    <view class="plans-section">
-      <text class="section-title">选择套餐</text>
-
-      <view wx:for="{{plans}}" wx:key="key" class="card plan-option {{item.current ? 'current' : ''}}">
-        <view class="plan-header">
-          <view class="plan-title-group">
-            <text class="plan-name">{{item.name}}</text>
-            <text wx:if="{{item.current}}" class="tag tag-leverage">当前</text>
+    <!-- 套餐升级 -->
+    <view wx:if="{{plan !== 'pro'}}" class="card upgrade-card">
+      <text class="section-title-sm">升级 Pro</text>
+      <view class="plan-options">
+        <view class="plan-option" bindtap="upgrade">
+          <view class="plan-option-info">
+            <text class="plan-option-name">Pro 月度</text>
+            <text class="plan-option-desc text-dim text-xs">500点/月 · ¥29/月</text>
           </view>
-          <view class="plan-price-group">
-            <text class="plan-price">¥{{item.price}}</text>
-            <text class="plan-period text-dimmer text-xs">/月</text>
-          </view>
+          <text class="plan-option-arrow text-dimmer">›</text>
         </view>
+      </view>
+    </view>
 
-        <view class="plan-credits-row">
-          <text class="text-green text-sm">{{item.credits}} {{item.unit}}</text>
+    <!-- 加油包 -->
+    <view class="card">
+      <text class="section-title-sm">加油包（一次性购买）</text>
+      <view class="pack-option" bindtap="buyCredits" data-pack="100">
+        <view class="pack-info">
+          <text class="pack-name">100 联点包</text>
+          <text class="pack-price text-dim text-xs">¥1.99</text>
         </view>
+        <text class="pack-btn">购买</text>
+      </view>
+      <view class="pack-option" bindtap="buyCredits" data-pack="500">
+        <view class="pack-info">
+          <text class="pack-name">500 联点包</text>
+          <text class="pack-price text-dim text-xs">¥7.99 · 省20%</text>
+        </view>
+        <text class="pack-btn">购买</text>
+      </view>
+    </view>
 
-        <view class="plan-features">
-          <text wx:for="{{item.features}}" wx:for-item="feat" wx:key="index" class="feature-item">
-            <text class="feature-check text-green">✓</text>
-            <text class="feature-text text-sm">{{feat}}</text>
-          </text>
-        </view>
+    <!-- 优惠券兑换 -->
+    <view class="card">
+      <text class="section-title-sm">优惠券兑换</text>
+      <view class="coupon-row">
+        <input
+          class="coupon-input"
+          type="text"
+          placeholder="输入兑换码"
+          value="{{couponCode}}"
+          bindinput="onCouponInput"
+        />
+        <button class="coupon-btn" bindtap="redeemCoupon">兑换</button>
+      </view>
+      <text wx:if="{{couponMsg}}" class="text-sm {{couponMsg.startsWith('✓') ? 'text-green' : 'text-accent'}}" style="display:block;margin-top:8px">{{couponMsg}}</text>
+    </view>
 
-        <button
-          wx:if="{{!item.current}}"
-          class="btn btn-block"
-          bindtap="upgrade"
-          data-key="{{item.key}}"
-        >
-          {{item.key === 'pro' ? '升级到 Pro' : '切换到 Free'}}
-        </button>
-        <view wx:else class="current-badge">
-          <text class="text-dim text-sm">当前使用中</text>
+    <!-- 赠予联点 -->
+    <view class="card">
+      <view class="gift-header" bindtap="toggleGift">
+        <text class="section-title-sm">赠予联点</text>
+        <text class="text-dimmer text-xs">{{showGift ? '收起' : '展开'}}</text>
+      </view>
+      <block wx:if="{{showGift}}">
+        <text class="text-dim text-xs" style="display:block;margin-bottom:10px">向其他 Welian 用户赠送联点（10-500点）</text>
+        <input
+          class="coupon-input"
+          type="text"
+          placeholder="收件人邮箱"
+          value="{{giftEmail}}"
+          bindinput="onGiftEmailInput"
+        />
+        <input
+          class="coupon-input"
+          type="number"
+          placeholder="联点数量（10-500）"
+          value="{{giftPoints}}"
+          bindinput="onGiftPointsInput"
+          style="margin-top:8px"
+        />
+        <button class="btn btn-block" style="margin-top:10px" bindtap="sendGift" loading="{{gifting}}">赠予</button>
+        <text wx:if="{{giftMsg}}" class="text-sm text-accent" style="display:block;margin-top:8px">{{giftMsg}}</text>
+      </block>
+    </view>
+
+    <!-- 用量历史 -->
+    <view class="card">
+      <text class="section-title-sm">用量记录</text>
+      <view wx:if="{{history.length === 0}}" class="empty-state">
+        <text class="text-dimmer text-sm">暂无记录</text>
+      </view>
+      <view wx:for="{{history}}" wx:key="index" class="history-item">
+        <view class="history-row">
+          <text class="text-sm">{{item.actionLabel}}</text>
+          <text wx:if="{{item.ptsLabel}}" class="text-sm {{item.ptsLabel.startsWith('+') ? 'text-green' : 'text-accent'}}">{{item.ptsLabel}}</text>
         </view>
+        <text class="text-dimmer text-xs">{{item.dateStr}} · {{item.detail}}</text>
       </view>
     </view>
 

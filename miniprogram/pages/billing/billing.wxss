@@ -134,3 +134,118 @@
 .billing-note {
   padding: 6rpx 0;
 }
+
+/* ── 额度详情 ── */
+.credits-detail {
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+  margin-bottom: 20rpx;
+}
+.credits-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.credits-num {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #4A7C59;
+  line-height: 1;
+}
+.credits-unit { margin-top: 6rpx; }
+.credits-breakdown {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── 订阅信息 ── */
+.subscription-info {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #E4E1D6;
+}
+
+/* ── 升级卡片 ── */
+.upgrade-card { margin-bottom: 24rpx; }
+.plan-options { margin-top: 12rpx; }
+.plan-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+}
+.plan-option-info { display: flex; flex-direction: column; gap: 4rpx; }
+.plan-option-name { font-size: 30rpx; font-weight: 600; color: #1A1915; }
+.plan-option-arrow { font-size: 36rpx; }
+
+/* ── 加油包 ── */
+.pack-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.pack-option:last-child { border-bottom: none; }
+.pack-info { display: flex; flex-direction: column; gap: 4rpx; }
+.pack-name { font-size: 30rpx; font-weight: 600; color: #1A1915; }
+.pack-btn {
+  font-size: 26rpx;
+  color: #C96442;
+  padding: 10rpx 28rpx;
+  background: #EDEBE3;
+  border-radius: 10rpx;
+}
+
+/* ── 优惠券 ── */
+.coupon-row {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.coupon-input {
+  flex: 1;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 10rpx;
+  padding: 14rpx 18rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+}
+.coupon-btn {
+  font-size: 26rpx;
+  padding: 0 28rpx;
+  background: #4A6741;
+  color: #FAFAF7;
+  border: none;
+  border-radius: 10rpx;
+  line-height: 64rpx;
+}
+.coupon-btn::after { border: none; }
+
+/* ── 赠予 ── */
+.gift-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── 用量历史 ── */
+.history-item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.history-item:last-child { border-bottom: none; }
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+.empty-state { text-align: center; padding: 30rpx 0; }
