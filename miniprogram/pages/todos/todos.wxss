@@ -80,3 +80,73 @@
 .todo-due-urgent { color: #e67e22; background: #fef3e0; }
 .todo-due-soon { color: #6B6860; background: #F5F4EE; }
 .todo-due-normal { color: #9A968C; }
+.todo-postponed { font-size: 24rpx; }
+
+/* 操作菜单 */
+.action-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,25,21,0.5);
+  z-index: 1000;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.action-sheet {
+  background: #FAFAF7;
+  width: 100%; max-width: 500px;
+  border-radius: 20rpx 20rpx 0 0;
+  padding: 16rpx 0 32rpx;
+}
+.action-sheet-title {
+  font-size: 26rpx; color: #9A968C;
+  text-align: center; padding: 16rpx 32rpx;
+  border-bottom: 1rpx solid #E4E1D6;
+  margin-bottom: 8rpx;
+}
+.action-sheet-item {
+  font-size: 30rpx; color: #1A1915;
+  padding: 24rpx 32rpx;
+  text-align: center;
+  border-bottom: 1rpx solid #F0EEE8;
+}
+.action-sheet-item:active { background: #F5F4EE; }
+.action-sheet-danger { color: #C65D5D; }
+.action-sheet-cancel { margin-top: 12rpx; font-size: 28rpx; color: #6B6860; }
+
+/* 编辑弹窗 */
+.edit-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,25,21,0.5);
+  z-index: 1001;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.edit-modal {
+  background: #FAFAF7;
+  width: 100%; max-width: 500px;
+  max-height: 85vh; overflow-y: auto;
+  border-radius: 20rpx 20rpx 0 0;
+  padding: 24rpx 32rpx 48rpx;
+}
+.edit-title {
+  font-size: 34rpx; font-weight: 600; color: #1A1915;
+  text-align: center; margin-bottom: 20rpx;
+}
+.edit-field { margin-bottom: 16rpx; }
+.edit-label {
+  font-size: 24rpx; color: #6B6860;
+  display: block; margin-bottom: 6rpx;
+}
+.edit-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 10rpx;
+  padding: 14rpx 18rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+  min-height: 40rpx;
+}
+.edit-textarea { min-height: 120rpx; }
+.edit-actions {
+  display: flex; gap: 16rpx; margin-top: 24rpx;
+}
+.edit-actions .action-btn { flex: 1; font-size: 28rpx; padding: 16rpx 0; }
+.action-btn { font-size: 14px; padding: 10px 0; background: #EDEBE3; color: #C96442; border: none; border-radius: 10px; }
+.action-btn::after { border: none; }
+.action-btn-primary { color: #FAFAF7 !important; background: #4A6741 !important; }

@@ -57,12 +57,13 @@
       <view class="todo-checkbox" bindtap="markDone" data-id="{{item.id}}">
         <text class="checkbox-circle">○</text>
       </view>
-      <view class="todo-content">
+      <view class="todo-content" bindtap="showTodoActions" data-id="{{item.id}}">
         <text class="todo-task">{{item.task}}</text>
         <view class="todo-meta">
           <text wx:if="{{item.priorityLabel}}" class="todo-priority">{{item.priorityLabel}}</text>
           <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
           <text wx:if="{{item.dueLabel}}" class="todo-due todo-due-{{item.dueStatus}}">{{item.dueLabel}}</text>
+          <text wx:if="{{item.postponed}}" class="todo-postponed text-dim text-xs">↩︎ 推迟{{item.postponed}}次</text>
         </view>
       </view>
     </view>
@@ -77,7 +78,7 @@
       <view class="todo-checkbox" bindtap="reopen" data-id="{{item.id}}">
         <text class="checkbox-circle checkbox-done">✓</text>
       </view>
-      <view class="todo-content">
+      <view class="todo-content" bindtap="showTodoActions" data-id="{{item.id}}">
         <text class="todo-task todo-task-done">{{item.task}}</text>
         <view class="todo-meta">
           <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
@@ -85,4 +86,65 @@
       </view>
     </view>
   </block>
+</view>
+
+<!-- 待办操作菜单 -->
+<view wx:if="{{showActions}}" class="action-overlay" bindtap="closeActions">
+  <view class="action-sheet" catchtap="">
+    <view class="action-sheet-title">{{actionTodo.task}}</view>
+    <block wx:if="{{actionTodo.status !== 'done' && !actionTodo.done}}">
+      <view class="action-sheet-item" bindtap="doMarkDone">✓ 标记完成</view>
+      <view class="action-sheet-item" bindtap="doPostpone">↩︎ 推迟</view>
+      <view class="action-sheet-item" bindtap="doEdit">✏️ 编辑</view>
+      <view class="action-sheet-item action-sheet-danger" bindtap="doCancel">✕ 取消待办</view>
+    </block>
+    <block wx:else>
+      <view class="action-sheet-item" bindtap="doReopen">↩︎ 重新打开</view>
+    </block>
+    <view class="action-sheet-item action-sheet-danger" bindtap="doDelete">🗑️ 彻底删除</view>
+    <view class="action-sheet-item action-sheet-cancel" bindtap="closeActions">取消</view>
+  </view>
+</view>
+
+<!-- 推迟选择 -->
+<view wx:if="{{showPostpone}}" class="action-overlay" bindtap="closePostpone">
+  <view class="action-sheet" catchtap="">
+    <view class="action-sheet-title">推迟到…</view>
+    <view class="action-sheet-item" bindtap="applyPostpone" data-days="1">明天</view>
+    <view class="action-sheet-item" bindtap="applyPostpone" data-days="3">3天后</view>
+    <view class="action-sheet-item" bindtap="applyPostpone" data-days="7">下周</view>
+    <view class="action-sheet-item" bindtap="applyPostpone" data-days="14">两周后</view>
+    <view class="action-sheet-item action-sheet-cancel" bindtap="closePostpone">取消</view>
+  </view>
+</view>
+
+<!-- 编辑待办弹窗 -->
+<view wx:if="{{showEdit}}" class="edit-overlay" catchtap="closeEdit">
+  <view class="edit-modal" catchtap="">
+    <view class="edit-title">编辑待办</view>
+    <view class="edit-field">
+      <text class="edit-label">待办内容</text>
+      <textarea class="edit-input edit-textarea" value="{{editForm.task}}" bindinput="onEditInput" data-field="task" placeholder="待办内容" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">关联联系人</text>
+      <input class="edit-input" value="{{editForm.contact_name}}" bindinput="onEditInput" data-field="contact_name" placeholder="联系人（可选）" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">优先级</text>
+      <picker mode="selector" range="{{priorityOptions}}" value="{{priorityIndex}}" bindchange="onPriorityChange">
+        <view class="edit-input">{{priorityOptions[priorityIndex]}}</view>
+      </picker>
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">截止日期</text>
+      <picker mode="date" value="{{editForm.due}}" bindchange="onDueChange">
+        <view class="edit-input">{{editForm.due || '选择日期'}}</view>
+      </picker>
+    </view>
+    <view class="edit-actions">
+      <button class="action-btn" bindtap="closeEdit">取消</button>
+      <button class="action-btn action-btn-primary" bindtap="saveEdit" loading="{{savingEdit}}">保存</button>
+    </view>
+  </view>
 </view>

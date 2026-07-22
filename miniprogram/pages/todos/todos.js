@@ -12,6 +12,18 @@ Page({
     newTodo: '',
     newTodoContact: '',
     adding: false,
+    // 操作菜单
+    showActions: false,
+    actionTodo: {},
+    // 推迟
+    showPostpone: false,
+    // 编辑
+    showEdit: false,
+    savingEdit: false,
+    editForm: {},
+    priorityOptions: ['P1 紧急', 'P2 重要', 'P3 一般'],
+    priorityValues: ['P1', 'P2', 'P3'],
+    priorityIndex: 0,
   },
 
   onShow() {
@@ -174,6 +186,218 @@ Page({
       },
       fail: () => {
         this.setData({ adding: false });
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      },
+    });
+  },
+
+  // ── 待办操作菜单 ──
+  showTodoActions(e) {
+    const id = e.currentTarget.dataset.id;
+    const all = [...this.data.pending, ...this.data.doneList];
+    const todo = all.find(t => t.id === id);
+    if (!todo) return;
+    this.setData({ showActions: true, actionTodo: todo });
+  },
+
+  closeActions() {
+    this.setData({ showActions: false });
+  },
+
+  doMarkDone() {
+    const id = this.data.actionTodo.id;
+    this.setData({ showActions: false });
+    wx.request({
+      url: 'https://api.welian.app/data/todos/done',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+      data: { id },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.loadTodos();
+          wx.showToast({ title: '已完成', icon: 'success' });
+        }
+      },
+    });
+  },
+
+  doReopen() {
+    const id = this.data.actionTodo.id;
+    this.setData({ showActions: false });
+    wx.request({
+      url: 'https://api.welian.app/data/todos/reopen',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+      data: { id },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.loadTodos();
+          wx.showToast({ title: '已重新打开', icon: 'none' });
+        }
+      },
+    });
+  },
+
+  doCancel() {
+    const id = this.data.actionTodo.id;
+    const task = this.data.actionTodo.task;
+    this.setData({ showActions: false });
+    wx.showModal({
+      title: '取消待办',
+      content: `确定取消「${task}」吗？`,
+      confirmText: '取消待办',
+      confirmColor: '#C65D5D',
+      success: (r) => {
+        if (r.confirm) {
+          wx.request({
+            url: 'https://api.welian.app/data/todos/cancel',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+            data: { id },
+            success: (res) => {
+              if (res.statusCode === 200) {
+                this.loadTodos();
+                wx.showToast({ title: '已取消', icon: 'none' });
+              }
+            },
+          });
+        }
+      },
+    });
+  },
+
+  doDelete() {
+    const id = this.data.actionTodo.id;
+    const task = this.data.actionTodo.task;
+    this.setData({ showActions: false });
+    wx.showModal({
+      title: '删除待办',
+      content: `彻底删除「${task}」？此操作不可恢复。`,
+      confirmText: '删除',
+      confirmColor: '#C65D5D',
+      success: (r) => {
+        if (r.confirm) {
+          wx.showLoading({ title: '删除中…' });
+          wx.request({
+            url: `https://api.welian.app/data/todos?id=${id}`,
+            method: 'DELETE',
+            header: { 'Authorization': 'Bearer ' + api.getToken() },
+            success: (res) => {
+              wx.hideLoading();
+              if (res.statusCode === 200 && res.data.ok) {
+                this.loadTodos();
+                wx.showToast({ title: '已删除', icon: 'success' });
+              } else {
+                wx.showToast({ title: '删除失败', icon: 'none' });
+              }
+            },
+            fail: () => {
+              wx.hideLoading();
+              wx.showToast({ title: '网络错误', icon: 'none' });
+            },
+          });
+        }
+      },
+    });
+  },
+
+  // ── 推迟 ──
+  doPostpone() {
+    this.setData({ showActions: false, showPostpone: true });
+  },
+
+  closePostpone() {
+    this.setData({ showPostpone: false });
+  },
+
+  applyPostpone(e) {
+    const days = parseInt(e.currentTarget.dataset.days);
+    const id = this.data.actionTodo.id;
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const newDue = d.toISOString().slice(0, 10);
+    this.setData({ showPostpone: false });
+    wx.request({
+      url: 'https://api.welian.app/data/todos/postpone',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+      data: { id, due: newDue },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.loadTodos();
+          wx.showToast({ title: `推迟到${days}天后`, icon: 'none' });
+        }
+      },
+    });
+  },
+
+  // ── 编辑 ──
+  doEdit() {
+    const t = this.data.actionTodo;
+    const priorityValues = this.data.priorityValues;
+    const priorityIndex = Math.max(0, priorityValues.indexOf(t.priority || 'P1'));
+    this.setData({
+      showActions: false,
+      showEdit: true,
+      priorityIndex,
+      editForm: {
+        id: t.id,
+        task: t.task || '',
+        contact_name: t.contact_name || '',
+        priority: t.priority || 'P1',
+        due: t.due || '',
+      },
+    });
+  },
+
+  onEditInput(e) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`editForm.${field}`]: e.detail.value });
+  },
+
+  onPriorityChange(e) {
+    this.setData({ priorityIndex: parseInt(e.detail.value) });
+  },
+
+  onDueChange(e) {
+    this.setData({ 'editForm.due': e.detail.value });
+  },
+
+  closeEdit() {
+    this.setData({ showEdit: false });
+  },
+
+  saveEdit() {
+    const form = this.data.editForm;
+    if (!form.task || !form.task.trim()) {
+      wx.showToast({ title: '待办内容不能为空', icon: 'none' });
+      return;
+    }
+    this.setData({ savingEdit: true });
+    const priority = this.data.priorityValues[this.data.priorityIndex];
+    wx.request({
+      url: 'https://api.welian.app/data/todos',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+      data: {
+        id: form.id,
+        task: form.task.trim(),
+        contact_name: form.contact_name,
+        priority,
+        due: form.due,
+      },
+      success: (res) => {
+        this.setData({ savingEdit: false });
+        if (res.statusCode === 200 && res.data.ok) {
+          wx.showToast({ title: '已保存', icon: 'success' });
+          this.setData({ showEdit: false });
+          this.loadTodos();
+        } else {
+          wx.showToast({ title: '保存失败', icon: 'none' });
+        }
+      },
+      fail: () => {
+        this.setData({ savingEdit: false });
         wx.showToast({ title: '网络错误', icon: 'none' });
       },
     });
