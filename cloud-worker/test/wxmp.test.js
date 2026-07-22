@@ -544,6 +544,34 @@ describe("/ai/wxmp_card_scan", () => {
     expect(data.ok).toBe(true);
     expect(data.contact.name).toBe("王五");
   });
+
+  it("does not return JSON strings when LLM returns object/array fields", async () => {
+    // LLM sometimes returns relation as an object or name as an array
+    globalThis.fetch = async () => llmJson({
+      name: ["张三"],               // array → should extract "张三"
+      company: { name: "腾讯" },     // object → should extract "腾讯"
+      title: { role: "产品经理" },    // object with 'role' key → not in common keys, fallback to first string value
+      phone: 13800138000,            // number → should convert to string
+      email: "zhangsan@tencent.com",
+      relation: { type: "同行" },    // object with 'type' key → should extract "同行"
+    });
+    const req = jsonReq("/ai/wxmp_card_scan", {
+      body: { base64: "fake_base64_data" },
+      headers: authHeader(),
+    });
+    const res = await worker.fetch(req, env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.contact.name).toBe("张三");
+    expect(data.contact.company).toBe("腾讯");
+    expect(data.contact.phone).toBe("13800138000");
+    expect(data.contact.relation).toBe("同行");
+    // Critical: no field should contain JSON string like {"type":"同行"}
+    expect(data.contact.relation).not.toContain("{");
+    expect(data.contact.company).not.toContain("{");
+    expect(data.contact.name).not.toContain("[");
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

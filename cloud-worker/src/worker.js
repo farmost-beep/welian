@@ -314,6 +314,8 @@ const EXTRACT_SYSTEM = `Extract actionable items from an interaction record.
 Return JSON: {"pending": "follow-up task or empty", "key_points": ["point1", "point2"]}
 Be concise. Only extract real action items.`;
 
+const IMPLICIT_EXTRACT_SYSTEM = `你是一个关系信息识别助手。判断用户消息是否包含可以记录的关系信息（互动/待办/重要日期/联系人近况）。只返回 JSON，不要其他文字。`;
+
 const ADVISE_SYSTEM = `You are Welian (小维). Format relationship suggestions in a warm, human way.
 - For leverage ties: who + why + what to talk about (具体聊什么话题)
 - For nurture bonds: gentle reminders, no urgency, no scores
@@ -978,11 +980,57 @@ async function handleChat(req, env) {
     env, userId, llmResp.usage, 'chat', '', modelTier
   );
 
+  // ── Implicit intent capture: when intent is 'chat' (no 记/问/拟/报/会 match),
+  //     silently check if the user's message contains recordable relationship
+  //     info. If so, append a gentle prompt asking whether to save it.
+  //     No auto-recording — only prompts the user. Uses the standard (cheapest)
+  //     model tier, and is rate-limited to 3 prompts per user per day via KV.
+  let replyText = llmResp.text;
+  const intent = body.intent || 'chat';
+  if (intent === 'chat') {
+    const lastUser = [...messages].reverse().find(m => m.role === 'user');
+    const userText = typeof lastUser?.content === 'string' ? lastUser.content : '';
+    if (userText.length > 10) {
+      try {
+        // Frequency limit: max 3 implicit prompts per user per day
+        const todayKey = localDateStr(req);
+        const freqKey = `implicit_prompt_count:${userId}:${todayKey}`;
+        const countRaw = await env.USER_DATA.get(freqKey);
+        const promptCount = countRaw ? parseInt(countRaw, 10) : 0;
+        if (promptCount < 3) {
+          const implicitSystem = await getPrompt(env, 'implicit_extract', IMPLICIT_EXTRACT_SYSTEM);
+          const implicitResp = await callLLM(
+            `判断用户消息是否包含可以记录的关系信息。只返回 JSON：\n{"has_relation_info": true/false, "type": "interaction|todo|date|contact_update|none", "summary": "一句话概述"}\n\n用户消息：${userText}`,
+            implicitSystem,
+            env,
+            { max_tokens: 200, temperature: 0, model_tier: 'standard' }
+          );
+          if (implicitResp) {
+            let implicitParsed = null;
+            try {
+              const jsonMatch = implicitResp.text.match(/\{[\s\S]*\}/);
+              implicitParsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+            } catch (e) {
+              implicitParsed = null;
+            }
+            if (implicitParsed && implicitParsed.has_relation_info === true) {
+              replyText = `${replyText}\n\n💡 顺便问一下，要我把这个记下来吗？`;
+              // Increment daily prompt count only when we actually prompt
+              await env.USER_DATA.put(freqKey, String(promptCount + 1));
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[handleChat] implicit extract error:', e.message);
+      }
+    }
+  }
+
   // Return reply + usage + billing info
   return {
     status: 200,
     data: {
-      reply: llmResp.text,
+      reply: replyText,
       usage: {
         input_tokens: llmResp.usage.input_tokens || 0,
         output_tokens: llmResp.usage.output_tokens || 0,
@@ -3955,10 +4003,16 @@ async function loadDataset(env, userId, name) {
 }
 
 // Helper: save a dataset to KV
+const KV_MAX_VALUE_SIZE = 25 * 1024 * 1024; // 25MB Cloudflare KV limit
 async function saveDataset(env, userId, name, data) {
   // No expirationTtl — todos/timeline/contacts should persist indefinitely.
   // (Previous 604800s/7day TTL caused data loss and stale reads.)
-  await env.USER_DATA.put(`${name}:${userId}`, JSON.stringify(data));
+  const serialized = JSON.stringify(data);
+  if (serialized.length > KV_MAX_VALUE_SIZE) {
+    const sizeMB = (serialized.length / 1024 / 1024).toFixed(1);
+    throw new Error(`Dataset ${name} exceeds 25MB KV limit (${sizeMB}MB). Consider archiving old data.`);
+  }
+  await env.USER_DATA.put(`${name}:${userId}`, serialized);
 }
 
 // ── Network algorithms: path search, scenario recommendation, graph ──
@@ -5186,12 +5240,16 @@ async function handleTimelineCRUD(req, env, method) {
   if (method === 'GET') {
     const url = new URL(req.url);
     const contactId = url.searchParams.get('contact_id');
+    const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+    const limit = parseInt(url.searchParams.get('limit') || '200', 10);
     let timeline = await loadDataset(env, userId, 'timeline');
     if (contactId) {
       timeline = timeline.filter(t => t.contact === contactId);
     }
     timeline.sort((a, b) => new Date((b.date || '1970-01-01').substring(0, 10)) - new Date((a.date || '1970-01-01').substring(0, 10)));
-    return { status: 200, data: { timeline: timeline.slice(0, 200) } };
+    const totalCount = timeline.length;
+    const page = timeline.slice(offset, offset + limit);
+    return { status: 200, data: { timeline: page, total: totalCount, offset, limit, has_more: offset + limit < totalCount } };
   }
 
   if (method === 'POST') {
@@ -5814,6 +5872,21 @@ export default {
         return jsonResponse({ ok: true, domains });
       }
 
+      // ── Custom signal sources (RSS/Atom) ──
+
+      if (path === '/ai/signals/custom_sources' && method === 'GET') {
+        const r = await handleGetCustomSources(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+      if (path === '/ai/signals/custom_sources' && method === 'POST') {
+        const r = await handleAddCustomSource(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+      if (path === '/ai/signals/custom_sources' && method === 'DELETE') {
+        const r = await handleDeleteCustomSource(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       // ── Manual trigger for daily signals push (admin only) ──
 
       if (path === '/ai/daily_signals_push' && method === 'POST') {
@@ -5915,7 +5988,7 @@ export default {
         return jsonResponse(r.data, r.status);
       }
 
-      // ── Anonymous pageview tracking (public) ──
+      // ── Anonymous pageview & event tracking (public) ──
       if (path === '/ai/track_pageview' && method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const page = body.page || 'unknown';
@@ -5929,6 +6002,13 @@ export default {
         const pageExisting = await env.USER_DATA.get(pageKey);
         const pageCount = pageExisting ? parseInt(pageExisting) : 0;
         await env.USER_DATA.put(pageKey, String(pageCount + 1), { expirationTtl: 86400 });
+        // Track events (e.g., CTA clicks for funnel conversion)
+        if (body.event) {
+          const eventKey = `events:${body.event}:${page}:${todayKey}`;
+          const eventExisting = await env.USER_DATA.get(eventKey);
+          const eventCount = eventExisting ? parseInt(eventExisting) : 0;
+          await env.USER_DATA.put(eventKey, String(eventCount + 1), { expirationTtl: 86400 });
+        }
         return jsonResponse({ ok: true });
       }
 
@@ -6113,11 +6193,26 @@ export default {
         if (!card.name) {
           return jsonResponse({ error: '未识别到姓名', raw_text: result.text }, 400);
         }
-        // Ensure all fields are strings (LLM may return objects for some fields)
+        // Ensure all fields are strings (LLM may return objects/arrays for some fields)
+        // For objects/arrays: extract first string value or return empty — never JSON.stringify
         const str = (v) => {
           if (v == null) return '';
           if (typeof v === 'string') return v;
-          if (typeof v === 'object') return JSON.stringify(v);
+          if (typeof v === 'number') return String(v);
+          if (Array.isArray(v)) {
+            // Find first string element
+            const first = v.find(e => typeof e === 'string');
+            return first || '';
+          }
+          if (typeof v === 'object') {
+            // Try common keys: name, type, value, label
+            for (const k of ['name', 'type', 'value', 'label', 'text']) {
+              if (typeof v[k] === 'string') return v[k];
+            }
+            // Fallback: first string value
+            const vals = Object.values(v).filter(e => typeof e === 'string');
+            return vals[0] || '';
+          }
           return String(v);
         };
         card = {
@@ -7273,6 +7368,10 @@ ${chatText}
     if (cronExpr === '0 14 * * *') {
       tasks.push(handleEveningSignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'evening_recap' } })));
     }
+    // Daily 13:00 UTC (21:00 CST) → festival & important date reminder push (3 days ahead)
+    if (cronExpr === '0 13 * * *') {
+      tasks.push(handleFestivalReminderPush(env).catch(e => captureException(env, e, { tags: { handler: 'festival_reminder' } })));
+    }
     // 1st & 15th of month 01:00 UTC (09:00 CST) → biweekly health warning push
     if (cronExpr === '0 1 1,15 * *') {
       tasks.push(handleHealthWarningPush(env).catch(e => captureException(env, e, { tags: { handler: 'health_warning' } })));
@@ -7616,6 +7715,124 @@ function parseRssItems(xml, source, maxItems = 15) {
   return items;
 }
 
+// ── Parse RSS <item> and Atom <entry> blocks (for custom user sources) ──
+
+function parseRssAtomItems(xml, source, maxItems = 5) {
+  const items = [];
+  // RSS <item> blocks
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) && items.length < maxItems) {
+    const block = match[1];
+    const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1]?.trim() || '';
+    const link = (block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i) || [])[1]?.trim() || '';
+    const pubDate = (block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) || [])[1]?.trim() || '';
+    if (title) items.push({ title, url: link, source, pubDate, points: 0 });
+  }
+  // Atom <entry> blocks (link is in href attribute)
+  if (items.length < maxItems) {
+    const entryRegex = /<entry>([\s\S]*?)<\/entry>/gi;
+    while ((match = entryRegex.exec(xml)) && items.length < maxItems) {
+      const block = match[1];
+      const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1]?.trim() || '';
+      const link = (block.match(/<link[^>]*href="([^"]*)"/i) || [])[1]?.trim() || '';
+      const pubDate = (block.match(/<(?:published|updated)[^>]*>([\s\S]*?)<\/(?:published|updated)>/i) || [])[1]?.trim() || '';
+      if (title) items.push({ title, url: link, source, pubDate, points: 0 });
+    }
+  }
+  return items;
+}
+
+// ── Custom signal sources CRUD ──
+
+const VALID_CUSTOM_DOMAINS = ['tech', 'ai', 'investment', 'business', 'general'];
+const MAX_CUSTOM_SOURCES = 10;
+
+async function handleGetCustomSources(req, env) {
+  const userId = await getVerifiedUserId(req, env, {});
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+  const raw = await env.USER_DATA.get(`signal_sources:${userId}`);
+  const sources = raw ? JSON.parse(raw) : [];
+  return { status: 200, data: { ok: true, sources } };
+}
+
+async function handleAddCustomSource(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+  const { url, name, domain } = body;
+  if (!url || typeof url !== 'string') return { status: 400, data: { error: 'url required' } };
+  if (!name || typeof name !== 'string') return { status: 400, data: { error: 'name required' } };
+  if (!isUrlAllowed(url)) return { status: 400, data: { error: 'URL not allowed (must be http/https, no localhost/private IPs)' } };
+  const srcDomain = VALID_CUSTOM_DOMAINS.includes(domain) ? domain : 'general';
+
+  const raw = await env.USER_DATA.get(`signal_sources:${userId}`);
+  const sources = raw ? JSON.parse(raw) : [];
+  if (sources.length >= MAX_CUSTOM_SOURCES) {
+    return { status: 400, data: { error: `Maximum ${MAX_CUSTOM_SOURCES} custom sources allowed` } };
+  }
+  // Prevent duplicate URLs
+  if (sources.some(s => s.url === url.trim())) {
+    return { status: 400, data: { error: 'This URL is already added' } };
+  }
+  const newSource = {
+    id: `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    url: url.trim(),
+    name: name.trim(),
+    domain: srcDomain,
+    enabled: true,
+    added_at: new Date().toISOString().slice(0, 10),
+  };
+  sources.push(newSource);
+  await env.USER_DATA.put(`signal_sources:${userId}`, JSON.stringify(sources));
+  return { status: 200, data: { ok: true, source: newSource, sources } };
+}
+
+async function handleDeleteCustomSource(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+  const { id } = body;
+  if (!id) return { status: 400, data: { error: 'id required' } };
+  const raw = await env.USER_DATA.get(`signal_sources:${userId}`);
+  const sources = raw ? JSON.parse(raw) : [];
+  const filtered = sources.filter(s => s.id !== id);
+  await env.USER_DATA.put(`signal_sources:${userId}`, JSON.stringify(filtered));
+  return { status: 200, data: { ok: true, sources: filtered } };
+}
+
+// ── Fetch custom user signal sources (RSS/Atom) ──
+
+async function fetchCustomSignalSources(userId, env, userDomains) {
+  if (!userId) return [];
+  let sources = [];
+  try {
+    const raw = await env.USER_DATA.get(`signal_sources:${userId}`);
+    if (raw) sources = JSON.parse(raw);
+  } catch { return []; }
+  const enabled = sources.filter(s => s.enabled);
+  if (enabled.length === 0) return [];
+
+  const results = await Promise.all(enabled.map(async (src) => {
+    try {
+      const resp = await fetch(src.url, {
+        headers: { 'User-Agent': 'Welian/1.0' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) return [];
+      const xml = await resp.text();
+      return parseRssAtomItems(xml, src.name, 5).map(s => ({
+        ...s,
+        domains: [src.domain || 'general'],
+      }));
+    } catch (e) {
+      console.error(`[custom_source] ${src.name} fetch error:`, e.message);
+      return [];
+    }
+  }));
+  return results.flat();
+}
+
 // ── Annual relationship report ──
 
 async function handleAnnualReport(req, env) {
@@ -7786,7 +8003,7 @@ async function handleAnnualReport(req, env) {
 
 // ── Shared: fetch all signal sources in parallel ──
 // userDomains controls which domain-filtered sources are fetched (pass all 5 for public preview)
-async function fetchAllSignalSources(userDomains) {
+async function fetchAllSignalSources(userDomains, userId = null, env = null) {
   const [hnStories, kr36Stories, huxiuStories, kr36FlashStories, jiqizhixinStories, wallstreetStories, bbtStories, toutiaoStories, weixinStories, producthuntStories, techcrunchStories, vergeStories, arxivStories, v2exStories, clsStories, sinaFinanceStories, csrcStories, githubStories, infoqStories, xueqiuStories, yicaiStories, redditMLStories, hfPapersStories] = await Promise.all([
     // Source 1: Hacker News (Algolia API) — general/ai/tech
     (async () => {
@@ -8144,6 +8361,17 @@ async function fetchAllSignalSources(userDomains) {
 
   // Merge and filter by user's domain preferences
   let allStories = [...hnStories, ...kr36Stories, ...huxiuStories, ...kr36FlashStories, ...jiqizhixinStories, ...wallstreetStories, ...bbtStories, ...toutiaoStories, ...weixinStories, ...producthuntStories, ...techcrunchStories, ...vergeStories, ...arxivStories, ...v2exStories, ...clsStories, ...sinaFinanceStories, ...csrcStories, ...githubStories, ...infoqStories, ...xueqiuStories, ...yicaiStories, ...redditMLStories, ...hfPapersStories];
+
+  // Fetch custom user sources (if authenticated) — failures don't block main flow
+  if (userId && env) {
+    try {
+      const customStories = await fetchCustomSignalSources(userId, env, userDomains);
+      allStories = allStories.concat(customStories);
+    } catch (e) {
+      console.error('[custom_sources] merge error:', e.message);
+    }
+  }
+
   allStories = allStories.filter(s => {
     if (!s.domains || s.domains.length === 0) return true;
     return s.domains.some(d => userDomains.includes(d) || d === 'general');
@@ -8175,7 +8403,7 @@ async function handleHnSignals(req, env) {
   } catch { /* domain prefs optional */ }
 
   // ── Fetch from all sources ──
-  const allStories = await fetchAllSignalSources(userDomains);
+  const allStories = await fetchAllSignalSources(userDomains, userId, env);
 
   if (allStories.length === 0) {
     return { status: 200, data: { ok: true, report: { greeting: '今天暂时无法获取新闻数据', signals: [], contact_signals: [], themes: [], closing: '稍后再试' }, raw_data: { stories: [] } } };
@@ -8986,6 +9214,153 @@ async function handleHealthWarningPush(env) {
   }
 }
 
+// ── Festival & important date reminder push (daily check, 3 days ahead) ──
+
+// Lunar/solar festival dates (fixed MM-DD for solar, approximate lunar dates by year)
+const SOLAR_FESTIVALS = [
+  { date: '01-01', name: '元旦', greeting: '新年快乐！新的一年，记得给重要的人发个消息' },
+  { date: '02-14', name: '情人节', greeting: '情人节到了，别忘了对重要的人说声心意' },
+  { date: '03-08', name: '妇女节', greeting: '妇女节，记得给身边的女性长辈/朋友送上祝福' },
+  { date: '05-01', name: '劳动节', greeting: '劳动节快乐，假期是联系老朋友的好时机' },
+  { date: '06-01', name: '儿童节', greeting: '儿童节，如果有孩子的话，陪他们好好玩一天' },
+  { date: '10-01', name: '国庆节', greeting: '国庆快乐！长假别忘了给家人打个电话' },
+  { date: '12-25', name: '圣诞节', greeting: '圣诞快乐，给重要的人送句温暖的话' },
+  { date: '12-31', name: '跨年夜', greeting: '跨年夜，回顾这一年，谁值得你说声谢谢？' },
+];
+
+// Approximate lunar festival dates (varies by year, ±1 day)
+const LUNAR_FESTIVALS_2026 = [
+  { date: '2026-02-17', name: '春节', greeting: '春节快乐！记得给爸妈拜年，给重要的人发祝福' },
+  { date: '2026-02-16', name: '除夕', greeting: '除夕夜，和家人吃顿团圆饭，给远方的朋友发句想念' },
+  { date: '2026-02-11', name: '小年', greeting: '小年到了，开始准备过年了吧？给家人问问缺什么' },
+  { date: '2026-03-04', name: '元宵节', greeting: '元宵节快乐，吃碗汤圆，给重要的人送句团圆的祝福' },
+  { date: '2026-04-05', name: '清明节', greeting: '清明节，记得给家人问问扫墓的事' },
+  { date: '2026-05-31', name: '端午节', greeting: '端午节快乐，吃个粽子，给家人打个电话' },
+  { date: '2026-08-10', name: '七夕', greeting: '七夕到了，对重要的人说句心意' },
+  { date: '2026-09-25', name: '中秋节', greeting: '中秋快乐！月圆人团圆，记得给家人打电话，给朋友送祝福' },
+  { date: '2026-10-11', name: '重阳节', greeting: '重阳节，记得给长辈问安，陪老人聊聊天' },
+  { date: '2027-02-06', name: '春节', greeting: '春节快乐！记得给爸妈拜年，给重要的人发祝福' },
+  { date: '2027-02-05', name: '除夕', greeting: '除夕夜，和家人吃顿团圆饭，给远方的朋友发句想念' },
+];
+
+async function handleFestivalReminderPush(env) {
+  console.log('[festival_reminder] Starting festival & important date reminder push');
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const todayMd = today.toISOString().slice(5, 10);
+  const threeDaysLater = new Date(today.getTime() + 3 * 86400000);
+  const threeDaysLaterStr = threeDaysLater.toISOString().slice(0, 10);
+  const threeDaysLaterMd = threeDaysLater.toISOString().slice(5, 10);
+
+  // Find upcoming festivals within 3 days
+  const upcomingFestivals = [];
+
+  for (const f of SOLAR_FESTIVALS) {
+    if (f.date >= todayMd && f.date <= threeDaysLaterMd) {
+      upcomingFestivals.push(f);
+    }
+  }
+
+  for (const f of LUNAR_FESTIVALS_2026) {
+    if (f.date >= todayStr && f.date <= threeDaysLaterStr) {
+      upcomingFestivals.push(f);
+    }
+  }
+
+  // Find all bound users (WeChat + IM)
+  const wechatList = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+  const imList = await env.USER_DATA.list({ prefix: 'im_user:' });
+  const userIds = new Set();
+  for (const key of wechatList.keys) {
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) userIds.add(clerkUserId);
+  }
+  for (const key of imList.keys) {
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) userIds.add(clerkUserId);
+  }
+
+  for (const clerkUserId of userIds) {
+    try {
+      const contacts = await loadDataset(env, clerkUserId, 'contacts');
+      if (contacts.length === 0) continue;
+
+      const reminders = [];
+
+      // 1. Festival reminders (for all users)
+      for (const f of upcomingFestivals) {
+        const daysTo = Math.ceil((new Date(f.date.length === 5 ? `${today.getFullYear()}-${f.date}` : f.date) - today) / 86400000);
+        reminders.push({
+          type: 'festival',
+          name: f.name,
+          days: daysTo,
+          greeting: f.greeting,
+        });
+      }
+
+      // 2. Contact important dates within 3 days (all contacts, both nurture & leverage)
+      for (const c of contacts) {
+        if (!c.important_dates) continue;
+        for (const d of c.important_dates) {
+          if (!d.date) continue;
+          const mmdd = d.date.length === 5 ? d.date : d.date.slice(5, 10);
+          if (mmdd >= todayMd && mmdd <= threeDaysLaterMd) {
+            const daysTo = Math.ceil((new Date(`${today.getFullYear()}-${mmdd}`) - today) / 86400000);
+            reminders.push({
+              type: 'important_date',
+              contactName: c.name,
+              label: d.label || '重要日期',
+              days: daysTo,
+              isNurture: c.nature === 'nurture' || c.nature === '双重' || c.nature === 'dual',
+            });
+          }
+        }
+      }
+
+      if (reminders.length === 0) continue;
+
+      // Sort by days ascending
+      reminders.sort((a, b) => a.days - b.days);
+
+      // Build message
+      let msg = '📅 近期提醒\n\n';
+      for (const r of reminders.slice(0, 5)) {
+        if (r.type === 'festival') {
+          const dayLabel = r.days === 0 ? '今天' : r.days === 1 ? '明天' : `${r.days}天后`;
+          msg += `🎉 ${r.name}（${dayLabel}）\n   ${r.greeting}\n\n`;
+        } else {
+          const dayLabel = r.days === 0 ? '今天' : r.days === 1 ? '明天' : `${r.days}天后`;
+          const icon = r.isNurture ? '💛' : '📌';
+          msg += `${icon} ${r.contactName}的${r.label}（${dayLabel}）\n`;
+          if (r.isNurture) {
+            msg += `   记得送上心意，不用理由\n`;
+          } else {
+            msg += `   别忘了，这是维系关系的好契机\n`;
+          }
+          msg += '\n';
+        }
+      }
+      msg += '— Welian 小维 · welian.app';
+
+      // Queue for WeChat bot pickup
+      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
+      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      queue.push({ type: 'festival_reminder', content: msg, timestamp: today.toISOString() });
+      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+
+      // Push to IM channels
+      pushToIMChannels(env, clerkUserId, msg).catch(e =>
+        console.error(`[festival_reminder] IM push failed for ${clerkUserId}:`, e.message)
+      );
+
+      console.log(`[festival_reminder] Pushed to ${clerkUserId}: ${reminders.length} reminders`);
+    } catch (e) {
+      console.error(`[festival_reminder] Failed for ${clerkUserId}:`, e.message);
+    }
+  }
+}
+
 // ── Scheduled push: generate weekly reports for WeChat-bound users ──
 
 async function handleScheduledPush(env) {
@@ -9349,6 +9724,13 @@ async function handleFunnelMetrics(env) {
     cursor = result.list_complete ? undefined : result.cursor;
   } while (cursor);
 
+  // 4. Acquisition funnel: signals page views → CTA clicks (today)
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const signalsPvRaw = await env.USER_DATA.get(`pageviews:signals:${todayKey}`);
+  const signalsPv = signalsPvRaw ? parseInt(signalsPvRaw) : 0;
+  const ctaClickRaw = await env.USER_DATA.get(`events:cta_click:signals:${todayKey}`);
+  const ctaClicks = ctaClickRaw ? parseInt(ctaClickRaw) : 0;
+
   const data = {
     ok: true,
     generated_at: new Date().toISOString(),
@@ -9358,6 +9740,12 @@ async function handleFunnelMetrics(env) {
       retention: { count: active7d, total: totalUsers, rate: totalUsers > 0 ? (active7d / totalUsers * 100).toFixed(1) : '0', label: '7天活跃' },
       paid: { count: paid, total: totalUsers, rate: totalUsers > 0 ? (paid / totalUsers * 100).toFixed(1) : '0', label: '付费用户' },
       viral: { codes: inviteCodes, redemptions: inviteRedemptions, rate: inviteCodes > 0 ? (inviteRedemptions / inviteCodes * 100).toFixed(1) : '0', label: '邀请转化' },
+      acquisition_funnel: {
+        signals_pageviews: signalsPv,
+        cta_clicks: ctaClicks,
+        cta_ctr: signalsPv > 0 ? (ctaClicks / signalsPv * 100).toFixed(1) : '0',
+        label: '信号页→CTA点击',
+      },
     },
     aggregates: {
       total_contacts: totalContacts,

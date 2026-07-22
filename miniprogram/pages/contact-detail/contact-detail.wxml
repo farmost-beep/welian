@@ -18,11 +18,11 @@
       <view wx:if="{{contact.company}}" class="info-row">
         <text class="text-dim text-sm">{{contact.company}}</text>
       </view>
-      <view wx:if="{{contact.role}}" class="info-row">
-        <text class="text-dim text-sm">{{contact.role}}</text>
+      <view wx:if="{{contact.title || contact.role}}" class="info-row">
+        <text class="text-dim text-sm">{{contact.title || contact.role}}</text>
       </view>
-      <view wx:if="{{contact.relationship}}" class="info-row">
-        <text class="text-dim text-sm">关系：{{contact.relationship}}</text>
+      <view wx:if="{{contact.relation || contact.relationship}}" class="info-row">
+        <text class="text-dim text-sm">关系：{{contact.relation || contact.relationship}}</text>
       </view>
     </view>
 
