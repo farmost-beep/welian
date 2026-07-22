@@ -1,4 +1,4 @@
-<!-- pages/dashboard/dashboard.wxml — 角色仪表盘（SPEC §3.2） -->
+<!-- pages/dashboard/dashboard.wxml — 角色仪表盘 -->
 <view class="container">
   <!-- 标题 -->
   <view class="header">
@@ -17,24 +17,53 @@
     <view style="margin-top:12px"><button size="mini" bindtap="loadDashboard">重试</button></view>
   </view>
 
-  <!-- 三角色分栏 -->
-  <block wx:for="{{roles}}" wx:key="key">
-    <view class="card role-card">
-      <view class="role-header">
-        <text class="role-icon">{{item.icon}}</text>
-        <text class="role-label">{{item.label}}</text>
+  <block wx:if="{{!loading && !error}}">
+    <!-- 统计概览 -->
+    <view wx:if="{{!isEmpty}}" class="stats-bar">
+      <view class="stat-item">
+        <text class="stat-num">{{stats.totalContacts}}</text>
+        <text class="stat-label text-dimmer text-xs">联系人</text>
       </view>
-      <view class="role-items">
-        <view wx:for="{{item.items}}" wx:for-item="entry" wx:key="index" class="role-item">
-          <text class="item-dot {{entry.tone}}">·</text>
-          <text class="item-text {{entry.tone === 'warning' ? 'text-accent' : ''}} {{entry.tone === 'positive' ? 'text-green' : ''}}">{{entry.text}}</text>
-        </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.monthInteractions}}</text>
+        <text class="stat-label text-dimmer text-xs">本月互动</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.leverageCount}}</text>
+        <text class="stat-label text-dimmer text-xs">经营型</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.nurtureCount}}</text>
+        <text class="stat-label text-dimmer text-xs">陪伴型</text>
       </view>
     </view>
-  </block>
 
-  <!-- 底部说明 -->
-  <view class="footer-note">
-    <text class="text-dimmer text-xs">Welian 只做行为回顾，不做评分。这个月过得怎么样，由你判断。</text>
-  </view>
+    <!-- 新用户引导 -->
+    <view wx:if="{{isEmpty}}" class="card empty-guide">
+      <text class="text-accent" style="font-size:16px;font-weight:600">还没有联系人数据</text>
+      <text class="text-dim text-sm" style="margin-top:8px;display:block">去「关系」页添加几个重要的人，开始记录你们的互动，仪表盘就会显示你的月度行为回顾。</text>
+      <button class="btn btn-block" style="margin-top:12px" bindtap="goContacts">去添加联系人</button>
+    </view>
+
+    <!-- 三角色分栏 -->
+    <block wx:for="{{roles}}" wx:key="key">
+      <view class="card role-card">
+        <view class="role-header">
+          <text class="role-icon">{{item.icon}}</text>
+          <text class="role-label">{{item.label}}</text>
+        </view>
+        <view class="role-items">
+          <view wx:for="{{item.items}}" wx:for-item="entry" wx:key="index" class="role-item">
+            <text class="item-dot {{entry.tone}}">·</text>
+            <text class="item-text {{entry.tone === 'warning' ? 'text-accent' : ''}} {{entry.tone === 'positive' ? 'text-green' : ''}}">{{entry.text}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 底部说明 -->
+    <view class="footer-note">
+      <text class="text-dimmer text-xs">Welian 只做行为回顾，不做评分。这个月过得怎么样，由你判断。</text>
+    </view>
+  </block>
 </view>
