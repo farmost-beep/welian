@@ -4268,8 +4268,34 @@ async function handleContactsCRUD(req, env, method) {
 
   if (method === 'GET') {
     const contacts = await loadDataset(env, userId, 'contacts');
-    // Return list with key fields for display
-    let list = contacts.map(c => ({
+    // Pagination support (for mini program with large contact lists)
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get('limit') || '0');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+    const search = url.searchParams.get('q') || '';
+    const compact = url.searchParams.get('compact') === '1';
+
+    // Filter by search first (before slicing)
+    let filtered = contacts;
+    if (search) {
+      filtered = contacts.filter(c => (c.name || '').includes(search) || (c.aliases || []).some(a => a.includes(search)));
+    }
+    const total = filtered.length;
+
+    // Slice before mapping to reduce work
+    let paged = filtered;
+    if (limit > 0) {
+      paged = filtered.slice(offset, offset + limit);
+    }
+
+    // compact mode: only essential fields for list display (much smaller response)
+    const list = paged.map(c => compact ? {
+      id: c.id, name: c.name, nature: c.nature || 'leverage',
+      company: c.company || '', title: c.title || '',
+      relation: c.relation || '', role: c.role || c.relation || '',
+      phone: c.phone || '', email: c.email || '',
+      birthday: c.birthday || '',
+    } : {
       id: c.id, name: c.name, relation: c.relation || '',
       sub_relation: c.sub_relation || '', company: c.company || '',
       title: c.title || '', nature: c.nature || 'leverage',
@@ -4284,20 +4310,9 @@ async function handleContactsCRUD(req, env, method) {
       important_dates: c.important_dates || [],
       memories: c.memories || [],
       presence_events: c.presence_events || [],
+      birthday: c.birthday || '',
       updated: c.updated || '',
-    }));
-    // Pagination support (for mini program with large contact lists)
-    const url = new URL(req.url);
-    const limit = parseInt(url.searchParams.get('limit') || '0');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
-    const search = url.searchParams.get('q') || '';
-    if (search) {
-      list = list.filter(c => (c.name || '').includes(search) || (c.aliases || []).some(a => a.includes(search)));
-    }
-    const total = list.length;
-    if (limit > 0) {
-      list = list.slice(offset, offset + limit);
-    }
+    });
     return { status: 200, data: { contacts: list, total, offset, limit: limit || total } };
   }
 
@@ -6029,6 +6044,20 @@ export default {
           token,
           message: `绑定成功（${contacts.length} 个联系人）`,
         });
+      }
+
+      // ── Unbind mini program from Web account (public) ──
+      if (path === '/ai/wxmp_unbind' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const { openid } = body;
+        if (!openid) {
+          return jsonResponse({ error: 'openid required' }, 400);
+        }
+        const wxmpUserId = `wxmp_${openid}`;
+        await env.USER_DATA.delete(`wechat_bind:${wxmpUserId}`);
+        // Return a fresh wxmp token (unbound state)
+        const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+        return jsonResponse({ ok: true, token, message: '已解绑' });
       }
 
       // ── Bind mini program to existing Web account (legacy, public) ──

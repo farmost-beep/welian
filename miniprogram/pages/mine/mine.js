@@ -122,4 +122,42 @@ Page({
       fail: () => this.setData({ binding: false, bindMsg: '网络错误' }),
     });
   },
+
+  // 解绑
+  unbind() {
+    const { openid } = this.data;
+    if (!openid) return;
+    wx.showModal({
+      title: '确认解绑',
+      content: '解绑后小程序将无法访问你的联系人数据，确定解绑吗？',
+      confirmText: '解绑',
+      confirmColor: '#C96442',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.request({
+          url: 'https://api.welian.app/ai/wxmp_unbind',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          data: { openid },
+          success: (res) => {
+            if (res.statusCode === 200 && res.data.ok) {
+              api.clearToken();
+              wx.setStorageSync('welian_token', res.data.token);
+              this.setData({
+                isBound: false,
+                bindMsg: '',
+                bindEmail: '',
+                bindCode: '',
+                codeSent: false,
+              });
+              wx.showToast({ title: '已解绑', icon: 'none' });
+            } else {
+              wx.showToast({ title: res.data.error || '解绑失败', icon: 'none' });
+            }
+          },
+          fail: () => wx.showToast({ title: '网络错误', icon: 'none' }),
+        });
+      },
+    });
+  },
 });

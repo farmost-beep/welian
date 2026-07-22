@@ -118,9 +118,9 @@ module.exports = {
     });
   },
 
-  // 关系列表（分页加载，默认前 100 个）
+  // 关系列表（compact 模式，分页加载前 100 个）
   getContacts() {
-    return request('/data/contacts?limit=100').then((data) => {
+    return request('/data/contacts?limit=100&compact=1').then((data) => {
       const contacts = data.contacts || [];
       const leverage = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重');
       const nurture = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual' || c.nature === '双重');
@@ -214,9 +214,9 @@ module.exports = {
     return request('/ai/billing/upgrade', { plan: planKey }, 'POST');
   },
 
-  // 搜索联系人（用后端搜索，避免加载全部）
+  // 搜索联系人（用后端搜索，compact 模式）
   searchContacts(keyword) {
-    return request('/data/contacts?q=' + encodeURIComponent(keyword) + '&limit=50').then((data) => {
+    return request('/data/contacts?q=' + encodeURIComponent(keyword) + '&limit=50&compact=1').then((data) => {
       return (data.contacts || []).map(formatContact);
     });
   },
