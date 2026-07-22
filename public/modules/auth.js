@@ -348,6 +348,12 @@ export function onAuthed(user) {
   setIsAuthed(true);
   setClerkUserId(user.id || null);
 
+  // New user celebration: show if account was created within last 30s
+  const createdAt = user.createdAt ? new Date(user.createdAt) : null;
+  if (createdAt && (Date.now() - createdAt.getTime()) < 30000) {
+    showCelebration();
+  }
+
   // Build display name: prefer firstName, then username, then email, then phone, then user_id
   const email = user.primaryEmailAddress?.emailAddress || '';
   const phone = user.primaryPhoneNumber?.phoneNumber || '';
@@ -441,4 +447,17 @@ export function onSignedOut() {
   if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();
   showWelcome();
+}
+
+// ── Registration celebration animation ──
+function showCelebration() {
+  const overlay = document.getElementById('celebrationOverlay');
+  if (!overlay) return;
+  overlay.classList.add('show');
+  // Auto-dismiss after 2.5s
+  setTimeout(() => {
+    overlay.classList.remove('show');
+  }, 2500);
+  // Click to dismiss early
+  overlay.addEventListener('click', () => overlay.classList.remove('show'), { once: true });
 }
