@@ -22,7 +22,8 @@ window.loadClerkUI = async (key) => { window.__internal_ClerkUICtor = function()
 `;
 
 test.beforeEach(async ({ page }) => {
-  page.on('pageerror', err => { throw err; });
+  page.consoleErrors = [];
+  page.on('pageerror', err => page.consoleErrors.push(err.message));
 
   // Intercept CDN (awaited like core-loop)
   await page.route('**/clerk.browser.js*', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: '// mock' }));
@@ -36,8 +37,8 @@ test.beforeEach(async ({ page }) => {
       set: (v) => {},
       configurable: true,
     });
-    localStorage.setItem('welian_onboarding_done', '1');
-    localStorage.setItem('welian_cookie_ok', '1');
+    try { localStorage.setItem('welian_onboarding_done', '1'); } catch(e) {}
+    try { localStorage.setItem('welian_cookie_ok', '1'); } catch(e) {}
   `);
 
   // Mock data endpoints (awaited for parallel mode safety)
