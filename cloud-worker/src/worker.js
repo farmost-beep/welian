@@ -280,6 +280,14 @@ async function getVerifiedUserId(req, env, body) {
         if (bound) return bound;
         return null; // not bound yet
       }
+      // Mini program user: uid starts with "wxmp_" → lookup bound Clerk user_id
+      if (uid.startsWith('wxmp_')) {
+        const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
+        if (bound) return bound;
+        // Auto-create a Clerk-less user identity for wxmp users
+        // They get their own data namespace under wxmp_<openid>
+        return uid;
+      }
       return uid;
     }
   }
@@ -5893,6 +5901,59 @@ export default {
         const pageCount = pageExisting ? parseInt(pageExisting) : 0;
         await env.USER_DATA.put(pageKey, String(pageCount + 1), { expirationTtl: 86400 });
         return jsonResponse({ ok: true });
+      }
+
+      // ── WeChat Mini Program login (public) ──
+      if (path === '/ai/wxmp_login' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const code = body.code;
+        if (!code) return jsonResponse({ error: 'code required' }, 400);
+
+        // Use mini program AppID/Secret (separate from public account)
+        const mpAppId = env.WXMP_APP_ID || env.WECHAT_APP_ID;
+        const mpSecret = env.WXMP_APP_SECRET || env.WECHAT_APP_SECRET;
+        if (!mpAppId || !mpSecret) {
+          return jsonResponse({ error: 'Mini program not configured' }, 500);
+        }
+
+        // Exchange code for openid + session_key
+        const sessionUrl = `https://api.weixin.qq.com/sns/jscode2session?appid=${mpAppId}&secret=${mpSecret}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+        const sessionResp = await fetch(sessionUrl);
+        const sessionData = await sessionResp.json();
+
+        if (sessionData.errcode || !sessionData.openid) {
+          console.error('[wxmp_login] jscode2session failed:', JSON.stringify(sessionData));
+          return jsonResponse({ error: 'Login failed: ' + (sessionData.errmsg || 'unknown') }, 401);
+        }
+
+        const openid = sessionData.openid;
+        const wxmpUserId = `wxmp_${openid}`;
+
+        // Check if already bound to a Clerk user
+        const boundClerkId = await env.USER_DATA.get(`wechat_bind:${wxmpUserId}`);
+        let token;
+        if (boundClerkId) {
+          // Return sync token for the bound Clerk user
+          token = `${boundClerkId}:${env.WELIAN_SYNC_SECRET}`;
+        } else {
+          // New user — create a mini program user identity
+          // Store wxmp user mapping; they can bind to Clerk later
+          await env.USER_DATA.put(`wxmp_user:${wxmpUserId}`, JSON.stringify({
+            openid,
+            created_at: new Date().toISOString(),
+            nickname: body.nickname || null,
+            avatar: body.avatar || null,
+          }));
+          // Return a wxmp sync token (works with getVerifiedUserId's wechat_ prefix logic)
+          token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+        }
+
+        return jsonResponse({
+          ok: true,
+          token,
+          is_new_user: !boundClerkId,
+          openid,
+        });
       }
 
       // ── Email subscription for daily signals digest (public) ──

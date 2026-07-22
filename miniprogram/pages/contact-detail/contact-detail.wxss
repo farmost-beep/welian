@@ -1,0 +1,12 @@
+/* pages/contact-detail/contact-detail.wxss */
+.contact-header { padding: 20px 16px; }
+.contact-name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.contact-name-lg { font-size: 22px; font-weight: 600; color: #1A1915; }
+.info-row { margin-top: 6px; }
+.action-bar { display: flex; gap: 10px; margin: 12px 0; }
+.action-btn { flex: 1; font-size: 14px; padding: 10px 0; background: #EDEBE3; color: #C96442; border: none; border-radius: 10px; }
+.action-btn::after { border: none; }
+.section-title-sm { font-size: 13px; color: #9A968C; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.timeline-item { padding: 10px 0; border-bottom: 1px solid #E4E1D6; }
+.timeline-item:last-child { border-bottom: none; }
+.empty-state { padding: 20px 0; text-align: center; }

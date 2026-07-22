@@ -1,0 +1,14 @@
+/* pages/signals/signals.wxss */
+.greeting { padding: 8px 0; }
+.themes-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.theme-tag { background: #C96442; color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+.signal-card { padding: 14px 16px; }
+.signal-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.signal-index { font-size: 16px; font-weight: 700; color: #C96442; min-width: 20px; }
+.signal-title { flex: 1; font-size: 15px; font-weight: 600; color: #1A1915; line-height: 1.5; }
+.score-high { color: #c0392b; font-weight: 600; font-size: 13px; }
+.score-mid { color: #e67e22; font-weight: 600; font-size: 13px; }
+.score-low { color: #999; font-size: 13px; }
+.signal-source { margin-bottom: 6px; }
+.signal-why { padding: 8px 10px; background: #F5F4EE; border-radius: 8px; }
+.share-hint { text-align: center; padding: 20px 0; }

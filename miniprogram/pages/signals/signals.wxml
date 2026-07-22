@@ -1,0 +1,43 @@
+<!-- pages/signals/signals.wxml — 每日信号页 -->
+<view class="container">
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">正在生成今日信号…</text>
+  </view>
+
+  <view wx:if="{{error && !loading}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadSignals">重试</button></view>
+  </view>
+
+  <block wx:if="{{!loading && !error}}">
+    <!-- 问候语 -->
+    <view wx:if="{{greeting}}" class="greeting">
+      <text class="text-dim text-sm">{{greeting}}</text>
+    </view>
+
+    <!-- 热点主题 -->
+    <view wx:if="{{themes.length > 0}}" class="themes-bar">
+      <text wx:for="{{themes}}" wx:key="*this" class="theme-tag">{{item}}</text>
+    </view>
+
+    <!-- 信号列表 -->
+    <view wx:for="{{signals}}" wx:key="index" class="card signal-card">
+      <view class="signal-header">
+        <text class="signal-index">{{index + 1}}</text>
+        <text class="signal-title">{{item.title}}</text>
+        <text wx:if="{{item.value_score >= 8}}" class="score-high">★{{item.value_score}}</text>
+        <text wx:elif="{{item.value_score >= 6}}" class="score-mid">★{{item.value_score}}</text>
+        <text wx:elif="{{item.value_score}}" class="score-low">★{{item.value_score}}</text>
+      </view>
+      <text class="signal-source text-dimmer text-xs">来源：{{item.source}}</text>
+      <view wx:if="{{item.why}}" class="signal-why">
+        <text class="text-dim text-sm">{{item.why}}</text>
+      </view>
+    </view>
+
+    <!-- 分享提示 -->
+    <view class="share-hint">
+      <text class="text-dimmer text-xs">右上角 ··· 可分享给好友</text>
+    </view>
+  </block>
+</view>

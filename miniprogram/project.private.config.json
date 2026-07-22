@@ -1,0 +1,32 @@
+{
+  "description": "项目私有配置文件。此文件中的内容将覆盖 project.config.json 中相同的字段。",
+  "projectname": "welian-miniprogram",
+  "setting": {
+    "compileHotReLoad": true,
+    "urlCheck": false
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "仪表盘",
+          "pathName": "pages/dashboard/dashboard",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "关系",
+          "pathName": "pages/contacts/contacts",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的",
+          "pathName": "pages/mine/mine",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  }
+}

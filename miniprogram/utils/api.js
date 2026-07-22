@@ -1,132 +1,83 @@
-// utils/api.js — API 调用封装
-// 先写 mock 数据，真实接入留接口（agent tunnel 或 cloud worker）
+// utils/api.js — API 调用封装（真实 API + 微信登录）
+const BASE_URL = 'https://api.welian.app';
+const TOKEN_KEY = 'welian_token';
 
-const BASE_URL = 'https://agent.welian.app';  // agent tunnel（与 Web 端一致）
-const USE_MOCK = true;                          // true=mock数据，false=真实请求
+// ── Token 管理 ──
 
-// ── Mock 数据 ──
+function getToken() {
+  return wx.getStorageSync(TOKEN_KEY) || '';
+}
 
-const MOCK_DASHBOARD = {
-  month: '七月',
-  roles: [
-    {
-      key: 'friend',
-      label: '作为朋友',
-      icon: '🌱',
-      items: [
-        { text: '3 次走心的交流（老周、小林、阿May）', tone: 'normal' },
-        { text: '老周父亲手术那天你发了消息——在场 ✓', tone: 'positive' },
-        { text: '重新联系了大学室友阿强（隔了 2 年）', tone: 'normal' },
-      ],
-    },
-    {
-      key: 'family',
-      label: '作为家人',
-      icon: '🏡',
-      items: [
-        { text: '给爸妈打了 4 个电话（上月 2 个 ↑）', tone: 'positive' },
-        { text: '儿子家长会：出席了 ✓', tone: 'positive' },
-        { text: '⚠️ 下周三结婚纪念日，别忘了', tone: 'warning' },
-      ],
-    },
-    {
-      key: 'collaborator',
-      label: '作为合作者',
-      icon: '🤝',
-      items: [
-        { text: '答应的事做到了 5 件，做到率 83%', tone: 'normal' },
-        { text: '你帮别人牵了 2 次线（好关系是互相搭桥）', tone: 'positive' },
-        { text: '张总项目验收如期完成 → 已记下', tone: 'normal' },
-      ],
-    },
-  ],
-};
+function setToken(token) {
+  wx.setStorageSync(TOKEN_KEY, token);
+}
 
-const MOCK_CONTACTS = {
-  leverage: [
-    { id: 1, name: '王明', nature: '撬动', goals: ['事业'], how: '行业峰会资源引荐', lastContact: '3天前', cooldown: 'ok' },
-    { id: 2, name: '张总', nature: '撬动', goals: ['事业'], how: '项目合作方', lastContact: '7天前', cooldown: 'ok' },
-    { id: 3, name: '李博', nature: '撬动', goals: ['事业', '学习'], how: '学术引荐人', lastContact: '15天前', cooldown: 'warn' },
-    { id: 4, name: '陈姐', nature: '双重', goals: ['事业'], how: '前同事，现创业合作', lastContact: '2天前', cooldown: 'ok' },
-  ],
-  nurture: [
-    { id: 5, name: '老周', nature: '维系', bond: '十五年老友', lastContact: '2天前', nextDate: null },
-    { id: 6, name: '爸妈', nature: '维系', bond: '家人', lastContact: '5天前', nextDate: '11-29 生日' },
-    { id: 7, name: '小林', nature: '维系', bond: '大学室友', lastContact: '1周前', nextDate: null },
-    { id: 8, name: '阿May', nature: '双重', bond: '闺蜜+同行', lastContact: '3天前', nextDate: '12-02 生日' },
-  ],
-};
+function clearToken() {
+  wx.removeStorageSync(TOKEN_KEY);
+}
 
-const MOCK_WEEKLY = {
-  weekRange: '7月8日 - 7月14日',
-  sections: [
-    {
-      title: '上周回顾',
-      items: [
-        '记录了 6 条互动（朋友 3、家人 1、合作者 2）',
-        '在场 1 次：老周父亲手术发消息',
-        '做到 2 件：张总项目验收、帮李博牵线',
-      ],
-    },
-    {
-      title: '这周值得联系',
-      items: [
-        { name: '李博', reason: '已 15 天未联系，上次聊到学术引荐', type: 'leverage' },
-        { name: '爸妈', reason: '下周三结婚纪念日，提前准备', type: 'nurture' },
-        { name: '阿强', reason: '刚重新联系，趁热打铁约一次', type: 'nurture' },
-      ],
-    },
-    {
-      title: '重要日期提醒',
-      items: [
-        '⚠️ 7月17日（周三）— 结婚纪念日',
-        '🎂 11月29日 — 妈妈生日（还有 135 天）',
-      ],
-    },
-  ],
-};
+// ── 微信登录 ──
 
-const MOCK_BILLING = {
-  plan: 'free',
-  planLabel: 'Free',
-  credits: 73,
-  creditsTotal: 100,
-  creditsResetAt: '8月1日',
-  plans: [
-    {
-      key: 'free',
-      name: 'Free',
-      price: 0,
-      credits: 100,
-      unit: '点/月',
-      features: ['记录 unlimited', '基础提醒', '100 AI 点/月'],
-      current: true,
-    },
-    {
-      key: 'pro',
-      name: 'Pro',
-      price: 29,
-      credits: 500,
-      unit: '点/月',
-      features: ['记录 unlimited', '建议引擎', 'AI 拟稿', '500 AI 点/月', '角色仪表盘', '年度报告'],
-      current: false,
-    },
-  ],
-};
+function login() {
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success: (res) => {
+        if (!res.code) {
+          reject(new Error('wx.login 未返回 code'));
+          return;
+        }
+        // Exchange code for token via backend
+        wx.request({
+          url: BASE_URL + '/ai/wxmp_login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          data: { code: res.code },
+          success: (resp) => {
+            if (resp.statusCode === 200 && resp.data.ok) {
+              setToken(resp.data.token);
+              resolve({ token: resp.data.token, isNewUser: resp.data.is_new_user });
+            } else {
+              reject(new Error(resp.data.error || '登录失败'));
+            }
+          },
+          fail: (err) => reject(err),
+        });
+      },
+      fail: (err) => reject(err),
+    });
+  });
+}
+
+// 确保已登录（无 token 时自动 login）
+async function ensureLogin() {
+  let token = getToken();
+  if (token) return token;
+  const result = await login();
+  return result.token;
+}
 
 // ── 请求封装 ──
 
 function request(path, data, method = 'GET') {
-  if (USE_MOCK) {
-    return Promise.resolve(getMock(path));
-  }
   return new Promise((resolve, reject) => {
+    const token = getToken();
+    const header = { 'Content-Type': 'application/json' };
+    if (token) header['Authorization'] = 'Bearer ' + token;
+
     wx.request({
       url: BASE_URL + path,
       method,
       data,
-      header: { 'Content-Type': 'application/json' },
+      header,
       success: (res) => {
+        if (res.statusCode === 401) {
+          // Token expired — re-login and retry once
+          clearToken();
+          login().then(() => {
+            request(path, data, method).then(resolve).catch(reject);
+          }).catch(reject);
+          return;
+        }
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
         } else {
@@ -138,52 +89,190 @@ function request(path, data, method = 'GET') {
   });
 }
 
-function getMock(path) {
-  switch (path) {
-    case '/dashboard': return MOCK_DASHBOARD;
-    case '/contacts':  return MOCK_CONTACTS;
-    case '/weekly':    return MOCK_WEEKLY;
-    case '/billing':   return MOCK_BILLING;
-    default:           return null;
-  }
-}
-
 // ── 对外 API ──
 
 module.exports = {
-  // 角色仪表盘（月度）
+  // 登录
+  login,
+  ensureLogin,
+  getToken,
+  clearToken,
+  isLoggedIn() { return !!getToken(); },
+
+  // 仪表盘（从 advise_cloud 获取建议）
   getDashboard() {
-    return request('/dashboard');
+    return request('/ai/advise_cloud', {}, 'POST').then((data) => {
+      // Transform advise response to dashboard format
+      if (!data || !data.ok) return { month: '', roles: [] };
+      const advice = data.advice || '';
+      const lines = advice.split('\n').filter(Boolean);
+      return {
+        month: new Date().toLocaleDateString('zh-CN', { month: 'long' }),
+        roles: [{
+          key: 'collaborator',
+          label: '今日建议',
+          icon: '🤝',
+          items: lines.slice(0, 5).map(text => ({ text, tone: 'normal' })),
+        }],
+      };
+    });
   },
 
-  // 关系列表（按撬动型/维系型分组）
+  // 关系列表
   getContacts() {
-    return request('/contacts');
+    return request('/data/contacts').then((data) => {
+      const contacts = data.contacts || [];
+      const leverage = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重');
+      const nurture = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual' || c.nature === '双重');
+      return {
+        leverage: leverage.map(formatContact),
+        nurture: nurture.map(formatContact),
+      };
+    });
+  },
+
+  // 联系人详情
+  getContactDetail(contactId) {
+    return request('/data/contacts').then((data) => {
+      const contacts = data.contacts || [];
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) throw new Error('联系人不存在');
+      return contact;
+    });
   },
 
   // 周报
   getWeekly() {
-    return request('/weekly');
+    return request('/ai/weekly_report').then((data) => {
+      if (!data || !data.ok) return { weekRange: '', sections: [] };
+      const report = data.report || '';
+      // Parse the text report into sections
+      const sections = [];
+      const lines = report.split('\n').filter(Boolean);
+      let currentSection = null;
+      for (const line of lines) {
+        if (line.startsWith('##') || line.startsWith('📊') || line.startsWith('🔥') || line.startsWith('📅')) {
+          currentSection = { title: line.replace(/^##\s*/, '').trim(), items: [] };
+          sections.push(currentSection);
+        } else if (currentSection && line.trim()) {
+          currentSection.items.push(line.trim());
+        }
+      }
+      return {
+        weekRange: new Date().toLocaleDateString('zh-CN'),
+        sections: sections.length > 0 ? sections : [{ title: '本周报告', items: lines.slice(0, 10) }],
+      };
+    });
   },
 
   // 充值/套餐信息
   getBilling() {
-    return request('/billing');
+    return request('/data/metrics').then((data) => {
+      return {
+        plan: data.plan || 'free',
+        planLabel: (data.plan || 'free') === 'pro' ? 'Pro' : 'Free',
+        credits: data.credits || 100,
+        creditsTotal: data.creditsTotal || 100,
+        creditsResetAt: '下月1日',
+        plans: [
+          {
+            key: 'free',
+            name: 'Free',
+            price: 0,
+            credits: 100,
+            unit: '点/月',
+            features: ['记录 unlimited', '基础提醒', '100 AI 点/月'],
+            current: (data.plan || 'free') === 'free',
+          },
+          {
+            key: 'pro',
+            name: 'Pro',
+            price: 29,
+            credits: 500,
+            unit: '点/月',
+            features: ['记录 unlimited', '建议引擎', 'AI 拟稿', '500 AI 点/月', '角色仪表盘', '年度报告'],
+            current: data.plan === 'pro',
+          },
+        ],
+      };
+    }).catch(() => {
+      // Fallback if metrics endpoint fails
+      return {
+        plan: 'free', planLabel: 'Free', credits: 100, creditsTotal: 100,
+        creditsResetAt: '下月1日',
+        plans: [
+          { key: 'free', name: 'Free', price: 0, credits: 100, unit: '点/月', features: ['记录 unlimited', '基础提醒', '100 AI 点/月'], current: true },
+          { key: 'pro', name: 'Pro', price: 29, credits: 500, unit: '点/月', features: ['记录 unlimited', '建议引擎', 'AI 拟稿', '500 AI 点/月', '角色仪表盘', '年度报告'], current: false },
+        ],
+      };
+    });
   },
 
-  // 升级套餐（占位）
+  // 升级套餐
   upgradePlan(planKey) {
-    if (USE_MOCK) return Promise.resolve({ success: true, plan: planKey });
-    return request('/billing/upgrade', { plan: planKey }, 'POST');
+    return request('/ai/billing/upgrade', { plan: planKey }, 'POST');
   },
 
-  // 搜索联系人（占位）
+  // 搜索联系人
   searchContacts(keyword) {
-    if (USE_MOCK) {
-      const all = [...MOCK_CONTACTS.leverage, ...MOCK_CONTACTS.nurture];
-      if (!keyword) return Promise.resolve(all);
-      return Promise.resolve(all.filter(c => c.name.includes(keyword)));
-    }
-    return request('/contacts/search', { q: keyword }, 'GET');
+    return request('/data/contacts').then((data) => {
+      const contacts = data.contacts || [];
+      if (!keyword) return contacts.map(formatContact);
+      return contacts.filter(c => (c.name || '').includes(keyword)).map(formatContact);
+    });
+  },
+
+  // 信号预览（公开，无需登录）
+  getSignals() {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: BASE_URL + '/ai/signals_preview',
+        method: 'GET',
+        header: { 'Content-Type': 'application/json' },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data) {
+            resolve(res.data.report || { signals: [], themes: [] });
+          } else {
+            reject(new Error('获取信号失败'));
+          }
+        },
+        fail: (err) => reject(err),
+      });
+    });
   },
 };
+
+// ── Helpers ──
+
+function formatContact(c) {
+  const natureMap = { leverage: '撬动', nurture: '维系', dual: '双重', '双重': '双重' };
+  const nature = natureMap[c.nature] || c.nature || '撬动';
+  const lastInteraction = c.last_interaction || c.lastContact;
+  const daysSince = lastInteraction ? Math.floor((Date.now() - new Date(lastInteraction).getTime()) / 86400000) : null;
+
+  return {
+    id: c.id,
+    name: c.name,
+    nature,
+    goals: c.goals || [],
+    how: c.company || c.role || c.how || '',
+    bond: c.relationship || c.bond || '',
+    lastContact: daysSince !== null ? `${daysSince}天前` : '未记录',
+    cooldown: daysSince !== null && daysSince > 14 ? 'warn' : 'ok',
+    nextDate: c.birthday ? formatBirthday(c.birthday) : null,
+    _raw: c,
+  };
+}
+
+function formatBirthday(birthday) {
+  if (!birthday) return null;
+  const d = new Date(birthday);
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const nextBday = new Date(thisYear, d.getMonth(), d.getDate());
+  if (nextBday < now) nextBday.setFullYear(thisYear + 1);
+  const days = Math.ceil((nextBday - now) / 86400000);
+  const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (days <= 30) return `🎂 ${mmdd} 生日（${days}天后）`;
+  return `🎂 ${mmdd} 生日`;
+}

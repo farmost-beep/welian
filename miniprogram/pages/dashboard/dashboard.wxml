@@ -11,6 +11,12 @@
     <text class="text-dimmer text-sm">正在回顾你本月的故事…</text>
   </view>
 
+  <!-- 错误态 -->
+  <view wx:if="{{error && !loading}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadDashboard">重试</button></view>
+  </view>
+
   <!-- 三角色分栏 -->
   <block wx:for="{{roles}}" wx:key="key">
     <view class="card role-card">

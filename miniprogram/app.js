@@ -1,13 +1,14 @@
 // app.js — Welian 小程序入口
 // 维联：维系情感，联结目标
 
+const api = require('./utils/api.js');
+
 App({
   globalData: {
-    // 用户状态
     userInfo: null,
-    plan: 'free',        // 'free' | 'pro'
-    credits: 100,         // 剩余额度
-    // 配色（供页面引用）
+    plan: 'free',
+    credits: 100,
+    isLoggedIn: false,
     theme: {
       bg: '#F5F4EE',
       surface: '#EDEBE3',
@@ -23,7 +24,19 @@ App({
   },
 
   onLaunch() {
-    // 小程序启动时执行
     console.log('Welian 小程序启动 — 更用心 ∞');
+    // Auto-login on launch
+    if (!api.isLoggedIn()) {
+      api.login().then((result) => {
+        this.globalData.isLoggedIn = true;
+        if (result.isNewUser) {
+          console.log('[app] New user logged in');
+        }
+      }).catch((err) => {
+        console.error('[app] Login failed:', err.message);
+      });
+    } else {
+      this.globalData.isLoggedIn = true;
+    }
   },
 });

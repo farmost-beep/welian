@@ -1,10 +1,12 @@
 {
   "pages": [
+    "pages/signals/signals",
     "pages/dashboard/dashboard",
     "pages/contacts/contacts",
     "pages/mine/mine",
     "pages/weekly/weekly",
-    "pages/billing/billing"
+    "pages/billing/billing",
+    "pages/contact-detail/contact-detail"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F5F4EE",
@@ -19,6 +21,10 @@
     "backgroundColor": "#EDEBE3",
     "borderStyle": "white",
     "list": [
+      {
+        "pagePath": "pages/signals/signals",
+        "text": "信号"
+      },
       {
         "pagePath": "pages/dashboard/dashboard",
         "text": "仪表盘"

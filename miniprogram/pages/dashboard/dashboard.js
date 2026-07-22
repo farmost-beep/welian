@@ -1,6 +1,4 @@
 // pages/dashboard/dashboard.js — 角色仪表盘
-// SPEC §3.2：三角色分栏，只做行为回顾不评分
-
 const api = require('../../utils/api.js');
 
 Page({
@@ -8,9 +6,10 @@ Page({
     month: '',
     roles: [],
     loading: true,
+    error: '',
   },
 
-  onLoad() {
+  onShow() {
     this.loadDashboard();
   },
 
@@ -19,13 +18,16 @@ Page({
   },
 
   loadDashboard(cb) {
-    this.setData({ loading: true });
+    this.setData({ loading: true, error: '' });
     api.getDashboard().then((res) => {
       this.setData({
         month: res.month,
         roles: res.roles,
         loading: false,
       });
+      if (cb) cb();
+    }).catch((err) => {
+      this.setData({ loading: false, error: err.message || '加载失败' });
       if (cb) cb();
     });
   },

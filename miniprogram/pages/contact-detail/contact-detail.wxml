@@ -1,0 +1,75 @@
+<!-- pages/contact-detail/contact-detail.wxml -->
+<view class="container">
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">加载中…</text>
+  </view>
+
+  <view wx:if="{{error && !loading}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+  </view>
+
+  <block wx:if="{{contact && !loading}}">
+    <!-- 联系人头部 -->
+    <view class="card contact-header">
+      <view class="contact-name-row">
+        <text class="contact-name-lg">{{contact.name}}</text>
+        <text class="tag tag-{{contact.nature === 'leverage' ? 'leverage' : (contact.nature === 'nurture' ? 'nurture' : 'dual')}}">{{contact.nature === 'leverage' ? '撬动' : (contact.nature === 'nurture' ? '维系' : '双重')}}</text>
+      </view>
+      <view wx:if="{{contact.company}}" class="info-row">
+        <text class="text-dim text-sm">{{contact.company}}</text>
+      </view>
+      <view wx:if="{{contact.role}}" class="info-row">
+        <text class="text-dim text-sm">{{contact.role}}</text>
+      </view>
+      <view wx:if="{{contact.relationship}}" class="info-row">
+        <text class="text-dim text-sm">关系：{{contact.relationship}}</text>
+      </view>
+    </view>
+
+    <!-- 快捷操作 -->
+    <view class="action-bar">
+      <button class="action-btn" bindtap="recordInteraction">📝 记录互动</button>
+      <button class="action-btn" bindtap="draftMessage">✍️ 拟写消息</button>
+    </view>
+
+    <!-- 联系信息 -->
+    <view wx:if="{{contact.phone || contact.email || contact.wechat}}" class="card">
+      <view class="section-title-sm">联系方式</view>
+      <view wx:if="{{contact.phone}}" class="info-row">
+        <text class="text-dim text-sm">电话：{{contact.phone}}</text>
+      </view>
+      <view wx:if="{{contact.email}}" class="info-row">
+        <text class="text-dim text-sm">邮箱：{{contact.email}}</text>
+      </view>
+      <view wx:if="{{contact.wechat}}" class="info-row">
+        <text class="text-dim text-sm">微信：{{contact.wechat}}</text>
+      </view>
+    </view>
+
+    <!-- 重要日期 -->
+    <view wx:if="{{contact.birthday}}" class="card">
+      <view class="section-title-sm">重要日期</view>
+      <view class="info-row">
+        <text class="text-accent text-sm">🎂 生日：{{contact.birthday}}</text>
+      </view>
+    </view>
+
+    <!-- 备注 -->
+    <view wx:if="{{contact.notes}}" class="card">
+      <view class="section-title-sm">备注</view>
+      <text class="text-dim text-sm">{{contact.notes}}</text>
+    </view>
+
+    <!-- 互动历史 -->
+    <view class="card">
+      <view class="section-title-sm">最近互动</view>
+      <view wx:if="{{timeline.length === 0}}" class="empty-state">
+        <text class="text-dimmer text-sm">暂无互动记录</text>
+      </view>
+      <view wx:for="{{timeline}}" wx:key="id" class="timeline-item">
+        <text class="text-sm">{{item.summary}}</text>
+        <text class="text-dimmer text-xs">{{item.date}}</text>
+      </view>
+    </view>
+  </block>
+</view>

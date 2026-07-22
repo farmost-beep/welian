@@ -1,30 +1,31 @@
 // pages/contacts/contacts.js — 关系列表页
-// 按撬动型/维系型分组，搜索框
-
 const api = require('../../utils/api.js');
 
 Page({
   data: {
-    activeTab: 'leverage',  // 'leverage' | 'nurture'
+    activeTab: 'leverage',
     leverageList: [],
     nurtureList: [],
     searchKeyword: '',
-    searchResults: null,   // null=未搜索，array=搜索结果
+    searchResults: null,
     loading: true,
+    error: '',
   },
 
-  onLoad() {
+  onShow() {
     this.loadContacts();
   },
 
   loadContacts() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, error: '' });
     api.getContacts().then((res) => {
       this.setData({
         leverageList: res.leverage || [],
         nurtureList: res.nurture || [],
         loading: false,
       });
+    }).catch((err) => {
+      this.setData({ loading: false, error: err.message || '加载失败' });
     });
   },
 
@@ -42,6 +43,8 @@ Page({
     }
     api.searchContacts(keyword.trim()).then((results) => {
       this.setData({ searchResults: results });
+    }).catch(() => {
+      this.setData({ searchResults: [] });
     });
   },
 
@@ -51,7 +54,11 @@ Page({
 
   tapContact(e) {
     const id = e.currentTarget.dataset.id;
-    // 占位：跳转联系人详情（后续实现）
-    wx.showToast({ title: '详情页开发中', icon: 'none' });
+    wx.navigateTo({ url: `/pages/contact-detail/contact-detail?id=${id}` });
+  },
+
+  onPullDownRefresh() {
+    this.loadContacts();
+    setTimeout(() => wx.stopPullDownRefresh(), 1000);
   },
 });

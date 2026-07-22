@@ -49,6 +49,12 @@
       <text class="text-dimmer text-sm">加载中…</text>
     </view>
 
+    <!-- 错误态 -->
+    <view wx:if="{{error && !loading}}" class="loading">
+      <text class="text-accent text-sm">{{error}}</text>
+      <view style="margin-top:12px"><button size="mini" bindtap="loadContacts">重试</button></view>
+    </view>
+
     <!-- 撬动型列表 -->
     <block wx:if="{{activeTab === 'leverage' && !loading}}">
       <view class="list-header">
