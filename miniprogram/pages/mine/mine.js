@@ -1,4 +1,4 @@
-// pages/mine/mine.js — 我的（tabBar 第三页）
+// pages/mine/mine.js — 我的（tabBar）
 const api = require('../../utils/api.js');
 const app = getApp();
 
@@ -10,7 +10,11 @@ Page({
     openid: '',
     isBound: false,
     bindEmail: '',
+    bindCode: '',
     bindMsg: '',
+    codeSent: false,
+    sendingCode: false,
+    binding: false,
   },
 
   onShow() {
@@ -20,17 +24,14 @@ Page({
       planLabel: g.plan === 'pro' ? 'Pro' : 'Free',
       credits: g.credits,
     });
-    // Check binding status
     this.checkBinding();
   },
 
   checkBinding() {
     const token = api.getToken();
     if (!token) return;
-    // If token starts with wxmp_, not bound; if starts with user_, bound
     const isBound = token.startsWith('user_');
     this.setData({ isBound });
-    // Get openid from token (wxmp_<openid>:secret)
     if (!isBound && token.startsWith('wxmp_')) {
       const openid = token.substring(5, token.indexOf(':'));
       this.setData({ openid });
@@ -45,13 +46,18 @@ Page({
     wx.navigateTo({ url: '/pages/billing/billing' });
   },
 
-  onBindInput(e) {
+  onBindEmailInput(e) {
     this.setData({ bindEmail: e.detail.value });
   },
 
-  // 绑定 Web 账号
-  bindWebAccount() {
-    const { openid, bindEmail } = this.data;
+  onBindCodeInput(e) {
+    this.setData({ bindCode: e.detail.value });
+  },
+
+  // 第一步：发送验证码
+  sendCode() {
+    const { openid, bindEmail, sendingCode } = this.data;
+    if (sendingCode) return;
     if (!openid) {
       this.setData({ bindMsg: '请先登录' });
       return;
@@ -60,23 +66,60 @@ Page({
       this.setData({ bindMsg: '请输入有效邮箱' });
       return;
     }
-    this.setData({ bindMsg: '绑定中…' });
+    this.setData({ sendingCode: true, bindMsg: '发送中…' });
     wx.request({
-      url: 'https://api.welian.app/ai/wxmp_bind',
+      url: 'https://api.welian.app/ai/wxmp_bind_sendcode',
       method: 'POST',
       header: { 'Content-Type': 'application/json' },
       data: { openid, email: bindEmail.trim().toLowerCase() },
       success: (res) => {
         if (res.statusCode === 200 && res.data.ok) {
-          api.clearToken();
-          wx.setStorageSync('welian_token', res.data.token);
-          this.setData({ bindMsg: res.data.message, isBound: true });
-          wx.showToast({ title: '绑定成功', icon: 'success' });
+          this.setData({
+            codeSent: true,
+            sendingCode: false,
+            bindMsg: '验证码已发到邮箱，请查收',
+          });
         } else {
-          this.setData({ bindMsg: res.data.error || '绑定失败' });
+          this.setData({
+            sendingCode: false,
+            bindMsg: res.data.error || '发送失败',
+          });
         }
       },
-      fail: () => this.setData({ bindMsg: '网络错误' }),
+      fail: () => this.setData({ sendingCode: false, bindMsg: '网络错误' }),
+    });
+  },
+
+  // 第二步：验证码绑定
+  verifyAndBind() {
+    const { openid, bindCode, binding } = this.data;
+    if (binding) return;
+    if (!bindCode || bindCode.length !== 6) {
+      this.setData({ bindMsg: '请输入6位验证码' });
+      return;
+    }
+    this.setData({ binding: true, bindMsg: '绑定中…' });
+    wx.request({
+      url: 'https://api.welian.app/ai/wxmp_bind_verify',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json' },
+      data: { openid, code: bindCode },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data.ok) {
+          api.clearToken();
+          wx.setStorageSync('welian_token', res.data.token);
+          this.setData({
+            binding: false,
+            isBound: true,
+            bindMsg: res.data.message,
+            codeSent: false,
+          });
+          wx.showToast({ title: '绑定成功', icon: 'success' });
+        } else {
+          this.setData({ binding: false, bindMsg: res.data.error || '绑定失败' });
+        }
+      },
+      fail: () => this.setData({ binding: false, bindMsg: '网络错误' }),
     });
   },
 });

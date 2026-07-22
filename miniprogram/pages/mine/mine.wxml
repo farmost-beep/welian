@@ -23,16 +23,28 @@
   <!-- 账号绑定 -->
   <view wx:if="{{!isBound && openid}}" class="card bind-card">
     <text class="bind-title">🔗 绑定 Web 账号</text>
-    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入你在 welian.app 注册的邮箱，绑定后同步联系人数据</text>
+    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入 welian.app 注册邮箱，验证后同步联系人数据</text>
     <input
       class="bind-input"
       type="text"
       placeholder="你的注册邮箱"
       value="{{bindEmail}}"
-      bindinput="onBindInput"
+      bindinput="onBindEmailInput"
     />
-    <button class="btn btn-block" style="margin-top:10px" bindtap="bindWebAccount">绑定</button>
-    <text wx:if="{{bindMsg}}" class="text-sm {{bindMsg === '绑定中…' ? 'text-dim' : 'text-accent'}}" style="display:block;margin-top:8px">{{bindMsg}}</text>
+    <button wx:if="{{!codeSent}}" class="btn btn-block" style="margin-top:10px" bindtap="sendCode" loading="{{sendingCode}}">发送验证码</button>
+    <block wx:if="{{codeSent}}">
+      <input
+        class="bind-input"
+        type="number"
+        placeholder="6位验证码"
+        value="{{bindCode}}"
+        bindinput="onBindCodeInput"
+        maxlength="6"
+        style="margin-top:10px"
+      />
+      <button class="btn btn-block" style="margin-top:10px" bindtap="verifyAndBind" loading="{{binding}}">绑定</button>
+    </block>
+    <text wx:if="{{bindMsg}}" class="text-sm {{bindMsg === '绑定中…' || bindMsg === '发送中…' || bindMsg === '验证码已发到邮箱，请查收' ? 'text-dim' : 'text-accent'}}" style="display:block;margin-top:8px">{{bindMsg}}</text>
   </view>
 
   <view wx:if="{{isBound}}" class="card" style="padding:12px 16px">

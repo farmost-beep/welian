@@ -1,0 +1,82 @@
+/* pages/todos/todos.wxss */
+.header { margin-bottom: 24rpx; }
+.loading { text-align: center; padding: 60rpx 0; }
+.empty-state { text-align: center; padding: 60rpx 0; }
+
+/* 添加待办卡片 */
+.add-todo-card { padding: 20rpx 24rpx; margin-bottom: 24rpx; }
+.todo-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+}
+.todo-contact-input { margin-top: 10rpx; font-size: 26rpx; color: #6B6860; }
+
+/* Tab */
+.tab-bar {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: 12rpx;
+  background: #EDEBE3;
+}
+.tab-item.active {
+  background: #C96442;
+}
+.tab-item.active .tab-text { color: #fff; }
+.tab-text { font-size: 28rpx; color: #6B6860; }
+
+/* 待办项 */
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+.todo-checkbox {
+  flex-shrink: 0;
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox-circle {
+  font-size: 40rpx;
+  color: #9A968C;
+}
+.checkbox-done {
+  color: #4A7C59;
+  font-weight: 700;
+}
+.todo-content { flex: 1; }
+.todo-task {
+  font-size: 30rpx;
+  color: #1A1915;
+  line-height: 1.5;
+}
+.todo-task-done {
+  color: #9A968C;
+  text-decoration: line-through;
+}
+.todo-meta {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 8rpx;
+  flex-wrap: wrap;
+}
+.todo-priority { font-size: 24rpx; }
+.todo-contact { font-size: 24rpx; }
+.todo-due { font-size: 24rpx; padding: 2rpx 10rpx; border-radius: 8rpx; }
+.todo-due-overdue { color: #c0392b; background: #fdeaea; }
+.todo-due-urgent { color: #e67e22; background: #fef3e0; }
+.todo-due-soon { color: #6B6860; background: #F5F4EE; }
+.todo-due-normal { color: #9A968C; }

@@ -1,0 +1,88 @@
+<!-- pages/todos/todos.wxml — 待办事项页 -->
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="page-title">📋 待办</text>
+    <text class="page-subtitle">该联系谁、该做什么，一目了然</text>
+  </view>
+
+  <!-- 添加待办 -->
+  <view class="card add-todo-card">
+    <input
+      class="todo-input"
+      type="text"
+      placeholder="添加待办…（如：联系老许聊项目）"
+      value="{{newTodo}}"
+      bindinput="onNewTodoInput"
+      confirm-type="done"
+      bindconfirm="addTodo"
+    />
+    <input
+      class="todo-input todo-contact-input"
+      type="text"
+      placeholder="关联联系人（可选）"
+      value="{{newTodoContact}}"
+      bindinput="onNewTodoContactInput"
+    />
+    <button class="btn btn-block" style="margin-top:8px" bindtap="addTodo" loading="{{adding}}">添加</button>
+  </view>
+
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" bindtap="switchTab" data-tab="pending">
+      <text class="tab-text">待办（{{pending.length}}）</text>
+    </view>
+    <view class="tab-item {{activeTab === 'done' ? 'active' : ''}}" bindtap="switchTab" data-tab="done">
+      <text class="tab-text">已完成（{{doneCount}}）</text>
+    </view>
+  </view>
+
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">加载中…</text>
+  </view>
+
+  <!-- 错误态 -->
+  <view wx:if="{{error && !loading}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadTodos">重试</button></view>
+  </view>
+
+  <!-- 待办列表 -->
+  <block wx:if="{{activeTab === 'pending' && !loading}}">
+    <view wx:if="{{pending.length === 0}}" class="empty-state">
+      <text class="text-dimmer text-sm">没有待办，继续保持 👍</text>
+    </view>
+    <view wx:for="{{pending}}" wx:key="id" class="card todo-item">
+      <view class="todo-checkbox" bindtap="markDone" data-id="{{item.id}}">
+        <text class="checkbox-circle">○</text>
+      </view>
+      <view class="todo-content">
+        <text class="todo-task">{{item.task}}</text>
+        <view class="todo-meta">
+          <text wx:if="{{item.priorityLabel}}" class="todo-priority">{{item.priorityLabel}}</text>
+          <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
+          <text wx:if="{{item.dueLabel}}" class="todo-due todo-due-{{item.dueStatus}}">{{item.dueLabel}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 已完成列表 -->
+  <block wx:if="{{activeTab === 'done' && !loading}}">
+    <view wx:if="{{doneList.length === 0}}" class="empty-state">
+      <text class="text-dimmer text-sm">还没有完成任何待办</text>
+    </view>
+    <view wx:for="{{doneList}}" wx:key="id" class="card todo-item todo-done">
+      <view class="todo-checkbox" bindtap="reopen" data-id="{{item.id}}">
+        <text class="checkbox-circle checkbox-done">✓</text>
+      </view>
+      <view class="todo-content">
+        <text class="todo-task todo-task-done">{{item.task}}</text>
+        <view class="todo-meta">
+          <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

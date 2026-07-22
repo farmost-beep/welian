@@ -5968,7 +5968,70 @@ export default {
         });
       }
 
-      // ── Bind mini program to existing Web account (public) ──
+      // ── Bind mini program: send verification code (public) ──
+      if (path === '/ai/wxmp_bind_sendcode' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const { openid, email } = body;
+        if (!openid || !email) {
+          return jsonResponse({ error: 'openid and email required' }, 400);
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        // Verify email exists in Clerk
+        const clerkUserId = await getClerkUserIdByEmail(normalizedEmail, env);
+        if (!clerkUserId) {
+          return jsonResponse({ error: '未找到该邮箱对应的账号' }, 400);
+        }
+        // Generate 6-digit code
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const codeKey = `wxmp_bindcode:${openid}`;
+        await env.USER_DATA.put(codeKey, JSON.stringify({
+          code, email: normalizedEmail, clerkUserId,
+          created_at: Date.now(),
+        }), { expirationTtl: 300 }); // 5 minutes
+
+        // Send verification email
+        const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:400px;margin:0 auto;padding:20px;text-align:center">
+          <h2 style="color:#4A6741">Welian 小程序绑定验证</h2>
+          <p>你的验证码是：</p>
+          <p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#C96442;margin:20px 0">${code}</p>
+          <p style="color:#999;font-size:13px">5 分钟内有效。如非本人操作请忽略。</p>
+        </body></html>`;
+        await sendEmail(env, normalizedEmail, 'Welian 绑定验证码', html);
+        return jsonResponse({ ok: true, message: '验证码已发送到邮箱' });
+      }
+
+      // ── Bind mini program: verify code and bind (public) ──
+      if (path === '/ai/wxmp_bind_verify' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const { openid, code } = body;
+        if (!openid || !code) {
+          return jsonResponse({ error: 'openid and code required' }, 400);
+        }
+        const codeKey = `wxmp_bindcode:${openid}`;
+        const stored = await env.USER_DATA.get(codeKey);
+        if (!stored) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        const parsed = JSON.parse(stored);
+        if (parsed.code !== String(code)) {
+          return jsonResponse({ error: '验证码错误' }, 400);
+        }
+        // Code correct — bind
+        const wxmpUserId = `wxmp_${openid}`;
+        const clerkUserId = parsed.clerkUserId;
+        await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerkUserId);
+        await env.USER_DATA.delete(codeKey); // consume code
+        const token = `${clerkUserId}:${env.WELIAN_SYNC_SECRET}`;
+        // Count contacts for message
+        const contacts = await loadDataset(env, clerkUserId, 'contacts');
+        return jsonResponse({
+          ok: true,
+          token,
+          message: `绑定成功（${contacts.length} 个联系人）`,
+        });
+      }
+
+      // ── Bind mini program to existing Web account (legacy, public) ──
       if (path === '/ai/wxmp_bind' && method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const { openid, email, clerk_user_id } = body;

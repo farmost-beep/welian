@@ -3,6 +3,7 @@
     "pages/signals/signals",
     "pages/dashboard/dashboard",
     "pages/contacts/contacts",
+    "pages/todos/todos",
     "pages/mine/mine",
     "pages/weekly/weekly",
     "pages/billing/billing",
@@ -32,6 +33,10 @@
       {
         "pagePath": "pages/contacts/contacts",
         "text": "关系"
+      },
+      {
+        "pagePath": "pages/todos/todos",
+        "text": "待办"
       },
       {
         "pagePath": "pages/mine/mine",
