@@ -269,6 +269,10 @@
       <text class="edit-label">标签（用、分隔）</text>
       <input class="edit-input" value="{{editForm.tags}}" bindinput="onEditInput" data-field="tags" placeholder="如：金融圈、引荐人" />
     </view>
+    <view class="edit-field">
+      <text class="edit-label">GitHub 用户名</text>
+      <input class="edit-input" value="{{editForm.github}}" bindinput="onEditInput" data-field="github" placeholder="如：octocat（用于感知变化采集）" />
+    </view>
     <view wx:if="{{natureIndex === 0 || natureIndex === 2}}" class="edit-field">
       <text class="edit-label">经营目标</text>
       <input class="edit-input" value="{{editForm.leverage_goal}}" bindinput="onEditInput" data-field="leverage_goal" placeholder="如：引荐金融科技客户" />
