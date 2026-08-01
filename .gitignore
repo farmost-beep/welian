@@ -17,11 +17,14 @@ docs/RELEASE_MANUAL.md
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / Agent skills
 .vscode/
 .idea/
 *.swp
 *.swo
+.agents/
+.claude/
+skills-lock.json
 
 # Build artifacts
 dist/
