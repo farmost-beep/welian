@@ -28,6 +28,10 @@ Page({
       // app.js 的 _parseShareContext 已处理社交绑定上报
       // 这里加载报告供被分享者查看
       this.loadSharedReport(query.contact);
+    } else if (query.cid) {
+      // 从联系人详情页分享打开（用 contact_id）
+      this.setData({ _contactId: query.cid });
+      this.loadReport(query.cid);
     } else {
       // 用户自己查看 — 需要登录
       this.loadReport();
@@ -45,7 +49,7 @@ Page({
   },
 
   // 用户自己查看报告
-  async loadReport() {
+  async loadReport(contactId) {
     this.setData({ loading: true });
     try {
       await app.loginReady;
@@ -54,8 +58,10 @@ Page({
         this.setData({ loading: false, error: '请先登录' });
         return;
       }
-      // 调用后端生成关系体检报告（复用现有能力）
-      const resp = await api.request('/ai/report', { type: 'relationship_checkup' }, 'POST');
+      // 调用后端生成关系体检报告
+      const payload = { type: 'relationship_checkup' };
+      if (contactId) payload.contact_id = contactId;
+      const resp = await api.request('/ai/report', payload, 'POST');
       if (resp && resp.ok) {
         this.setData({ loading: false, report: resp.report });
       } else {

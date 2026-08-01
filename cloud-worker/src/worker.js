@@ -10635,6 +10635,11 @@ ${chatText}
 
       // ── Weekly/Monthly reports (structured, not ad-hoc prompt) ──
 
+      if (path === '/ai/report' && method === 'POST') {
+        const r = await handleRelationshipReport(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/ai/weekly_report' && method === 'POST') {
         const r = await handleWeeklyReport(request, env);
         return jsonResponse(r.data, r.status);
@@ -11341,6 +11346,123 @@ Rules:
 - For leverage relationships: purposeful, with topic
 - If no data, say so honestly (不要编造)
 - Output MUST be valid JSON, nothing else`;
+
+// ── Relationship checkup report (single contact) ──
+
+async function handleRelationshipReport(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const contactId = body.contact_id || body.cid;
+  if (!contactId) return { status: 400, data: { error: 'contact_id required' } };
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const contact = contacts.find(c => c.id === contactId);
+  if (!contact) return { status: 404, data: { error: '联系人不存在' } };
+
+  const timeline = await loadDataset(env, userId, 'timeline');
+  // Filter timeline entries for this contact
+  const contactTimeline = timeline.filter(t =>
+    t.contact_id === contactId ||
+    (t.contact_name || t.contact || '') === contact.name ||
+    (contact.aliases || []).some(a => (t.contact_name || '') === a)
+  ).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const totalInteractions = contactTimeline.length;
+  const now = new Date();
+  const lastDate = contactTimeline[0]?.date || '';
+  let daysSinceLast = 0;
+  if (lastDate) {
+    daysSinceLast = Math.floor((now - new Date(lastDate)) / 86400000);
+  }
+
+  // Calculate average interval between interactions
+  let avgInterval = 0;
+  if (contactTimeline.length >= 2) {
+    const intervals = [];
+    for (let i = 0; i < contactTimeline.length - 1; i++) {
+      const d1 = new Date(contactTimeline[i].date);
+      const d2 = new Date(contactTimeline[i + 1].date);
+      intervals.push(Math.abs(d1 - d2) / 86400000);
+    }
+    avgInterval = Math.round(intervals.reduce((s, v) => s + v, 0) / intervals.length);
+  }
+
+  // Calculate relationship temperature (0-100)
+  let temperature = 50;
+  if (totalInteractions === 0) {
+    temperature = 30;
+  } else if (daysSinceLast <= 7) {
+    temperature = Math.min(95, 70 + totalInteractions * 2);
+  } else if (daysSinceLast <= 30) {
+    temperature = Math.min(80, 55 + totalInteractions);
+  } else if (daysSinceLast <= 90) {
+    temperature = Math.max(35, 50 - Math.floor(daysSinceLast / 10));
+  } else {
+    temperature = Math.max(20, 40 - Math.floor(daysSinceLast / 30));
+  }
+
+  // Temperature description
+  let tempDesc = '';
+  if (temperature >= 80) tempDesc = '关系热度很高，保持这个节奏！';
+  else if (temperature >= 60) tempDesc = '关系健康，继续保持定期联系。';
+  else if (temperature >= 40) tempDesc = '关系有些冷却，是时候主动联系一下了。';
+  else if (temperature >= 25) tempDesc = '关系需要加温，找个理由重新连接吧。';
+  else tempDesc = '关系已经疏远，但重新联系永远不晚。';
+
+  // Generate suggestions based on contact nature and data
+  const suggestions = [];
+  const nature = contact.nature || 'leverage';
+  if (daysSinceLast > 30) {
+    suggestions.push('已经很久没联系了，发条消息问候一下吧');
+  }
+  if (contact.important_dates && contact.important_dates.length > 0) {
+    const upcoming = contact.important_dates.find(d => {
+      if (!d.date) return false;
+      let dateStr = d.date;
+      if (dateStr.length === 5) dateStr = `${now.getFullYear()}-${dateStr}`;
+      const target = new Date(dateStr);
+      const days = Math.floor((target - now) / 86400000);
+      return days >= 0 && days <= 30;
+    });
+    if (upcoming) {
+      suggestions.push(`${upcoming.label || '重要日期'}即将到来（${upcoming.date}），记得准备`);
+    }
+  }
+  if (nature === 'leverage' || nature === 'dual') {
+    if (contact.leverage_goal || contact.leverage?.goal) {
+      suggestions.push(`经营目标：${contact.leverage_goal || contact.leverage.goal}，想想如何推进`);
+    }
+    if (totalInteractions > 0 && contactTimeline[0]?.summary) {
+      suggestions.push(`上次聊的是「${contactTimeline[0].summary.slice(0, 30)}」，可以接着聊`);
+    }
+  }
+  if (nature === 'nurture' || nature === 'dual') {
+    suggestions.push('陪伴型关系不需要理由，打个电话或发个消息就好');
+  }
+  if (suggestions.length === 0) {
+    suggestions.push('定期联系是维护关系的关键');
+    suggestions.push('记住上次聊的话题，下次接着聊');
+  }
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      report: {
+        contactName: contact.name,
+        inviterName: '',
+        temperature,
+        tempDesc,
+        totalInteractions: totalInteractions || '—',
+        daysSinceLast: daysSinceLast || '—',
+        avgInterval: avgInterval || '—',
+        suggestions,
+      },
+    },
+  };
+}
 
 async function handleWeeklyReport(req, env) {
   const body = await req.json().catch(() => ({}));
