@@ -12,6 +12,8 @@ Page({
     meetingPrep: null,     // 见面功课
     showPrep: false,
     loadingPrep: false,
+    loadingPerception: false,
+    perceptions: [],
     // 编辑
     showEdit: false,
     savingEdit: false,
@@ -40,6 +42,7 @@ Page({
     api.getContactDetail(this.contactId).then((contact) => {
       this.setData({ contact, loading: false });
       this.loadTimeline(contact.name);
+      this.loadPerceptions();
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
     });
@@ -176,6 +179,91 @@ Page({
 
   closePrep() {
     this.setData({ showPrep: false });
+  },
+
+  // R3-1+R3-2: 感知变化 — 手动触发采集
+  async collectPerceptions() {
+    const contact = this.data.contact;
+    if (!contact) return;
+    this.setData({ loadingPerception: true });
+    try {
+      const data = await api.request('/ai/perceptions/collect', {
+        contact_id: contact.id,
+        sources: ['github'],
+      }, 'POST');
+      this.setData({ loadingPerception: false });
+      if (data && data.ok) {
+        if (data.collected > 0) {
+          wx.showToast({ title: `发现 ${data.collected} 条新变化`, icon: 'success' });
+        } else {
+          wx.showToast({ title: data.message || '未发现新变化', icon: 'none' });
+        }
+        this.loadPerceptions();
+      } else {
+        wx.showToast({ title: '采集失败', icon: 'none' });
+      }
+    } catch (e) {
+      this.setData({ loadingPerception: false });
+      wx.showToast({ title: e.message || '网络错误', icon: 'none' });
+    }
+  },
+
+  // R3-1: 加载该联系人的感知列表
+  async loadPerceptions() {
+    const contact = this.data.contact;
+    if (!contact) return;
+    try {
+      const data = await api.request('/ai/perceptions?status=all&limit=10');
+      if (data && data.ok) {
+        const percs = (data.perceptions || [])
+          .filter(p => p.contact_id === contact.id)
+          .map(p => ({
+            ...p,
+            collected_ago: this.formatTimeAgo(p.source?.collected_at || p.created_at),
+          }));
+        this.setData({ perceptions: percs });
+      }
+    } catch (e) { /* ignore */ }
+  },
+
+  // R3-1: 确认感知
+  async confirmPerception(e) {
+    const id = e.currentTarget.dataset.id;
+    try {
+      const data = await api.request('/ai/perceptions/confirm', { id, action: 'confirm' }, 'POST');
+      if (data && data.ok) {
+        wx.showToast({ title: '已确认', icon: 'success' });
+        this.loadPerceptions();
+      }
+    } catch (e) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    }
+  },
+
+  // R3-1: 拒绝感知
+  async rejectPerception(e) {
+    const id = e.currentTarget.dataset.id;
+    try {
+      const data = await api.request('/ai/perceptions/confirm', { id, action: 'reject' }, 'POST');
+      if (data && data.ok) {
+        wx.showToast({ title: '已忽略', icon: 'none' });
+        this.loadPerceptions();
+      }
+    } catch (e) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    }
+  },
+
+  // 格式化时间为"x分钟前/x小时前/x天前"
+  formatTimeAgo(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}分钟前`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}小时前`;
+    const days = Math.floor(hours / 24);
+    return `${days}天前`;
   },
 
   // ── 编辑联系人 ──

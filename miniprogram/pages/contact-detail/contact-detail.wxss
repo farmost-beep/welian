@@ -7,6 +7,21 @@
 .action-btn { flex: 1; font-size: 14px; padding: 10px 0; background: #EDEBE3; color: #C96442; border: none; border-radius: 10px; }
 .action-btn::after { border: none; }
 .section-title-sm { font-size: 13px; color: #9A968C; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* R3-1: 感知卡 */
+.perceptions-card { margin-top: 12px; }
+.perception-item { padding: 12px 0; border-bottom: 1px solid #E4E1D6; }
+.perception-item:last-child { border-bottom: none; }
+.perc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.perc-title { flex: 1; color: #1A1915; line-height: 1.5; }
+.perc-confidence { flex-shrink: 0; }
+.perc-meta { margin-top: 6px; }
+.perc-actions { display: flex; gap: 10px; margin-top: 10px; }
+.perc-btn { flex: 1; text-align: center; padding: 8px 0; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.perc-btn-primary { background: #C96442; color: #fff; }
+.perc-btn-ghost { background: transparent; color: #9A968C; border: 1px solid #D9D5C7; }
+.perc-status-confirmed { margin-top: 8px; }
+.perc-status-rejected { margin-top: 8px; }
 .timeline-item { padding: 10px 0; border-bottom: 1px solid #E4E1D6; }
 .timeline-item:last-child { border-bottom: none; }
 .empty-state { padding: 20px 0; text-align: center; }

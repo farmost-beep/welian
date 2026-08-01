@@ -31,7 +31,32 @@
       <button class="action-btn" bindtap="recordInteraction">📝 记录互动</button>
       <button class="action-btn" bindtap="draftMessage">✍️ 拟写消息</button>
       <button class="action-btn" bindtap="meetingPrep" loading="{{loadingPrep}}">🧐 见面功课</button>
+      <button class="action-btn" bindtap="collectPerceptions" loading="{{loadingPerception}}">🔍 感知变化</button>
       <button class="action-btn" open-type="share">📊 关系体检</button>
+    </view>
+
+    <!-- R3-1: 感知卡列表 -->
+    <view wx:if="{{perceptions.length > 0}}" class="card perceptions-card">
+      <view class="section-title-sm">🔍 最近发现的变化</view>
+      <view wx:for="{{perceptions}}" wx:key="id" class="perception-item">
+        <view class="perc-header">
+          <text class="perc-title text-sm">{{item.title}}</text>
+          <text class="perc-confidence text-xs {{item.confidence >= 0.85 ? 'text-green' : 'text-dimmer'}}">{{item.confidence >= 0.85 ? '高置信' : '中置信'}}</text>
+        </view>
+        <view class="perc-meta">
+          <text class="text-dimmer text-xs">📊 {{item.source.platform}} · 🕐 {{item.collected_ago}}</text>
+        </view>
+        <view wx:if="{{item.status === 'pending'}}" class="perc-actions">
+          <view class="perc-btn perc-btn-primary" catchtap="confirmPerception" data-id="{{item.id}}">确认</view>
+          <view class="perc-btn perc-btn-ghost" catchtap="rejectPerception" data-id="{{item.id}}">不是这样</view>
+        </view>
+        <view wx:elif="{{item.status === 'confirmed'}}" class="perc-status-confirmed">
+          <text class="text-green text-xs">✓ 已确认</text>
+        </view>
+        <view wx:elif="{{item.status === 'rejected'}}" class="perc-status-rejected">
+          <text class="text-dimmer text-xs">✗ 已忽略</text>
+        </view>
+      </view>
     </view>
 
     <!-- 冷却预警 -->
