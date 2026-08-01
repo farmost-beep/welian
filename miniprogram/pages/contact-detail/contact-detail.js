@@ -185,6 +185,18 @@ Page({
   async collectPerceptions() {
     const contact = this.data.contact;
     if (!contact) return;
+    const github = contact.platforms?.github || contact.github;
+    if (!github) {
+      wx.showModal({
+        title: '需要 GitHub 用户名',
+        content: '感知变化需要先填写联系人的 GitHub 用户名。要去编辑吗？',
+        confirmText: '去编辑',
+        success: (res) => {
+          if (res.confirm) this.editContact();
+        },
+      });
+      return;
+    }
     this.setData({ loadingPerception: true });
     try {
       const data = await api.request('/ai/perceptions/collect', {
