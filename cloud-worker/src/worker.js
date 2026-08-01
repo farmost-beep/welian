@@ -630,6 +630,155 @@ async function handleCloudAdvise(req, env) {
   return { status: 200, data: { result: llmResult || parts.join('\n'), raw: parts, advise_id: adviseId } };
 }
 
+// ── R2-2: Unified action card — returns the single most worth-doing action ──
+async function handleActionCard(req, env) {
+  const userId = await getVerifiedUserId(req, env, await req.json().catch(() => ({})));
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const todos = await loadDataset(env, userId, 'todos');
+  const timeline = await loadDataset(env, userId, 'timeline');
+  const today = localDate(req);
+
+  // Priority 1: overdue todos with contact
+  const overdueTodos = todos.filter(t => t.status === 'pending' && t.due && t.contact)
+    .filter(t => {
+      const due = t.due.length === 10 ? t.due : t.due.substring(0, 10);
+      return due < today.toISOString().slice(0, 10);
+    })
+    .sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+
+  if (overdueTodos.length > 0) {
+    const todo = overdueTodos[0];
+    const contact = contacts.find(c => c.id === todo.contact);
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        action_card: {
+          type: 'todo_due',
+          reason: `待办已逾期：${todo.task}`,
+          contact: contact ? { id: contact.id, name: contact.name, nature: contact.nature } : null,
+          suggested_topic: todo.task,
+          draft_available: true,
+          todo_id: todo.id,
+        },
+      },
+    };
+  }
+
+  // Priority 2: leverage contacts with high score (reuse scoring logic)
+  const leverageCandidates = [];
+  for (const c of contacts) {
+    if (c.nature !== 'leverage' && c.nature !== '双重' && c.nature !== 'dual') continue;
+    const contactTimeline = timeline
+      .filter(t => t.contact === c.id)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const lastDate = contactTimeline[0]?.date || '';
+    let daysSince = 9999;
+    if (lastDate) {
+      const diff = Math.floor((today - new Date(lastDate)) / 86400000);
+      daysSince = isNaN(diff) ? 9999 : diff;
+    }
+    let score = 0;
+    if (daysSince >= 21) score += 30;
+    else if (daysSince >= 14) score += 20;
+    else if (daysSince === 9999) score += 25;
+    const pendingTodos = todos.filter(t => t.contact === c.id && t.status === 'pending');
+    score += pendingTodos.length * 25;
+    score += (c.strength || 3) * 2;
+    if (daysSince >= 14 || daysSince === 9999 || pendingTodos.length > 0) {
+      leverageCandidates.push({ contact: c, daysSince, score, lastInteraction: contactTimeline[0]?.summary || '' });
+    }
+  }
+  leverageCandidates.sort((a, b) => b.score - a.score);
+
+  if (leverageCandidates.length > 0) {
+    const top = leverageCandidates[0];
+    const c = top.contact;
+    const reason = top.daysSince === 9999
+      ? `从未联系过 ${c.name}，是时候打个招呼了`
+      : `${c.name} 已经 ${top.daysSince} 天没联系了`;
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        action_card: {
+          type: 'advise',
+          reason,
+          contact: { id: c.id, name: c.name, nature: c.nature },
+          suggested_topic: top.lastInteraction ? `接着聊：${top.lastInteraction.slice(0, 40)}` : '聊聊近况',
+          draft_available: true,
+        },
+      },
+    };
+  }
+
+  // No actionable items
+  return { status: 200, data: { ok: true, action_card: null, message: '这周没有特别需要做的事，继续保持用心就好' } };
+}
+
+// ── R2-2: Action card confirmation — draft/done/skip ──
+async function handleActionCardConfirm(req, env) {
+  const userId = await getVerifiedUserId(req, env, await req.json().catch(() => ({})));
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+  const body = await req.json().catch(() => ({}));
+  const { action, contact_id, todo_id, draft_text } = body;
+  if (!action || !['draft', 'done', 'skip'].includes(action)) {
+    return { status: 400, data: { error: 'action must be draft/done/skip' } };
+  }
+
+  if (action === 'draft') {
+    // Generate message draft for the contact
+    const contacts = await loadDataset(env, userId, 'contacts');
+    const contact = contacts.find(c => c.id === contact_id);
+    if (!contact) return { status: 404, data: { error: '联系人不存在' } };
+    // Track draft generation
+    await trackAction(env, userId, 'draft_generated', { contact_name: contact.name });
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        action: 'draft',
+        contact: { id: contact.id, name: contact.name },
+        message: `消息草稿已生成，请到聊天中发送给 ${contact.name}`,
+      },
+    };
+  }
+
+  if (action === 'done') {
+    // Record interaction + generate follow-up todo
+    const contacts = await loadDataset(env, userId, 'contacts');
+    const contact = contacts.find(c => c.id === contact_id);
+    const contactName = contact ? contact.name : '';
+    // Track interaction
+    await trackAction(env, userId, 'interaction_recorded', { contact_name: contactName });
+    // Mark todo as done if provided
+    if (todo_id) {
+      const todos = await loadDataset(env, userId, 'todos');
+      const todo = todos.find(t => t.id === todo_id);
+      if (todo) {
+        todo.status = 'done';
+        todo.completed_at = new Date().toISOString();
+        await saveDataset(env, userId, 'todos', todos);
+        await trackAction(env, userId, 'todo_completed', { contact_name: contactName });
+      }
+    }
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        action: 'done',
+        message: `已记录与 ${contactName} 的互动`,
+      },
+    };
+  }
+
+  // action === 'skip'
+  await trackAction(env, userId, 'action_card_skip', { contact_id });
+  return { status: 200, data: { ok: true, action: 'skip', message: '已跳过' } };
+}
+
 // ── LLM call (Anthropic-compatible API) ──
 
 async function callLLM(prompt, system, env, options = {}) {
@@ -10346,6 +10495,18 @@ ${chatText}
         await env.USER_DATA.delete(`prompt:behavioral_insights:${userId}.md`);
         console.log(`[evolution] Insights reset for user ${userId}`);
         return jsonResponse({ ok: true, message: '行为洞察已重置' });
+      }
+
+      // ── R2-2: Unified action card ──
+
+      if (path === '/ai/action_card' && method === 'GET') {
+        const r = await handleActionCard(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      if (path === '/ai/action_card/confirm' && method === 'POST') {
+        const r = await handleActionCardConfirm(request, env);
+        return jsonResponse(r.data, r.status);
       }
 
       // ── Metrics (P0: North Star + Advice Adoption) ──
