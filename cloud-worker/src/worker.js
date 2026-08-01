@@ -4876,11 +4876,41 @@ async function loadDataset(env, userId, name) {
   }
 }
 
-// Helper: save a dataset to KV
+// Helper: load a dataset with its version (for conflict detection)
+// Version is tracked via a sidecar KV key, data format stays as bare array.
+async function loadDatasetWithVersion(env, userId, name) {
+  const [raw, versionRaw] = await Promise.all([
+    env.USER_DATA.get(`${name}:${userId}`),
+    env.USER_DATA.get(`version:${name}:${userId}`),
+  ]);
+  const version = versionRaw ? parseInt(versionRaw, 10) || 0 : 0;
+  if (!raw) return { items: [], version };
+  try {
+    return { items: JSON.parse(raw), version };
+  } catch (e) {
+    console.error(`[loadDatasetWithVersion] JSON parse failed for ${name}:${userId}:`, e.message);
+    throw new Error(`数据损坏: ${name} 解析失败，请联系支持`);
+  }
+}
+
+// Helper: save a dataset to KV with version tracking
+// If expectedVersion is provided, checks for conflict before writing.
+// Data format stays as bare array (backward compat with direct KV reads).
+// Version is tracked in a sidecar key: version:${name}:${userId}
 const KV_MAX_VALUE_SIZE = 25 * 1024 * 1024; // 25MB Cloudflare KV limit
-async function saveDataset(env, userId, name, data) {
+async function saveDataset(env, userId, name, data, expectedVersion) {
   // No expirationTtl — todos/timeline/contacts should persist indefinitely.
   // (Previous 604800s/7day TTL caused data loss and stale reads.)
+
+  // Conflict detection: if expectedVersion provided, verify current version matches
+  if (expectedVersion !== undefined) {
+    const currentVersionRaw = await env.USER_DATA.get(`version:${name}:${userId}`);
+    const currentVersion = currentVersionRaw ? parseInt(currentVersionRaw, 10) || 0 : 0;
+    if (currentVersion !== expectedVersion) {
+      throw new Error(`数据冲突: ${name} 已被其他操作修改 (expected v${expectedVersion}, current v${currentVersion})，请刷新后重试`);
+    }
+  }
+
   const serialized = JSON.stringify(data);
   if (serialized.length > KV_MAX_VALUE_SIZE) {
     const sizeMB = (serialized.length / 1024 / 1024).toFixed(1);
@@ -4888,6 +4918,10 @@ async function saveDataset(env, userId, name, data) {
   }
   try {
     await env.USER_DATA.put(`${name}:${userId}`, serialized);
+    // Increment version sidecar (best-effort — non-atomic with data write)
+    const currentVersionRaw = await env.USER_DATA.get(`version:${name}:${userId}`);
+    const nextVersion = (currentVersionRaw ? parseInt(currentVersionRaw, 10) || 0 : 0) + 1;
+    await env.USER_DATA.put(`version:${name}:${userId}`, String(nextVersion));
   } catch (e) {
     console.error(`[saveDataset] KV write failed for ${name}:${userId} (quota?):`, e.message);
     throw new Error(`数据保存失败，请稍后重试`);
