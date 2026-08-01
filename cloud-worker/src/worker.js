@@ -2533,7 +2533,7 @@ async function handleMeetingPrep(req, env) {
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
-  const { contact_id, contact_name } = body;
+  const { contact_id, contact_name, meeting_id } = body;
   let contact = null;
   const contacts = await loadDataset(env, userId, 'contacts');
 
@@ -2545,6 +2545,35 @@ async function handleMeetingPrep(req, env) {
       (c.aliases || []).includes(contact_name) ||
       (c.alias || []).includes(contact_name)
     );
+  } else if (meeting_id) {
+    // 从会议参会人中找第一个匹配的联系人
+    const meetings = await loadDataset(env, userId, 'meetings');
+    const meeting = meetings.find(m => m.id === meeting_id);
+    if (!meeting) return { status: 404, data: { error: '会议不存在' } };
+    const attendees = meeting.attendees || [];
+    for (const a of attendees) {
+      if (a.contact_id) {
+        contact = contacts.find(c => c.id === a.contact_id);
+      } else if (a.name) {
+        contact = contacts.find(c =>
+          c.name === a.name ||
+          (c.aliases || []).includes(a.name) ||
+          (c.alias || []).includes(a.name)
+        );
+      }
+      if (contact) break;
+    }
+    if (!contact && attendees.length > 0) {
+      // 参会人不在联系人中，用第一个参会人名字做 fallback
+      const attendeeName = attendees[0].name || '参会人';
+      return {
+        status: 200,
+        data: {
+          prep: `📋 会前准备\n\n会议：${meeting.title || ''}\n参会人：${attendees.map(a => a.name).filter(Boolean).join('、')}\n\n${attendees[0].name || attendeeName} 还不在你的联系人中，建议先添加联系人再生成详细的会前准备。`,
+          usage: { points: 0, remaining: 0, fallback: true },
+        },
+      };
+    }
   }
 
   if (!contact) return { status: 404, data: { error: 'contact not found' } };
