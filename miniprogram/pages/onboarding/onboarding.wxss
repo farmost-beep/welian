@@ -1,0 +1,199 @@
+/* pages/onboarding/onboarding.wxss */
+.onboarding {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 60rpx 48rpx 60rpx;
+  background: #F5F4EE;
+}
+
+/* 进度条 */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 48rpx;
+}
+.progress-dot {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #EDEBE3;
+  color: #9A968C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+.progress-dot.active {
+  background: #C96442;
+  color: #fff;
+}
+.progress-line {
+  width: 80rpx;
+  height: 4rpx;
+  background: #EDEBE3;
+  transition: all 0.3s;
+}
+.progress-line.active {
+  background: #C96442;
+}
+
+/* 引导文案 */
+.guide-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+.guide-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1A1915;
+  margin-bottom: 8rpx;
+}
+.guide-desc {
+  font-size: 26rpx;
+  color: #6B6860;
+  text-align: center;
+}
+
+/* 表单卡片 */
+.form-card {
+  background: #FAFAF7;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  border: 1rpx solid #E8E5DC;
+  margin-bottom: 24rpx;
+}
+.name-input {
+  font-size: 34rpx;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #E8E5DC;
+  margin-bottom: 28rpx;
+  color: #1A1915;
+}
+.rel-input {
+  font-size: 28rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E8E5DC;
+  color: #6B6860;
+  margin-top: 8rpx;
+}
+
+/* 关系类型选择 */
+.nature-selector {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.nature-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 12rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #E8E5DC;
+  background: #fff;
+  transition: all 0.2s;
+}
+.nature-option.selected {
+  border-color: #C96442;
+  background: #FDF6F2;
+}
+.nature-icon {
+  font-size: 36rpx;
+  margin-bottom: 8rpx;
+}
+.nature-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1A1915;
+  margin-bottom: 4rpx;
+}
+.nature-desc {
+  font-size: 20rpx;
+  color: #9A968C;
+  text-align: center;
+}
+
+/* 已添加列表 */
+.added-list {
+  margin-bottom: 24rpx;
+}
+.added-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx;
+  background: #FAFAF7;
+  border-radius: 16rpx;
+  margin-bottom: 12rpx;
+  border: 1rpx solid #E8E5DC;
+}
+.added-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+.added-nature {
+  font-size: 24rpx;
+  color: #6B6860;
+}
+
+/* 操作区 */
+.action-section {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding-top: 24rpx;
+}
+.btn-primary {
+  background: #C96442;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.btn-block {
+  width: 100%;
+}
+.skip-link {
+  font-size: 26rpx;
+  color: #9A968C;
+  padding: 12rpx;
+}
+
+/* 首次建议卡片 */
+.advise-card {
+  background: #FAFAF7;
+  border-radius: 24rpx;
+  padding: 36rpx;
+  border: 1rpx solid #E8E5DC;
+  margin-top: 24rpx;
+}
+.advise-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+.advise-icon {
+  font-size: 40rpx;
+}
+.advise-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1A1915;
+}
+.advise-body {
+  font-size: 28rpx;
+  color: #3A3833;
+  line-height: 1.7;
+  margin-bottom: 28rpx;
+  white-space: pre-wrap;
+}

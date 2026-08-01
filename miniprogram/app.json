@@ -6,6 +6,7 @@
     "pages/todos/todos",
     "pages/mine/mine",
     "pages/welcome/welcome",
+    "pages/onboarding/onboarding",
     "pages/contact-detail/contact-detail",
     "pages/timeline/timeline",
     "pages/meetings/meetings",

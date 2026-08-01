@@ -12227,7 +12227,15 @@ async function handleOnboardingCreateContacts(req, env) {
     console.log('[onboarding] first advise generation failed:', e.message);
   }
 
-  return { status: 200, data: { ok: true, created: created.map(c => ({ id: c.id, name: c.name, nature: c.nature })), first_advise: firstAdvise } };
+  // Track onboarding completion for activation funnel measurement
+  try {
+    await trackAction(env, userId, 'onboarding_complete', { contact_count: created.length });
+  } catch (e) {
+    console.log('[onboarding] trackAction failed:', e.message);
+  }
+
+  const onboardingCompletedAt = new Date().toISOString();
+  return { status: 200, data: { ok: true, created: created.map(c => ({ id: c.id, name: c.name, nature: c.nature })), first_advise: firstAdvise, onboarding_completed_at: onboardingCompletedAt } };
 }
 
 // ── Relationship health: AI-powered cooling/warming/dormant classification ──

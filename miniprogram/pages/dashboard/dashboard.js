@@ -96,6 +96,11 @@ Page({
         dual: contactStats.dual || 0,
       };
       const isEmpty = contacts.length === 0;
+      // 空状态且未完成 onboarding → 跳转 onboarding 引导页
+      if (isEmpty && !app.globalData.onboarded) {
+        wx.navigateTo({ url: '/pages/onboarding/onboarding' });
+        return;
+      }
       // 进化阶段（stages 从 config 读取，支持后端动态调整）
       const stages = app.globalData.config.evolution_stages;
       const totalContacts = contactData.total || contacts.length;
