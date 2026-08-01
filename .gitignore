@@ -23,20 +23,31 @@ Thumbs.db
 *.swp
 *.swo
 
-# Build
+# Build artifacts
 dist/
 build/
 .wrangler/
 src/welian.egg-info/
 data/
+test-results/
+.playwright-cache/
+
+# 临时/实验文件
 c1_2x.png
 c1_2x_ocr.txt
 c1_gray3x.png
 c1_gray_ocr.txt
-.env.prod
-playwright/.clerk
-test-results/
+*.mp4
+.welian-agent/
+
+# 旧 Python 代码（已迁移到 cloud-worker）
+src/
+setup.py
+requirements.txt
+pytest.ini
 
 # Secrets
 cloud-worker/.dev.vars
 *.bak
+.env.prod
+playwright/.clerk

@@ -171,16 +171,14 @@ def main():
     sys.path.insert(0, "/Users/cyingfang/devin/projects/welian/src")
     from welian.bot.handler import IlinkApi
     api = IlinkApi(bot_token)
-    api.send_message(target, f"📋 {actual_title}\n\n{caption}")
-    # 跨类型双重保险：handler 内部 cross-type lock 会等 30s，这里先 sleep 8s
-    # 让总等待 ~30s（比 8s+30s=38s 更短，比纯靠 lock 体验更顺）
-    print("⏳ Inter-send wait 8s (cross-type safety)...")
-    time.sleep(8.0)
-    ok = api.send_file_message(target, str(pdf_path))
+    # 用 send_combined_message 单次 HTTP 请求发文字+文件（item_list 含 type=1+4）
+    # 根除跨类型限流：服务端只看到"一条消息"
+    combined_text = f"📋 {actual_title}\n\n{caption}"
+    ok = api.send_combined_message(target, combined_text, str(pdf_path))
     if ok:
-        print("✅ Sent to WeChat")
+        print("✅ Sent to WeChat (combined message)")
     else:
-        print("❌ send_file_message failed")
+        print("❌ send_combined_message failed")
         sys.exit(1)
 
 

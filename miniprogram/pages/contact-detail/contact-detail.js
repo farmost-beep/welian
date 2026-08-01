@@ -482,14 +482,13 @@ Page({
   },
 
   // 分享关系体检报告给联系人
+  // Privacy: use opaque contact_id instead of contact name; no inviter openid in URL
   onShareAppMessage() {
     const contact = this.data.contact;
     if (!contact) return {};
-    const app = getApp();
-    const openid = (app && app.globalData && app.globalData.openid) || '';
     return {
       title: `我给你做了一份关系体检报告`,
-      path: `/pages/report/report?contact=${encodeURIComponent(contact.name)}&inviter=${openid}`,
+      path: `/pages/report/report?cid=${encodeURIComponent(contact.id || '')}`,
     };
   },
 
@@ -498,7 +497,7 @@ Page({
     if (!contact) return {};
     return {
       title: `Welian 关系体检`,
-      query: `contact=${encodeURIComponent(contact.name)}`,
+      query: `cid=${encodeURIComponent(contact.id || '')}`,
     };
   },
 });

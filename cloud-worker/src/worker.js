@@ -4867,7 +4867,12 @@ async function handleDataContext(req, env) {
 async function loadDataset(env, userId, name) {
   const raw = await env.USER_DATA.get(`${name}:${userId}`);
   if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error(`[loadDataset] JSON parse failed for ${name}:${userId}:`, e.message);
+    throw new Error(`数据损坏: ${name} 解析失败，请联系支持`);
+  }
 }
 
 // Helper: save a dataset to KV
@@ -6301,17 +6306,25 @@ async function handleSessionSummary(req, env) {
   return { status: 200, data: { summary } };
 }
 
-// ── iCal feed: GET /data/calendar/feed?token=user_id:sync_secret ──
+// ── iCal feed: GET /data/calendar/feed?token=<opaque_token> or ?token=user_id:sync_secret ──
 async function handleCalendarFeed(req, env) {
   const url = new URL(req.url);
   const token = url.searchParams.get('token') || '';
-  // Validate token: user_id:sync_secret
-  if (!token.includes(':')) return new Response('Unauthorized', { status: 401 });
-  const [uid, secret] = token.split(':');
-  if (!uid || !secret || secret !== env.WELIAN_SYNC_SECRET) {
-    return new Response('Unauthorized', { status: 401 });
+  if (!token) return new Response('Unauthorized', { status: 401 });
+
+  let userId;
+  // New format: opaque token — look up user ID from KV
+  if (!token.includes(':')) {
+    userId = await env.USER_DATA.get(`calendar_token:${token}`);
+    if (!userId) return new Response('Unauthorized', { status: 401 });
+  } else {
+    // Legacy format: user_id:sync_secret (backward compat)
+    const [uid, secret] = token.split(':');
+    if (!uid || !secret || secret !== env.WELIAN_SYNC_SECRET) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    userId = uid;
   }
-  const userId = uid;
 
   // Load todos and contacts
   const todos = await loadDataset(env, userId, 'todos');
@@ -6415,12 +6428,32 @@ function escapeICal(text) {
 }
 
 // ── Calendar sync token: GET /data/calendar/token (Clerk auth) ──
-// Returns feed URL with long-lived token (user_id:sync_secret) for calendar subscription
+// Returns feed URL with per-user random token for calendar subscription.
+// Token is opaque (no user ID exposed), stored in KV, individually revocable.
 async function handleCalendarToken(req, env, userId) {
-  const token = `${userId}:${env.WELIAN_SYNC_SECRET}`;
+  // Check if user already has a calendar token
+  const existingToken = await env.USER_DATA.get(`calendar_token_user:${userId}`);
+  let token = existingToken;
+  if (!token) {
+    // Generate a new random token (opaque, no user ID)
+    token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '');
+    await env.USER_DATA.put(`calendar_token_user:${userId}`, token);
+    await env.USER_DATA.put(`calendar_token:${token}`, userId);
+  }
   const baseUrl = `https://api.welian.app`;
   const feedUrl = `${baseUrl}/data/calendar/feed?token=${encodeURIComponent(token)}`;
   return { status: 200, data: { feed_url: feedUrl } };
+}
+
+// ── Calendar sync token: DELETE /data/calendar/token (Clerk auth) ──
+// Revokes the per-user calendar token (e.g., if compromised or no longer needed)
+async function handleCalendarTokenRevoke(req, env, userId) {
+  const token = await env.USER_DATA.get(`calendar_token_user:${userId}`);
+  if (token) {
+    await env.USER_DATA.delete(`calendar_token:${token}`);
+    await env.USER_DATA.delete(`calendar_token_user:${userId}`);
+  }
+  return { status: 200, data: { ok: true, message: '日历订阅已撤销' } };
 }
 
 // GET  /data/todos — list pending todos
@@ -8611,9 +8644,9 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           }
         }
 
-        // ── Social graph: bind openid ↔ contact name (反向无感发现) ──
-        // When a user opens a shared card with contact=张三&inviter=openid,
-        // we bind the clicker's openid to the inviter's contact "张三".
+        // ── Social graph: create PENDING binding (requires explicit confirmation) ──
+        // Privacy: no silent binding. When a user opens a shared card,
+        // we create a pending binding that the inviter must explicitly confirm.
         if (body.social_contact && body.social_inviter) {
           try {
             // Resolve inviter's Clerk user ID from their wxmp openid
@@ -8622,19 +8655,22 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
             if (inviterClerkId) {
               // Load inviter's social graph
               const graphRaw = await env.USER_DATA.get(`social_graph:${inviterClerkId}`);
-              const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [] };
-              // Check if this openid is already bound
-              const existing = graph.bindings.find(b => b.openid === openid);
-              if (!existing) {
-                graph.bindings.push({
+              const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [], pending: [] };
+              // Check if this openid is already bound (active or pending)
+              const existingActive = graph.bindings.find(b => b.openid === openid);
+              const existingPending = (graph.pending || []).find(b => b.openid === openid);
+              if (!existingActive && !existingPending) {
+                graph.pending = graph.pending || [];
+                graph.pending.push({
                   openid,
                   contact_name: body.social_contact,
-                  bound_at: new Date().toISOString(),
+                  requested_at: new Date().toISOString(),
                   confidence: body.social_is_private ? 'high' : 'medium',
                   source: body.social_is_private ? 'private_share' : 'group_share',
+                  status: 'pending',
                 });
                 await env.USER_DATA.put(`social_graph:${inviterClerkId}`, JSON.stringify(graph));
-                console.log(`[social_graph] bound openid ↔ "${body.social_contact}" for user ${inviterClerkId}`);
+                console.log(`[social_graph] pending binding created: openid ↔ "${body.social_contact}" for user ${inviterClerkId}`);
               }
             }
           } catch (e) {
@@ -8651,12 +8687,12 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         });
       }
 
-      // ── Social graph: query user's bindings (authenticated) ──
+      // ── Social graph: query user's bindings + pending requests (authenticated) ──
       if (path === '/ai/social_graph' && method === 'GET') {
         const userId = await getVerifiedUserId(request, env, {});
         if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
         const graphRaw = await env.USER_DATA.get(`social_graph:${userId}`);
-        const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [] };
+        const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [], pending: [] };
         // Merge bindings into contacts: if a contact name matches, add openid
         const contacts = await loadDataset(env, userId, 'contacts');
         const enriched = graph.bindings.map(b => {
@@ -8667,7 +8703,48 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
             has_contact: !!contact,
           };
         });
-        return jsonResponse({ ok: true, bindings: enriched, groups: graph.groups || [] });
+        const pendingEnriched = (graph.pending || []).map(b => {
+          const contact = contacts.find(c => c.name === b.contact_name);
+          return {
+            ...b,
+            contact_id: contact ? contact.id : null,
+            has_contact: !!contact,
+          };
+        });
+        return jsonResponse({ ok: true, bindings: enriched, pending: pendingEnriched, groups: graph.groups || [] });
+      }
+
+      // ── Social graph: confirm or reject a pending binding (authenticated) ──
+      if (path === '/ai/social_graph/confirm' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { openid, action } = body; // action: 'confirm' | 'reject'
+        if (!openid || !action) return jsonResponse({ error: 'openid and action required' }, 400);
+        const graphRaw = await env.USER_DATA.get(`social_graph:${userId}`);
+        const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [], pending: [] };
+        const pendingIdx = (graph.pending || []).findIndex(b => b.openid === openid);
+        if (pendingIdx === -1) return jsonResponse({ error: '待确认绑定不存在' }, 404);
+        const pendingBinding = graph.pending[pendingIdx];
+        if (action === 'confirm') {
+          // Move from pending to active bindings
+          graph.bindings.push({
+            openid: pendingBinding.openid,
+            contact_name: pendingBinding.contact_name,
+            bound_at: new Date().toISOString(),
+            confidence: pendingBinding.confidence,
+            source: pendingBinding.source,
+          });
+          graph.pending.splice(pendingIdx, 1);
+          await env.USER_DATA.put(`social_graph:${userId}`, JSON.stringify(graph));
+          console.log(`[social_graph] binding confirmed: openid ↔ "${pendingBinding.contact_name}" for user ${userId}`);
+          return jsonResponse({ ok: true, message: '绑定已确认' });
+        } else if (action === 'reject') {
+          graph.pending.splice(pendingIdx, 1);
+          await env.USER_DATA.put(`social_graph:${userId}`, JSON.stringify(graph));
+          return jsonResponse({ ok: true, message: '绑定已拒绝' });
+        }
+        return jsonResponse({ error: 'action must be confirm or reject' }, 400);
       }
 
       // ── Bind mini program: send verification code (public) ──
@@ -9960,6 +10037,14 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
+      // Calendar sync token revocation — requires Clerk auth
+      if (path === '/data/calendar/token' && method === 'DELETE') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const r = await handleCalendarTokenRevoke(request, env, userId);
+        return jsonResponse(r.data, r.status);
+      }
+
       if (path === '/data/delete_account' && method === 'POST') {
         const r = await handleDeleteAccount(request, env);
         return jsonResponse(r.data, r.status);
@@ -10567,9 +10652,9 @@ ${chatText}
     if (cronExpr === '0 2 * * 1') {
       tasks.push(handleSelfEvolution(env).catch(e => captureException(env, e, { tags: { handler: 'self_evolution' } })));
     }
-    // Fallback: if no cron match, run weekly (backward compat)
+    // Fallback: if no cron match, log warning instead of silently running weekly push
     if (tasks.length === 0) {
-      tasks.push(handleScheduledPush(env).catch(e => captureException(env, e, { tags: { handler: 'scheduled' } })));
+      console.warn(`[scheduled] Unmatched cron expression: "${cronExpr}" — no handler dispatched`);
     }
     ctx.waitUntil(Promise.all(tasks));
   },

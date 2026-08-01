@@ -83,10 +83,9 @@ preview_id = "98c045b73d874a869493706dc585bafb"
 # Cron: weekly report push every Monday 09:00 CST (01:00 UTC)
 # Cron: daily signals push 07:00 CST (23:00 UTC previous day)
 # Cron: subscribe message todo due + daily signals 08:00 CST (00:00 UTC)
-# Cron: subscribe message relation cooling 09:00 CST (01:00 UTC daily)
 # Cron: evening recap push 22:00 CST (14:00 UTC)
 # Cron: festival & important date reminder 21:00 CST (13:00 UTC) — 3 days ahead
 # Cron: health warning push biweekly (1st & 15th) 09:00 CST (01:00 UTC)
 # Cron: self-evolution Monday 02:00 UTC (10:00 CST) — analyze metrics, update behavioral insights
 [triggers]
-crons = ["0 1 * * 1", "0 23 * * *", "0 0 * * *", "0 1 * * *", "0 14 * * *", "0 13 * * *", "0 1 1,15 * *", "0 2 * * 1"]
+crons = ["0 1 * * 1", "0 23 * * *", "0 0 * * *", "0 14 * * *", "0 13 * * *", "0 1 1,15 * *", "0 2 * * 1"]
