@@ -10308,6 +10308,46 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
+      // ── Self-evolution: behavioral insights (R2-4) ──
+
+      if (path === '/ai/evolution' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const insights = await loadBehavioralInsights(env, userId);
+        const metrics = await loadMetrics(env, userId);
+        // Compute summary stats for transparency
+        const weekKeys = Object.keys(metrics.weekly || {}).sort();
+        const recentWeeks = weekKeys.slice(-4);
+        const totalActions = recentWeeks.reduce((s, wk) => {
+          const w = metrics.weekly[wk] || {};
+          return s + (w.advise_generated || 0) + (w.todo_completed || 0) + (w.interaction_recorded || 0) + (w.draft_generated || 0);
+        }, 0);
+        const totalAdvises = recentWeeks.reduce((s, wk) => s + ((metrics.weekly[wk] || {}).advise_generated || 0), 0);
+        const recentAdoptions = (metrics.adoptions || []).filter(a => {
+          const age = (Date.now() - new Date(a.ts).getTime()) / 86400000;
+          return age <= 28;
+        });
+        const adoptionRate = totalAdvises > 0 ? Math.round((recentAdoptions.length / totalAdvises) * 100) : 0;
+        return jsonResponse({
+          ok: true,
+          insights: insights || '',
+          has_insights: !!insights,
+          based_on: {
+            weeks_analyzed: recentWeeks.length,
+            total_actions: totalActions,
+            adoption_rate: adoptionRate,
+          },
+        });
+      }
+
+      if (path === '/ai/evolution' && method === 'DELETE') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        await env.USER_DATA.delete(`prompt:behavioral_insights:${userId}.md`);
+        console.log(`[evolution] Insights reset for user ${userId}`);
+        return jsonResponse({ ok: true, message: '行为洞察已重置' });
+      }
+
       // ── Metrics (P0: North Star + Advice Adoption) ──
 
       if (path === '/data/metrics' && method === 'GET') {

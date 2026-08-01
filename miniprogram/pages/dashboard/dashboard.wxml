@@ -189,6 +189,21 @@
       </view>
     </view>
 
+    <!-- R2-4: 自进化行为洞察 -->
+    <view wx:if="{{!isEmpty && behavioralInsights}}" class="card behavioral-insights-card">
+      <view class="bi-header">
+        <text class="bi-icon">🧠</text>
+        <text class="section-title-sm">小维学到了</text>
+      </view>
+      <text class="bi-body text-sm">{{behavioralInsights.insights}}</text>
+      <view class="bi-meta">
+        <text class="text-dimmer text-xs">依据：过去 {{behavioralInsights.based_on.weeks_analyzed}} 周 {{behavioralInsights.based_on.total_actions}} 次行动 · 采纳率 {{behavioralInsights.based_on.adoption_rate}}%</text>
+      </view>
+      <view class="bi-actions">
+        <text class="bi-reset-link text-dimmer text-xs" bindtap="resetBehavioralInsights">重置</text>
+      </view>
+    </view>
+
     <!-- 底部说明 -->
     <view class="footer-note">
       <text class="text-dimmer text-xs">Welian 只做行为回顾，不做评分。这个月过得怎么样，由你判断。</text>

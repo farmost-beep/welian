@@ -19,6 +19,7 @@ Page({
     stageUpgrade: null, // 升级提示 { name, icon, contacts, interactions }
     upcomingDates: [],  // 未来30天重要日期
     insights: [],       // AI 行为洞察
+    behavioralInsights: null,  // R2-4: 自进化行为洞察 { insights, based_on }
     flags: {},          // feature flags
     userName: '',
     syncPinned: false,
@@ -159,6 +160,10 @@ Page({
       this.fetchInsights().then((insights) => {
         this.setData({ insights });
       }).catch(() => {});
+      // R2-4: 加载自进化行为洞察
+      this.fetchBehavioralInsights().then((bi) => {
+        this.setData({ behavioralInsights: bi });
+      }).catch(() => {});
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
       if (cb) cb();
@@ -251,6 +256,45 @@ Page({
         },
         fail: () => resolve([]),
       });
+    });
+  },
+
+  // R2-4: 加载自进化行为洞察
+  fetchBehavioralInsights() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/ai/evolution',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.has_insights) {
+            resolve(res.data);
+          } else {
+            resolve(null);
+          }
+        },
+        fail: () => resolve(null),
+      });
+    });
+  },
+
+  // R2-4: 重置行为洞察
+  resetBehavioralInsights() {
+    wx.showModal({
+      title: '重置行为洞察',
+      content: '小维将忘记从你的行为中学到的内容，下次周报时会重新分析。',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.request({
+          url: 'https://api.welian.app/ai/evolution',
+          method: 'DELETE',
+          header: { 'Authorization': 'Bearer ' + api.getToken() },
+          success: () => {
+            this.setData({ behavioralInsights: null });
+            wx.showToast({ title: '已重置', icon: 'success' });
+          },
+          fail: () => wx.showToast({ title: '重置失败', icon: 'none' }),
+        });
+      },
     });
   },
 

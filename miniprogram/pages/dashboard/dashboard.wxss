@@ -131,6 +131,37 @@
   line-height: 1.8;
 }
 
+/* ── R2-4: 自进化行为洞察 ── */
+.behavioral-insights-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.bi-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.bi-icon {
+  font-size: 36rpx;
+}
+.bi-body {
+  color: #3A3833;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.bi-meta {
+  padding-top: 8rpx;
+  border-top: 1rpx solid #E8E5DC;
+}
+.bi-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.bi-reset-link {
+  padding: 8rpx 16rpx;
+}
+
 /* ── 待办摘要 ── */
 .todo-summary {
   margin-bottom: 24rpx;
