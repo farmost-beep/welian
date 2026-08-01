@@ -1,3 +1,4 @@
+/* global WebSocketPair */
 // ── Multi-platform IM modules (Phase 1: Telegram, Phase 2: Feishu + DingTalk) ──
 import { dispatch as imDispatch } from './im/dispatcher.js';
 import * as telegramAdapter from './im/telegram.js';
@@ -6132,7 +6133,7 @@ async function handleProfile(req, env, method) {
     const raw = await env.USER_DATA.get(`profile:${userId}`);
     let profile = null;
     if (raw) {
-      try { profile = JSON.parse(raw); } catch {}
+      try { profile = JSON.parse(raw); } catch { /* ignore */ }
     }
     // Fallback: if profile has no name, try wxmp_registered nickname
     if (!profile || !profile.name) {
@@ -6146,7 +6147,7 @@ async function handleProfile(req, env, method) {
               if (!profile.name) profile.name = nick;
             }
           }
-        } catch {}
+        } catch { /* ignore */ }
       } else if (userId.startsWith('user_')) {
         try {
           const info = await getClerkUserInfo(userId, env);
@@ -6154,7 +6155,7 @@ async function handleProfile(req, env, method) {
             profile = profile || {};
             if (!profile.name) profile.name = info.name;
           }
-        } catch {}
+        } catch { /* ignore */ }
       }
     }
     return { status: 200, data: { profile } };
@@ -7366,7 +7367,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
             try {
               const jsonMatch = intentResp.text.match(/\{[\s\S]*\}/);
               intent = jsonMatch ? JSON.parse(jsonMatch[0]) : intent;
-            } catch {}
+            } catch { /* ignore */ }
           }
 
           // 3. Execute data actions
@@ -7488,7 +7489,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
               const reg = await env.USER_DATA.get(`wxmp_registered:${userId}`);
               if (reg) userName = (JSON.parse(reg).nickname) || '';
             }
-          } catch {}
+          } catch { /* ignore */ }
           try {
             const raw = await env.USER_DATA.get(`profile:${userId}`);
             if (raw) {
@@ -7512,7 +7513,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
                 if (!userName && p.name) userName = p.name;
               }
             }
-          } catch {}
+          } catch { /* ignore */ }
 
           const chatSystem = `你是小维（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者。
 
@@ -7652,7 +7653,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                   }));
 
                   const pdfReqId = `tpdf_${Date.now()}`;
-                  const filename = `${pdfHint.replace(/[\/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+                  const filename = `${pdfHint.replace(/[/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
 
                   const pdfHandler = (evt) => {
                     try {
@@ -7668,7 +7669,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                         const tipIdx = session.components.findIndex(c => c.id && c.id.startsWith('pdf_tip_'));
                         if (tipIdx !== -1) { session.components[tipIdx].content = `❌ Agent 认证失败：${resp.message || ''}`; }
                         pushRender();
-                        try { agentWs.close(); } catch {}
+                        try { agentWs.close(); } catch { /* ignore */ }
                         return;
                       }
                       if (resp.id === pdfReqId && resp.type === 'response' && resp.pdf) {
@@ -7684,19 +7685,19 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                               type: 'action',
                               action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || filename } },
                             }));
-                            try { agentWs.close(); } catch {}
+                            try { agentWs.close(); } catch { /* ignore */ }
                           });
                       } else if (resp.id === pdfReqId && resp.type === 'error') {
                         agentWs.removeEventListener('message', pdfHandler);
                         const tipIdx = session.components.findIndex(c => c.id && c.id.startsWith('pdf_tip_'));
                         if (tipIdx !== -1) { session.components[tipIdx].content = `❌ PDF 生成失败：${resp.message || '未知错误'}`; }
                         pushRender();
-                        try { agentWs.close(); } catch {}
+                        try { agentWs.close(); } catch { /* ignore */ }
                       }
-                    } catch {}
+                    } catch { /* ignore */ }
                   };
                   agentWs.addEventListener('message', pdfHandler);
-                  setTimeout(() => { agentWs.removeEventListener('message', pdfHandler); try { agentWs.close(); } catch {} }, 60000);
+                  setTimeout(() => { agentWs.removeEventListener('message', pdfHandler); try { agentWs.close(); } catch { /* ignore */ } }, 60000);
                 } else {
                   session.components.push({ id: `pdf_tip_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: `📄 报告内容已生成，但本地 Agent 连接失败，无法生成 PDF。` });
                   pushRender();
@@ -7717,7 +7718,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           await saveChatHistory();
         } catch (e) {
           console.error('[sync_ws] error:', e.message);
-          session.components = session.components.filter(c => c.id !== thinkingId);
+          session.components = session.components.filter(c => !c.typing);
           session.components.push({ id: `err_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '出错了，请重试。' });
           session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
           session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] });
@@ -7732,7 +7733,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
 
       // 心跳保活：每 25 秒发 ping，防止 stateless 模式下 Worker 因空闲被取消
       const heartbeatTimer = setInterval(() => {
-        try { server.send(JSON.stringify({ type: 'ping' })); } catch (e) {}
+        try { server.send(JSON.stringify({ type: 'ping' })); } catch (e) { /* ignore */ }
       }, 25000);
 
       return new Response(null, { status: 101, webSocket: client });
@@ -7845,7 +7846,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         // Heartbeat: send raw WebSocket ping frame (protocol-level, no app-layer message)
         // This keeps the connection alive without producing any response bubbles
         const agentHeartbeat = setInterval(() => {
-          try { agentWs.send(JSON.stringify({ cmd: 'ping' })); } catch {}
+          try { agentWs.send(JSON.stringify({ cmd: 'ping' })); } catch { /* ignore */ }
         }, 25000);
 
         // Send auth to agent (agent requires first message to be auth with pairing token)
@@ -7968,14 +7969,14 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                             .then(() => {
                               server.send(JSON.stringify({
                                 type: 'action',
-                                action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || `welian_${reportType}.pdf` } },
+                                action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(agentSession.syncToken || '')}`, filename: resp.filename || `welian_${reportType}.pdf` } },
                               }));
                             });
                         } else if (resp.id === pdfReqId && resp.type === 'error') {
                           agentWs.removeEventListener('message', pdfGenHandler);
                           server.send(JSON.stringify({ type: 'toast', text: `PDF 生成失败：${resp.message || '未知错误'}` }));
                         }
-                      } catch {}
+                      } catch { /* ignore */ }
                     };
                     agentWs.addEventListener('message', pdfGenHandler);
                     setTimeout(() => agentWs.removeEventListener('message', pdfGenHandler), 60000);
@@ -8056,7 +8057,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
 
                   // 发 text_to_pdf 命令给 agent
                   const pdfReqId = `tpdf_${Date.now()}`;
-                  const filename = `${hint.replace(/[\/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+                  const filename = `${hint.replace(/[/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
                   agentWs.send(JSON.stringify({ cmd: 'text_to_pdf', id: pdfReqId, content: reportContent, filename }));
 
                   const pdfGenHandler = (evt) => {
@@ -8073,14 +8074,14 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                             server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
                             server.send(JSON.stringify({
                               type: 'action',
-                              action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || filename } },
+                              action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(agentSession.syncToken || '')}`, filename: resp.filename || filename } },
                             }));
                           });
                       } else if (resp.id === pdfReqId && resp.type === 'error') {
                         agentWs.removeEventListener('message', pdfGenHandler);
                         server.send(JSON.stringify({ type: 'toast', text: `PDF 生成失败：${resp.message || '未知错误'}` }));
                       }
-                    } catch {}
+                    } catch { /* ignore */ }
                   };
                   agentWs.addEventListener('message', pdfGenHandler);
                   setTimeout(() => agentWs.removeEventListener('message', pdfGenHandler), 60000);
@@ -8120,11 +8121,11 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                         .then(() => {
                           server.send(JSON.stringify({
                             type: 'action',
-                            action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename } },
+                            action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(agentSession.syncToken || '')}`, filename } },
                           }));
                         });
                     }
-                  } catch {}
+                  } catch { /* ignore */ }
                 };
                 agentWs.addEventListener('message', pdfHandler);
                 // 30 秒超时清理
@@ -8148,12 +8149,12 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         // Close handling
         server.addEventListener('close', () => {
           clearInterval(agentHeartbeat);
-          try { agentWs.close(); } catch {}
+          try { agentWs.close(); } catch { /* ignore */ }
         });
         agentWs.addEventListener('close', () => {
           clearInterval(agentHeartbeat);
           server.send(JSON.stringify({ type: 'error', error: 'agent_disconnected', message: '本地 Agent 已断开' }));
-          try { server.close(); } catch {}
+          try { server.close(); } catch { /* ignore */ }
         });
         agentWs.addEventListener('error', () => {
           clearInterval(agentHeartbeat);
@@ -8556,7 +8557,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           try {
             const parsed = JSON.parse(cachedPreview);
             diag.checks.signals_count = parsed.report?.signals?.length || 0;
-          } catch {}
+          } catch { /* ignore */ }
         }
         // Check signals history
         const todayDate = new Date().toISOString().slice(0, 10);
@@ -9128,7 +9129,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
             const jsonMatch = intentResp.text.match(/\{[\s\S]*\}/);
             if (jsonMatch) intent = JSON.parse(jsonMatch[0]);
           }
-        } catch {}
+        } catch { /* ignore */ }
 
         // 3. Execute data actions from intent
         if (intent.actions && intent.actions.length > 0) {
@@ -9396,7 +9397,7 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
                 const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
                 return jsonResponse({ ok: true, token, message: '已解绑' });
               }
-            } catch {}
+            } catch { /* ignore */ }
           }
           // Fallback: list all wechat_bind: keys and find the one matching clerk_user_id
           const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
@@ -12183,7 +12184,7 @@ async function handleOnboardingCreateContacts(req, env) {
       }
     }
     if (parts.length > 0) {
-      const llmResp = await callLLM(parts.join('\n'), await augmentWithInsights(env, clerkUserId, await getPrompt(env, 'advise', ADVISE_SYSTEM)), env);
+      const llmResp = await callLLM(parts.join('\n'), await augmentWithInsights(env, userId, await getPrompt(env, 'advise', ADVISE_SYSTEM)), env);
       firstAdvise = llmResp ? llmResp.text : parts.join('\n');
       // Register advise for adoption tracking
       await registerAdvise(env, userId);
@@ -14924,7 +14925,7 @@ async function articleToComponents(articleUrl, req, env) {
   let sourceDomain = '';
   try {
     sourceDomain = new URL(articleUrl).hostname.replace(/^www\./, '');
-  } catch (e) {}
+  } catch (e) { /* ignore */ }
 
   // 页面头部
   components.push({
