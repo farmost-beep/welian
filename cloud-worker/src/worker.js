@@ -720,9 +720,9 @@ async function handleActionCard(req, env) {
 
 // ── R2-2: Action card confirmation — draft/done/skip ──
 async function handleActionCardConfirm(req, env) {
-  const userId = await getVerifiedUserId(req, env, await req.json().catch(() => ({})));
-  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
   const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
   const { action, contact_id, todo_id, draft_text, suggested_topic } = body;
   if (!action || !['draft', 'done', 'skip'].includes(action)) {
     return { status: 400, data: { error: 'action must be draft/done/skip' } };
