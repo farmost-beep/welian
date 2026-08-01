@@ -10509,6 +10509,36 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
+      // ── R2-3: Notification preferences ──
+
+      if (path === '/ai/notify_prefs' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const prefs = await loadNotifyPrefs(env, userId);
+        return jsonResponse({ ok: true, prefs });
+      }
+
+      if (path === '/ai/notify_prefs' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const current = await loadNotifyPrefs(env, userId);
+        // Merge only known fields
+        const merged = { ...current };
+        for (const key of ['daily_signals', 'evening_recap', 'todo_due', 'weekly_report', 'festival_reminder']) {
+          if (typeof body[key] === 'boolean') merged[key] = body[key];
+        }
+        if (body.quiet_hours && typeof body.quiet_hours === 'object') {
+          merged.quiet_hours = {
+            start: typeof body.quiet_hours.start === 'string' ? body.quiet_hours.start : current.quiet_hours.start,
+            end: typeof body.quiet_hours.end === 'string' ? body.quiet_hours.end : current.quiet_hours.end,
+          };
+        }
+        if (typeof body.max_per_day === 'number') merged.max_per_day = body.max_per_day;
+        await saveNotifyPrefs(env, userId, merged);
+        return jsonResponse({ ok: true, prefs: merged });
+      }
+
       // ── Metrics (P0: North Star + Advice Adoption) ──
 
       if (path === '/data/metrics' && method === 'GET') {
@@ -12642,6 +12672,10 @@ async function handleHealthWarningPush(env) {
 
   for (const clerkUserId of userIds) {
     try {
+      // R2-3: Check notification preferences (health_warning uses weekly_report category)
+      const allowed = await checkNotifyPrefs(env, clerkUserId, 'weekly_report');
+      if (!allowed) continue;
+
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
 
@@ -12818,6 +12852,10 @@ async function handleFestivalReminderPush(env) {
 
   for (const clerkUserId of userIds) {
     try {
+      // R2-3: Check notification preferences
+      const allowed = await checkNotifyPrefs(env, clerkUserId, 'festival_reminder');
+      if (!allowed) continue;
+
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       if (contacts.length === 0) continue;
 
@@ -12912,6 +12950,10 @@ async function handleScheduledPush(env) {
 
   for (const { wechatId, clerkUserId } of boundUsers) {
     try {
+      // R2-3: Check notification preferences
+      const allowed = await checkNotifyPrefs(env, clerkUserId, 'weekly_report');
+      if (!allowed) continue;
+
       // Generate weekly report
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
@@ -13024,6 +13066,10 @@ async function handleDailyAdvisePush(env) {
 
   for (const { wechatId, clerkUserId } of boundUsers) {
     try {
+      // R2-3: Check notification preferences (daily_advise uses daily_signals category)
+      const allowed = await checkNotifyPrefs(env, clerkUserId, 'daily_signals');
+      if (!allowed) continue;
+
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
       const todos = await loadDataset(env, clerkUserId, 'todos');
@@ -13296,6 +13342,70 @@ async function handleFunnelMetrics(env) {
 }
 
 // ── Daily signals → WeChat official account article publish ──
+
+// ── R2-3: Notification preferences ──
+// Key: notify_prefs:${userId} → { daily_signals, evening_recap, todo_due, weekly_report, festival_reminder, quiet_hours: {start, end}, max_per_day }
+const DEFAULT_NOTIFY_PREFS = {
+  daily_signals: true,
+  evening_recap: false,
+  todo_due: true,
+  weekly_report: true,
+  festival_reminder: true,
+  quiet_hours: { start: '22:00', end: '08:00' },
+  max_per_day: 3,
+};
+
+async function loadNotifyPrefs(env, userId) {
+  const raw = await env.USER_DATA.get(`notify_prefs:${userId}`);
+  if (!raw) return DEFAULT_NOTIFY_PREFS;
+  try {
+    return { ...DEFAULT_NOTIFY_PREFS, ...JSON.parse(raw) };
+  } catch { return DEFAULT_NOTIFY_PREFS; }
+}
+
+async function saveNotifyPrefs(env, userId, prefs) {
+  await env.USER_DATA.put(`notify_prefs:${userId}`, JSON.stringify(prefs));
+}
+
+// Check if a push category is allowed for this user right now
+async function checkNotifyPrefs(env, userId, category) {
+  const prefs = await loadNotifyPrefs(env, userId);
+  // Category disabled
+  if (prefs[category] === false) return false;
+  // Quiet hours check (CST = UTC+8)
+  const now = new Date();
+  const cstHour = (now.getUTCHours() + 8) % 24;
+  const cstMin = now.getUTCMinutes();
+  const cstTimeStr = `${String(cstHour).padStart(2, '0')}:${String(cstMin).padStart(2, '0')}`;
+  if (prefs.quiet_hours) {
+    const { start, end } = prefs.quiet_hours;
+    if (start && end) {
+      // Handle overnight quiet hours (e.g. 22:00-08:00)
+      if (start > end) {
+        if (cstTimeStr >= start || cstTimeStr < end) return false;
+      } else {
+        if (cstTimeStr >= start && cstTimeStr < end) return false;
+      }
+    }
+  }
+  // Max per day check
+  if (prefs.max_per_day && prefs.max_per_day > 0) {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const countRaw = await env.USER_DATA.get(`notify_count:${todayKey}:${userId}`);
+    const count = countRaw ? parseInt(countRaw, 10) || 0 : 0;
+    if (count >= prefs.max_per_day) return false;
+  }
+  return true;
+}
+
+// Increment daily notification count (call after a successful push)
+async function incrementNotifyCount(env, userId) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const key = `notify_count:${todayKey}:${userId}`;
+  const raw = await env.USER_DATA.get(key);
+  const count = raw ? parseInt(raw, 10) || 0 : 0;
+  await env.USER_DATA.put(key, String(count + 1), { expirationTtl: 86400 });
+}
 
 async function handleDailySignalsPush(env) {
   console.log('[daily_signals] Starting daily signals article publish');
@@ -14039,6 +14149,10 @@ async function handleTodoDueSubscribePush(env) {
 
   let sent = 0;
   for (const userId of Object.keys(userTemplateMap)) {
+    // R2-3: Check notification preferences
+    const allowed = await checkNotifyPrefs(env, userId, 'todo_due');
+    if (!allowed) continue;
+
     // Load todos due tomorrow
     const todosRaw = await env.USER_DATA.get(`todos:${userId}`) || '[]';
     const todos = JSON.parse(todosRaw);
