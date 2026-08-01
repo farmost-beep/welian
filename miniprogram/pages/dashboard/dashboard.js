@@ -321,34 +321,75 @@ Page({
     });
   },
 
-  // R2-2: 行动卡 — 拟消息
+  // R2-2: 行动卡 — 拟消息（调用 /ai/draft 生成草稿并展示）
   onActionCardDraft(e) {
     const { contactId, todoId } = e.currentTarget.dataset;
+    const card = this.data.actionCard;
+    const contact = card && card.contact;
+    if (!contact) return;
+    wx.showLoading({ title: '生成中…' });
     wx.request({
-      url: 'https://api.welian.app/ai/action_card/confirm',
+      url: 'https://api.welian.app/ai/draft',
       method: 'POST',
       header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
-      data: { action: 'draft', contact_id: contactId, todo_id: todoId || undefined },
+      data: {
+        name: contact.name,
+        nature: contact.nature || '',
+        last_interaction: '',
+        user_context: card.suggested_topic ? `建议话题：${card.suggested_topic}` : '',
+      },
       success: (res) => {
-        if (res.statusCode === 200 && res.data && res.data.ok) {
-          wx.showToast({ title: '草稿已生成', icon: 'success' });
-          this.setData({ actionCard: null });
-          // 刷新行动卡
-          this.fetchActionCard().then((ac) => this.setData({ actionCard: ac })).catch(() => {});
+        wx.hideLoading();
+        if (res.statusCode === 200 && res.data) {
+          const draft = res.data.result || res.data.draft || res.data.text || '';
+          if (!draft) {
+            wx.showToast({ title: '生成失败', icon: 'none' });
+            return;
+          }
+          // 追踪 draft 生成
+          wx.request({
+            url: 'https://api.welian.app/ai/action_card/confirm',
+            method: 'POST',
+            header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+            data: { action: 'draft', contact_id: contactId, todo_id: todoId || undefined },
+          });
+          wx.showModal({
+            title: '消息草稿',
+            content: draft,
+            showCancel: true,
+            cancelText: '重试',
+            confirmText: '复制',
+            success: (r) => {
+              if (r.confirm) {
+                wx.setClipboardData({ data: draft, success: () => {
+                  this.setData({ actionCard: null });
+                  this.fetchActionCard().then((ac) => this.setData({ actionCard: ac })).catch(() => {});
+                } });
+              } else if (r.cancel) {
+                this.onActionCardDraft(e);
+              }
+            },
+          });
+        } else {
+          wx.showToast({ title: '生成失败', icon: 'none' });
         }
       },
-      fail: () => wx.showToast({ title: '操作失败', icon: 'none' }),
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      },
     });
   },
 
   // R2-2: 行动卡 — 已联系
   onActionCardDone(e) {
     const { contactId, todoId } = e.currentTarget.dataset;
+    const card = this.data.actionCard;
     wx.request({
       url: 'https://api.welian.app/ai/action_card/confirm',
       method: 'POST',
       header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
-      data: { action: 'done', contact_id: contactId, todo_id: todoId || undefined },
+      data: { action: 'done', contact_id: contactId, todo_id: todoId || undefined, suggested_topic: card && card.suggested_topic || '' },
       success: (res) => {
         if (res.statusCode === 200 && res.data && res.data.ok) {
           wx.showToast({ title: res.data.message || '已记录', icon: 'success' });

@@ -723,7 +723,7 @@ async function handleActionCardConfirm(req, env) {
   const userId = await getVerifiedUserId(req, env, await req.json().catch(() => ({})));
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
   const body = await req.json().catch(() => ({}));
-  const { action, contact_id, todo_id, draft_text } = body;
+  const { action, contact_id, todo_id, draft_text, suggested_topic } = body;
   if (!action || !['draft', 'done', 'skip'].includes(action)) {
     return { status: 400, data: { error: 'action must be draft/done/skip' } };
   }
@@ -753,6 +753,17 @@ async function handleActionCardConfirm(req, env) {
     const contactName = contact ? contact.name : '';
     // Track interaction
     await trackAction(env, userId, 'interaction_recorded', { contact_name: contactName });
+    // Add timeline entry
+    const timeline = await loadDataset(env, userId, 'timeline');
+    timeline.unshift({
+      id: `tl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      contact_id: contact_id || '',
+      contact_name: contactName,
+      summary: suggested_topic || '已联系',
+      date: new Date().toISOString().slice(0, 10),
+      source: 'action_card',
+    });
+    await saveDataset(env, userId, 'timeline', timeline);
     // Mark todo as done if provided
     if (todo_id) {
       const todos = await loadDataset(env, userId, 'todos');
