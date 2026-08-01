@@ -1,2 +1,0 @@
-[console_scripts]
-welian = welian.cli:main

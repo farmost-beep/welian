@@ -3417,19 +3417,17 @@ async function claimInviteReward(env, userId, inviteCode) {
   const existingList = inviteListRaw ? JSON.parse(inviteListRaw) : [];
   if (existingList.length >= MAX_INVITES) return;
   await env.USER_DATA.put(`invited_by:${userId}`, inviterId);
-  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: true });
+  // R2-5: Delayed reward — mark as pending, not rewarded yet
+  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: false });
   await env.USER_DATA.put(`invite_list:${inviterId}`, JSON.stringify(existingList));
-  const REWARD = 100;
-  const inviterBilling = await getBillingData(env, inviterId);
-  inviterBilling.purchased = (inviterBilling.purchased || 0) + REWARD;
-  inviterBilling.history.push({ date: new Date().toISOString(), action: 'invite_reward', points: REWARD, detail: `邀请好友奖励` });
-  if (inviterBilling.history.length > 100) inviterBilling.history = inviterBilling.history.slice(-100);
-  await saveBillingData(env, inviterId, inviterBilling);
-  const inviteeBilling = await getBillingData(env, userId);
-  inviteeBilling.purchased = (inviteeBilling.purchased || 0) + REWARD;
-  inviteeBilling.history.push({ date: new Date().toISOString(), action: 'invite_bonus', points: REWARD, detail: `受邀注册奖励 (邀请码 ${inviteCode})` });
-  if (inviteeBilling.history.length > 100) inviteeBilling.history = inviteeBilling.history.slice(-100);
-  await saveBillingData(env, userId, inviteeBilling);
+  // Create pending reward record for auto-fulfillment when conditions met
+  await env.USER_DATA.put(`invite_reward_pending:${userId}`, JSON.stringify({
+    inviter_id: inviterId,
+    created_at: new Date().toISOString(),
+    onboarding_done: false,
+    first_action_done: false,
+    reward_claimed: false,
+  }));
 }
 
 async function handleInviteRedeem(req, env) {
@@ -3462,29 +3460,20 @@ async function handleInviteRedeem(req, env) {
   // Record the invitation
   await env.USER_DATA.put(`invited_by:${userId}`, inviterId);
 
-  // Add to inviter's invited list (reuse existingList from limit check)
-  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: true });
+  // R2-5: Delayed reward — add to invite list as pending, not rewarded yet
+  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: false });
   await env.USER_DATA.put(`invite_list:${inviterId}`, JSON.stringify(existingList));
 
-  // Reward: 100 credits to both inviter and invitee
-  const REWARD = 100;
+  // Create pending reward record for auto-fulfillment when conditions met
+  await env.USER_DATA.put(`invite_reward_pending:${userId}`, JSON.stringify({
+    inviter_id: inviterId,
+    created_at: new Date().toISOString(),
+    onboarding_done: false,
+    first_action_done: false,
+    reward_claimed: false,
+  }));
 
-  // Inviter gets 100
-  const inviterBilling = await getBillingData(env, inviterId);
-  inviterBilling.purchased = (inviterBilling.purchased || 0) + REWARD;
-  inviterBilling.history.push({ date: new Date().toISOString(), action: 'invite_reward', points: REWARD, detail: `邀请好友奖励` });
-  if (inviterBilling.history.length > 100) inviterBilling.history = inviterBilling.history.slice(-100);
-  await saveBillingData(env, inviterId, inviterBilling);
-
-  // Invitee gets 100
-  const inviteeBilling = await getBillingData(env, userId);
-  inviteeBilling.purchased = (inviteeBilling.purchased || 0) + REWARD;
-  inviteeBilling.history.push({ date: new Date().toISOString(), action: 'invite_bonus', points: REWARD, detail: `受邀注册奖励 (邀请码 ${code})` });
-  if (inviteeBilling.history.length > 100) inviteeBilling.history = inviteeBilling.history.slice(-100);
-  await saveBillingData(env, userId, inviteeBilling);
-
-  const remaining = await getRemaining(inviteeBilling, env);
-  return { status: 200, data: { ok: true, reward: REWARD, remaining } };
+  return { status: 200, data: { ok: true, reward: 0, message: '邀请绑定成功！完成新手引导并记录第一次互动后，你和邀请人将各获得 100 credits 奖励。' } };
 }
 
 async function handleInviteStatus(req, env) {
@@ -5385,9 +5374,77 @@ async function trackAction(env, userId, actionType, meta = {}) {
   }
 
   await saveMetrics(env, userId, metrics);
+
+  // R2-5: Check pending invite reward — auto-fulfill when conditions met
+  try {
+    await checkPendingInviteReward(env, userId, actionType);
+  } catch (e) {
+    console.log('[trackAction] checkPendingInviteReward failed:', e.message);
+  }
 }
 
-// Register an advise event and return its unique ID
+// R2-5: Auto-fulfill pending invite reward when onboarding done + first action recorded
+async function checkPendingInviteReward(env, userId, actionType) {
+  const raw = await env.USER_DATA.get(`invite_reward_pending:${userId}`);
+  if (!raw) return;
+  const pending = JSON.parse(raw);
+  if (pending.reward_claimed) return;
+
+  // Mark onboarding done
+  if (actionType === 'onboarding_complete') {
+    pending.onboarding_done = true;
+  }
+  // Mark first action done (any meaningful action)
+  if (['interaction_recorded', 'todo_completed', 'draft_generated'].includes(actionType)) {
+    pending.first_action_done = true;
+  }
+
+  // Check 7-day window
+  const ageDays = (Date.now() - new Date(pending.created_at).getTime()) / 86400000;
+  if (ageDays > 7) {
+    // Window expired — keep pending but don't auto-fulfill (user can still complete manually)
+    await env.USER_DATA.put(`invite_reward_pending:${userId}`, JSON.stringify(pending));
+    return;
+  }
+
+  // Both conditions met → fulfill reward
+  if (pending.onboarding_done && pending.first_action_done) {
+    pending.reward_claimed = true;
+    pending.claimed_at = new Date().toISOString();
+    await env.USER_DATA.put(`invite_reward_pending:${userId}`, JSON.stringify(pending));
+
+    // Grant rewards to both inviter and invitee
+    const REWARD = 100;
+    const inviterBilling = await getBillingData(env, pending.inviter_id);
+    inviterBilling.purchased = (inviterBilling.purchased || 0) + REWARD;
+    inviterBilling.history.push({ date: new Date().toISOString(), action: 'invite_reward', points: REWARD, detail: `邀请好友激活奖励` });
+    if (inviterBilling.history.length > 100) inviterBilling.history = inviterBilling.history.slice(-100);
+    await saveBillingData(env, pending.inviter_id, inviterBilling);
+
+    const inviteeBilling = await getBillingData(env, userId);
+    inviteeBilling.purchased = (inviteeBilling.purchased || 0) + REWARD;
+    inviteeBilling.history.push({ date: new Date().toISOString(), action: 'invite_bonus', points: REWARD, detail: `受邀激活奖励 (邀请人 ${pending.inviter_id})` });
+    if (inviteeBilling.history.length > 100) inviteeBilling.history = inviteeBilling.history.slice(-100);
+    await saveBillingData(env, userId, inviteeBilling);
+
+    // Mark as rewarded in invite list
+    const inviteListRaw = await env.USER_DATA.get(`invite_list:${pending.inviter_id}`);
+    if (inviteListRaw) {
+      const inviteList = JSON.parse(inviteListRaw);
+      const entry = inviteList.find(e => e.user_id === userId);
+      if (entry) {
+        entry.rewarded = true;
+        entry.rewarded_at = new Date().toISOString();
+        await env.USER_DATA.put(`invite_list:${pending.inviter_id}`, JSON.stringify(inviteList));
+      }
+    }
+
+    console.log(`[invite_reward] Auto-fulfilled for ${userId} (inviter: ${pending.inviter_id})`);
+  } else {
+    // Save updated pending state
+    await env.USER_DATA.put(`invite_reward_pending:${userId}`, JSON.stringify(pending));
+  }
+}
 async function registerAdvise(env, userId) {
   if (!userId) return null;
   const adviseId = `adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
