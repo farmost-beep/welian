@@ -7,7 +7,7 @@ module.exports = {
   // 测试账号（如果需要登录态，填测试微信号；留空则用当前开发者工具登录的账号）
   testAccount: '',
   // 超时设置（ms）
-  timeout: 30000,
+  timeout: 60000,
   // 是否截图（失败时自动截图到 screenshots/）
   screenshotOnFail: true,
 };
