@@ -27,10 +27,11 @@ Thumbs.db
 dist/
 build/
 .wrangler/
-src/welian.egg-info/
+*.egg-info/
 data/
 test-results/
 .playwright-cache/
+.pytest_cache/
 
 # 临时/实验文件
 c1_2x.png
