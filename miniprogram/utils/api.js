@@ -18,42 +18,65 @@ function clearToken() {
 
 // ── 微信登录 ──
 
-function login() {
-  return new Promise((resolve, reject) => {
+// 全局登录锁：防止并发 401 触发多次 login
+let _loginPromise = null;
+
+function login(opts) {
+  // 兼容旧调用方式：login('INVITE_CODE') → login({ inviter: 'INVITE_CODE' })
+  const loginOpts = typeof opts === 'string' ? { inviter: opts } : (opts || {});
+  // 如果已有进行中的 login，复用同一个 Promise
+  if (_loginPromise) return _loginPromise;
+  _loginPromise = new Promise((resolve, reject) => {
     wx.login({
       success: (res) => {
         if (!res.code) {
+          _loginPromise = null;
           reject(new Error('wx.login 未返回 code'));
           return;
         }
         // Exchange code for token via backend
+        const data = { code: res.code };
+        if (loginOpts.inviter) data.inviter = loginOpts.inviter;
+        if (loginOpts.social_contact) data.social_contact = loginOpts.social_contact;
+        if (loginOpts.social_inviter) data.social_inviter = loginOpts.social_inviter;
+        if (loginOpts.social_is_private !== undefined) data.social_is_private = loginOpts.social_is_private;
         wx.request({
           url: BASE_URL + '/ai/wxmp_login',
           method: 'POST',
           header: { 'Content-Type': 'application/json' },
-          data: { code: res.code },
+          data,
           success: (resp) => {
+            _loginPromise = null;
             if (resp.statusCode === 200 && resp.data.ok) {
               setToken(resp.data.token);
-              resolve({ token: resp.data.token, isNewUser: resp.data.is_new_user, is_registered: resp.data.is_registered });
+              // 保存 openid 供分享卡片使用
+              if (resp.data.openid) {
+                const app = getApp();
+                if (app && app.globalData) app.globalData.openid = resp.data.openid;
+              }
+              resolve();
             } else {
               reject(new Error(resp.data.error || '登录失败'));
             }
           },
-          fail: (err) => reject(err),
+          fail: (err) => {
+            _loginPromise = null;
+            reject(err);
+          },
         });
       },
-      fail: (err) => reject(err),
+      fail: (err) => {
+        _loginPromise = null;
+        reject(err);
+      },
     });
   });
+  return _loginPromise;
 }
 
-// 确保已登录（无 token 时自动 login）
-async function ensureLogin() {
-  let token = getToken();
-  if (token) return token;
-  const result = await login();
-  return result.token;
+// 页面登录检查：未登录时返回 false（由 app.js 自动登录流程处理导航）
+function requireLogin() {
+  return !!getToken();
 }
 
 // ── 请求封装 ──
@@ -94,12 +117,87 @@ function request(path, data, method = 'GET') {
 module.exports = {
   // 登录
   login,
-  ensureLogin,
+  requireLogin,
   getToken,
   clearToken,
-  isLoggedIn() { return !!getToken(); },
-  getChatUrl,
+  getSyncUrl,
   getAgentUrl,
+  requestSubscribe,
+
+  // 通用请求（供 SDUI 页面等直接调用）
+  request,
+
+  // 数据飞轮：提取意图 + 自动执行数据操作（添加联系人/互动/待办）
+  // Live 模式下异步调用，不阻塞 agent 回复
+  extractIntent(text) {
+    return request('/ai/extract_intent', { text }, 'POST').catch((e) => {
+      console.warn('[extractIntent] failed:', e.message || e);
+      return null;
+    });
+  },
+
+  // ── 快捷操作 API ──
+
+  // 创建待办
+  addTodo(task, contactName, priority, date, time) {
+    const due = date ? (time ? `${date} ${time}` : date) : '';
+    return request('/data/todos', {
+      task, contact: contactName || '',
+      priority: priority || 'P2',
+      due,
+    }, 'POST');
+  },
+
+  // 添加互动记录（先搜索联系人获取 ID）
+  addTimeline(contactName, summary, date) {
+    return this.searchContacts(contactName).then(contacts => {
+      if (contacts && contacts.length > 0) {
+        return request('/data/timeline', {
+          contact_id: contacts[0].id,
+          summary, date: date || new Date().toISOString().slice(0, 10),
+        }, 'POST');
+      }
+      return { ok: false, error: `未找到联系人"${contactName}"` };
+    });
+  },
+
+  // 更新联系人字段
+  updateContact(contactId, fields) {
+    return request('/data/contacts', {
+      id: contactId,
+      ...fields,
+    }, 'POST');
+  },
+
+  // 创建会议
+  createMeeting(title, date, location, purpose) {
+    return request('/data/meetings', {
+      title, date: date || '',
+      location: location || '', purpose: purpose || '',
+    }, 'POST');
+  },
+
+  // 推迟待办（后端需要新 due 日期）
+  postponeTodo(todoId, days) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const newDue = d.toISOString().slice(0, 10);
+    return request('/data/todos/postpone', {
+      id: todoId, due: newDue,
+    }, 'POST');
+  },
+
+  // 更新个人画像（先获取当前值再合并，避免全量覆盖）
+  updateProfile(fields) {
+    return request('/data/profile', {}, 'GET').then(existing => {
+      return request('/data/profile', { ...existing, ...fields }, 'POST');
+    });
+  },
+
+  // 获取周报
+  getWeeklyReport(refresh) {
+    return request('/ai/weekly_report', refresh ? { refresh: 1 } : {}, 'POST');
+  },
 
   // 仪表盘（从 advise_cloud 获取建议）
   getDashboard() {
@@ -138,84 +236,48 @@ module.exports = {
 
   // 联系人详情
   getContactDetail(contactId) {
-    return request('/data/contacts?limit=500').then((data) => {
-      const contacts = data.contacts || [];
-      const contact = contacts.find(c => c.id === contactId);
-      if (!contact) throw new Error('联系人不存在');
-      return contact;
+    return request('/data/contacts?id=' + encodeURIComponent(contactId)).then((data) => {
+      if (!data || !data.contact) throw new Error('联系人不存在');
+      return data.contact;
     });
   },
 
   // 周报
-  getWeekly() {
-    return request('/ai/weekly_report').then((data) => {
-      if (!data || !data.ok) return { weekRange: '', sections: [] };
-      const report = data.report || '';
-      // Parse the text report into sections
-      const sections = [];
-      const lines = report.split('\n').filter(Boolean);
-      let currentSection = null;
-      for (const line of lines) {
-        if (line.startsWith('##') || line.startsWith('📊') || line.startsWith('🔥') || line.startsWith('📅')) {
-          currentSection = { title: line.replace(/^##\s*/, '').trim(), items: [] };
-          sections.push(currentSection);
-        } else if (currentSection && line.trim()) {
-          currentSection.items.push(line.trim());
-        }
-      }
+  getWeekly(refresh) {
+    return request('/ai/weekly_report', refresh ? { refresh: 1 } : {}, 'POST').then((data) => {
+      if (!data || !data.ok) return { weekRange: '', report: null };
       return {
         weekRange: new Date().toLocaleDateString('zh-CN'),
-        sections: sections.length > 0 ? sections : [{ title: '本周报告', items: lines.slice(0, 10) }],
-      };
-    });
-  },
-
-  // 充值/套餐信息
-  getBilling() {
-    return request('/data/metrics').then((data) => {
-      return {
-        plan: data.plan || 'free',
-        planLabel: (data.plan || 'free') === 'pro' ? 'Pro' : 'Free',
-        credits: data.credits || 100,
-        creditsTotal: data.creditsTotal || 100,
-        creditsResetAt: '下月1日',
-        plans: [
-          {
-            key: 'free',
-            name: 'Free',
-            price: 0,
-            credits: 100,
-            unit: '点/月',
-            features: ['记录 unlimited', '基础提醒', '100 AI 点/月'],
-            current: (data.plan || 'free') === 'free',
-          },
-          {
-            key: 'pro',
-            name: 'Pro',
-            price: 29,
-            credits: 500,
-            unit: '点/月',
-            features: ['记录 unlimited', '建议引擎', 'AI 拟稿', '500 AI 点/月', '角色仪表盘', '年度报告'],
-            current: data.plan === 'pro',
-          },
-        ],
+        report: data.report || {},
       };
     }).catch(() => {
-      // Fallback if metrics endpoint fails
-      return {
-        plan: 'free', planLabel: 'Free', credits: 100, creditsTotal: 100,
-        creditsResetAt: '下月1日',
-        plans: [
-          { key: 'free', name: 'Free', price: 0, credits: 100, unit: '点/月', features: ['记录 unlimited', '基础提醒', '100 AI 点/月'], current: true },
-          { key: 'pro', name: 'Pro', price: 29, credits: 500, unit: '点/月', features: ['记录 unlimited', '建议引擎', 'AI 拟稿', '500 AI 点/月', '角色仪表盘', '年度报告'], current: false },
-        ],
-      };
+      return { weekRange: '', report: null };
     });
   },
 
-  // 升级套餐
-  upgradePlan(planKey) {
-    return request('/ai/billing/upgrade', { plan: planKey }, 'POST');
+  // 今日建议（从 advise_cloud 获取）
+  getAdvise() {
+    return request('/ai/advise_cloud', {}, 'POST').then((data) => {
+      if (!data) return { advise: '', adviseId: null };
+      return { advise: data.result || '', adviseId: data.advise_id || null };
+    }).catch(() => {
+      return { advise: '', adviseId: null };
+    });
+  },
+
+  // 版本信息
+  getBilling() {
+    return request('/data/metrics').then((data) => {
+      const plan = data.plan || 'free';
+      return {
+        plan,
+        planLabel: plan === 'professional' ? '专业版' : plan === 'pro' ? 'Pro' : 'Free',
+        credits: data.credits || 100,
+        creditsTotal: data.creditsTotal || 100,
+      };
+    }).catch(() => {
+      return { plan: 'free', planLabel: 'Free', credits: 100, creditsTotal: 100 };
+    });
   },
 
   // 搜索联系人（用后端搜索，compact 模式）
@@ -226,10 +288,10 @@ module.exports = {
   },
 
   // 信号预览（公开，无需登录）
-  getSignals() {
+  getSignals(refresh) {
     return new Promise((resolve, reject) => {
       wx.request({
-        url: BASE_URL + '/ai/signals_preview',
+        url: BASE_URL + '/ai/signals_preview' + (refresh ? '?refresh=1' : ''),
         method: 'GET',
         header: { 'Content-Type': 'application/json' },
         success: (res) => {
@@ -258,6 +320,10 @@ function formatContact(c) {
     name: c.name,
     nature,
     goals: c.goals || [],
+    company: c.company || '',
+    title: c.title || '',
+    relation: c.relation || c.role || '',
+    tags: c.tags || [],
     how: c.company || c.title || c.role || c.how || '',
     bond: c.relation || c.relationship || c.bond || '',
     lastContact: daysSince !== null ? `${daysSince}天前` : '未记录',
@@ -280,16 +346,71 @@ function formatBirthday(birthday) {
   return `🎂 ${mmdd} 生日`;
 }
 
-// ── WebSocket chat URL ──
-function getChatUrl() {
+// ── WebSocket sync URL ──
+function getSyncUrl() {
   const token = getToken();
   if (!token) return '';
-  return `wss://api.welian.app/ai/wxmp_chat_ws?token=${encodeURIComponent(token)}`;
+  return `wss://api.welian.app/data/sync_ws?token=${encodeURIComponent(token)}`;
 }
 
 // ── WebSocket local agent URL ──
 function getAgentUrl() {
   const token = getToken();
   if (!token) return '';
-  return `wss://api.welian.app/ai/wxmp_agent_ws?token=${encodeURIComponent(token)}`;
+  return `wss://api.welian.app/data/agent_ws?token=${encodeURIComponent(token)}`;
+}
+
+// ── 订阅消息 ──
+
+// 订阅消息模板 ID（兜底默认值，优先从 app config 读取）
+const SUBSCRIBE_TEMPLATE_IDS = {
+  todo_due: '3srg81ewNIb2rBGFL83DoPG22BuHMZxzVwGGoXsevKI',
+};
+
+// 获取模板 ID：优先从 app.globalData.config 读取（后端可动态更新）
+function getTemplateId(key) {
+  try {
+    const app = getApp();
+    const configIds = app && app.globalData && app.globalData.config && app.globalData.config.subscribe_templates;
+    if (configIds && configIds[key]) return configIds[key];
+  } catch (e) {}
+  return SUBSCRIBE_TEMPLATE_IDS[key];
+}
+
+// 请求订阅消息授权（用户点"允许"后上报到后端记录额度）
+function requestSubscribe(templateKeys) {
+  return new Promise((resolve) => {
+    const ids = templateKeys.map(k => getTemplateId(k)).filter(Boolean);
+    if (ids.length === 0) {
+      resolve({ ok: false, reason: '模板未配置' });
+      return;
+    }
+    wx.requestSubscribeMessage({
+      tmplIds: ids,
+      success: (res) => {
+        // res[templateId] = 'accept' | 'reject' | 'ban'
+        const accepted = templateKeys.filter(k => {
+          const id = getTemplateId(k);
+          return id && res[id] === 'accept';
+        });
+        if (accepted.length > 0) {
+          // 上报到后端记录授权额度
+          wx.request({
+            url: BASE_URL + '/ai/wxmp_subscribe',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+            data: { template_ids: accepted },
+            success: () => resolve({ ok: true, accepted }),
+            fail: () => resolve({ ok: true, accepted }), // 即使上报失败也返回成功，用户已授权
+          });
+        } else {
+          resolve({ ok: false, reason: '用户拒绝' });
+        }
+      },
+      fail: (err) => {
+        console.warn('[subscribe] requestSubscribeMessage failed:', err);
+        resolve({ ok: false, reason: err.errMsg || '请求失败' });
+      },
+    });
+  });
 }

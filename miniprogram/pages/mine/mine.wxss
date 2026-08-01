@@ -25,7 +25,7 @@
   display: block;
 }
 
-/* ── 套餐卡片 ── */
+/* ── 版本卡片 ── */
 .plan-card {
   margin-bottom: 32rpx;
 }
@@ -97,8 +97,70 @@
   color: #1A1915;
 }
 
+.menu-text-btn {
+  flex: 1;
+  text-align: left;
+  font-size: 30rpx;
+  color: #1A1915;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: normal;
+}
+.menu-text-btn::after { border: none; }
+
+.menu-item-btn {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #D9D5C7;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font-size: 30rpx;
+  color: #1A1915;
+  width: 100%;
+  line-height: normal;
+  margin: 0;
+  box-sizing: border-box;
+}
+.menu-item-btn::after { border: none; }
+
+.menu-item-contact {
+  position: relative;
+}
+.contact-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  z-index: 1;
+}
+.contact-overlay::after { border: none; }
+
 .menu-arrow {
   font-size: 36rpx;
+}
+
+/* ── 邀请好友 ── */
+.invite-card { margin-bottom: 16rpx; }
+.invite-row { display: flex; align-items: center; gap: 16rpx; }
+.invite-icon { font-size: 40rpx; }
+.invite-text { flex: 1; display: flex; flex-direction: column; }
+.invite-title { font-size: 30rpx; font-weight: 600; color: #1A1915; }
+.invite-btn {
+  padding: 12rpx 32rpx;
+  background: #C96442;
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 26rpx;
 }
 
 /* ── 关于 ── */
@@ -108,6 +170,100 @@
   align-items: center;
   gap: 8rpx;
   padding: 40rpx 0;
+}
+
+/* ── 注销账户 ── */
+.delete-account-card {
+  border: 1rpx solid #E8D5CC;
+  margin-bottom: 16rpx;
+}
+.delete-account-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #C96442;
+}
+.delete-account-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  min-height: 88rpx;
+  padding: 20rpx 40rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #C96442;
+  border: 1rpx solid #C96442;
+  background: #FFF5F0;
+  box-sizing: border-box;
+  margin: 0;
+  line-height: 1.5;
+}
+.delete-account-btn::after {
+  border: none;
+}
+
+/* ── 注销确认弹窗 ── */
+.delete-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26, 25, 21, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.delete-modal {
+  background: #FAFAF7;
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx;
+  width: 560rpx;
+  display: flex;
+  flex-direction: column;
+}
+.delete-modal-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1915;
+  margin-bottom: 16rpx;
+}
+.delete-modal-desc {
+  font-size: 26rpx;
+  color: #6B6860;
+  margin-bottom: 20rpx;
+}
+.delete-modal-hint {
+  font-size: 26rpx;
+  color: #C96442;
+  margin-bottom: 12rpx;
+}
+.delete-modal-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+  margin-bottom: 28rpx;
+}
+.delete-modal-actions {
+  display: flex;
+  gap: 20rpx;
+}
+.delete-modal-btn {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}
+.delete-modal-cancel {
+  background: #EDEBE3;
+  color: #6B6860;
+  border: 1rpx solid #D9D5C7;
+}
+.delete-modal-confirm {
+  background: #C96442;
+  color: #fff;
 }
 
 /* ── 注册成功庆祝动画 ── */
@@ -200,4 +356,38 @@
   0% { transform: scale(0) translate(0, 0); opacity: 0; }
   50% { transform: scale(1.2) translate(10rpx, -20rpx); opacity: 1; }
   100% { transform: scale(0.8) translate(30rpx, -60rpx); opacity: 0; }
+}
+
+/* 公众号二维码弹窗 */
+.gzh-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,25,21,0.6);
+  z-index: 1001;
+  display: flex; align-items: center; justify-content: center;
+}
+.gzh-modal {
+  background: #FAFAF7;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  display: flex; flex-direction: column; align-items: center;
+  width: 80%; max-width: 400px;
+}
+.gzh-title {
+  font-size: 32rpx; font-weight: 600; color: #1A1915;
+  margin-bottom: 20rpx;
+}
+.gzh-qrcode {
+  width: 400rpx; height: 400rpx;
+  border-radius: 12rpx;
+}
+.gzh-hint {
+  margin-top: 16rpx;
+}
+.gzh-close-btn {
+  margin-top: 20rpx;
+  padding: 16rpx 48rpx;
+  font-size: 28rpx;
+  color: #6B6860;
+  background: #EDEBE3;
+  border-radius: 12rpx;
 }

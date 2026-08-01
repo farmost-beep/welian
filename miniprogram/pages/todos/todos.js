@@ -1,9 +1,12 @@
 // pages/todos/todos.js — 待办事项页
 const api = require('../../utils/api.js');
+const { formatTodos, groupTodos, formatDate, formatDateTime } = require('../../utils/todos-logic.js');
+const app = getApp();
 
 Page({
   data: {
     pending: [],
+    pendingGroups: [],
     doneList: [],
     doneCount: 0,
     activeTab: 'pending', // 'pending' | 'done'
@@ -12,6 +15,10 @@ Page({
     newTodo: '',
     newTodoContact: '',
     adding: false,
+    newPriorityIndex: 2,
+    newDueDate: '',
+    newDueTime: '',
+    newIsLongTerm: false,
     // 操作菜单
     showActions: false,
     actionTodo: {},
@@ -21,14 +28,48 @@ Page({
     showEdit: false,
     savingEdit: false,
     editForm: {},
-    priorityOptions: ['P1 紧急', 'P2 重要', 'P3 一般'],
-    priorityValues: ['P1', 'P2', 'P3'],
+    editDueDate: '',
+    editDueTime: '',
+    editIsLongTerm: false,
+    // 详情
+    showDetail: false,
+    detailTodo: {},
+    priorityOptions: ['P1 紧急', 'P2 重要', 'P3 一般'],  // onLoad 时从 config 覆盖
+    priorityValues: ['P1', 'P2', 'P3'],                  // onLoad 时从 config 覆盖
+    postponeDays: [1, 3, 7, 14],                          // onLoad 时从 config 覆盖
     priorityIndex: 0,
+    newContactSuggestions: [],
+    editContactSuggestions: [],
   },
 
-  onShow() {
+  async onLoad() {
+    // 从 config 覆盖优先级标签和推迟选项
+    const labels = app.globalData.config.labels || {};
+    if (labels.priority) {
+      const priorityValues = Object.keys(labels.priority);
+      const priorityOptions = priorityValues.map(k => `${k} ${labels.priority[k]}`);
+      this.setData({ priorityOptions, priorityValues });
+    }
+    if (labels.postpone_days) {
+      this.setData({ postponeDays: labels.postpone_days });
+    }
+  },
+
+  async onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 2 });
+      this.getTabBar().refresh();
+    }
+    if (!api.getToken()) {
+      this.setData({ loading: true });
+      try { await app.loginReady; } catch (e) { return; }
+    }
     this.loadTodos();
   },
+
+  onHide() {},
+
+  onUnload() {},
 
   onPullDownRefresh() {
     this.loadTodos(() => wx.stopPullDownRefresh());
@@ -47,9 +88,11 @@ Page({
       this.fetchTodos('pending'),
       this.fetchTodos('done'),
     ]).then(([pendingData, doneData]) => {
+      const pending = formatTodos(pendingData.todos || []);
       this.setData({
-        pending: this.formatTodos(pendingData.todos || []),
-        doneList: this.formatTodos(doneData.todos || []),
+        pending,
+        pendingGroups: groupTodos(pending),
+        doneList: formatTodos(doneData.todos || []),
         doneCount: pendingData.done_count || 0,
         loading: false,
       });
@@ -68,6 +111,19 @@ Page({
         success: (res) => {
           if (res.statusCode === 200) {
             resolve(res.data);
+          } else if (res.statusCode === 401) {
+            // Token expired — re-login and retry
+            api.login().then(() => {
+              wx.request({
+                url: 'https://api.welian.app/data/todos?status=' + status,
+                header: { 'Authorization': 'Bearer ' + api.getToken() },
+                success: (res2) => {
+                  if (res2.statusCode === 200) resolve(res2.data);
+                  else reject(new Error('加载失败'));
+                },
+                fail: (err) => reject(err),
+              });
+            }).catch(reject);
           } else {
             reject(new Error('加载失败'));
           }
@@ -76,38 +132,8 @@ Page({
       });
     });
   },
+  // formatTodos/groupTodos/formatDate/formatDateTime 已提取到 utils/todos-logic.js
 
-  formatTodos(todos) {
-    const now = new Date();
-    return todos.map(t => {
-      let dueStatus = 'normal';
-      if (t.due) {
-        const dueDate = new Date(t.due);
-        const diff = Math.floor((dueDate - now) / 86400000);
-        if (diff < 0) dueStatus = 'overdue';
-        else if (diff <= 1) dueStatus = 'urgent';
-        else if (diff <= 3) dueStatus = 'soon';
-      }
-      return {
-        ...t,
-        dueStatus,
-        dueLabel: t.due ? this.formatDate(t.due) : '',
-        priorityLabel: t.priority === 'P1' ? '🔴' : t.priority === 'P2' ? '🟡' : '',
-      };
-    });
-  },
-
-  formatDate(dateStr) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = Math.floor((d - now) / 86400000);
-    if (diff === 0) return '今天';
-    if (diff === 1) return '明天';
-    if (diff === -1) return '昨天';
-    if (diff < 0) return `逾期${-diff}天`;
-    if (diff <= 7) return `${diff}天后`;
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
-  },
 
   switchTab(e) {
     this.setData({ activeTab: e.currentTarget.dataset.tab });
@@ -153,7 +179,43 @@ Page({
   },
 
   onNewTodoContactInput(e) {
-    this.setData({ newTodoContact: e.detail.value });
+    const value = e.detail.value;
+    this.setData({ newTodoContact: value });
+    if (value.trim().length < 1) {
+      this.setData({ newContactSuggestions: [] });
+      return;
+    }
+    api.searchContacts(value.trim()).then((results) => {
+      this.setData({ newContactSuggestions: results.slice(0, 8) });
+    }).catch(() => {
+      this.setData({ newContactSuggestions: [] });
+    });
+  },
+
+  pickNewContactSuggestion(e) {
+    const name = e.currentTarget.dataset.name;
+    this.setData({ newTodoContact: name, newContactSuggestions: [] });
+  },
+
+  onNewPriorityChange(e) {
+    this.setData({ newPriorityIndex: parseInt(e.detail.value) });
+  },
+
+  onNewDueDateChange(e) {
+    this.setData({ newDueDate: e.detail.value });
+  },
+
+  onNewDueTimeChange(e) {
+    this.setData({ newDueTime: e.detail.value });
+  },
+
+  toggleNewLongTerm() {
+    const isLong = !this.data.newIsLongTerm;
+    this.setData({
+      newIsLongTerm: isLong,
+      newDueDate: isLong ? '' : this.data.newDueDate,
+      newDueTime: isLong ? '' : this.data.newDueTime,
+    });
   },
 
   // 添加待办
@@ -164,11 +226,24 @@ Page({
       wx.showToast({ title: '请输入待办内容', icon: 'none' });
       return;
     }
-    this.setData({ adding: true });
-    const data = { task: newTodo.trim() };
-    if (newTodoContact.trim()) {
-      data.contact_name = newTodoContact.trim();
+    if (!newTodoContact.trim()) {
+      wx.showToast({ title: '请关联联系人', icon: 'none' });
+      return;
     }
+    if (!this.data.newIsLongTerm) {
+      if (!this.data.newDueDate) {
+        wx.showToast({ title: '请选择日期', icon: 'none' });
+        return;
+      }
+      if (!this.data.newDueTime) {
+        wx.showToast({ title: '请选择时间', icon: 'none' });
+        return;
+      }
+    }
+    this.setData({ adding: true });
+    const priority = this.data.priorityValues[this.data.newPriorityIndex];
+    const data = { task: newTodo.trim(), priority, contact_name: newTodoContact.trim() };
+    data.due = this.data.newIsLongTerm ? '' : (this.data.newDueDate + 'T' + this.data.newDueTime);
     wx.request({
       url: 'https://api.welian.app/data/todos',
       method: 'POST',
@@ -176,9 +251,11 @@ Page({
       data,
       success: (res) => {
         if (res.statusCode === 200) {
-          this.setData({ newTodo: '', newTodoContact: '', adding: false });
+          this.setData({ newTodo: '', newTodoContact: '', newDueDate: '', newDueTime: '', newIsLongTerm: false, adding: false });
           this.loadTodos();
           wx.showToast({ title: '已添加', icon: 'success' });
+          // 请求待办到期提醒授权
+          if (!this.data.newIsLongTerm) api.requestSubscribe(['todo_due']);
         } else {
           this.setData({ adding: false });
           wx.showToast({ title: '添加失败', icon: 'none' });
@@ -202,6 +279,73 @@ Page({
 
   closeActions() {
     this.setData({ showActions: false });
+  },
+
+  doDetail() {
+    this.setData({ showActions: false, showDetail: true, detailTodo: this.data.actionTodo });
+  },
+
+  closeDetail() {
+    this.setData({ showDetail: false });
+  },
+
+  _todoStartTime(t) {
+    if (t.due) {
+      const dueStr = t.due.includes('T') ? t.due : t.due + 'T09:00:00';
+      return Math.floor(new Date(dueStr).getTime() / 1000);
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return Math.floor(new Date(d.toISOString().slice(0, 10) + 'T09:00:00').getTime() / 1000);
+  },
+
+  addTodoToCalendar() {
+    const t = this.data.detailTodo;
+    if (!t || !t.task) return;
+    wx.addPhoneCalendar({
+      title: t.task,
+      startTime: this._todoStartTime(t),
+      allDay: false,
+      alarm: true,
+      alarmOffset: -3600,
+      description: (t.contact_name ? '关联联系人：' + t.contact_name + '\n' : '') + '来自 Welian 待办',
+      success: () => wx.showToast({ title: '已添加到日历', icon: 'success' }),
+      fail: () => wx.showToast({ title: '添加失败', icon: 'none' }),
+    });
+  },
+
+  batchAddCalendar() {
+    const todos = this.data.pending;
+    if (!todos || todos.length === 0) return;
+    wx.showModal({
+      title: '导入日历',
+      content: `将 ${todos.length} 条待办添加到手机日历？`,
+      confirmText: '添加',
+      success: (r) => {
+        if (!r.confirm) return;
+        let success = 0;
+        let fail = 0;
+        let idx = 0;
+        const addNext = () => {
+          if (idx >= todos.length) {
+            wx.showToast({ title: `已添加 ${success} 条${fail ? '，失败' + fail + '条' : ''}`, icon: 'none' });
+            return;
+          }
+          const t = todos[idx++];
+          wx.addPhoneCalendar({
+            title: t.task,
+            startTime: this._todoStartTime(t),
+            allDay: false,
+            alarm: true,
+            alarmOffset: -3600,
+            description: (t.contact_name ? '关联联系人：' + t.contact_name + '\n' : '') + '来自 Welian 待办',
+            success: () => { success++; addNext(); },
+            fail: () => { fail++; addNext(); },
+          });
+        };
+        addNext();
+      },
+    });
   },
 
   doMarkDone() {
@@ -245,7 +389,7 @@ Page({
     wx.showModal({
       title: '取消待办',
       content: `确定取消「${task}」吗？`,
-      confirmText: '取消待办',
+      confirmText: '取消',
       confirmColor: '#C65D5D',
       success: (r) => {
         if (r.confirm) {
@@ -336,10 +480,25 @@ Page({
     const t = this.data.actionTodo;
     const priorityValues = this.data.priorityValues;
     const priorityIndex = Math.max(0, priorityValues.indexOf(t.priority || 'P1'));
+    let editDueDate = '', editDueTime = '', editIsLongTerm = false;
+    if (t.due) {
+      if (t.due.includes('T')) {
+        const [d, tm] = t.due.split('T');
+        editDueDate = d;
+        editDueTime = tm.slice(0, 5);
+      } else {
+        editDueDate = t.due;
+      }
+    } else {
+      editIsLongTerm = true;
+    }
     this.setData({
       showActions: false,
       showEdit: true,
       priorityIndex,
+      editDueDate,
+      editDueTime,
+      editIsLongTerm,
       editForm: {
         id: t.id,
         task: t.task || '',
@@ -355,16 +514,48 @@ Page({
     this.setData({ [`editForm.${field}`]: e.detail.value });
   },
 
+  onEditContactSearch(e) {
+    const value = e.detail.value;
+    this.setData({ 'editForm.contact_name': value });
+    if (value.trim().length < 1) {
+      this.setData({ editContactSuggestions: [] });
+      return;
+    }
+    api.searchContacts(value.trim()).then((results) => {
+      this.setData({ editContactSuggestions: results.slice(0, 8) });
+    }).catch(() => {
+      this.setData({ editContactSuggestions: [] });
+    });
+  },
+
+  pickEditContactSuggestion(e) {
+    const name = e.currentTarget.dataset.name;
+    this.setData({ 'editForm.contact_name': name, editContactSuggestions: [] });
+  },
+
   onPriorityChange(e) {
     this.setData({ priorityIndex: parseInt(e.detail.value) });
   },
 
-  onDueChange(e) {
-    this.setData({ 'editForm.due': e.detail.value });
+  onEditDueDateChange(e) {
+    this.setData({ editDueDate: e.detail.value });
+  },
+
+  onEditDueTimeChange(e) {
+    this.setData({ editDueTime: e.detail.value });
+  },
+
+  toggleEditLongTerm() {
+    const isLong = !this.data.editIsLongTerm;
+    this.setData({
+      editIsLongTerm: isLong,
+      editDueDate: isLong ? '' : this.data.editDueDate,
+      editDueTime: isLong ? '' : this.data.editDueTime,
+    });
   },
 
   closeEdit() {
-    this.setData({ showEdit: false });
+    this.setData({ showEdit: false, editContactSuggestions: [] });
   },
 
   noop() {},
@@ -377,6 +568,7 @@ Page({
     }
     this.setData({ savingEdit: true });
     const priority = this.data.priorityValues[this.data.priorityIndex];
+    const due = this.data.editIsLongTerm ? '' : (this.data.editDueDate ? (this.data.editDueDate + (this.data.editDueTime ? 'T' + this.data.editDueTime : '')) : '');
     wx.request({
       url: 'https://api.welian.app/data/todos',
       method: 'POST',
@@ -386,7 +578,7 @@ Page({
         task: form.task.trim(),
         contact_name: form.contact_name,
         priority,
-        due: form.due,
+        due,
       },
       success: (res) => {
         this.setData({ savingEdit: false });
@@ -409,6 +601,13 @@ Page({
     return {
       title: 'Welian — 该联系谁、该做什么，一目了然',
       path: '/pages/welcome/welcome',
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: 'Welian ∞ — 更用心',
+      query: '',
     };
   },
 });

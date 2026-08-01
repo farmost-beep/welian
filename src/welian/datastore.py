@@ -19,7 +19,6 @@ Usage:
     tls = store.query_timeline(contact_id="c1", since_date="2025-01-01")
     todos = store.query_todos(status="pending")
 """
-import json
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -50,12 +49,7 @@ class DataStore:
             return self.load_timeline()
         if name == "todos":
             return self.load_todos()
-        # Fallback: read from JSON file (for non-standard names)
-        path = self.data_dir / f"{name}.json"
-        if not path.exists():
-            return []
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return []
 
     def save(self, name: str, data: Any) -> None:
         """Save records to a table by name."""
@@ -68,13 +62,6 @@ class DataStore:
         if name == "todos":
             self.save_todos(data)
             return
-        # Fallback: write JSON file
-        path = self.data_dir / f"{name}.json"
-        if isinstance(data, (list, dict)) and len(data) == 0:
-            if path.exists() and path.stat().st_size > 2:
-                return
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
     # ── Named helpers ──
 

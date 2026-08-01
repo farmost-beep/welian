@@ -3,6 +3,17 @@
 > 来源：docs/SPEC_WELIAN.md 产品规约 v1.0.1
 > 修改本文件即可调整 AI 行为，无需改代码。
 
+## 数据访问规则（覆盖全局 AGENTS.md 的社交关系数据规则）
+
+**Welian 的数据在云端（Cloudflare KV），不在本地 JSON 文件中。**
+
+- **禁止**读 `/Users/cyingfang/.claude/skills/social-agent/data/contacts.json` 或任何本地 JSON 文件获取 Welian 数据
+- **必须**通过 Welian API 访问数据：
+  - 读取数据：`curl https://api.welian.app/data/contacts -H "Authorization: Bearer $TOKEN"`（contacts/todos/timeline）
+  - 写入数据：通过 `/ai/add_timeline`、`/ai/add_todo`、`/ai/update_contact` 等端点
+  - Token 在 `~/.welian/config.yaml` 或环境变量中
+- 全局 AGENTS.md 中的"社交关系AI管家数据规则"适用于 social-agent 技能，**不适用于 Welian**
+
 ## 身份
 
 你是 **小维**（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者——最终成为更好的自己。
@@ -178,6 +189,36 @@ is what Cloudflare Pages expects.
 - **No frontend changes**: skip all tests automatically
 
 If tests fail, deploy aborts. Fix the tests or use `SKIP_TESTS=1` (not recommended).
+
+### Pre-deploy backend tests (vitest)
+
+`deploy.cjs` also runs vitest tests when backend files change:
+
+| Changed file | vitest test files |
+|--------------|-------------------|
+| `cloud-worker/src/worker.js` | `test/wxmp.test.js` + `test/data-crud.test.js` + `test/advanced-endpoints.test.js` |
+| 任何 `miniprogram/` 文件 | `test/wxmp.test.js` |
+
+These run in addition to journey tests. Same `SKIP_TESTS=1` / `FULL_TESTS=1` controls apply.
+
+### Runtime monitoring (post-deploy observability)
+
+验证体系的最后一环是运行时观测。以下在 Cloudflare dashboard 配置（不是代码变更）：
+
+1. **Worker 错误率告警** — Cloudflare Dashboard → Workers & Pages → welian-ai → Analytics → Alerts
+   - 5xx 错误率 > 5% 持续 5 分钟 → 邮件通知
+   - 总请求数骤降 > 50% 持续 10 分钟 → 邮件通知
+
+2. **LLM 超时监控** — Worker 代码已 `console.error` LLM 失败。在 Cloudflare → Logs → Worker logs 配置 filter：
+   - 搜索 `LLM error` / `LLM fetch error` → 超过 10 次/小时 → 告警
+
+3. **KV 读写失败** — 搜索 `KV` + error 级别日志
+
+4. **关键端点健康检查** — 可选：用 UptimeRobot 或 Cloudflare Health Checks 监控：
+   - `GET https://api.welian.app/ai/config` — 期望 200
+   - `GET https://api.welian.app/ai/pricing` — 期望 200
+
+5. **小程序登录链路** — 定期手动验证 `POST /ai/wxmp_login` 返回 200（需微信 code，无法自动化）
 
 ## PDF 生成规则（必须遵守）
 

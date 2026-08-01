@@ -20,11 +20,41 @@
     <input
       class="todo-input todo-contact-input"
       type="text"
-      placeholder="关联联系人（可选）"
+      placeholder="关联联系人"
       value="{{newTodoContact}}"
       bindinput="onNewTodoContactInput"
     />
-    <button class="btn btn-block" style="margin-top:8px" bindtap="addTodo" loading="{{adding}}">添加</button>
+    <view wx:if="{{newContactSuggestions.length > 0}}" class="contact-suggestions">
+      <view wx:for="{{newContactSuggestions}}" wx:key="id" class="contact-suggestion-item" bindtap="pickNewContactSuggestion" data-name="{{item.name}}">
+        <text>{{item.name}}</text>
+        <text wx:if="{{item.company || item.title}}" class="text-dimmer text-xs">{{item.company}} {{item.title}}</text>
+      </view>
+    </view>
+    <picker mode="selector" range="{{priorityOptions}}" value="{{newPriorityIndex}}" bindchange="onNewPriorityChange">
+      <view class="todo-input todo-contact-input" style="display:flex;align-items:center;justify-content:space-between">
+        <text class="text-dim text-sm">优先级</text>
+        <text class="text-sm">{{priorityOptions[newPriorityIndex]}}</text>
+      </view>
+    </picker>
+    <view class="todo-datetime-row">
+      <picker wx:if="{{!newIsLongTerm}}" mode="date" value="{{newDueDate}}" bindchange="onNewDueDateChange">
+        <view class="todo-input todo-datetime-input">
+          <text class="text-dim text-sm">日期</text>
+          <text class="text-sm {{newDueDate ? '' : 'text-dimmer'}}">{{newDueDate || '选择日期'}}</text>
+        </view>
+      </picker>
+      <picker wx:if="{{!newIsLongTerm}}" mode="time" value="{{newDueTime}}" bindchange="onNewDueTimeChange">
+        <view class="todo-input todo-datetime-input">
+          <text class="text-dim text-sm">时间</text>
+          <text class="text-sm {{newDueTime ? '' : 'text-dimmer'}}">{{newDueTime || '选择时间'}}</text>
+        </view>
+      </picker>
+      <view class="todo-input todo-datetime-input {{newIsLongTerm ? 'long-term-active' : ''}}" bindtap="toggleNewLongTerm">
+        <text class="text-dim text-sm">类型</text>
+        <text class="text-sm {{newIsLongTerm ? 'text-accent' : 'text-dimmer'}}">{{newIsLongTerm ? '长期' : '设为长期'}}</text>
+      </view>
+    </view>
+    <button class="btn btn-block btn-add-todo" style="margin-top:8px" bindtap="addTodo" loading="{{adding}}">添加</button>
   </view>
 
   <!-- Tab 切换 -->
@@ -34,6 +64,9 @@
     </view>
     <view class="tab-item {{activeTab === 'done' ? 'active' : ''}}" bindtap="switchTab" data-tab="done">
       <text class="tab-text">已完成（{{doneCount}}）</text>
+    </view>
+    <view wx:if="{{activeTab === 'pending' && pending.length > 0}}" class="tab-calendar-btn" bindtap="batchAddCalendar">
+      <text class="text-sm">📅 导入日历</text>
     </view>
   </view>
 
@@ -53,20 +86,26 @@
     <view wx:if="{{pending.length === 0}}" class="empty-state">
       <text class="text-dimmer text-sm">没有待办，继续保持 👍</text>
     </view>
-    <view wx:for="{{pending}}" wx:key="id" class="card todo-item">
-      <view class="todo-checkbox" bindtap="markDone" data-id="{{item.id}}">
-        <text class="checkbox-circle">○</text>
+    <block wx:for="{{pendingGroups}}" wx:key="key">
+      <view class="todo-group-header">
+        <text class="todo-group-label">{{item.icon}} {{item.label}}（{{item.items.length}}）</text>
       </view>
-      <view class="todo-content" bindtap="showTodoActions" data-id="{{item.id}}">
-        <text class="todo-task">{{item.task}}</text>
-        <view class="todo-meta">
-          <text wx:if="{{item.priorityLabel}}" class="todo-priority">{{item.priorityLabel}}</text>
-          <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
-          <text wx:if="{{item.dueLabel}}" class="todo-due todo-due-{{item.dueStatus}}">{{item.dueLabel}}</text>
-          <text wx:if="{{item.postponed}}" class="todo-postponed text-dim text-xs">↩︎ 推迟{{item.postponed}}次</text>
+      <view wx:for="{{item.items}}" wx:for-item="todo" wx:key="id" class="card todo-item">
+        <view class="todo-checkbox" bindtap="markDone" data-id="{{todo.id}}">
+          <text class="checkbox-circle">○</text>
+        </view>
+        <view class="todo-content" bindtap="showTodoActions" data-id="{{todo.id}}">
+          <text class="todo-task">{{todo.task}}</text>
+          <view class="todo-meta">
+            <text wx:if="{{todo.priorityLabel}}" class="todo-priority">{{todo.priorityLabel}}</text>
+            <text wx:if="{{todo.contact_name}}" class="todo-contact text-dim text-xs">👤 {{todo.contact_name}}</text>
+            <text wx:if="{{todo.dueLabel}}" class="todo-due todo-due-{{todo.dueStatus}}">{{todo.dueLabel}}</text>
+            <text wx:if="{{!todo.due && todo.dueStatus === 'nodate'}}" class="todo-due todo-due-nodate">长期</text>
+            <text wx:if="{{todo.postponed}}" class="todo-postponed text-dim text-xs">↩︎ 推迟{{todo.postponed}}次</text>
+          </view>
         </view>
       </view>
-    </view>
+    </block>
   </block>
 
   <!-- 已完成列表 -->
@@ -82,6 +121,7 @@
         <text class="todo-task todo-task-done">{{item.task}}</text>
         <view class="todo-meta">
           <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
+          <text wx:if="{{item.completedLabel}}" class="todo-contact text-dimmer text-xs">✓ {{item.completedLabel}}</text>
         </view>
       </view>
     </view>
@@ -92,6 +132,7 @@
 <view wx:if="{{showActions}}" class="action-overlay" bindtap="closeActions">
   <view class="action-sheet" catchtap="noop">
     <view class="action-sheet-title">{{actionTodo.task}}</view>
+    <view class="action-sheet-item" bindtap="doDetail">📋 详情</view>
     <block wx:if="{{actionTodo.status !== 'done' && !actionTodo.done}}">
       <view class="action-sheet-item" bindtap="doMarkDone">✓ 标记完成</view>
       <view class="action-sheet-item" bindtap="doPostpone">↩︎ 推迟</view>
@@ -110,10 +151,7 @@
 <view wx:if="{{showPostpone}}" class="action-overlay" bindtap="closePostpone">
   <view class="action-sheet" catchtap="noop">
     <view class="action-sheet-title">推迟到…</view>
-    <view class="action-sheet-item" bindtap="applyPostpone" data-days="1">明天</view>
-    <view class="action-sheet-item" bindtap="applyPostpone" data-days="3">3天后</view>
-    <view class="action-sheet-item" bindtap="applyPostpone" data-days="7">下周</view>
-    <view class="action-sheet-item" bindtap="applyPostpone" data-days="14">两周后</view>
+    <view wx:for="{{postponeDays}}" wx:key="*this" class="action-sheet-item" bindtap="applyPostpone" data-days="{{item}}">{{item}}天后</view>
     <view class="action-sheet-item action-sheet-cancel" bindtap="closePostpone">取消</view>
   </view>
 </view>
@@ -128,7 +166,13 @@
     </view>
     <view class="edit-field">
       <text class="edit-label">关联联系人</text>
-      <input class="edit-input" value="{{editForm.contact_name}}" bindinput="onEditInput" data-field="contact_name" placeholder="联系人（可选）" />
+      <input class="edit-input" value="{{editForm.contact_name}}" bindinput="onEditContactSearch" data-field="contact_name" placeholder="联系人（可选）" />
+      <view wx:if="{{editContactSuggestions.length > 0}}" class="contact-suggestions">
+        <view wx:for="{{editContactSuggestions}}" wx:key="id" class="contact-suggestion-item" bindtap="pickEditContactSuggestion" data-name="{{item.name}}">
+          <text>{{item.name}}</text>
+          <text wx:if="{{item.company || item.title}}" class="text-dimmer text-xs">{{item.company}} {{item.title}}</text>
+        </view>
+      </view>
     </view>
     <view class="edit-field">
       <text class="edit-label">优先级</text>
@@ -137,14 +181,69 @@
       </picker>
     </view>
     <view class="edit-field">
-      <text class="edit-label">截止日期</text>
-      <picker mode="date" value="{{editForm.due}}" bindchange="onDueChange">
-        <view class="edit-input">{{editForm.due || '选择日期'}}</view>
-      </picker>
+      <text class="edit-label">截止日期时间</text>
+      <view class="edit-datetime-row">
+        <picker wx:if="{{!editIsLongTerm}}" mode="date" value="{{editDueDate}}" bindchange="onEditDueDateChange">
+          <view class="edit-input edit-datetime-input">{{editDueDate || '日期'}}</view>
+        </picker>
+        <picker wx:if="{{!editIsLongTerm}}" mode="time" value="{{editDueTime}}" bindchange="onEditDueTimeChange">
+          <view class="edit-input edit-datetime-input">{{editDueTime || '时间'}}</view>
+        </picker>
+        <view class="edit-input edit-datetime-input {{editIsLongTerm ? 'long-term-active' : ''}}" bindtap="toggleEditLongTerm">
+          <text class="{{editIsLongTerm ? 'text-accent' : 'text-dimmer'}}">{{editIsLongTerm ? '长期' : '设为长期'}}</text>
+        </view>
+      </view>
     </view>
     <view class="edit-actions">
       <button class="action-btn" bindtap="closeEdit">取消</button>
       <button class="action-btn action-btn-primary" bindtap="saveEdit" loading="{{savingEdit}}">保存</button>
+    </view>
+  </view>
+</view>
+
+<!-- 详情弹窗 -->
+<view wx:if="{{showDetail}}" class="edit-overlay" catchtap="closeDetail">
+  <view class="edit-modal" catchtap="noop">
+    <view class="edit-title">待办详情</view>
+    <view class="detail-field">
+      <text class="detail-label">待办内容</text>
+      <text class="detail-value">{{detailTodo.task}}</text>
+    </view>
+    <view wx:if="{{detailTodo.contact_name}}" class="detail-field">
+      <text class="detail-label">关联联系人</text>
+      <text class="detail-value">👤 {{detailTodo.contact_name}}</text>
+    </view>
+    <view class="detail-field">
+      <text class="detail-label">优先级</text>
+      <text class="detail-value">{{detailTodo.priorityLabel || '未设置'}}</text>
+    </view>
+    <view class="detail-field">
+      <text class="detail-label">截止日期</text>
+      <text class="detail-value {{detailTodo.due ? 'todo-due todo-due-' + detailTodo.dueStatus : ''}}">{{detailTodo.due ? (detailTodo.dueLabel || '未设置') : '长期'}}</text>
+    </view>
+    <view class="detail-field">
+      <text class="detail-label">状态</text>
+      <text class="detail-value">{{detailTodo.done || detailTodo.status === 'done' ? '已完成' : '待完成'}}</text>
+    </view>
+    <view wx:if="{{detailTodo.completedLabel}}" class="detail-field">
+      <text class="detail-label">完成时间</text>
+      <text class="detail-value">{{detailTodo.completedLabel}}</text>
+    </view>
+    <view wx:if="{{detailTodo.postponed}}" class="detail-field">
+      <text class="detail-label">推迟次数</text>
+      <text class="detail-value">↩︎ 推迟{{detailTodo.postponed}}次</text>
+    </view>
+    <view wx:if="{{detailTodo.source}}" class="detail-field">
+      <text class="detail-label">来源</text>
+      <text class="detail-value">{{detailTodo.source}}</text>
+    </view>
+    <view wx:if="{{detailTodo.created_at}}" class="detail-field">
+      <text class="detail-label">创建时间</text>
+      <text class="detail-value text-dim text-xs">{{detailTodo.createdLabel}}</text>
+    </view>
+    <view class="edit-actions">
+      <button class="action-btn" bindtap="addTodoToCalendar">📅 日历</button>
+      <button class="action-btn action-btn-primary" bindtap="closeDetail">关闭</button>
     </view>
   </view>
 </view>

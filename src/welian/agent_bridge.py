@@ -69,6 +69,27 @@ if _DEVIN_CFG.get("work_dir"):
 # model is used per-call, not as a global default
 DEVIN_MODEL = _DEVIN_CFG.get("model", "")
 
+# Load agent engine from config (overrides env var)
+def _load_agent_engine():
+    try:
+        import yaml as _yaml
+        from pathlib import Path as _P
+        root = _P(__file__).resolve().parent.parent.parent
+        config_path = root / "config" / "welian.yaml"
+        if config_path.exists():
+            with open(config_path) as f:
+                full = _yaml.safe_load(f)
+            engine = full.get("agent", {}).get("engine", "")
+            if engine in SUPPORTED_AGENTS:
+                return engine
+    except Exception:
+        pass
+    return ""
+
+_config_engine = _load_agent_engine()
+if _config_engine:
+    DEFAULT_AGENT = _config_engine
+
 # System prompt injected into every agent query
 SYSTEM_PROMPT = (
     "你正在通过微信与用户对话，不是在终端里。"
@@ -181,6 +202,16 @@ class AgentBridge:
         if user_id not in self._locks:
             self._locks[user_id] = threading.Lock()
         return self._locks[user_id]
+
+    def is_available(self) -> bool:
+        """Check if the default agent CLI is available on this system."""
+        import shutil
+        agent = DEFAULT_AGENT
+        if agent == "devin":
+            return shutil.which("devin") is not None
+        elif agent == "claude":
+            return shutil.which("claude") is not None
+        return False
 
     def get_permission(self, user_id: str) -> str:
         return self._permissions.get(user_id, DEFAULT_PERMISSION)

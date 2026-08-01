@@ -4,6 +4,7 @@ import * as telegramAdapter from './im/telegram.js';
 import * as feishuAdapter from './im/feishu.js';
 import * as dingtalkAdapter from './im/dingtalk.js';
 import { handleBindStart, handleBindConfirm, handleUnbind } from './im/bind.js';
+import * as XLSX from 'xlsx';
 
 /**
  * Welian Cloud AI API — Cloudflare Worker
@@ -253,6 +254,22 @@ async function loadPromptFile(env, filename, fallback) {
 }
 
 // Extract + verify token from request (Authorization header or body)
+// Verify a sync token string (no Request needed) — returns userId or null
+async function verifySyncToken(env, token) {
+  if (!token) return null;
+  if (token.includes(':') && !token.startsWith('eyJ')) {
+    const [uid, secret] = token.split(':');
+    if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
+      if (uid.startsWith('wxmp_') || uid.startsWith('wechat_')) {
+        const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
+        return bound || uid;
+      }
+      return uid;
+    }
+  }
+  return null;
+}
+
 async function getVerifiedUserId(req, env, body) {
   // Try Authorization header first
   const authHeader = req.headers.get('Authorization') || '';
@@ -323,9 +340,152 @@ const ADVISE_SYSTEM = `You are Welian (小维). Format relationship suggestions 
 - Max 5 suggestions total
 Return formatted text only.`;
 
+const SELF_EVOLUTION_SYSTEM = `You are Welian's self-evolution engine. Analyze the user's relationship management metrics and generate 3-5 behavioral insights to improve future suggestions.
+
+The input is JSON with:
+- weekly: last 4 weeks of action counts (advise_generated, todo_completed, interaction_recorded, draft_generated)
+- totals: aggregated counts
+- adoption_rate: percentage of advises that led to action within 7 days
+- recent_adoptions: number of adoption events
+- top_adopted_contacts: contacts with most adoption events
+- contacts: { total, leverage, nurture } relationship mix
+
+Generate insights that are:
+1. Specific to THIS user's patterns (not generic advice)
+2. Actionable — directly inform how to phrase suggestions, which contacts to prioritize, what tone to use
+3. Short — each insight is 1-2 sentences, starting with "•"
+4. Data-grounded — reference the actual numbers when relevant
+
+Example insights:
+• 建议包含具体人名时采纳率78%，泛泛建议仅12%——始终在建议中包含具体联系人名和话题
+• 经营型联系人的互动频率偏低（4周仅3次），建议增加跟进提醒频率
+• 待办完成率高（85%），用户执行力强——可以更积极地建议行动
+
+Return only the insights (3-5 lines starting with •), no preamble, no JSON.`;
+
 // Prompt file mapping — each scenario loads from KV, falls back to inline constant
 async function getPrompt(env, name, fallback) {
   return await loadPromptFile(env, name + '.md', fallback);
+}
+
+// ── Self-evolution: behavioral insights ──
+// Per-user insights generated weekly from metrics analysis.
+// Stored at prompt:behavioral_insights:{userId}.md in KV.
+// Injected into advise/draft system prompts to improve suggestion quality.
+
+async function loadBehavioralInsights(env, userId) {
+  try {
+    const raw = await env.USER_DATA.get(`prompt:behavioral_insights:${userId}.md`);
+    if (raw && raw.length > 10) return raw;
+  } catch (e) {
+    console.log('[loadBehavioralInsights] KV read failed:', e.message);
+  }
+  return null;
+}
+
+// Augment a base system prompt with per-user behavioral insights (if available)
+async function augmentWithInsights(env, userId, basePrompt) {
+  if (!userId) return basePrompt;
+  const insights = await loadBehavioralInsights(env, userId);
+  if (!insights) return basePrompt;
+  return basePrompt + '\n\n## 行为洞察（基于你的历史互动数据自动生成，用于优化建议质量）\n' + insights;
+}
+
+// Weekly self-evolution: analyze each user's metrics, generate behavioral insights, write to KV.
+async function handleSelfEvolution(env) {
+  // Gather active users from wechat_bind (same pattern as handleScheduledPush)
+  const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
+  const users = [];
+  for (const key of listResult.keys) {
+    const clerkUserId = await env.USER_DATA.get(key.name);
+    if (clerkUserId) users.push(clerkUserId);
+  }
+  // Also gather recent DAU users (last 7 days)
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dauKey = `dau:${d.toISOString().slice(0, 10)}`;
+    const dauData = await env.USER_DATA.get(dauKey);
+    if (dauData) {
+      for (const uid of dauData.split(',').filter(Boolean)) {
+        if (!users.includes(uid)) users.push(uid);
+      }
+    }
+  }
+
+  let processed = 0;
+  for (const userId of users) {
+    try {
+      const metrics = await loadMetrics(env, userId);
+      // Skip users with no activity
+      const weekKeys = Object.keys(metrics.weekly || {});
+      if (weekKeys.length === 0) continue;
+
+      // Build last-4-weeks summary
+      const recentWeeks = weekKeys.sort().slice(-4);
+      const weeklyData = recentWeeks.map(wk => ({ week: wk, ...(metrics.weekly[wk] || {}) }));
+      const totalAdvises = weeklyData.reduce((s, w) => s + (w.advise_generated || 0), 0);
+      const totalTodosCompleted = weeklyData.reduce((s, w) => s + (w.todo_completed || 0), 0);
+      const totalInteractions = weeklyData.reduce((s, w) => s + (w.interaction_recorded || 0), 0);
+      const totalDrafts = weeklyData.reduce((s, w) => s + (w.draft_generated || 0), 0);
+
+      // Skip users with minimal activity
+      if (totalAdvises === 0 && totalInteractions === 0 && totalDrafts === 0) continue;
+
+      // Adoption analysis
+      const adoptions = metrics.adoptions || [];
+      const recentAdoptions = adoptions.filter(a => {
+        const age = (Date.now() - new Date(a.ts).getTime()) / 86400000;
+        return age <= 28; // last 4 weeks
+      });
+      const adoptionRate = totalAdvises > 0 ? Math.round((recentAdoptions.length / totalAdvises) * 100) : 0;
+
+      // Contact-level adoption: which contacts had most adoptions
+      const contactAdoptions = {};
+      for (const a of recentAdoptions) {
+        if (a.contact) contactAdoptions[a.contact] = (contactAdoptions[a.contact] || 0) + 1;
+      }
+      const topAdoptedContacts = Object.entries(contactAdoptions)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+      // Load contacts to understand relationship mix
+      const contacts = await loadDataset(env, userId, 'contacts');
+      const leverageCount = contacts.filter(c => (c.nature || '').includes('leverage') || (c.nature || '') === 'dual' || (c.nature || '') === '双重').length;
+      const nurtureCount = contacts.filter(c => (c.nature || '').includes('nurture') || (c.nature || '').includes('nurture')).length;
+
+      const analysisData = {
+        weekly: weeklyData,
+        totals: {
+          advises: totalAdvises,
+          todos_completed: totalTodosCompleted,
+          interactions: totalInteractions,
+          drafts: totalDrafts,
+        },
+        adoption_rate: adoptionRate,
+        recent_adoptions: recentAdoptions.length,
+        top_adopted_contacts: topAdoptedContacts,
+        contacts: { total: contacts.length, leverage: leverageCount, nurture: nurtureCount },
+      };
+
+      const llmResp = await callLLM(
+        JSON.stringify(analysisData, null, 2),
+        SELF_EVOLUTION_SYSTEM,
+        env,
+        { max_tokens: 512, temperature: 0.3, model_tier: 'standard' }
+      );
+      if (llmResp && llmResp.text && llmResp.text.trim().length > 20) {
+        const insights = llmResp.text.trim();
+        await env.USER_DATA.put(`prompt:behavioral_insights:${userId}.md`, insights);
+        console.log(`[self_evolution] Updated insights for ${userId}, len: ${insights.length}`);
+        processed++;
+      }
+    } catch (e) {
+      console.error(`[self_evolution] Error for ${userId}:`, e.message);
+    }
+  }
+  console.log(`[self_evolution] Processed ${processed}/${users.length} users`);
 }
 
 // ── Cloud suggestion engine (queries KV directly, no edge agent needed) ──
@@ -462,7 +622,7 @@ async function handleCloudAdvise(req, env) {
   }
 
   // LLM enhanced formatting with conversation topics
-  const llmResp = await callLLM(parts.join('\n'), await getPrompt(env, 'advise', ADVISE_SYSTEM), env);
+  const llmResp = await callLLM(parts.join('\n'), await augmentWithInsights(env, userId, await getPrompt(env, 'advise', ADVISE_SYSTEM)), env);
   const llmResult = llmResp ? llmResp.text : null;
   // P0-1: Track advise generation (North Star metric)
   const adviseId = await registerAdvise(env, userId);
@@ -680,6 +840,7 @@ async function* callLLMStream(prompt, system, env, options = {}) {
 
 async function handleDraft(req, env) {
   const body = await req.json();
+  const userId = await getVerifiedUserId(req, env, body);
 
   const name = body.name || '';
   const nature = body.nature || null;
@@ -707,7 +868,7 @@ async function handleDraft(req, env) {
   parts.push(`Tone: ${tone}`);
 
   const prompt = parts.join('\n');
-  const llmResp = await callLLM(prompt, await getPrompt(env, 'draft', DRAFT_SYSTEM), env);
+  const llmResp = await callLLM(prompt, await augmentWithInsights(env, userId, await getPrompt(env, 'draft', DRAFT_SYSTEM)), env);
   let result = llmResp ? llmResp.text : null;
 
   if (!result) {
@@ -764,6 +925,7 @@ async function handleExtract(req, env) {
 
 async function handleAdvise(req, env) {
   const body = await req.json();
+  const userId = await getVerifiedUserId(req, env, body);
 
   const leverage = body.leverage || [];
   const nurture = body.nurture || [];
@@ -805,7 +967,7 @@ async function handleAdvise(req, env) {
   }
 
   // Try LLM for enhanced formatting
-  const llmResp = await callLLM(parts.join('\n'), await getPrompt(env, 'advise', ADVISE_SYSTEM), env);
+  const llmResp = await callLLM(parts.join('\n'), await augmentWithInsights(env, userId, await getPrompt(env, 'advise', ADVISE_SYSTEM)), env);
   const llmResult = llmResp ? llmResp.text : null;
   return { result: llmResult || parts.join('\n') };
 }
@@ -819,21 +981,31 @@ const DEFAULT_PRICING = {
   points_per_1k_output: 0.2,
   free_monthly: 100,
   pro_monthly: 500,
-  // Base prices (before discount)
+  professional_monthly: 1500,
+  // Base prices (before discount) — international (Paddle)
   pro_price_usd: 4.99,
   pro_price_yearly_usd: 49,
+  professional_price_usd: 9.99,
+  professional_price_yearly_usd: 99,
   credit_pack_100_usd: 1.99,
   credit_pack_500_usd: 7.99,
+  // China market prices (WeChat Pay, in CNY cents)
+  pro_price_cny: 990,           // ¥9.9/月
+  pro_price_yearly_cny: 9900,   // ¥99/年
+  professional_price_cny: 2990, // ¥29.9/月
+  professional_price_yearly_cny: 29900, // ¥299/年
   discount: 100,              // discount percentage (100 = no discount)
 };
 
 // ── Paddle product config ──
 // Set these in wrangler vars or KV. Paddle price_id maps to product.
 const PADDLE_PRODUCTS = {
-  pro_monthly:   { price_id_env: 'PADDLE_PRICE_PRO_MONTHLY',   type: 'upgrade',  id: 'pro_monthly',  usd: 4.99 },
-  pro_yearly:    { price_id_env: 'PADDLE_PRICE_PRO_YEARLY',    type: 'upgrade',  id: 'pro_yearly',   usd: 49 },
-  credits_100:   { price_id_env: 'PADDLE_PRICE_CREDITS_100',   type: 'purchase', id: '100',          usd: 1.99 },
-  credits_500:   { price_id_env: 'PADDLE_PRICE_CREDITS_500',   type: 'purchase', id: '500',          usd: 7.99 },
+  pro_monthly:           { price_id_env: 'PADDLE_PRICE_PRO_MONTHLY',           type: 'upgrade',  id: 'pro_monthly',           usd: 4.99 },
+  pro_yearly:            { price_id_env: 'PADDLE_PRICE_PRO_YEARLY',            type: 'upgrade',  id: 'pro_yearly',            usd: 49 },
+  professional_monthly:  { price_id_env: 'PADDLE_PRICE_PROFESSIONAL_MONTHLY',  type: 'upgrade',  id: 'professional_monthly',  usd: 9.99 },
+  professional_yearly:   { price_id_env: 'PADDLE_PRICE_PROFESSIONAL_YEARLY',   type: 'upgrade',  id: 'professional_yearly',   usd: 99 },
+  credits_100:           { price_id_env: 'PADDLE_PRICE_CREDITS_100',           type: 'purchase', id: '100',                    usd: 1.99 },
+  credits_500:           { price_id_env: 'PADDLE_PRICE_CREDITS_500',           type: 'purchase', id: '500',                    usd: 7.99 },
 };
 
 function paddleApiBase(env) {
@@ -852,6 +1024,8 @@ async function getPricing(env) {
   const ratio = discount / 100;
   p.pro_price_usd_display = Math.round((p.pro_price_usd * ratio) * 100) / 100;
   p.pro_price_yearly_usd_display = Math.round((p.pro_price_yearly_usd * ratio) * 100) / 100;
+  p.professional_price_usd_display = Math.round((p.professional_price_usd * ratio) * 100) / 100;
+  p.professional_price_yearly_usd_display = Math.round((p.professional_price_yearly_usd * ratio) * 100) / 100;
   p.credit_pack_100_usd_display = Math.round((p.credit_pack_100_usd * ratio) * 100) / 100;
   p.credit_pack_500_usd_display = Math.round((p.credit_pack_500_usd * ratio) * 100) / 100;
   return p;
@@ -859,7 +1033,7 @@ async function getPricing(env) {
 
 async function savePricing(env, pricing) {
   // Strip display fields — they're computed by getPricing, not stored
-  const { pro_price_usd_display, pro_price_yearly_usd_display, credit_pack_100_usd_display, credit_pack_500_usd_display, ...toStore } = pricing;
+  const { pro_price_usd_display, pro_price_yearly_usd_display, professional_price_usd_display, professional_price_yearly_usd_display, credit_pack_100_usd_display, credit_pack_500_usd_display, ...toStore } = pricing;
   await env.USER_DATA.put('pricing:global', JSON.stringify(toStore));
 }
 
@@ -964,7 +1138,23 @@ async function calcPoints(usage, env) {
 
 async function getMonthlyAllowance(plan, env) {
   const pricing = await getPricing(env);
-  return plan === 'pro' ? pricing.pro_monthly : pricing.free_monthly;
+  if (plan === 'professional') return pricing.professional_monthly;
+  if (plan === 'pro') return pricing.pro_monthly;
+  return pricing.free_monthly;
+}
+
+// Map product ID to plan name and compute subscription expiry
+function productToPlan(productId) {
+  if (productId?.startsWith('professional_')) return 'professional';
+  if (productId?.startsWith('pro_')) return 'pro';
+  return null;
+}
+
+function computeExpiry(productId, now = new Date()) {
+  const expire = new Date(now);
+  if (productId?.endsWith('_yearly')) expire.setFullYear(expire.getFullYear() + 1);
+  else expire.setMonth(expire.getMonth() + 1);
+  return expire;
 }
 
 async function getRemaining(billing, env) {
@@ -984,6 +1174,10 @@ async function deductBilling(env, userId, usage, action, detail = '', modelTier 
   if (billing.plan === 'pro') {
     if (modelTier === 'enhanced') tierMultiplier = 1;
     else if (modelTier === 'premium') tierMultiplier = Math.min(tierMultiplier, 3);
+  }
+  // 专业版会员：所有模型均不加倍率(×1)
+  if (billing.plan === 'professional') {
+    tierMultiplier = 1;
   }
   const basePoints = await calcPoints(usage, env);
   const points = Math.round(basePoints * tierMultiplier * 100) / 100;
@@ -1189,21 +1383,17 @@ async function handleUpgrade(req, env) {
     return { status: 401, data: { error: 'Authentication required' } };
   }
 
-  const plan = body.plan; // 'pro_monthly' | 'pro_yearly'
+  const plan = body.plan; // 'pro_monthly' | 'pro_yearly' | 'professional_monthly' | 'professional_yearly'
   if (!plan) return { status: 400, data: { error: 'plan required' } };
+
+  const targetPlan = productToPlan(plan);
+  if (!targetPlan) return { status: 400, data: { error: 'invalid plan' } };
 
   const billing = await getBillingData(env, userId);
   const now = new Date();
-  let expire = new Date(now);
-  if (plan === 'pro_monthly') {
-    expire.setMonth(expire.getMonth() + 1);
-  } else if (plan === 'pro_yearly') {
-    expire.setFullYear(expire.getFullYear() + 1);
-  } else {
-    return { status: 400, data: { error: 'invalid plan' } };
-  }
+  const expire = computeExpiry(plan, now);
 
-  billing.plan = 'pro';
+  billing.plan = targetPlan;
   billing.subscription = {
     plan,
     start: now.toISOString(),
@@ -1331,10 +1521,9 @@ async function handleConfirmOrder(req, env) {
   const billing = await getBillingData(env, userId);
   if (order.type === 'upgrade') {
     const now = new Date();
-    let expire = new Date(now);
-    if (order.id === 'pro_yearly') expire.setFullYear(expire.getFullYear() + 1);
-    else expire.setMonth(expire.getMonth() + 1);
-    billing.plan = 'pro';
+    const expire = computeExpiry(order.id, now);
+    const targetPlan = productToPlan(order.id) || 'pro';
+    billing.plan = targetPlan;
     billing.subscription = { plan: order.id, start: now.toISOString(), expire: expire.toISOString() };
     billing.history.push({ date: now.toISOString(), action: 'upgrade', points: 0, detail: `paid $${order.amount} for ${order.id}` });
   } else if (order.type === 'purchase') {
@@ -1367,10 +1556,12 @@ async function handleListOrders(req, env) {
 // Product catalog for WeChat Pay (prices in CNY cents)
 function getWxmpPayProducts(pricing) {
   return {
-    pro_monthly:  { type: 'upgrade',  id: 'pro_monthly',  amount_cents: 2900,  name: 'Pro月度' },
-    pro_yearly:   { type: 'upgrade',  id: 'pro_yearly',   amount_cents: 29900, name: 'Pro年度' },
-    credits_100:  { type: 'purchase', id: '100',          amount_cents: 199,   name: '100联点包' },
-    credits_500:  { type: 'purchase', id: '500',          amount_cents: 799,   name: '500联点包' },
+    pro_monthly:           { type: 'upgrade',  id: 'pro_monthly',           amount_cents: 990,   name: 'Pro月度' },
+    pro_yearly:            { type: 'upgrade',  id: 'pro_yearly',            amount_cents: 9900,  name: 'Pro年度' },
+    professional_monthly:  { type: 'upgrade',  id: 'professional_monthly',  amount_cents: 2990,  name: '专业版月度' },
+    professional_yearly:   { type: 'upgrade',  id: 'professional_yearly',   amount_cents: 29900, name: '专业版年度' },
+    credits_100:           { type: 'purchase', id: '100',                   amount_cents: 199,   name: '100联点包' },
+    credits_500:           { type: 'purchase', id: '500',                   amount_cents: 799,   name: '500联点包' },
   };
 }
 
@@ -1688,10 +1879,9 @@ async function handleWxmpPayNotify(req, env) {
     const billing = await getBillingData(env, order.user_id);
     if (order.type === 'upgrade') {
       const now = new Date();
-      let expire = new Date(now);
-      if (order.id === 'pro_yearly') expire.setFullYear(expire.getFullYear() + 1);
-      else expire.setMonth(expire.getMonth() + 1);
-      billing.plan = 'pro';
+      const expire = computeExpiry(order.id, now);
+      const targetPlan = productToPlan(order.id) || 'pro';
+      billing.plan = targetPlan;
       billing.subscription = { plan: order.id, start: now.toISOString(), expire: expire.toISOString() };
       billing.history.push({ date: now.toISOString(), action: 'upgrade', points: 0, detail: `微信支付 ¥${order.amount} for ${order.id}` });
     } else if (order.type === 'purchase') {
@@ -1886,11 +2076,11 @@ async function handlePaddleWebhook(req, env) {
   // treat as subscription renewal — just extend the expiry
   if (!productType && subscriptionId) {
     const billing = await getBillingData(env, userId);
-    if (billing.subscription?.paddle_subscription_id === subscriptionId && billing.plan === 'pro') {
+    if (billing.subscription?.paddle_subscription_id === subscriptionId && (billing.plan === 'pro' || billing.plan === 'professional')) {
       // Extend subscription expiry
       const now = new Date();
       let expire = new Date(billing.subscription.expire);
-      if (billing.subscription.plan === 'pro_yearly') {
+      if (billing.subscription.plan?.endsWith('_yearly')) {
         expire.setFullYear(expire.getFullYear() + 1);
       } else {
         expire.setMonth(expire.getMonth() + 1);
@@ -1926,10 +2116,9 @@ async function handlePaddleWebhook(req, env) {
   const billing = await getBillingData(env, userId);
   if (productType === 'upgrade') {
     const now = new Date();
-    let expire = new Date(now);
-    if (productId === 'pro_yearly') expire.setFullYear(expire.getFullYear() + 1);
-    else expire.setMonth(expire.getMonth() + 1);
-    billing.plan = 'pro';
+    const expire = computeExpiry(productId, now);
+    const targetPlan = productToPlan(productId) || 'pro';
+    billing.plan = targetPlan;
     billing.subscription = {
       plan: productId,
       start: now.toISOString(),
@@ -2049,10 +2238,10 @@ async function handleDeleteAccount(req, env) {
       cursor = listResult.list_complete ? undefined : listResult.cursor;
     } while (cursor);
   }
-  // Delete Clerk account via Backend API (doesn't require deleteSelfEnabled)
+  // Delete Clerk account via Backend API (only for real Clerk users, not wxmp_ users)
   const clerkSecretKey = env.CLERK_SECRET_KEY;
   let clerkDeleted = false;
-  if (clerkSecretKey) {
+  if (clerkSecretKey && !userId.startsWith('wxmp_')) {
     try {
       const clerkResp = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
         method: 'DELETE',
@@ -2069,6 +2258,9 @@ async function handleDeleteAccount(req, env) {
     } catch (e) {
       console.log(`[deleteAccount] Clerk delete error: ${e.message}`);
     }
+  } else if (userId.startsWith('wxmp_')) {
+    // wxmp users don't have a Clerk account — data deletion is sufficient
+    clerkDeleted = true;
   }
 
   return { status: 200, data: { ok: true, deleted: true, clerk_deleted: clerkDeleted } };
@@ -2368,7 +2560,7 @@ async function handleMeetingPhoto(req, env) {
     return { status: 400, data: { error: 'base64 and photo_type required' } };
   }
 
-  const validTypes = ['agenda', 'card', 'notes', 'roster'];
+  const validTypes = ['agenda', 'card', 'notes', 'roster', 'contacts_screenshot'];
   if (!validTypes.includes(photo_type)) {
     return { status: 400, data: { error: `photo_type must be one of: ${validTypes.join(', ')}` } };
   }
@@ -2417,12 +2609,19 @@ async function handleMeetingPhoto(req, env) {
 }
 核心目标：识别出名单上所有的人名。逐行逐列识别，不要遗漏。其他信息（职位、公司等）能识别就填，识别不到就留空，不要猜测。
 只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
+
+    contacts_screenshot: `你是Welian小维的联系人导入助手。请分析这张微信通讯录截图，识别其中所有联系人的姓名，以JSON格式返回：
+{
+  "contacts": [{"name": "姓名或备注名", "nickname": "微信昵称（如能与备注名区分则填，否则留空）"}]
+}
+核心目标：识别出截图中每一行联系人的姓名。微信通讯录每行格式通常是：头像 + 昵称/备注名。逐行识别，不要遗漏任何一行。如果某行无法识别为联系人（如"新的朋友""群聊""标签"等功能入口），跳过不记。
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块，不要任何解释文字。`,
   };
 
   const system = prompts[photo_type];
   const userMsg = { type: 'text', text: '请分析这张图片并提取信息。' };
 
-  const result = await callLLM(null, 'You are a helpful assistant that extracts structured data from images. Always respond with valid JSON only.', env, {
+  const result = await callLLM(null, system, env, {
     max_tokens: 1024,
     model_tier: 'enhanced',
     messages: [{ role: 'user', content: [imageBlock, userMsg] }],
@@ -2483,6 +2682,37 @@ async function handleMeetingPhoto(req, env) {
   // For agenda type: match existing attendees if provided
   if (photo_type === 'agenda' && existing_attendees && extracted.agenda) {
     extracted.attendees = existing_attendees;
+  }
+
+  // For contacts_screenshot: match against existing contacts, auto-create new ones
+  if (!unstructured && photo_type === 'contacts_screenshot' && extracted.contacts) {
+    const contacts = await loadDataset(env, userId, 'contacts');
+    const existingNames = new Map(contacts.map(c => [c.name, c]));
+    let newCount = 0, existingCount = 0;
+    extracted.contacts = extracted.contacts.map(c => {
+      const matched = existingNames.get(c.name);
+      if (matched) {
+        existingCount++;
+        return { ...c, is_existing: true, contact_id: matched.id };
+      }
+      newCount++;
+      return { ...c, is_existing: false };
+    });
+    // Auto-create new contacts
+    const now = new Date().toISOString();
+    for (const c of extracted.contacts) {
+      if (!c.is_existing && c.name) {
+        const id = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        contacts.push({
+          id, name: c.name, nickname: c.nickname || '',
+          company: '', title: '', phone: '', email: '',
+          relationship: 'acquaintance', tags: ['微信通讯录导入'],
+          last_contact: '', created: now, updated: now,
+        });
+      }
+    }
+    await saveDataset(env, userId, 'contacts', contacts);
+    extracted.summary = `识别到 ${extracted.contacts.length} 位联系人，其中 ${existingCount} 人已存在，${newCount} 人已自动新增`;
   }
 
   // Billing
@@ -2882,6 +3112,68 @@ async function handleRedeemCoupon(req, env) {
 
 // ── Invite system: referral codes + reward both sides ──
 
+// Generate WeChat miniprogram QR code for invite (scene = invite code)
+async function handleWxmpInviteQrcode(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  // Get or create invite code
+  let code = await env.USER_DATA.get(`invite_code:${userId}`);
+  if (!code) {
+    const createResult = await handleInviteCreate(req, env);
+    if (!createResult.data.ok) return createResult;
+    code = createResult.data.code;
+  }
+
+  // Check if we already cached the QR code
+  const cachedQr = await env.USER_DATA.get(`invite_qr:${userId}`);
+  if (cachedQr) {
+    return { status: 200, data: { ok: true, code, qrcode_url: cachedQr } };
+  }
+
+  // Generate miniprogram code via wxacode.getUnlimited
+  // Must use mini program AppID/Secret (not public account)
+  const mpAppId = env.WXMP_APP_ID || env.WECHAT_APP_ID;
+  const mpSecret = env.WXMP_APP_SECRET || env.WECHAT_APP_SECRET;
+  if (!mpAppId || !mpSecret) return { status: 500, data: { error: '小程序未配置' } };
+  const accessToken = await getMpAccessToken(env, mpAppId, mpSecret);
+  if (!accessToken) return { status: 500, data: { error: '获取access_token失败' } };
+
+  try {
+    const resp = await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${accessToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scene: `inviter=${code}`,
+        page: 'pages/welcome/welcome',
+        check_path: false,
+        env_version: 'release',
+        width: 430,
+      }),
+    });
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      // Error response from WeChat
+      const errData = await resp.json();
+      console.error('[invite_qr] WeChat error:', errData.errcode, errData.errmsg);
+      return { status: 500, data: { error: `微信生成失败: ${errData.errmsg || errData.errcode}` } };
+    }
+    // Success: binary image → base64 data URL
+    const arrayBuffer = await resp.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const dataUrl = `data:image/png;base64,${base64}`;
+
+    // Cache in KV (7 days TTL, QR code doesn't change)
+    await env.USER_DATA.put(`invite_qr:${userId}`, dataUrl, { expirationTtl: 604800 });
+
+    return { status: 200, data: { ok: true, code, qrcode_url: dataUrl } };
+  } catch (e) {
+    console.error('[invite_qr] error:', e.message);
+    return { status: 500, data: { error: '生成小程序码失败' } };
+  }
+}
+
 async function handleInviteCreate(req, env) {
   const body = await req.json().catch(() => ({}));
   const userId = await getVerifiedUserId(req, env, body);
@@ -2911,6 +3203,83 @@ async function handleInviteCreate(req, env) {
   await env.USER_DATA.put(`invite_code_reverse:${code}`, userId);
 
   return { status: 200, data: { ok: true, code, invited: [], total_credits: 0 } };
+}
+
+// Auto-register a new wxmp user: create Clerk account, store bindings, return token
+async function autoRegisterWxmpUser(env, openid, nickname = '') {
+  const wxmpUserId = `wxmp_${openid}`;
+  const clerkSecretKey = env.CLERK_SECRET_KEY;
+  if (!clerkSecretKey) {
+    return { token: `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`, clerkUserId: null };
+  }
+  const autoEmail = `${openid}@wxmp.welian.app`;
+  let clerkUserId;
+  try {
+    const createResp = await fetch('https://api.clerk.com/v1/users', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${clerkSecretKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email_address: [autoEmail],
+        unsafe_metadata: { registered_from: 'wxmp_auto', wxmp_openid: openid, nickname: nickname || '' },
+      }),
+    });
+    const created = await createResp.json();
+    if (created.errors) {
+      const emailExists = created.errors.some(e => e.code === 'form_identifier_exists');
+      if (emailExists) {
+        const listResp = await fetch(`https://api.clerk.com/v1/users?email_address=${encodeURIComponent(autoEmail)}&limit=1`, {
+          headers: { 'Authorization': `Bearer ${clerkSecretKey}` },
+        });
+        const userList = await listResp.json();
+        if (userList && userList.length > 0 && userList[0].id) {
+          clerkUserId = userList[0].id;
+        } else {
+          throw new Error('Clerk lookup failed after email conflict');
+        }
+      } else {
+        throw new Error('Clerk create error: ' + JSON.stringify(created.errors));
+      }
+    } else {
+      clerkUserId = created.id;
+    }
+  } catch (e) {
+    console.error('[autoRegisterWxmpUser] error:', e.message);
+    return { token: `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`, clerkUserId: null };
+  }
+  await env.USER_DATA.put(`wechat_bind:${wxmpUserId}`, clerkUserId);
+  await env.USER_DATA.put(`clerk_to_wxmp:${clerkUserId}`, JSON.stringify({ openid }));
+  await env.USER_DATA.put(`wxmp_registered:${wxmpUserId}`, JSON.stringify({
+    openid, clerk_user_id: clerkUserId, nickname: nickname || '微信用户',
+    created_at: new Date().toISOString(),
+  }));
+  return { token: `${clerkUserId}:${env.WELIAN_SYNC_SECRET}`, clerkUserId };
+}
+
+// Auto-claim invite reward for a newly registered user
+async function claimInviteReward(env, userId, inviteCode) {
+  if (!inviteCode) return;
+  const alreadyInvited = await env.USER_DATA.get(`invited_by:${userId}`);
+  if (alreadyInvited) return;
+  const inviterId = await env.USER_DATA.get(`invite_code_reverse:${inviteCode.toUpperCase()}`);
+  if (!inviterId || inviterId === userId) return;
+  const MAX_INVITES = 50;
+  const inviteListRaw = await env.USER_DATA.get(`invite_list:${inviterId}`);
+  const existingList = inviteListRaw ? JSON.parse(inviteListRaw) : [];
+  if (existingList.length >= MAX_INVITES) return;
+  await env.USER_DATA.put(`invited_by:${userId}`, inviterId);
+  existingList.push({ user_id: userId, date: new Date().toISOString(), rewarded: true });
+  await env.USER_DATA.put(`invite_list:${inviterId}`, JSON.stringify(existingList));
+  const REWARD = 100;
+  const inviterBilling = await getBillingData(env, inviterId);
+  inviterBilling.purchased = (inviterBilling.purchased || 0) + REWARD;
+  inviterBilling.history.push({ date: new Date().toISOString(), action: 'invite_reward', points: REWARD, detail: `邀请好友奖励` });
+  if (inviterBilling.history.length > 100) inviterBilling.history = inviterBilling.history.slice(-100);
+  await saveBillingData(env, inviterId, inviterBilling);
+  const inviteeBilling = await getBillingData(env, userId);
+  inviteeBilling.purchased = (inviteeBilling.purchased || 0) + REWARD;
+  inviteeBilling.history.push({ date: new Date().toISOString(), action: 'invite_bonus', points: REWARD, detail: `受邀注册奖励 (邀请码 ${inviteCode})` });
+  if (inviteeBilling.history.length > 100) inviteeBilling.history = inviteeBilling.history.slice(-100);
+  await saveBillingData(env, userId, inviteeBilling);
 }
 
 async function handleInviteRedeem(req, env) {
@@ -3185,6 +3554,8 @@ intent 说明：
 - help: 帮助
 - update_profile: 更新画像
 
+needs_search: 当用户想了解外部信息（新闻、行业动态、时事、公开人物信息、技术知识等）时设为 true，并在 search_query 中填写适合搜索引擎的查询关键词。关系网络内的数据查询（联系人、待办、互动）不需要搜索。
+
 actions 元素格式：
 - {"type":"add_timeline","contact_name":"人名","summary":"互动摘要","date":"YYYY-MM-DD"}
 - {"type":"add_contact","name":"人名","relation":"关系","notes":"备注"}
@@ -3326,8 +3697,9 @@ actions 元素格式：
             }
           }
           // Default due: 7 days from now if not provided (in user's timezone)
-          let due = action.due || '';
-          if (!due) {
+          // Empty string or null → long-term task (no due)
+          let due = action.due === undefined ? '' : action.due;
+          if (!due && action.due === undefined) {
             const d = localDate(req);
             d.setDate(d.getDate() + 7);
             due = d.toISOString().slice(0, 10);
@@ -3583,6 +3955,23 @@ actions 元素格式：
 
     parsed.action_results = actionResults;
 
+    // Execute web search if needed
+    if (parsed.needs_search && parsed.search_query) {
+      try {
+        const searchResult = await webSearch(parsed.search_query, env, 5);
+        if (searchResult && searchResult.results && searchResult.results.length > 0) {
+          parsed.search_results = searchResult.results.map(r => ({
+            title: r.title || '',
+            snippet: r.snippet || r.content || '',
+            url: r.url || '',
+          }));
+          console.log('[extractIntent] web search done:', parsed.search_query, parsed.search_results.length, 'results');
+        }
+      } catch (e) {
+        console.error('[extractIntent] web search error:', e.message);
+      }
+    }
+
     // Process profile_updates — auto-learn user profile from conversation
     const profileUpdates = parsed.profile_updates;
     if (profileUpdates && typeof profileUpdates === 'object' && Object.keys(profileUpdates).length > 0) {
@@ -3766,9 +4155,36 @@ async function handleImportContacts(req, env) {
   let allContacts = [];
   let totalUsage = null;
 
-  if (isBinary) {
+  // XLSX/XLS: parse with SheetJS → CSV text, then use CSV parsing path (same as Python agent's _xlsx_to_csv)
+  const lowerFilename = (filename || '').toLowerCase();
+  const isXlsx = lowerFilename.endsWith('.xlsx') || lowerFilename.endsWith('.xls');
+  if (isXlsx) {
+    try {
+      const workbook = XLSX.read(bytes, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const csvText = XLSX.utils.sheet_to_csv(sheet);
+      const decoded = '\ufeff' + csvText; // UTF-8 BOM for consistent encoding
+      if (decoded.trim().length < 10) {
+        return { status: 400, data: { error: '文件内容不足' } };
+      }
+      // Use same CSV parsing as text path
+      allContacts = _parseCSV(decoded);
+      console.log('[import] XLSX→CSV parsed:', allContacts.length, 'contacts; first 3:', JSON.stringify(allContacts.slice(0, 3)));
+      if (allContacts.length === 0) {
+        // Fallback: LLM extraction from CSV text
+        const truncated = decoded.length > 100000 ? decoded.slice(0, 100000) + '\n...(已截断)' : decoded;
+        const llmContent = [{ type: 'text', text: truncated }];
+        const result = await _llmExtractContacts(baseUrl, apiKey, model, system, llmContent);
+        if (result.error) return { status: 502, data: { error: result.error } };
+        allContacts = result.contacts;
+        totalUsage = result.usage;
+      }
+    } catch (e) {
+      console.error('[import] XLSX parse failed:', e.message);
+      return { status: 400, data: { error: 'Excel文件解析失败: ' + e.message } };
+    }
+  } else if (isBinary) {
     // Binary file (PDF/image/xlsx/docx) — single LLM call, AI reads natively
-    const lowerFilename = (filename || '').toLowerCase();
     const isImage = isPng || isJpeg || isGif || isBmp || isWebp;
     const docType = isPdf ? 'application/pdf'
       : isPng ? 'image/png'
@@ -4006,6 +4422,7 @@ function _parseCSV(text) {
   }
 
   const headers = parseLine(lines[0]).map(h => h.toLowerCase().replace(/["']/g, '').trim());
+  console.log('[import] CSV headers:', JSON.stringify(headers));
 
   // Map common header names to fields
   const fieldMap = {
@@ -4629,6 +5046,7 @@ function createTimelineEntry(contactId, summary, opts = {}) {
     summary,
     key_points: opts.key_points || [],
     pending: opts.pending || '',
+    source: opts.source || '',
     created: opts.created || now,
   };
 }
@@ -4816,8 +5234,29 @@ async function handleContactsCRUD(req, env, method) {
     const search = url.searchParams.get('q') || '';
     const compact = url.searchParams.get('compact') === '1';
 
+    // Stats-only mode: return nature distribution without full contact list
+    if (url.searchParams.get('stats') === '1') {
+      const natureStats = { leverage: 0, nurture: 0, dual: 0, other: 0 };
+      for (const c of contacts) {
+        const n = (c.nature || '').toLowerCase();
+        if (n === 'leverage') natureStats.leverage++;
+        else if (n === 'nurture') natureStats.nurture++;
+        else if (n === 'dual' || n === '双重') natureStats.dual++;
+        else natureStats.other++;
+      }
+      return { status: 200, data: { total: contacts.length, ...natureStats } };
+    }
+
     // Filter by search first (before slicing)
     let filtered = contacts;
+    const idFilter = url.searchParams.get('id') || '';
+    if (idFilter) {
+      filtered = contacts.filter(c => c.id === idFilter);
+      if (filtered.length === 0) {
+        return { status: 404, data: { error: '联系人不存在' } };
+      }
+      return { status: 200, data: { contact: filtered[0], total: 1 } };
+    }
     if (search) {
       filtered = contacts.filter(c => (c.name || '').includes(search) || (c.aliases || []).some(a => a.includes(search)));
     }
@@ -4836,6 +5275,11 @@ async function handleContactsCRUD(req, env, method) {
       relation: c.relation || '', role: c.role || c.relation || '',
       phone: c.phone || '', email: c.email || '',
       birthday: c.birthday || '',
+      tags: (c.tags || []).slice(0, 5),
+      how: c.how || c.leverage_how || '',
+      bond: c.nurture_bond || c.bond || '',
+      lastContact: c.last_contact || c.lastContact || '',
+      nextDate: c.next_date || c.nextDate || '',
     } : {
       id: c.id, name: c.name, relation: c.relation || '',
       sub_relation: c.sub_relation || '', company: c.company || '',
@@ -4846,6 +5290,8 @@ async function handleContactsCRUD(req, env, method) {
       snooze_until: c.snooze_until || '',
       phone: c.phone || '',
       email: c.email || '',
+      wechat: c.wechat || '',
+      notes: c.notes || '',
       leverage: c.leverage || null,
       nurture: c.nurture || null,
       important_dates: c.important_dates || [],
@@ -5679,14 +6125,34 @@ async function handleProfile(req, env, method) {
 
   if (method === 'GET') {
     const raw = await env.USER_DATA.get(`profile:${userId}`);
-    if (!raw) {
-      return { status: 200, data: { profile: null } };
+    let profile = null;
+    if (raw) {
+      try { profile = JSON.parse(raw); } catch {}
     }
-    try {
-      return { status: 200, data: { profile: JSON.parse(raw) } };
-    } catch {
-      return { status: 200, data: { profile: null } };
+    // Fallback: if profile has no name, try wxmp_registered nickname
+    if (!profile || !profile.name) {
+      if (userId.startsWith('wxmp_')) {
+        try {
+          const reg = await env.USER_DATA.get(`wxmp_registered:${userId}`);
+          if (reg) {
+            const nick = JSON.parse(reg).nickname;
+            if (nick && nick !== '微信用户') {
+              profile = profile || {};
+              if (!profile.name) profile.name = nick;
+            }
+          }
+        } catch {}
+      } else if (userId.startsWith('user_')) {
+        try {
+          const info = await getClerkUserInfo(userId, env);
+          if (info && info.name) {
+            profile = profile || {};
+            if (!profile.name) profile.name = info.name;
+          }
+        } catch {}
+      }
     }
+    return { status: 200, data: { profile } };
   }
 
   if (method === 'POST') {
@@ -6019,6 +6485,24 @@ async function handleTodosCRUD(req, env, method, path) {
     todos[idx].done = true;
     todos[idx].completed_at = new Date().toISOString();
     await saveDataset(env, userId, 'todos', todos);
+
+    // Auto-create timeline entry when todo is linked to a contact.
+    // "完成待办" = "和联系人互动了一次"。Dedup by source to avoid duplicates on repeated calls.
+    const todo = todos[idx];
+    if (todo.contact) {
+      const timeline = await loadDataset(env, userId, 'timeline');
+      const dedupKey = `todo:${todoId}`;
+      const exists = timeline.some(t => t.source === dedupKey);
+      if (!exists) {
+        const entry = createTimelineEntry(todo.contact, `完成了：${todo.task}`, {
+          type: 'todo_completed',
+          source: dedupKey,
+        });
+        timeline.push(entry);
+        await saveDataset(env, userId, 'timeline', timeline);
+      }
+    }
+
     return { status: 200, data: { ok: true } };
   }
 
@@ -6099,9 +6583,9 @@ async function handleTodosCRUD(req, env, method, path) {
 
     // Dedup: check if same task + contact already pending
     const contactId = body.contact_id || body.contact || '';
-    // Default due: 7 days from now if not provided
-    let due = body.due || '';
-    if (!due) {
+    // Due date: undefined → default 7 days; '' or null → long-term task (no due)
+    let due = body.due === undefined ? '' : body.due;
+    if (!due && body.due === undefined) {
       const d = new Date();
       d.setDate(d.getDate() + 7);
       due = d.toISOString().slice(0, 10);
@@ -6154,7 +6638,491 @@ export default {
     }
 
     // ── WebSocket upgrade for mini program chat ──
-    if (path === '/ai/wxmp_chat_ws' && request.headers.get('Upgrade') === 'websocket') {
+
+    // 意图路由器：正则快匹配，命中则直接执行，不调 LLM
+    // 返回 { handled: true, response: {...} } 或 { handled: false }
+    async function chatCommandRouter(message, userId, env) {
+      const text = (message || '').trim();
+      if (!text) return { handled: false };
+
+      // ── 批量导入联系人 ──
+      if (/^(?:批量导入|导入联系人|批量添加|批量添加联系人)$/.test(text)) {
+        return { handled: true, response: { type: 'text', text: '请直接粘贴联系人名单，每行一个，格式：\n姓名 公司 职位（公司和职位可选）\n\n例如：\n张三 腾讯 产品总监\n李四 红杉资本 投资VP\n王五' }, suggestions: ['查待办', '记互动'] };
+      }
+
+      // ── 批量导入：检测多行联系人格式 ──
+      const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+      if (lines.length >= 3 && /^(批量导入|导入联系人)/.test(lines[0])) {
+        const contactLines = lines.slice(1);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const existingNames = new Set(contacts.map(c => c.name));
+        let newCount = 0, dupCount = 0;
+        const now = new Date().toISOString();
+        const imported = [];
+        for (const line of contactLines) {
+          const parts = line.split(/\s+/);
+          const name = parts[0];
+          if (!name || name.length > 20) continue;
+          if (existingNames.has(name)) { dupCount++; continue; }
+          const company = parts[1] || '';
+          const title = parts[2] || '';
+          const id = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          contacts.push({
+            id, name, nickname: '', company, title, phone: '', email: '',
+            relationship: 'acquaintance', tags: ['批量导入'],
+            last_contact: '', created: now, updated: now,
+          });
+          existingNames.add(name);
+          imported.push(name);
+          newCount++;
+        }
+        if (newCount > 0) await saveDataset(env, userId, 'contacts', contacts);
+        return { handled: true, response: { type: 'text', text: `已导入 ${newCount} 位联系人${dupCount > 0 ? `，${dupCount} 位已存在跳过` : ''}${imported.length > 0 ? `\n\n新增：${imported.slice(0, 10).join('、')}${imported.length > 10 ? ` 等${imported.length}人` : ''}` : ''}` }, suggestions: ['查待办', '记互动', '写消息'] };
+      }
+
+      // ── 帮助 ──
+      if (/^(帮助|help|功能|能做什么|怎么用)$/.test(text)) {
+        return { handled: true, response: { type: 'card', text: '我能帮你做这些：', card: { title: '小维能做什么', items: [
+          { label: '记互动', value: '和XX聊了合作 / 记个互动 XX 见面' },
+          { label: '查待办', value: '查看待办 / 查待办' },
+          { label: '加待办', value: '提醒我下周联系XX / 待办跟进XX' },
+          { label: '写消息', value: '帮我给XX写个问候消息 / 写跟进消息' },
+          { label: '查联系人', value: '找XX的联系人 / 搜索XX' },
+          { label: '见面功课', value: '明天见XX 帮我做功课' },
+          { label: '看周报', value: '周报 / 生成周报' },
+          { label: '导出PDF', value: '生成XX报告PDF / 导出XX研究PDF' },
+          { label: '导入联系人', value: '批量导入 / 截图通讯录上传' },
+          { label: '查套餐', value: '查看套餐 / 我的额度' },
+          { label: '升级套餐', value: '升级Pro / 升级专业版 / 加油包' },
+          { label: '兑换码', value: '兑换 XXXX' },
+          { label: '用量记录', value: '用量记录' },
+          { label: '页面跳转', value: '打开待办 / 去关系 / 看周报' },
+        ] }, suggestions: ['查待办', '记互动', '写消息'] } };
+      }
+
+      // ── 支付开关 ──
+      if (/^(打开|开启|启用|开通)(支付|充值)$/.test(text)) {
+        return { handled: true, response: { type: 'text', text: '支付功能已开启 ✅\n\n现在可以在「我的」页面管理套餐和充值了。', action: { setStorage: { key: 'welian_billing_enabled', value: true } }, suggestions: ['关闭支付', '去待办'] } };
+      }
+      if (/^(关闭|禁用)(支付|充值)$/.test(text)) {
+        return { handled: true, response: { type: 'text', text: '支付功能已关闭。', action: { setStorage: { key: 'welian_billing_enabled', value: false } }, suggestions: ['打开支付', '去待办'] } };
+      }
+
+      // ── 页面导航 ──
+      const navMatch = text.match(/^(?:打开|去|看看|查看)(待办|关系|概览|会议|今日信号|信号|周报|月报|个人画像|互动记录)$/);
+      if (navMatch) {
+        const navMap = {
+          '待办': { url: '/pages/todos/todos', tab: true },
+          '关系': { url: '/pages/contacts/contacts', tab: true },
+          '概览': { url: '/pages/dashboard/dashboard', tab: true },
+          '会议': { url: '/pages/meetings/meetings', tab: false },
+          '今日信号': { url: '/pages/signals/signals', tab: false },
+          '信号': { url: '/pages/signals/signals', tab: false },
+          '周报': { url: '/pages/weekly/weekly', tab: false },
+          '月报': { url: '/pages/monthly/monthly', tab: false },
+          '个人画像': { url: '/pages/profile/profile', tab: false },
+          '互动记录': { url: '/pages/timeline/timeline', tab: false },
+        };
+        const nav = navMap[navMatch[1]];
+        return { handled: true, response: { type: 'navigate', text: `正在打开${navMatch[1]}…`, navigate: nav, suggestions: ['回到对话'] } };
+      }
+
+      // ── 创建待办 ──
+      let m = text.match(/^(?:提醒我|帮我记一下|记一下|待办|加个待办)\s*(.+)/);
+      if (m) {
+        const todo = parseTodoFromText(m[1]);
+        const contacts = await loadDataset(env, userId, 'contacts');
+        let contactId = '';
+        if (todo.contactName) {
+          const c = contacts.find(c => c.name.includes(todo.contactName) || (c.aliases || []).some(a => a.includes(todo.contactName)));
+          if (c) contactId = c.id;
+        }
+        const todos = await loadDataset(env, userId, 'todos');
+        const newTodo = createTodo(contactId, todo.task, { priority: todo.priority, due: todo.date || undefined, source: 'chat_command' });
+        todos.push(newTodo);
+        await saveDataset(env, userId, 'todos', todos);
+        return { handled: true, response: { type: 'card', text: '待办已创建 ✅', card: { title: '✅ 待办已创建', items: [
+          { label: '📋', value: todo.task },
+          ...(todo.contactName ? [{ label: '👤', value: todo.contactName }] : []),
+          ...(todo.date ? [{ label: '📅', value: todo.date }] : []),
+          { label: '🔴', value: todo.priority },
+        ] }, suggestions: ['推迟3天', '查看待办'] } };
+      }
+
+      // ── 记录互动 ──
+      m = text.match(/^(?:今天|刚|昨天|前天)?\s*(?:和|跟)\s*(.+?)\s*(.+)/);
+      if (m && /见|聊|吃|喝|谈|开|碰|聚|通|约|碰面|见面|沟通|交流|讨论/.test(m[2])) {
+        const contactName = m[1].trim();
+        const summary = m[2].trim();
+        const result = await addTimelineByName(env, userId, contactName, summary);
+        return { handled: true, response: { type: 'card', text: result.ok ? '互动已记录 ✅' : result.error, card: result.ok ? { title: '✅ 互动已记录', items: [
+          { label: '👤', value: contactName },
+          { label: '📝', value: summary },
+          { label: '📅', value: new Date().toISOString().slice(0, 10) },
+        ] } : null, suggestions: result.ok ? ['写跟进消息', '加待办'] : ['记个互动'] } };
+      }
+      m = text.match(/^记(?:个)?互动\s+(.+?)\s+(.+)/);
+      if (m) {
+        const contactName = m[1].trim();
+        const summary = m[2].trim();
+        const result = await addTimelineByName(env, userId, contactName, summary);
+        return { handled: true, response: { type: 'card', text: result.ok ? '互动已记录 ✅' : result.error, card: result.ok ? { title: '✅ 互动已记录', items: [
+          { label: '👤', value: contactName },
+          { label: '📝', value: summary },
+          { label: '📅', value: new Date().toISOString().slice(0, 10) },
+        ] } : null, suggestions: result.ok ? ['写跟进消息', '加待办'] : ['记个互动'] } };
+      }
+
+      // ── 联系人搜索 ──
+      m = text.match(/^(?:找|搜索|搜|查看|看)\s*(.+?)\s*(?:的)?\s*联系人$/);
+      if (m) {
+        const keyword = m[1];
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const matched = contacts.filter(c => (c.name || '').includes(keyword) || (c.company || '').includes(keyword) || (c.aliases || []).some(a => a.includes(keyword)));
+        if (matched.length > 0) {
+          return { handled: true, response: { type: 'card', text: `找到 ${matched.length} 位联系人`, card: { title: `找到 ${matched.length} 位联系人`, items: matched.slice(0, 10).map(c => ({ label: c.name, value: c.company ? `${c.company}${c.title ? ' · ' + c.title : ''}` : '' })) }, suggestions: ['撬动型有哪些', '维系型有哪些'] } };
+        }
+        return { handled: true, response: { type: 'text', text: `没有找到包含"${keyword}"的联系人。`, suggestions: ['查看所有联系人'] } };
+      }
+
+      // ── 类型筛选 ──
+      m = text.match(/^(撬动型|维系型|双重)(?:的)?(?:联系人|有哪些|列表|都有谁)$/);
+      if (m) {
+        const natureLabel = m[1];
+        const natureKey = natureLabel === '撬动型' ? 'leverage' : (natureLabel === '维系型' ? 'nurture' : 'dual');
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const filtered = contacts.filter(c => c.nature === natureKey || (natureLabel === '撬动型' && c.nature === 'dual') || (natureLabel === '维系型' && c.nature === 'dual'));
+        if (filtered.length > 0) {
+          return { handled: true, response: { type: 'card', text: `${natureLabel}联系人共 ${filtered.length} 位`, card: { title: `${natureLabel}联系人（${filtered.length}位）`, items: filtered.slice(0, 10).map(c => ({ label: c.name, value: c.company ? `${c.company}${c.title ? ' · ' + c.title : ''}` : '' })) }, suggestions: ['找腾讯的联系人', '去关系'] } };
+        }
+        return { handled: true, response: { type: 'text', text: `没有${natureLabel}联系人。`, suggestions: ['查看所有联系人'] } };
+      }
+
+      // ── 创建会议 ──
+      m = text.match(/^(?:安排|创建|新建|加个)?会议\s*[：:]\s*(.+)/);
+      if (m) {
+        const meeting = parseMeetingFromText(m[1]);
+        const meetings = await loadDataset(env, userId, 'meetings');
+        const id = `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const newMeeting = { id, title: meeting.title, date: meeting.date || new Date().toISOString().slice(0, 10), location: meeting.location || '', purpose: meeting.purpose || '', status: 'planned', attendees: [], agenda: [], photos: [], created: new Date().toISOString() };
+        meetings.push(newMeeting);
+        await saveDataset(env, userId, 'meetings', meetings);
+        return { handled: true, response: { type: 'card', text: '会议已创建 ✅', card: { title: '✅ 会议已创建', items: [
+          { label: '📋', value: meeting.title },
+          ...(meeting.date ? [{ label: '📅', value: meeting.date }] : []),
+          ...(meeting.location ? [{ label: '📍', value: meeting.location }] : []),
+        ] }, suggestions: ['打开会议', '加参会人'] } };
+      }
+
+      // ── 编辑联系人 ──
+      m = text.match(/^把(.+?)的(公司|职位|关系|电话|邮箱|标签|备注)改成(.+)$/);
+      if (m) {
+        const name = m[1].trim();
+        const fieldLabel = m[2];
+        const value = m[3].trim();
+        const fieldMap = { '公司': 'company', '职位': 'title', '关系': 'relation', '电话': 'phone', '邮箱': 'email', '标签': 'tags', '备注': 'notes' };
+        const fieldKey = fieldMap[fieldLabel];
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const c = contacts.find(c => c.name.includes(name) || (c.aliases || []).some(a => a.includes(name)));
+        if (c) {
+          if (fieldKey === 'tags') {
+            c.tags = value.split(/[,，、]/).map(t => t.trim()).filter(Boolean);
+          } else {
+            c[fieldKey] = value;
+          }
+          c.updated = new Date().toISOString();
+          await saveDataset(env, userId, 'contacts', contacts);
+          return { handled: true, response: { type: 'text', text: `已更新 ✅\n\n👤 ${c.name} 的${fieldLabel}已改为：${value}`, suggestions: [`把${c.name}的备注改成`, `去${c.name}的详情`] } };
+        }
+        return { handled: true, response: { type: 'text', text: `没有找到"${name}"。`, suggestions: ['查看所有联系人'] } };
+      }
+
+      // ── 推迟待办 ──
+      m = text.match(/^(?:推迟|延后|延期)\s*(.+?)\s*(\d+)\s*天/);
+      if (m) {
+        const keyword = m[1].trim();
+        const days = parseInt(m[2]);
+        const todos = await loadDataset(env, userId, 'todos');
+        const todo = todos.find(t => t.status === 'pending' && (t.task || '').includes(keyword));
+        if (todo) {
+          const d = new Date();
+          d.setDate(d.getDate() + days);
+          todo.due = d.toISOString().slice(0, 10);
+          todo.postponed = (todo.postponed || 0) + 1;
+          todo.updated = new Date().toISOString();
+          await saveDataset(env, userId, 'todos', todos);
+          return { handled: true, response: { type: 'text', text: `已推迟 ✅\n\n📋 ${todo.task}\n📅 推迟 ${days} 天`, suggestions: ['查看待办', '完成' + keyword] } };
+        }
+        return { handled: true, response: { type: 'text', text: `没有找到包含"${keyword}"的待办。`, suggestions: ['查看待办'] } };
+      }
+
+      // ── 编辑个人画像 ──
+      m = text.match(/^我的(关注领域|职业|公司|行业|所在地|沟通风格|地址习惯|语气偏好|职业目标|当前项目|社交方向)改成(.+)$/);
+      if (m) {
+        const fieldLabel = m[1];
+        const value = m[2].trim();
+        const fieldMap = { '关注领域': 'focus_areas', '职业': 'occupation', '公司': 'company', '行业': 'industry', '所在地': 'location', '沟通风格': 'communication_style', '地址习惯': 'address_habit', '语气偏好': 'message_tone', '职业目标': 'career_goal', '当前项目': 'current_projects', '社交方向': 'network_direction' };
+        const fieldKey = fieldMap[fieldLabel];
+        const raw = await env.USER_DATA.get(`profile:${userId}`);
+        const profile = raw ? JSON.parse(raw) : {};
+        profile[fieldKey] = value;
+        profile.updated = new Date().toISOString();
+        await env.USER_DATA.put(`profile:${userId}`, JSON.stringify(profile));
+        return { handled: true, response: { type: 'text', text: `已更新 ✅\n\n你的${fieldLabel}已改为：${value}`, suggestions: ['打开个人画像'] } };
+      }
+
+      // ── 生成周报 ──
+      if (/^(这周|本周)?周报$|^(?:生成|看)(?:本周|这周)?周报$/.test(text)) {
+        return { handled: false, passToLLM: true, hint: 'weekly_report' };
+      }
+
+      // ── 导出 PDF ──
+      if (/^(?:导出|生成|下载|做).*(?:pdf|PDF)$|^(?:.+)(?:pdf|PDF)$/i.test(text) && !/^(周报|月报|信号)$/.test(text)) {
+        const title = text.replace(/^(?:导出|生成|下载|做)\s*/, '').replace(/(?:pdf|PDF)$/i, '').replace(/报告$/, '').trim() || '研究报告';
+        return { handled: false, passToLLM: true, hint: 'generate_pdf', pdf_title: title };
+      }
+
+      // ── 套餐与支付 ──
+      if (/^(查看|看看|我的)(套餐|额度|余额|联点|用量)$/.test(text) || text === '套餐' || text === '额度') {
+        const billing = await getBillingData(env, userId);
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        if (billing.monthKey !== monthKey) { billing.monthKey = monthKey; billing.used = 0; }
+        const remaining = await getRemaining(billing, env);
+        const allowance = await getMonthlyAllowance(billing.plan, env);
+        const planLabel = billing.plan === 'professional' ? '专业版' : billing.plan === 'pro' ? 'Pro' : 'Free';
+        const upgradeSuggestions = billing.plan === 'professional' ? ['买加油包', '用量记录', '兑换码'] : billing.plan === 'pro' ? ['升级专业版', '买加油包', '用量记录', '兑换码'] : ['升级Pro', '升级专业版', '买加油包', '用量记录'];
+        return { handled: true, response: { type: 'card', text: `你的套餐：${planLabel}\n剩余联点：${remaining.toFixed(0)}/${allowance.toFixed(0)}`, card: { title: `${planLabel} 套餐`, fields: [
+          { label: '剩余联点', value: remaining.toFixed(0) },
+          { label: '月度配额', value: allowance.toFixed(0) },
+          { label: '本月已用', value: billing.used.toFixed(1) },
+          { label: '已购买', value: (billing.purchased || 0).toFixed(0) },
+          ...(billing.subscription ? [{ label: '订阅到期', value: billing.subscription.expire?.slice(0,10) || '' }] : []),
+        ] }, suggestions: upgradeSuggestions } };
+      }
+
+      // 升级专业版
+      if (/^(升级|开通)(专业版|professional)(月度|年度)?$/.test(text) || /^(升级|开通)专业版月度$/.test(text) || /^(升级|开通)专业版年度$/.test(text)) {
+        const isYearly = /年度|yearly/i.test(text);
+        const product = isYearly ? 'professional_yearly' : 'professional_monthly';
+        const price = isYearly ? '¥299/年' : '¥29.9/月';
+        const desc = isYearly ? '1500点/月 · 省17%' : '1500点/月';
+        return { handled: true, response: { type: 'card', text: `专业版 ${isYearly ? '年度' : '月度'}套餐\n${desc} · ${price}\n\n确认升级将调起微信支付。`, card: { title: `专业版 ${isYearly ? '年度' : '月度'}`, fields: [
+          { label: '价格', value: price },
+          { label: '额度', value: '1500联点/月' },
+          { label: '功能', value: '高级模型×1+感知层+优先支持' },
+        ] }, action: { pay_product: product }, suggestions: ['确认升级', '取消'] } };
+      }
+
+      if (/^(升级|开通)(pro|Pro|月度|年度)$/.test(text) || /^(升级|开通)Pro月度$/.test(text) || /^(升级|开通)Pro年度$/.test(text)) {
+        const isYearly = /年度|yearly/i.test(text);
+        const product = isYearly ? 'pro_yearly' : 'pro_monthly';
+        const price = isYearly ? '¥99/年' : '¥9.9/月';
+        const desc = isYearly ? '500点/月 · 省17%' : '500点/月';
+        return { handled: true, response: { type: 'card', text: `Pro ${isYearly ? '年度' : '月度'}套餐\n${desc} · ${price}\n\n确认升级将调起微信支付。`, card: { title: `Pro ${isYearly ? '年度' : '月度'}`, fields: [
+          { label: '价格', value: price },
+          { label: '额度', value: '500联点/月' },
+          { label: '功能', value: '建议引擎+智能拟稿+年度报告' },
+        ] }, action: { pay_product: product }, suggestions: ['确认升级', '取消'] } };
+      }
+
+      if (/^(买|购买|充值)(加油包|联点|100|500)$/.test(text) || text === '加油包') {
+        return { handled: true, response: { type: 'card', text: '选择加油包：', card: { title: '加油包', items: [
+          { label: '100 联点包', value: '¥1.99' },
+          { label: '500 联点包', value: '¥7.99 · 省20%' },
+        ] }, suggestions: ['买100联点', '买500联点', '取消'] } };
+      }
+      if (/^买100联点$/.test(text) || /^购买100$/.test(text)) {
+        return { handled: true, response: { type: 'text', text: '100联点包 ¥1.99\n\n确认购买将调起微信支付。', action: { pay_product: 'credits_100' }, suggestions: ['确认购买', '取消'] } };
+      }
+      if (/^买500联点$/.test(text) || /^购买500$/.test(text)) {
+        return { handled: true, response: { type: 'text', text: '500联点包 ¥7.99（省20%）\n\n确认购买将调起微信支付。', action: { pay_product: 'credits_500' }, suggestions: ['确认购买', '取消'] } };
+      }
+
+      // 确认支付
+      if (text === '确认升级' || text === '确认购买') {
+        // 需要从上下文获取 product — 用 session 级临时存储
+        // chatCommandRouter 无法访问 session，通过 KV 临时存储
+        const productKey = `pay_pending:${userId}`;
+        const product = await env.USER_DATA.get(productKey);
+        if (!product) {
+          return { handled: true, response: { type: 'text', text: '请先选择要购买的商品。', suggestions: ['查看套餐', '升级Pro', '升级专业版', '加油包'] } };
+        }
+        // 创建订单
+        const fakeReq = { json: async () => ({ product }), headers: { get: () => `Bearer ${userId}:dummy` } };
+        // 直接调内部逻辑
+        const products = getWxmpPayProducts();
+        const prod = products[product];
+        if (!prod) return { handled: true, response: { type: 'text', text: '商品不存在。' } };
+
+        const mchId = env.WXMP_MCH_ID;
+        const mchKey = env.WXMP_MCH_KEY;
+        const appId = env.WXMP_APP_ID || env.WECHAT_APP_ID;
+        if (!mchId || !mchKey || !appId) {
+          return { handled: true, response: { type: 'text', text: '支付功能暂未配置。' } };
+        }
+
+        let openid = null;
+        if (userId.startsWith('wxmp_')) {
+          openid = userId.substring(5);
+        } else {
+          const wxmpData = await env.USER_DATA.get(`clerk_to_wxmp:${userId}`);
+          if (wxmpData) openid = JSON.parse(wxmpData).openid;
+        }
+        if (!openid) {
+          return { handled: true, response: { type: 'text', text: '需要小程序用户身份才能支付。' } };
+        }
+
+        const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const nonceStr = genNonce();
+        const order = { order_id: orderId, user_id: userId, type: prod.type, id: prod.id, amount: prod.amount_cents / 100, amount_cents: prod.amount_cents, status: 'pending', product, created_at: new Date().toISOString(), confirmed_at: null };
+        await env.USER_DATA.put(`order:${orderId}`, JSON.stringify(order));
+        const userOrdersRaw = await env.USER_DATA.get(`orders:${userId}`) || '[]';
+        const userOrders = JSON.parse(userOrdersRaw);
+        userOrders.push(orderId);
+        await env.USER_DATA.put(`orders:${userId}`, JSON.stringify(userOrders.slice(-50)));
+
+        const notifyUrl = `https://api.welian.app/ai/wxmp_pay/notify`;
+        const unifiedParams = { appid: appId, mch_id: mchId, nonce_str: nonceStr, body: `Welian ${prod.name}`, out_trade_no: orderId, total_fee: prod.amount_cents, spbill_create_ip: '127.0.0.1', notify_url: notifyUrl, trade_type: 'JSAPI', openid: openid };
+        const signStr = buildSignString(unifiedParams) + `&key=${mchKey}`;
+        unifiedParams.sign = md5Hex(signStr).toUpperCase();
+        const xml = '<xml>' + Object.entries(unifiedParams).map(([k, v]) => `<${k}>${v}</${k}>`).join('') + '</xml>';
+
+        try {
+          const wxResp = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', { method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml });
+          const wxText = await wxResp.text();
+          const returnCodeMatch = wxText.match(/<return_code><!\[CDATA\[(.+?)\]\]><\/return_code>/) || wxText.match(/<return_code>(.+?)<\/return_code>/);
+          const resultCodeMatch = wxText.match(/<result_code><!\[CDATA\[(.+?)\]\]><\/result_code>/) || wxText.match(/<result_code>(.+?)<\/result_code>/);
+          const prepayIdMatch = wxText.match(/<prepay_id><!\[CDATA\[(.+?)\]\]><\/prepay_id>/) || wxText.match(/<prepay_id>(.+?)<\/prepay_id>/);
+          if (returnCodeMatch && returnCodeMatch[1] === 'SUCCESS' && resultCodeMatch && resultCodeMatch[1] === 'SUCCESS' && prepayIdMatch) {
+            const prepayId = prepayIdMatch[1];
+            const timeStamp = String(Math.floor(Date.now() / 1000));
+            const payNonceStr = genNonce();
+            const packageStr = `prepay_id=${prepayId}`;
+            const paySignParams = { appId, timeStamp, nonceStr: payNonceStr, package: packageStr, signType: 'MD5' };
+            const paySignStr = buildSignString(paySignParams) + `&key=${mchKey}`;
+            const paySign = md5Hex(paySignStr).toUpperCase();
+            await env.USER_DATA.delete(productKey);
+            return { handled: true, response: { type: 'text', text: '正在调起微信支付…', action: { pay: { timeStamp, nonceStr: payNonceStr, package: packageStr, signType: 'MD5', paySign, orderId } }, suggestions: ['查看套餐'] } };
+          } else {
+            const errMsgMatch = wxText.match(/<err_code_des><!\[CDATA\[(.+?)\]\]><\/err_code_des>/) || wxText.match(/<err_code_des>(.+?)<\/err_code_des>/);
+            console.error('[pay_cmd] unified order failed:', wxText);
+            return { handled: true, response: { type: 'text', text: `支付订单创建失败：${errMsgMatch ? errMsgMatch[1] : '未知错误'}` } };
+          }
+        } catch (e) {
+          console.error('[pay_cmd] fetch error:', e.message);
+          return { handled: true, response: { type: 'text', text: '支付请求失败，请重试。' } };
+        }
+      }
+
+      // 兑换码
+      m = text.match(/^(?:兑换|兑换码)\s*(.+)/);
+      if (m) {
+        const code = m[1].trim().toUpperCase();
+        const raw = await env.USER_DATA.get(`coupon:${code}`);
+        if (!raw) return { handled: true, response: { type: 'text', text: `兑换码 ${code} 无效或已使用。`, suggestions: ['查看套餐'] } };
+        const coupon = JSON.parse(raw);
+        if (coupon.used) return { handled: true, response: { type: 'text', text: `兑换码 ${code} 已被使用。` } };
+        coupon.used = true; coupon.redeemed_by = userId; coupon.redeemed_at = new Date().toISOString();
+        await env.USER_DATA.put(`coupon:${code}`, JSON.stringify(coupon), { expirationTtl: 2592000 });
+        const billing = await getBillingData(env, userId);
+        billing.purchased = (billing.purchased || 0) + coupon.points;
+        billing.history.push({ date: new Date().toISOString(), action: 'coupon', points: coupon.points, detail: `奖券兑换 ${code}` });
+        if (billing.history.length > 100) billing.history = billing.history.slice(-100);
+        await saveBillingData(env, userId, billing);
+        const remaining = await getRemaining(billing, env);
+        return { handled: true, response: { type: 'text', text: `✅ 兑换成功！获得 ${coupon.points} 联点。\n当前余额：${remaining.toFixed(0)} 联点。`, suggestions: ['查看套餐', '查待办'] } };
+      }
+
+      // 用量记录
+      if (/^(用量|使用)记录$/.test(text) || text === '用量历史') {
+        const billing = await getBillingData(env, userId);
+        const history = (billing.history || []).slice(-10).reverse();
+        if (history.length === 0) {
+          return { handled: true, response: { type: 'text', text: '暂无用量记录。', suggestions: ['查看套餐'] } };
+        }
+        const actionMap = { upgrade: '升级', purchase: '购买', coupon: '兑换', usage: '使用', chat: '对话', gift_out: '赠出', gift_in: '收到赠予' };
+        return { handled: true, response: { type: 'card', text: '最近用量记录：', card: { title: '用量记录', items: history.map(h => ({ label: `${(actionMap[h.action] || h.action)} · ${h.date?.slice(5,10) || ''}`, value: h.points > 0 ? `+${h.points}` : (h.points < 0 ? `${h.points}` : '') })) }, suggestions: ['查看套餐', '查待办'] } };
+      }
+
+      return { handled: false };
+    }
+
+    // 辅助：从名字添加互动记录
+    async function addTimelineByName(env, userId, contactName, summary) {
+      const contacts = await loadDataset(env, userId, 'contacts');
+      const c = contacts.find(c => c.name.includes(contactName) || (c.aliases || []).some(a => a.includes(contactName)));
+      if (!c) return { ok: false, error: `未找到联系人"${contactName}"` };
+      const timeline = await loadDataset(env, userId, 'timeline');
+      const entry = createTimelineEntry(c.id, summary, { date: new Date().toISOString().slice(0, 10) });
+      timeline.push(entry);
+      await saveDataset(env, userId, 'timeline', timeline);
+      return { ok: true, entry };
+    }
+
+    // 辅助：从自然语言解析待办
+    function parseTodoFromText(text) {
+      let task = text, contactName = '', priority = 'P2', date = '';
+      const m1 = text.match(/(?:和|联系|找|约|见)\s*([\u4e00-\u9fa5]{2,4})/);
+      if (m1) contactName = m1[1];
+      if (/P1|紧急|急/.test(text)) priority = 'P1';
+      else if (/P3|不急/.test(text)) priority = 'P3';
+      const today = new Date();
+      if (/今天/.test(text)) date = today.toISOString().slice(0, 10);
+      else if (/明天/.test(text)) { const t = new Date(today); t.setDate(t.getDate() + 1); date = t.toISOString().slice(0, 10); }
+      else if (/后天/.test(text)) { const t = new Date(today); t.setDate(t.getDate() + 2); date = t.toISOString().slice(0, 10); }
+      else if (/下周(一|二|三|四|五|六|天|日)/.test(text)) {
+        const dm = text.match(/下周(一|二|三|四|五|六|天|日)/);
+        const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '天': 0, '日': 0 };
+        const t = new Date(today);
+        const diff = (dayMap[dm[1]] - t.getDay() + 7) % 7 || 7;
+        t.setDate(t.getDate() + diff); date = t.toISOString().slice(0, 10);
+      } else if (/周(一|二|三|四|五|六|天|日)/.test(text)) {
+        const dm = text.match(/周(一|二|三|四|五|六|天|日)/);
+        const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '天': 0, '日': 0 };
+        const t = new Date(today);
+        let diff = dayMap[dm[1]] - t.getDay(); if (diff <= 0) diff += 7;
+        t.setDate(t.getDate() + diff); date = t.toISOString().slice(0, 10);
+      } else {
+        const dm = text.match(/(\d{1,2})月(\d{1,2})[日号]/);
+        if (dm) date = `${today.getFullYear()}-${dm[1].padStart(2, '0')}-${dm[2].padStart(2, '0')}`;
+      }
+      return { task, contactName, priority, date };
+    }
+
+    // 辅助：从自然语言解析会议
+    function parseMeetingFromText(text) {
+      let title = text, date = '', location = '';
+      const today = new Date();
+      if (/明天/.test(text)) { const t = new Date(today); t.setDate(t.getDate() + 1); date = t.toISOString().slice(0, 10); }
+      else if (/后天/.test(text)) { const t = new Date(today); t.setDate(t.getDate() + 2); date = t.toISOString().slice(0, 10); }
+      else if (/下周(一|二|三|四|五|六|天|日)/.test(text)) {
+        const dm = text.match(/下周(一|二|三|四|五|六|天|日)/);
+        const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '天': 0, '日': 0 };
+        const t = new Date(today);
+        const diff = (dayMap[dm[1]] - t.getDay() + 7) % 7 || 7;
+        t.setDate(t.getDate() + diff); date = t.toISOString().slice(0, 10);
+      } else if (/周(一|二|三|四|五|六|天|日)/.test(text)) {
+        const dm = text.match(/周(一|二|三|四|五|六|天|日)/);
+        const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '天': 0, '日': 0 };
+        const t = new Date(today);
+        let diff = dayMap[dm[1]] - t.getDay(); if (diff <= 0) diff += 7;
+        t.setDate(t.getDate() + diff); date = t.toISOString().slice(0, 10);
+      }
+      const m = text.match(/在(.+?)(?:开|讨论|聊|碰|见|review|复盘)/);
+      if (m) location = m[1].trim();
+      title = text.replace(/下周[一二三四五六天日]|周[一二三四五六天日]|明天|后天|上午\d+点|下午\d+点|\d+点\d*分?|在/g, '').trim() || text;
+      return { title, date, location };
+    }
+
+    if (path === '/data/sync_ws' && request.headers.get('Upgrade') === 'websocket') {
+      if (env.CHAT_ENABLED === 'false') {
+        const pair = new WebSocketPair();
+        pair[1].accept();
+        pair[1].send(JSON.stringify({ type: 'error', code: 'CHAT_DISABLED' }));
+        pair[1].close();
+        return new Response(null, { status: 101, webSocket: pair[0] });
+      }
       const token = url.searchParams.get('token');
       if (!token) return new Response('Missing token', { status: 401 });
 
@@ -6178,16 +7146,156 @@ export default {
       const server = pair[1];
       server.accept();
 
+      // 会话状态：后端维护对话历史和组件列表
+      const session = {
+        userId,
+        syncToken: token,  // 保存 token 供 PDF 下载 URL 使用
+        history: [],   // { role, content }
+        components: [], // 当前渲染的组件
+      };
+
+      // 构建渲染指令并推送
+      function pushRender() {
+        server.send(JSON.stringify({
+          type: 'render',
+          page: { components: session.components },
+        }));
+      }
+
+      // 从 KV 加载历史对话组件
+      const CHAT_HISTORY_KEY = `chat_history:${userId}`;
+      try {
+        const saved = await env.USER_DATA.get(CHAT_HISTORY_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed.components) && parsed.components.length > 0) {
+            // 恢复历史组件，移除旧的 input/buttons（会在底部重新添加）
+            session.components = parsed.components.filter(c => c.type !== 'input' && c.type !== 'buttons');
+            session.history = parsed.history || [];
+            // 在底部加 input + suggestions
+            session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+            session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动', '写消息'] });
+          }
+        }
+      } catch (e) {
+        console.error('[sync_ws] load history error:', e.message);
+      }
+
+      // 如果没有历史，发送初始页面
+      if (session.components.length === 0) {
+        session.components = [
+          { id: 'welcome', type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '你好，我是小维 🌱\n可以帮你记互动、查待办、建议联系谁、拟写消息。\n有什么我能帮忙的？' },
+          { id: 'input', type: 'input', placeholder: '和小维说点什么…' },
+          { id: 'suggestions', type: 'buttons', items: ['查待办', '记互动', '写消息'] },
+        ];
+      }
+      pushRender();
+
+      // 保存对话历史到 KV（去掉 input/buttons 等临时组件，只保留对话内容）
+      async function saveChatHistory() {
+        try {
+          const persistComponents = session.components.filter(c =>
+            c.type !== 'input' && c.type !== 'buttons' && c.type !== 'anchor'
+          );
+          // 限制保存最近 100 条组件，避免 KV value 过大
+          const trimmed = persistComponents.slice(-100);
+          const trimmedHistory = (session.history || []).slice(-50);
+          await env.USER_DATA.put(CHAT_HISTORY_KEY, JSON.stringify({
+            components: trimmed,
+            history: trimmedHistory,
+          }));
+        } catch (e) {
+          console.error('[sync_ws] save history error:', e.message);
+        }
+      }
+
       server.addEventListener('message', async (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type !== 'chat') return;
+          if (data.action !== 'input' && data.action !== 'tap' && data.action !== 'pay_result' && data.action !== 'init') return;
 
-          const message = data.message || '';
-          const history = data.history || [];
-          if (!message) {
-            server.send(JSON.stringify({ type: 'error', error: 'message required' }));
+          // 客户端请求初始页面（兜底 stateless 模式下初始 pushRender 丢失）
+          if (data.action === 'init') {
+            pushRender();
             return;
+          }
+
+          // 支付结果回传
+          if (data.action === 'pay_result') {
+            if (data.status === 'success') {
+              session.components.push({ id: `pay_ok_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '支付成功 ✅\n额度将在几秒内到账。' });
+            } else if (data.status === 'cancelled') {
+              session.components.push({ id: `pay_cancel_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '已取消支付。' });
+            } else {
+              session.components.push({ id: `pay_fail_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '支付失败，请重试。' });
+            }
+            session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+            session.components.push({ id: 'suggestions', type: 'buttons', items: ['查看套餐', '查待办'] });
+            pushRender();
+            return;
+          }
+
+          const message = data.value || data.id || '';
+          if (!message) return;
+
+          // 把用户消息加入历史和组件
+          session.history.push({ role: 'user', content: message });
+          const userCompId = `u_${Date.now()}`;
+          session.components = session.components.filter(c => c.type !== 'input' && c.type !== 'buttons');
+          session.components.push({ id: userCompId, type: 'text', role: 'user', content: message });
+
+          // 立即推送"思考中"状态
+          const thinkingId = `thinking_${Date.now()}`;
+          session.components.push({ id: thinkingId, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', typing: true, content: '思考中…' });
+          pushRender();
+
+          // 0. 意图路由器
+          let pdfHint = null;
+          try {
+            const cmd = await chatCommandRouter(message, userId, env);
+            if (cmd.passToLLM && cmd.hint === 'generate_pdf') {
+              pdfHint = cmd.pdf_title || '研究报告';
+            }
+            if (cmd.handled) {
+              console.log('[sync_ws] command hit:', message);
+              // 移除思考中气泡
+              session.components = session.components.filter(c => c.id !== thinkingId);
+              const replyCompId = `r_${Date.now()}`;
+              session.components.push({ id: replyCompId, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: cmd.response.text || '' });
+              if (cmd.response.card) {
+                session.components.push({ id: `card_${Date.now()}`, type: 'card', ...cmd.response.card });
+              }
+              if (cmd.response.navigate) {
+                session.components.push({ id: `nav_${Date.now()}`, type: 'text', content: `→ 跳转中…` });
+              }
+              session.history.push({ role: 'assistant', content: cmd.response.text || '' });
+              session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+              if (cmd.response.suggestions?.length) {
+                session.components.push({ id: 'suggestions', type: 'buttons', items: cmd.response.suggestions });
+              } else {
+                session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动', '写消息'] });
+              }
+              pushRender();
+              if (cmd.response.navigate) {
+                server.send(JSON.stringify({ type: 'navigate', ...cmd.response.navigate }));
+              }
+              if (cmd.response.action?.setStorage) {
+                server.send(JSON.stringify({ type: 'action', action: cmd.response.action }));
+              }
+              if (cmd.response.action?.pay) {
+                server.send(JSON.stringify({ type: 'action', action: cmd.response.action }));
+              }
+              if (cmd.response.action?.pay_product) {
+                await env.USER_DATA.put(`pay_pending:${userId}`, cmd.response.action.pay_product, { expirationTtl: 300 });
+              }
+              if (cmd.response.action?.generate_pdf) {
+                server.send(JSON.stringify({ type: 'toast', text: 'PDF 生成需要连接本地小维，请确保 Agent 在线' }));
+              }
+              await saveChatHistory();
+              return;
+            }
+          } catch (e) {
+            console.error('[sync_ws] command router error:', e.message);
           }
 
           // 1. Check billing
@@ -6200,19 +7308,21 @@ export default {
           }
           const remaining = await getRemaining(billing, env);
           if (remaining <= 0) {
-            server.send(JSON.stringify({
-              type: 'error',
-              error: '联点已用完',
-              code: 'OUT_OF_CREDITS',
-            }));
+            session.components = session.components.filter(c => c.id !== thinkingId);
+            session.components.push({ id: `err_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '联点已用完，请充值后继续使用。' });
+            session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+            session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] });
+            pushRender();
             return;
           }
 
-          // 2. Extract intent (lightweight — just for data context)
+          // 2. Extract intent
           const _chatIntentFallback = `你是一个关系网络智能体。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
 今天是 ${new Date().toISOString().slice(0, 10)}。
-JSON格式：{"intent":"query_contact|query_todo|record|draft|advise|report|chat","contact_name":"","keywords":[],"actions":[]}
-intent说明：query_contact=查询某人,query_todo=查看待办,record=记录互动/添加待办,draft=拟写消息,advise=建议联系谁,report=回顾,chat=闲聊
+JSON格式：{"intent":"query_contact|query_todo|record|draft|advise|report|web_search|chat","contact_name":"","keywords":[],"actions":[],"search_query":""}
+intent说明：query_contact=查询某人,query_todo=查看待办,record=记录互动/添加待办,draft=拟写消息,advise=建议联系谁,report=回顾,web_search=用户想了解外部信息/新闻/行业动态/时事/公开人物或公司信息/技术知识/产品评测/市场行情,chat=闲聊
+当intent=web_search时，search_query填写适合搜索引擎的查询关键词（中文或英文）。
+注意：查询用户自己的联系人/待办/互动记录不是web_search，是query_contact/query_todo。
 actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要","date":"YYYY-MM-DD"},{"type":"add_todo","task":"内容","contact_name":"人名","due":"YYYY-MM-DD","priority":"P1"},{"type":"add_contact","name":"人名","relation":"关系"},{"type":"complete_todo","task":"关键词"}
 只有用户明确表达记录/提醒/添加/完成意图时才生成actions，否则actions=[]。`;
           const intentResp = await callLLM(message, await getPrompt(env, 'intent', _chatIntentFallback), env, {
@@ -6226,7 +7336,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
             } catch {}
           }
 
-          // 3. Execute data actions (record/todo/contact) from intent
+          // 3. Execute data actions
           if (intent.actions && intent.actions.length > 0) {
             let contacts = null, todos = null, timeline = null;
             let contactsDirty = false, todosDirty = false, timelineDirty = false;
@@ -6270,7 +7380,7 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
                     id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     task: action.task, contact: contactId, due: dueDate,
                     priority: action.priority || 'P1', status: 'pending',
-                    source: action.source || 'wxmp_chat', created_at: new Date().toISOString(),
+                    source: action.source || 'wxmp_sync', created_at: new Date().toISOString(),
                   });
                   todosDirty = true;
                 }
@@ -6286,14 +7396,14 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
                   const t = todos.find(t => t.task.includes(action.task) && t.status === 'pending');
                   if (t) { t.status = 'completed'; t.completed_at = new Date().toISOString(); todosDirty = true; }
                 }
-              } catch (e) { console.error('[wxmp_chat] action error:', e.message); }
+              } catch (e) { console.error('[wxmp_sync] action error:', e.message); }
             }
             if (contactsDirty) await saveDataset(env, userId, 'contacts', contacts);
             if (todosDirty) await saveDataset(env, userId, 'todos', todos);
             if (timelineDirty) await saveDataset(env, userId, 'timeline', timeline);
           }
 
-          // 4. Build data context from KV
+          // 4. Build data context
           const contacts = await loadDataset(env, userId, 'contacts');
           const todos = await loadDataset(env, userId, 'todos');
           const timeline = await loadDataset(env, userId, 'timeline');
@@ -6311,7 +7421,6 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
             }
           }
           if (!dataContext && intent.intent === 'advise') {
-            // Provide top contacts for advise intent
             const top = contacts.slice(0, 10).map(c => `- ${c.name} (${c.relation || c.nature || ''})`).join('\n');
             dataContext = `【联系人列表】\n${top}\n`;
           }
@@ -6320,8 +7429,61 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
             dataContext = `【待办列表】\n${pending.map(t => `- ${t.task} (due: ${t.due || '无'})`).join('\n')}\n`;
           }
 
-          // 5. Build system prompt (小维人格 + 数据上下文)
+          // Web search
+          if (intent.intent === 'web_search' && intent.search_query) {
+            try {
+              const searchResult = await webSearch(intent.search_query, env, 5);
+              if (searchResult && searchResult.results && searchResult.results.length > 0) {
+                const searchCtx = searchResult.results.map(r =>
+                  `标题: ${r.title || ''}\n摘要: ${r.snippet || r.content || ''}\n来源: ${r.url || ''}`
+                ).join('\n---\n');
+                dataContext = `【互联网搜索结果】（查询：${intent.search_query}）\n${searchCtx}\n`;
+              }
+            } catch (e) {
+              console.error('[wxmp_sync] web search error:', e.message);
+            }
+          }
+
+          // 5. Build system prompt
+          let userName = '';
+          let profileContext = '';
+          try {
+            if (userId.startsWith('user_')) {
+              const info = await getClerkUserInfo(userId, env);
+              if (info && info.name) userName = info.name;
+            } else if (userId.startsWith('wxmp_')) {
+              const reg = await env.USER_DATA.get(`wxmp_registered:${userId}`);
+              if (reg) userName = (JSON.parse(reg).nickname) || '';
+            }
+          } catch {}
+          try {
+            const raw = await env.USER_DATA.get(`profile:${userId}`);
+            if (raw) {
+              const p = JSON.parse(raw);
+              const parts = [];
+              if (p.name) parts.push(`姓名: ${p.name}`);
+              if (p.occupation) parts.push(`职业: ${p.occupation}`);
+              if (p.company) parts.push(`公司: ${p.company}`);
+              if (p.industry) parts.push(`行业: ${p.industry}`);
+              if (p.location) parts.push(`所在地: ${p.location}`);
+              if (p.communication_style) parts.push(`沟通风格: ${p.communication_style}`);
+              if (p.address_habit) parts.push(`称呼习惯: ${p.address_habit}`);
+              if (p.focus_areas) parts.push(`关注领域: ${p.focus_areas}`);
+              if (p.message_tone) parts.push(`拟消息语气: ${p.message_tone}`);
+              if (p.career_goal) parts.push(`职业目标: ${p.career_goal}`);
+              if (p.current_projects) parts.push(`正在推进: ${p.current_projects}`);
+              if (p.network_direction) parts.push(`人脉方向: ${p.network_direction}`);
+              if (p.notes) parts.push(`附注: ${p.notes}`);
+              if (parts.length) {
+                profileContext = `【用户画像】\n${parts.join('\n')}\n`;
+                if (!userName && p.name) userName = p.name;
+              }
+            }
+          } catch {}
+
           const chatSystem = `你是小维（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者。
+
+${userName ? `当前用户是${userName}。` : ''}
 
 你的信念：每段关系都值得用心。
 你的人格：事实和数据方面按照诚实原则，具有天才头脑。人情世故方面，有趣的灵魂，有温度的表达。
@@ -6333,8 +7495,9 @@ actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要
 - 记录时：确认记下了并简要复述
 - 查待办时：只列出数据中有的，按紧急程度分组
 - 闲聊时：自然回应，可以引导到关系管理话题
-- 拟写消息时：给出完整可发送的草稿
+- 拟写消息时：给出完整可发送的草稿，语气符合用户的拟消息语气偏好
 
+${profileContext}
 ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataContext}` : ''}
 
 每次回复末尾附上 3-4 条与当前对话上下文直接相关的后续操作建议，格式：
@@ -6345,12 +7508,14 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
 
           // 6. Build messages with history
           const messages = [
-            ...history.slice(-6).map(h => ({ role: h.role || 'user', content: h.content || '' })),
-            { role: 'user', content: message },
+            ...session.history.slice(-6).map(h => ({ role: h.role, content: h.content })),
           ];
 
-          // 7. Call LLM with streaming
-          server.send(JSON.stringify({ type: 'start' }));
+          // 7. Call LLM with streaming — replace thinking bubble with reply bubble
+          session.components = session.components.filter(c => c.id !== thinkingId);
+          const replyCompId = `r_${Date.now()}`;
+          session.components.push({ id: replyCompId, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', typing: true, content: '' });
+
           const gen = callLLMStream(null, chatSystem, env, {
             messages, max_tokens: 1024, temperature: 0.7, model_tier: 'standard',
           });
@@ -6358,31 +7523,184 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           let fullText = '';
           for await (const chunk of gen) {
             fullText += chunk;
-            server.send(JSON.stringify({ type: 'chunk', text: chunk }));
+            server.send(JSON.stringify({
+              type: 'patch',
+              target: replyCompId,
+              op: 'replace',
+              content: fullText,
+            }));
           }
 
-          // 8. Billing deduction
-          const usage = callLLMStream._lastUsage || { input_tokens: 0, output_tokens: 0 };
-          const points = (usage.input_tokens * 0.0001 + usage.output_tokens * 0.0003) * 1;
-          billing.used = (billing.used || 0) + points;
-          await saveBillingData(env, userId, billing);
+          // Parse suggestions from full text
+          let replyText = fullText;
+          let suggestions = ['查待办', '记互动', '写消息'];
+          const suggMatch = fullText.match(/<<<SUGGESTIONS>>>\n?([\s\S]*?)$/);
+          if (suggMatch) {
+            replyText = fullText.replace(/<<<SUGGESTIONS>>>\n?[\s\S]*?$/, '').trim();
+            const lines = suggMatch[1].trim().split('\n').map(s => s.trim()).filter(Boolean);
+            if (lines.length > 0) suggestions = lines.slice(0, 4);
+          }
 
-          server.send(JSON.stringify({
-            type: 'done',
-            intent: intent.intent,
-            actions: intent.actions || [],
-            usage,
-            billing: { plan: billing.plan, used: billing.used, remaining: remaining - points },
-          }));
+          // Update the reply component with clean text, remove typing cursor
+          const replyIdx = session.components.findIndex(c => c.id === replyCompId);
+          if (replyIdx !== -1) {
+            session.components[replyIdx].content = replyText;
+            delete session.components[replyIdx].typing;
+          }
+
+          session.history.push({ role: 'assistant', content: replyText });
+
+          // 8. Billing
+          const usage = callLLMStream._lastUsage || { input_tokens: 0, output_tokens: 0 };
+          await deductBilling(
+            env, userId, usage, 'usage', `wxmp_sync: ${intent.intent || 'chat'}`, 'standard'
+          );
+
+          // Add input + suggestions
+          session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+          if (pdfHint) {
+            // 尝试通过本地 Agent 生成 PDF
+            try {
+              // 解析 LLM 输出的 JSON 报告内容
+              let reportContent = null;
+              try {
+                let jsonStr = replyText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                if (jsonMatch) jsonStr = jsonMatch[0];
+                reportContent = JSON.parse(jsonStr);
+              } catch (parseErr) {
+                // LLM 返回的不是合法 JSON，用原始文本构造简单报告
+                console.log('[sync_ws] JSON parse failed, using raw text as report');
+              }
+              if (!reportContent) {
+                // 用 LLM 原始回复文本构造报告
+                reportContent = {
+                  title: pdfHint,
+                  subtitle: new Date().toLocaleDateString('zh-CN'),
+                  sections: [{
+                    heading: '报告内容',
+                    paragraph: replyText.replace(/<<<SUGGESTIONS>>>\n?[\s\S]*?$/, '').trim(),
+                  }],
+                };
+              }
+              if (!reportContent.title) reportContent.title = pdfHint;
+
+              // 发现本地 Agent tunnel
+              let tunnelUrl = null;
+              const devData = await env.DEVICES.get(`dev:${userId}`);
+              if (devData) {
+                tunnelUrl = JSON.parse(devData).tunnel_url;
+              } else {
+                const deviceId = await env.DEVICES.get(`user:${userId}`);
+                if (deviceId) {
+                  const linkedData = await env.DEVICES.get(`dev:${deviceId}`);
+                  if (linkedData) tunnelUrl = JSON.parse(linkedData).tunnel_url;
+                }
+              }
+              if (!tunnelUrl && env.DEFAULT_AGENT_TUNNEL) tunnelUrl = env.DEFAULT_AGENT_TUNNEL;
+              console.log('[sync_ws] PDF tunnel discovery: userId=', userId, 'tunnelUrl=', tunnelUrl, 'DEFAULT=', env.DEFAULT_AGENT_TUNNEL ? 'set' : 'empty');
+
+              if (tunnelUrl) {
+                // 更新提示为"正在生成"
+                session.components.push({ id: `pdf_tip_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: `📄 正在生成《${reportContent.title}》PDF…` });
+                pushRender();
+
+                // 连接本地 Agent（和 agent_ws 路径相同的连接方式）
+                const agentWsUrl = tunnelUrl.replace(/^http:/, 'https:').replace(/^wss:/, 'https:') + '/ws';
+                const agentResp = await fetch(agentWsUrl, { headers: { Upgrade: 'websocket' } });
+                if (agentResp.status === 101 && agentResp.webSocket) {
+                  const agentWs = agentResp.webSocket;
+                  agentWs.accept();
+
+                  // Agent 要求第一条消息是 auth
+                  agentWs.send(JSON.stringify({
+                    type: 'auth',
+                    token: env.AGENT_PAIRING_TOKEN || 'welian2026',
+                  }));
+
+                  const pdfReqId = `tpdf_${Date.now()}`;
+                  const filename = `${pdfHint.replace(/[\/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+
+                  const pdfHandler = (evt) => {
+                    try {
+                      const resp = JSON.parse(evt.data);
+                      // auth_ok 后发送 PDF 生成命令
+                      if (resp.type === 'auth_ok') {
+                        agentWs.send(JSON.stringify({ cmd: 'text_to_pdf', id: pdfReqId, content: reportContent, filename }));
+                        return;
+                      }
+                      if (resp.type === 'error' && !resp.id) {
+                        // auth 失败或其他错误
+                        agentWs.removeEventListener('message', pdfHandler);
+                        const tipIdx = session.components.findIndex(c => c.id && c.id.startsWith('pdf_tip_'));
+                        if (tipIdx !== -1) { session.components[tipIdx].content = `❌ Agent 认证失败：${resp.message || ''}`; }
+                        pushRender();
+                        try { agentWs.close(); } catch {}
+                        return;
+                      }
+                      if (resp.id === pdfReqId && resp.type === 'response' && resp.pdf) {
+                        agentWs.removeEventListener('message', pdfHandler);
+                        const pdfId = `pdf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                        env.USER_DATA.put(`pdf:${pdfId}`, JSON.stringify({ base64: resp.pdf, filename: resp.filename || filename, userId }), { expirationTtl: 3600 })
+                          .then(() => {
+                            const tipIdx = session.components.findIndex(c => c.id && c.id.startsWith('pdf_tip_'));
+                            if (tipIdx !== -1) { session.components[tipIdx].content = `📄 《${reportContent.title}》PDF 已生成，点击下载`; }
+                            session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] });
+                            pushRender();
+                            server.send(JSON.stringify({
+                              type: 'action',
+                              action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || filename } },
+                            }));
+                            try { agentWs.close(); } catch {}
+                          });
+                      } else if (resp.id === pdfReqId && resp.type === 'error') {
+                        agentWs.removeEventListener('message', pdfHandler);
+                        const tipIdx = session.components.findIndex(c => c.id && c.id.startsWith('pdf_tip_'));
+                        if (tipIdx !== -1) { session.components[tipIdx].content = `❌ PDF 生成失败：${resp.message || '未知错误'}`; }
+                        pushRender();
+                        try { agentWs.close(); } catch {}
+                      }
+                    } catch {}
+                  };
+                  agentWs.addEventListener('message', pdfHandler);
+                  setTimeout(() => { agentWs.removeEventListener('message', pdfHandler); try { agentWs.close(); } catch {} }, 60000);
+                } else {
+                  session.components.push({ id: `pdf_tip_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: `📄 报告内容已生成，但本地 Agent 连接失败，无法生成 PDF。` });
+                  pushRender();
+                }
+              } else {
+                session.components.push({ id: `pdf_tip_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: `📄 报告内容已生成。如需导出 PDF，请确保本地小维 Agent 在线（Live Mode）。\n[诊断] userId=${userId}, tunnel=${tunnelUrl || 'null'}, DEFAULT=${env.DEFAULT_AGENT_TUNNEL ? 'set' : 'empty'}` });
+                pushRender();
+              }
+            } catch (e) {
+              console.error('[sync_ws] PDF generation error:', e.message);
+              session.components.push({ id: `pdf_tip_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: `📄 报告内容已生成，PDF 生成失败：${e.message}` });
+              pushRender();
+            }
+            suggestions = ['查看套餐', '查待办'];
+          }
+          session.components.push({ id: 'suggestions', type: 'buttons', items: suggestions });
+          pushRender();
+          await saveChatHistory();
         } catch (e) {
-          console.error('[wxmp_chat_ws] error:', e.message);
-          server.send(JSON.stringify({ type: 'error', error: e.message }));
+          console.error('[sync_ws] error:', e.message);
+          session.components = session.components.filter(c => c.id !== thinkingId);
+          session.components.push({ id: `err_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '出错了，请重试。' });
+          session.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+          session.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] });
+          pushRender();
         }
       });
 
       server.addEventListener('close', () => {
-        console.log('[wxmp_chat_ws] connection closed');
+        console.log('[sync_ws] connection closed');
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
       });
+
+      // 心跳保活：每 25 秒发 ping，防止 stateless 模式下 Worker 因空闲被取消
+      const heartbeatTimer = setInterval(() => {
+        try { server.send(JSON.stringify({ type: 'ping' })); } catch (e) {}
+      }, 25000);
 
       return new Response(null, { status: 101, webSocket: client });
     }
@@ -6390,20 +7708,29 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
     // ── Mini program → Local Agent WebSocket proxy ──
     // Authenticates wxmp user, discovers tunnel URL, pipes WebSocket to local agent.
     // Falls back with error if no local agent is online.
-    if (path === '/ai/wxmp_agent_ws' && request.headers.get('Upgrade') === 'websocket') {
+    if (path === '/data/agent_ws' && request.headers.get('Upgrade') === 'websocket') {
+      if (env.CHAT_ENABLED === 'false') {
+        const pair = new WebSocketPair();
+        pair[1].accept();
+        pair[1].send(JSON.stringify({ type: 'error', code: 'CHAT_DISABLED' }));
+        pair[1].close();
+        return new Response(null, { status: 101, webSocket: pair[0] });
+      }
       const token = url.searchParams.get('token');
       if (!token) return new Response('Missing token', { status: 401 });
 
-      // Verify token (same logic as wxmp_chat_ws)
+      // Verify token (same logic as wxmp_sync_ws)
       let userId = null;
       let clerkUserId = null;
       if (token.includes(':') && !token.startsWith('eyJ')) {
         const [uid, secret] = token.split(':');
+        console.log('[agent_ws] token uid:', uid, 'secret match:', secret === env.WELIAN_SYNC_SECRET);
         if (uid && secret && secret === env.WELIAN_SYNC_SECRET) {
           if (uid.startsWith('wxmp_')) {
             const bound = await env.USER_DATA.get(`wechat_bind:${uid}`);
             clerkUserId = bound || null;
             userId = bound || uid;
+            console.log('[agent_ws] wxmp uid, bound clerk:', clerkUserId);
           } else {
             clerkUserId = uid;
             userId = uid;
@@ -6433,9 +7760,17 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
             }
           }
         } catch (e) {
-          console.error('[wxmp_agent_ws] discovery error:', e.message);
+          console.error('[agent_ws] discovery error:', e.message);
         }
       }
+
+      // Fallback: use default agent tunnel (shared agent for all mini program users)
+      if (!tunnelUrl && env.DEFAULT_AGENT_TUNNEL) {
+        tunnelUrl = env.DEFAULT_AGENT_TUNNEL;
+        console.log('[agent_ws] using DEFAULT_AGENT_TUNNEL fallback');
+      }
+
+      console.log('[agent_ws] tunnelUrl:', tunnelUrl, 'clerkUserId:', clerkUserId);
 
       if (!tunnelUrl) {
         // No local agent — return a WebSocket that immediately sends error and closes
@@ -6449,13 +7784,17 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
       }
 
       // Connect to local agent via tunnel
-      const agentWsUrl = tunnelUrl.replace(/^http/, 'ws') + '/ws' +
+      // Cloudflare Worker fetch() needs https:// URL for WebSocket upgrade (not wss://)
+      const agentWsUrl = tunnelUrl.replace(/^http:/, 'https:').replace(/^wss:/, 'https:') + '/ws' +
         (clerkUserId ? '?clerk_uid=' + encodeURIComponent(clerkUserId) : '');
+
+      console.log('[agent_ws] connecting to agent:', agentWsUrl);
 
       try {
         const agentResp = await fetch(agentWsUrl, {
           headers: { 'Upgrade': 'websocket' },
         });
+        console.log('[agent_ws] agent fetch status:', agentResp.status, 'has ws:', !!agentResp.webSocket);
         if (agentResp.status !== 101 || !agentResp.webSocket) {
           // Local agent unreachable
           const pair = new WebSocketPair();
@@ -6470,6 +7809,20 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         const agentWs = agentResp.webSocket;
         agentWs.accept();
 
+        // Heartbeat: send raw WebSocket ping frame (protocol-level, no app-layer message)
+        // This keeps the connection alive without producing any response bubbles
+        const agentHeartbeat = setInterval(() => {
+          try { agentWs.send(JSON.stringify({ cmd: 'ping' })); } catch {}
+        }, 25000);
+
+        // Send auth to agent (agent requires first message to be auth with pairing token)
+        agentWs.send(JSON.stringify({
+          type: 'auth',
+          token: env.AGENT_PAIRING_TOKEN || 'welian2026',
+          clerk_uid: clerkUserId || '',
+          cloud_uid: userId || '',
+        }));
+
         // Accept client WebSocket
         const pair = new WebSocketPair();
         const client = pair[0];
@@ -6477,26 +7830,150 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         server.accept();
 
         // Notify client: connected to local agent
-        server.send(JSON.stringify({ type: 'agent_connected' }));
+        // 推送初始 render 页面
+        const agentSession = { components: [], history: [], fullText: '' };
+        agentSession.components = [
+          { id: 'welcome', type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '你好，我是小维 🌱\n可以帮你记互动、查待办、建议联系谁、拟写消息。\n有什么我能帮忙的？' },
+          { id: 'input', type: 'input', placeholder: '和小维说点什么…' },
+          { id: 'suggestions', type: 'buttons', items: ['查待办', '记互动', '写消息'] },
+        ];
+        server.send(JSON.stringify({
+          type: 'render',
+          page: { components: agentSession.components },
+        }));
 
         // Client → Agent: pipe messages, translating protocol
-        server.addEventListener('message', (event) => {
+        server.addEventListener('message', async (event) => {
           try {
             const data = JSON.parse(event.data);
-            // Translate mini program protocol → local agent protocol
-            if (data.type === 'chat') {
-              agentWs.send(JSON.stringify({
-                cmd: 'chat',
-                id: data.id || `msg_${Date.now()}`,
-                text: data.message || '',
-                history: data.history || [],
-              }));
-            } else {
-              // Pass through other commands
-              agentWs.send(event.data);
+            if (data.action !== 'input' && data.action !== 'tap' && data.action !== 'pay_result') return;
+
+            // 支付结果回传
+            if (data.action === 'pay_result') {
+              if (data.status === 'success') {
+                agentSession.components.push({ id: `pay_ok_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '支付成功 ✅\n额度将在几秒内到账。' });
+              } else if (data.status === 'cancelled') {
+                agentSession.components.push({ id: `pay_cancel_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '已取消支付。' });
+              } else {
+                agentSession.components.push({ id: `pay_fail_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '支付失败，请重试。' });
+              }
+              agentSession.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+              agentSession.components.push({ id: 'suggestions', type: 'buttons', items: ['查看套餐', '查待办'] });
+              server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+              return;
             }
+
+            const message = data.value || data.id || '';
+            if (!message) return;
+
+            // 把用户消息加入组件
+            agentSession.history.push({ role: 'user', content: message });
+            agentSession.components = agentSession.components.filter(c => c.type !== 'input' && c.type !== 'buttons');
+            agentSession.components.push({ id: `u_${Date.now()}`, type: 'text', role: 'user', content: message });
+
+            // 立即推送"思考中"状态
+            const thinkingId = `thinking_${Date.now()}`;
+            agentSession.components.push({ id: thinkingId, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', typing: true, content: '思考中…' });
+            server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+
+            // 意图路由器
+            let pdfHint = null;
+            try {
+              const cmd = await chatCommandRouter(message, userId, env);
+              if (cmd.passToLLM && cmd.hint === 'generate_pdf') {
+                pdfHint = cmd.pdf_title || '研究报告';
+              }
+              if (cmd.handled) {
+                console.log('[agent_ws] command hit:', message);
+                agentSession.components = agentSession.components.filter(c => c.id !== thinkingId);
+                const replyCompId = `r_${Date.now()}`;
+                agentSession.components.push({ id: replyCompId, type: 'text', role: 'assistant', content: cmd.response.text || '' });
+                if (cmd.response.card) {
+                  agentSession.components.push({ id: `card_${Date.now()}`, type: 'card', ...cmd.response.card });
+                }
+                agentSession.history.push({ role: 'assistant', content: cmd.response.text || '' });
+                agentSession.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+                agentSession.components.push({ id: 'suggestions', type: 'buttons', items: cmd.response.suggestions?.length ? cmd.response.suggestions : ['查待办', '记互动', '写消息'] });
+                server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+                if (cmd.response.navigate) {
+                  server.send(JSON.stringify({ type: 'navigate', ...cmd.response.navigate }));
+                }
+                if (cmd.response.action?.setStorage) {
+                  server.send(JSON.stringify({ type: 'action', action: cmd.response.action }));
+                }
+                if (cmd.response.action?.pay) {
+                  server.send(JSON.stringify({ type: 'action', action: cmd.response.action }));
+                }
+                if (cmd.response.action?.pay_product) {
+                  await env.USER_DATA.put(`pay_pending:${userId}`, cmd.response.action.pay_product, { expirationTtl: 300 });
+                }
+                if (cmd.response.action?.generate_pdf) {
+                  const reportType = cmd.response.action.generate_pdf;
+                  const pdfReqId = `pdfgen_${Date.now()}`;
+                  // 先获取报告数据，再发 pdf 命令给 agent
+                  try {
+                    let reportData = {};
+                    if (reportType === 'weekly') {
+                      const r = await handleWeeklyReport(request, env);
+                      reportData = r.data || {};
+                    } else if (reportType === 'monthly') {
+                      const r = await handleMonthlyReport(request, env);
+                      reportData = r.data || {};
+                    } else if (reportType === 'signals') {
+                      const r = await handleSignalsPreview(request, env);
+                      reportData = r.data || {};
+                    }
+                    agentWs.send(JSON.stringify({ cmd: 'pdf', id: pdfReqId, type: reportType, report: reportData }));
+                    // 等待 agent 返回 PDF
+                    const pdfGenHandler = (evt) => {
+                      try {
+                        const resp = JSON.parse(evt.data);
+                        if (resp.id === pdfReqId && resp.type === 'response' && resp.pdf) {
+                          agentWs.removeEventListener('message', pdfGenHandler);
+                          const pdfId = `pdf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                          env.USER_DATA.put(`pdf:${pdfId}`, JSON.stringify({ base64: resp.pdf, filename: resp.filename || `welian_${reportType}.pdf`, userId }), { expirationTtl: 3600 })
+                            .then(() => {
+                              server.send(JSON.stringify({
+                                type: 'action',
+                                action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || `welian_${reportType}.pdf` } },
+                              }));
+                            });
+                        } else if (resp.id === pdfReqId && resp.type === 'error') {
+                          agentWs.removeEventListener('message', pdfGenHandler);
+                          server.send(JSON.stringify({ type: 'toast', text: `PDF 生成失败：${resp.message || '未知错误'}` }));
+                        }
+                      } catch {}
+                    };
+                    agentWs.addEventListener('message', pdfGenHandler);
+                    setTimeout(() => agentWs.removeEventListener('message', pdfGenHandler), 60000);
+                  } catch (e) {
+                    server.send(JSON.stringify({ type: 'toast', text: `获取报告数据失败：${e.message}` }));
+                  }
+                }
+                return;
+              }
+            } catch (e) {
+              console.error('[agent_ws] command router error:', e.message);
+            }
+
+            // 转发给 agent，替换思考气泡为回复气泡
+            agentSession.components = agentSession.components.filter(c => c.id !== thinkingId);
+            const replyCompId = `r_${Date.now()}`;
+            agentSession.components.push({ id: replyCompId, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', typing: true, content: '' });
+            agentSession.fullText = '';
+            agentSession._replyId = replyCompId;
+
+            agentWs.send(JSON.stringify({
+              cmd: 'chat',
+              id: `msg_${Date.now()}`,
+              text: pdfHint
+                ? `${message}\n\n[系统指令] 请生成关于"${pdfHint}"的报告内容。输出必须是纯 JSON（不要 markdown 代码块），格式为：{"title":"报告标题","subtitle":"副标题","sections":[{"heading":"章节","paragraph":"段落","bullets":["要点1"],"cards":[{"title":"卡片标题","body":"内容"}],"table":{"headers":["列1"],"rows":[["值1"]]}}]}。基于用户的真实数据生成内容。`
+                : message,
+              history: agentSession.history.slice(-6),
+            }));
+            agentSession._pdfHint = pdfHint;
           } catch {
-            agentWs.send(event.data);
+            // pass through
           }
         });
 
@@ -6504,39 +7981,155 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         agentWs.addEventListener('message', (event) => {
           try {
             const data = JSON.parse(event.data);
-            // Translate local agent protocol → mini program protocol
+            if (data.pong) return;
             if (data.type === 'stream') {
-              server.send(JSON.stringify({ type: 'chunk', text: data.text || data.chunk || '' }));
+              // 流式输出 → patch
+              agentSession.fullText += (data.text || data.chunk || '');
+              server.send(JSON.stringify({
+                type: 'patch',
+                target: agentSession._replyId,
+                op: 'replace',
+                content: agentSession.fullText,
+              }));
             } else if (data.type === 'response') {
-              server.send(JSON.stringify({ type: 'done', text: data.text || '' }));
+              // 完成 → 解析 suggestions，推送 render
+              let replyText = data.reply || data.text || agentSession.fullText;
+              let suggestions = ['查待办', '记互动', '写消息'];
+              const suggMatch = replyText.match(/<<<SUGGESTIONS>>>\n?([\s\S]*?)$/);
+              if (suggMatch) {
+                replyText = replyText.replace(/<<<SUGGESTIONS>>>\n?[\s\S]*?$/, '').trim();
+                const lines = suggMatch[1].trim().split('\n').map(s => s.trim()).filter(Boolean);
+                if (lines.length > 0) suggestions = lines.slice(0, 4);
+              }
+
+              // PDF 生成：如果 pdfHint 存在，解析 JSON 并发 text_to_pdf
+              if (agentSession._pdfHint) {
+                const hint = agentSession._pdfHint;
+                agentSession._pdfHint = null;
+                try {
+                  // 尝试提取 JSON（去掉 markdown 代码块标记）
+                  let jsonStr = replyText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                  if (jsonMatch) jsonStr = jsonMatch[0];
+                  const reportContent = JSON.parse(jsonStr);
+                  if (!reportContent.title) reportContent.title = hint;
+
+                  // 显示生成中提示
+                  const idx2 = agentSession.components.findIndex(c => c.id === agentSession._replyId);
+                  if (idx2 !== -1) { agentSession.components[idx2].content = `📄 正在生成《${reportContent.title}》PDF…`; delete agentSession.components[idx2].typing; }
+                  agentSession.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+                  agentSession.components.push({ id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] });
+                  server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+
+                  // 发 text_to_pdf 命令给 agent
+                  const pdfReqId = `tpdf_${Date.now()}`;
+                  const filename = `${hint.replace(/[\/\\:*?"<>|]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+                  agentWs.send(JSON.stringify({ cmd: 'text_to_pdf', id: pdfReqId, content: reportContent, filename }));
+
+                  const pdfGenHandler = (evt) => {
+                    try {
+                      const resp = JSON.parse(evt.data);
+                      if (resp.id === pdfReqId && resp.type === 'response' && resp.pdf) {
+                        agentWs.removeEventListener('message', pdfGenHandler);
+                        const pdfId = `pdf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                        env.USER_DATA.put(`pdf:${pdfId}`, JSON.stringify({ base64: resp.pdf, filename: resp.filename || filename, userId }), { expirationTtl: 3600 })
+                          .then(() => {
+                            // 更新提示为下载就绪
+                            const tipIdx = agentSession.components.findIndex(c => c.id === agentSession._replyId);
+                            if (tipIdx !== -1) { agentSession.components[tipIdx].content = `📄 《${reportContent.title}》PDF 已生成，正在打开…`; }
+                            server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+                            server.send(JSON.stringify({
+                              type: 'action',
+                              action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename: resp.filename || filename } },
+                            }));
+                          });
+                      } else if (resp.id === pdfReqId && resp.type === 'error') {
+                        agentWs.removeEventListener('message', pdfGenHandler);
+                        server.send(JSON.stringify({ type: 'toast', text: `PDF 生成失败：${resp.message || '未知错误'}` }));
+                      }
+                    } catch {}
+                  };
+                  agentWs.addEventListener('message', pdfGenHandler);
+                  setTimeout(() => agentWs.removeEventListener('message', pdfGenHandler), 60000);
+                  return;
+                } catch (e) {
+                  console.error('[agent_ws] PDF parse error:', e.message);
+                  // JSON 解析失败，回退到正常显示
+                  agentSession._pdfHint = null;
+                }
+              }
+
+              // 更新回复组件
+              const idx = agentSession.components.findIndex(c => c.id === agentSession._replyId);
+              if (idx !== -1) { agentSession.components[idx].content = replyText; delete agentSession.components[idx].typing; }
+              agentSession.history.push({ role: 'assistant', content: replyText });
+              agentSession.components.push({ id: 'input', type: 'input', placeholder: '和小维说点什么…' });
+              agentSession.components.push({ id: 'suggestions', type: 'buttons', items: suggestions });
+              server.send(JSON.stringify({ type: 'render', page: { components: agentSession.components } }));
+
+              // 检测回复中的 PDF 路径，自动获取并发送下载链接
+              const pdfMatch = replyText.match(/(\/[^\s`*'"]+\.pdf)/);
+              if (pdfMatch) {
+                const pdfPath = pdfMatch[1];
+                const readId = `pdfreq_${Date.now()}`;
+                // 发送 read_file 命令给 agent
+                agentWs.send(JSON.stringify({ cmd: 'read_file', id: readId, path: pdfPath }));
+                // 设置一次性监听器等待响应
+                const pdfHandler = (evt) => {
+                  try {
+                    const resp = JSON.parse(evt.data);
+                    if (resp.id === readId && resp.type === 'response' && resp.content) {
+                      agentWs.removeEventListener('message', pdfHandler);
+                      // 存入 KV
+                      const pdfId = `pdf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                      const filename = resp.filename || pdfPath.split('/').pop();
+                      env.USER_DATA.put(`pdf:${pdfId}`, JSON.stringify({ base64: resp.content, filename, userId }), { expirationTtl: 3600 })
+                        .then(() => {
+                          server.send(JSON.stringify({
+                            type: 'action',
+                            action: { download: { url: `https://api.welian.app/ai/pdf/${pdfId}?token=${encodeURIComponent(session.syncToken || '')}`, filename } },
+                          }));
+                        });
+                    }
+                  } catch {}
+                };
+                agentWs.addEventListener('message', pdfHandler);
+                // 30 秒超时清理
+                setTimeout(() => agentWs.removeEventListener('message', pdfHandler), 30000);
+              }
             } else if (data.type === 'auth_ok') {
-              server.send(JSON.stringify({ type: 'auth_ok' }));
+              // auth success, already sent initial render
             } else if (data.type === 'error') {
-              server.send(JSON.stringify({ type: 'error', error: data.error || 'agent error' }));
-            } else {
-              // Pass through unknown types
-              server.send(event.data);
+              server.send(JSON.stringify({ type: 'render', page: { components: [
+                ...agentSession.components,
+                { id: `err_${Date.now()}`, type: 'text', role: 'assistant', avatar: '🌱', name: '小维', content: '出错了，请重试。' },
+                { id: 'input', type: 'input', placeholder: '和小维说点什么…' },
+                { id: 'suggestions', type: 'buttons', items: ['查待办', '记互动'] },
+              ] } }));
             }
           } catch {
-            server.send(event.data);
+            // ignore parse errors
           }
         });
 
         // Close handling
         server.addEventListener('close', () => {
+          clearInterval(agentHeartbeat);
           try { agentWs.close(); } catch {}
         });
         agentWs.addEventListener('close', () => {
+          clearInterval(agentHeartbeat);
           server.send(JSON.stringify({ type: 'error', error: 'agent_disconnected', message: '本地 Agent 已断开' }));
           try { server.close(); } catch {}
         });
         agentWs.addEventListener('error', () => {
+          clearInterval(agentHeartbeat);
           server.send(JSON.stringify({ type: 'error', error: 'agent_error', message: '本地 Agent 连接错误' }));
         });
 
         return new Response(null, { status: 101, webSocket: client });
       } catch (e) {
-        console.error('[wxmp_agent_ws] connect error:', e.message);
+        console.error('[agent_ws] connect error:', e.message);
         const pair = new WebSocketPair();
         const client = pair[0];
         const server = pair[1];
@@ -6670,6 +8263,9 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
       // ── 方案C：计费网关 ──
 
       if (path === '/ai/chat' && method === 'POST') {
+        if (env.CHAT_ENABLED === 'false') {
+          return jsonResponse({ error: 'Chat disabled', code: 'CHAT_DISABLED' }, 503);
+        }
         const r = await handleChat(request, env);
         return jsonResponse(r.data, r.status);
       }
@@ -6790,6 +8386,12 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
 
       if (path === '/ai/invite/status' && method === 'POST') {
         const r = await handleInviteStatus(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── WeChat miniprogram invite QR code ──
+      if (path === '/ai/wxmp_invite_qrcode' && method === 'POST') {
+        const r = await handleWxmpInviteQrcode(request, env);
         return jsonResponse(r.data, r.status);
       }
 
@@ -6996,14 +8598,48 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
           isRegistered = true;
         } else {
-          // New user — create a mini program user identity
-          await env.USER_DATA.put(`wxmp_user:${wxmpUserId}`, JSON.stringify({
-            openid,
-            created_at: new Date().toISOString(),
-            nickname: body.nickname || null,
-            avatar: body.avatar || null,
-          }));
-          token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+          // New user — auto-register (create Clerk account + bindings)
+          const reg = await autoRegisterWxmpUser(env, openid, body.nickname || '');
+          token = reg.token;
+          isRegistered = true;
+          // Auto-claim invite reward if inviter code provided
+          if (body.inviter) {
+            const inviteeId = reg.clerkUserId || wxmpUserId;
+            await claimInviteReward(env, inviteeId, body.inviter).catch(e =>
+              console.error('[wxmp_login] invite claim failed:', e.message)
+            );
+          }
+        }
+
+        // ── Social graph: bind openid ↔ contact name (反向无感发现) ──
+        // When a user opens a shared card with contact=张三&inviter=openid,
+        // we bind the clicker's openid to the inviter's contact "张三".
+        if (body.social_contact && body.social_inviter) {
+          try {
+            // Resolve inviter's Clerk user ID from their wxmp openid
+            const inviterWxmpId = `wxmp_${body.social_inviter}`;
+            const inviterClerkId = await env.USER_DATA.get(`wechat_bind:${inviterWxmpId}`);
+            if (inviterClerkId) {
+              // Load inviter's social graph
+              const graphRaw = await env.USER_DATA.get(`social_graph:${inviterClerkId}`);
+              const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [] };
+              // Check if this openid is already bound
+              const existing = graph.bindings.find(b => b.openid === openid);
+              if (!existing) {
+                graph.bindings.push({
+                  openid,
+                  contact_name: body.social_contact,
+                  bound_at: new Date().toISOString(),
+                  confidence: body.social_is_private ? 'high' : 'medium',
+                  source: body.social_is_private ? 'private_share' : 'group_share',
+                });
+                await env.USER_DATA.put(`social_graph:${inviterClerkId}`, JSON.stringify(graph));
+                console.log(`[social_graph] bound openid ↔ "${body.social_contact}" for user ${inviterClerkId}`);
+              }
+            }
+          } catch (e) {
+            console.error('[social_graph] bind failed:', e.message);
+          }
         }
 
         return jsonResponse({
@@ -7013,6 +8649,25 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           is_registered: isRegistered,
           openid,
         });
+      }
+
+      // ── Social graph: query user's bindings (authenticated) ──
+      if (path === '/ai/social_graph' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const graphRaw = await env.USER_DATA.get(`social_graph:${userId}`);
+        const graph = graphRaw ? JSON.parse(graphRaw) : { bindings: [], groups: [] };
+        // Merge bindings into contacts: if a contact name matches, add openid
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const enriched = graph.bindings.map(b => {
+          const contact = contacts.find(c => c.name === b.contact_name);
+          return {
+            ...b,
+            contact_id: contact ? contact.id : null,
+            has_contact: !!contact,
+          };
+        });
+        return jsonResponse({ ok: true, bindings: enriched, groups: graph.groups || [] });
       }
 
       // ── Bind mini program: send verification code (public) ──
@@ -7138,29 +8793,91 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
         if (!userId) {
           return jsonResponse({ error: 'Authentication required' }, 401);
         }
-        const { base64, media_type } = body;
-        if (!base64) {
+        const { base64, media_type, confirm, contact_data } = body;
+        if (!base64 && !confirm) {
           return jsonResponse({ error: 'base64 required' }, 400);
+        }
+
+        // 用户确认后保存联系人
+        if (confirm && contact_data) {
+          const contacts = await loadDataset(env, userId, 'contacts');
+          const existing = contacts.find(c => c.name === contact_data.name);
+          if (existing) {
+            return jsonResponse({
+              ok: true,
+              contact: existing,
+              is_duplicate: true,
+              message: `「${contact_data.name}」已在你的联系人中`,
+            });
+          }
+          const newContact = {
+            id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: contact_data.name || '未知联系人',
+            company: contact_data.company || '',
+            title: contact_data.title || '',
+            phone: contact_data.phone || '',
+            email: contact_data.email || '',
+            relation: contact_data.relation || '同行',
+            nature: 'leverage',
+            strength: 3,
+            tags: ['名片扫描'],
+            memories: [],
+            important_dates: [],
+            created_at: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          };
+          contacts.push(newContact);
+          await saveDataset(env, userId, 'contacts', contacts);
+          return jsonResponse({
+            ok: true,
+            contact: newContact,
+            is_duplicate: false,
+            message: `已添加「${newContact.name}」`,
+          });
         }
         // LLM multimodal: extract card info
         const imageBlock = {
           type: 'image',
           source: { type: 'base64', media_type: media_type || 'image/jpeg', data: base64 },
         };
-        const cardPrompt = `请分析这张名片照片，提取信息以JSON格式返回：
+        const cardPrompt = `你是一个专业的名片OCR识别引擎。请仔细分析这张名片照片，按以下策略分区域识别：
+
+【识别策略】
+1. 先看名片正面最大、最显眼的文字 → 这通常是姓名
+2. 姓名下方或旁边的较小文字 → 通常是职位/头衔
+3. 名片中部或底部的公司名称/Logo文字 → 公司
+4. 底部区域的数字（带区号格式）→ 电话
+5. 含@符号的文字 → 邮箱
+6. 如果有英文面，也一并识别
+
+【注意事项】
+- 姓名可能是中文、英文或拼音，仔细辨认每个字
+- 中文名注意区分形近字（如"己/已/巳"、"未/末"）
+- 英文名注意首字母大写
+- 电话号码可能包含空格、横线、+86前缀，保留原始格式
+- 如果照片模糊、角度倾斜或不是名片，尽力识别能看清的部分
+- 实在看不清的字段返回空字符串，不要编造
+
+请以JSON格式返回：
 {
-  "name": "姓名（必填，识别不到也要猜一个）",
-  "company": "公司（如能识别，否则空字符串）",
-  "title": "职位（如能识别，否则空字符串）",
-  "phone": "电话（如能识别，否则空字符串）",
-  "email": "邮箱（如能识别，否则空字符串）",
-  "relation": "关系类型推断（同行/客户/合作方/校友/朋友/其他，默认同行）"
+  "name": "姓名",
+  "company": "公司全称",
+  "title": "职位/头衔",
+  "phone": "电话号码",
+  "email": "邮箱",
+  "relation": "关系类型推断（同行/客户/合作方/校友/朋友/其他，默认同行）",
+  "confidence": "识别置信度（high/medium/low）"
 }
-只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块。`;
-        const result = await callLLM(null, 'You extract business card info. Respond with JSON only.', env, {
-          max_tokens: 512,
+
+示例输入：一张名片，正面写着"张明远"，下方"高级合伙人"，公司"华泰证券"，电话"021-6886 8888"
+示例输出：{"name":"张明远","company":"华泰证券","title":"高级合伙人","phone":"021-6886 8888","email":"","relation":"同行","confidence":"high"}
+
+只返回JSON对象，第一个字符必须是{，最后一个字符必须是}。不要markdown代码块。不要解释。`;
+        const result = await callLLM(null, 'You are a business card OCR engine. Extract information and return JSON only.', env, {
+          max_tokens: 1024,
+          temperature: 0,
           model_tier: 'enhanced',
-          messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: '请分析这张名片并提取信息。' }] }],
+          messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: cardPrompt }] }],
         });
         if (!result) {
           return jsonResponse({ error: '识别失败，请重试' }, 500);
@@ -7177,8 +8894,9 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
             return jsonResponse({ error: '识别失败', raw_text: result.text }, 500);
           }
         }
-        if (!card.name) {
-          return jsonResponse({ error: '未识别到姓名', raw_text: result.text }, 400);
+        if (!card.name || card.name === '未知联系人') {
+          card.name = card.name || '未知联系人';
+          // 不再拒绝，允许用户后续编辑名字
         }
         // Ensure all fields are strings (LLM may return objects/arrays for some fields)
         // For objects/arrays: extract first string value or return empty — never JSON.stringify
@@ -7209,11 +8927,12 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           phone: str(card.phone),
           email: str(card.email),
           relation: str(card.relation) || '同行',
+          confidence: str(card.confidence) || 'medium',
         };
-        // Create contact
+        // 不直接入库，返回识别结果让用户确认
+        // 查重提示
         const contacts = await loadDataset(env, userId, 'contacts');
-        // Check duplicate by name
-        const existing = contacts.find(c => c.name === card.name);
+        const existing = contacts.find(c => c.name === card.name && card.name !== '未知联系人');
         if (existing) {
           return jsonResponse({
             ok: true,
@@ -7223,29 +8942,263 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
             message: `「${card.name}」已在你的联系人中`,
           });
         }
-        const newContact = {
-          id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          name: card.name,
-          company: card.company,
-          title: card.title,
-          phone: card.phone,
-          email: card.email,
-          relation: card.relation,
-          nature: 'leverage',
-          strength: 3,
-          tags: ['名片扫描'],
-          memories: [],
-          important_dates: [],
-          created_at: new Date().toISOString(),
-          updated: new Date().toISOString(),
-        };
-        contacts.push(newContact);
-        await saveDataset(env, userId, 'contacts', contacts);
         return jsonResponse({
           ok: true,
-          contact: newContact,
+          contact: card,
           is_duplicate: false,
-          message: `已添加「${card.name}」`,
+          needs_confirm: true,
+          message: card.name === '未知联系人' ? '识别完成，请确认信息' : `识别到「${card.name}」，请确认`,
+        });
+      }
+
+      // ── Sync entry control (mini program) ──
+      // Backend-controlled flag: whether to show sync entry on dashboard.
+      // Set via KV: SYNC_ENTRY:<userId> = "false" to disable.
+      if (path === '/data/entry' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, null);
+        if (!userId) return new Response('Invalid token', { status: 401 });
+
+        const flag = await env.USER_DATA.get(`SYNC_ENTRY:${userId}`);
+        const sync = flag === 'true'; // default hidden
+        return new Response(JSON.stringify({ sync }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // ── PDF upload (store base64 in KV, return download URL) ──
+      if (path === '/ai/pdf/upload' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = await getVerifiedUserId(request, env, body);
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+
+        const { base64, filename } = body;
+        if (!base64) return jsonResponse({ error: 'base64 content required' }, 400);
+
+        const id = `pdf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await env.USER_DATA.put(`pdf:${id}`, JSON.stringify({ base64, filename: filename || 'document.pdf', userId }), { expirationTtl: 3600 });
+        // Return URL with token so caller can download without separate auth
+        const authToken = (request.headers.get('Authorization') || '').replace('Bearer ', '') || body.session_token || '';
+        return jsonResponse({ ok: true, id, url: `https://api.welian.app/ai/pdf/${id}?token=${encodeURIComponent(authToken)}` });
+      }
+
+      // ── PDF download (authenticated, serve from KV) ──
+      if (path.startsWith('/ai/pdf/') && method === 'GET') {
+        const pdfId = path.split('/ai/pdf/')[1];
+        if (!pdfId || pdfId.includes('/')) return new Response('Not found', { status: 404 });
+        // Require token via query param (wx.downloadFile doesn't support custom headers)
+        const token = url.searchParams.get('token');
+        if (!token) return new Response('Unauthorized', { status: 401 });
+        const userId = await verifySyncToken(env, token);
+        if (!userId) return new Response('Unauthorized', { status: 401 });
+        const raw = await env.USER_DATA.get(`pdf:${pdfId}`);
+        if (!raw) return new Response('Not found or expired', { status: 404 });
+        const { base64, filename, userId: ownerId } = JSON.parse(raw);
+        // Only the owner can download their PDF
+        if (ownerId && ownerId !== userId) return new Response('Forbidden', { status: 403 });
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Response(bytes, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `inline; filename="${filename}"`,
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+
+      // ── Chat with file attachment (mini program, non-streaming) ──
+      // Same flow as wxmp_sync_ws but accepts file via HTTP POST (base64)
+      if (path === '/data/upload_file' && method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const userId = await getVerifiedUserId(request, env, body);
+        if (!userId) {
+          return jsonResponse({ error: 'Authentication required' }, 401);
+        }
+
+        const { text, file, history } = body;
+        if (!file || !file.base64) {
+          return jsonResponse({ error: 'file required' }, 400);
+        }
+
+        // 1. Check billing
+        const billing = await getBillingData(env, userId);
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        if (billing.monthKey !== monthKey) {
+          billing.monthKey = monthKey;
+          billing.used = 0;
+        }
+        const remaining = await getRemaining(billing, env);
+        if (remaining <= 0) {
+          return jsonResponse({ error: '联点已用完', code: 'OUT_OF_CREDITS' }, 402);
+        }
+
+        // 2. Extract intent (for data flywheel)
+        const _chatIntentFallback = `你是一个关系网络智能体。分析用户消息，提取意图和数据操作。只返回JSON，不要其他内容。
+今天是 ${new Date().toISOString().slice(0, 10)}。
+JSON格式：{"intent":"query_contact|query_todo|record|draft|advise|report|chat","contact_name":"","keywords":[],"actions":[]}
+intent说明：query_contact=查询某人,query_todo=查看待办,record=记录互动/添加待办,draft=拟写消息,advise=建议联系谁,report=回顾,chat=闲聊
+actions元素：{"type":"add_timeline","contact_name":"人名","summary":"摘要","date":"YYYY-MM-DD"},{"type":"add_todo","task":"内容","contact_name":"人名","due":"YYYY-MM-DD","priority":"P1"},{"type":"add_contact","name":"人名","relation":"关系"},{"type":"complete_todo","task":"关键词"}
+只有用户明确表达记录/提醒/添加/完成意图时才生成actions，否则actions=[]。`;
+        const userText = text || '请分析这个文件的内容。';
+        let intent = { intent: 'chat', contact_name: '', keywords: [], actions: [] };
+        try {
+          const intentResp = await callLLM(userText, await getPrompt(env, 'intent', _chatIntentFallback), env, {
+            max_tokens: 800, temperature: 0,
+          });
+          if (intentResp) {
+            const jsonMatch = intentResp.text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) intent = JSON.parse(jsonMatch[0]);
+          }
+        } catch {}
+
+        // 3. Execute data actions from intent
+        if (intent.actions && intent.actions.length > 0) {
+          let contacts = null, todos = null, timeline = null;
+          let contactsDirty = false, todosDirty = false, timelineDirty = false;
+          for (const action of intent.actions) {
+            try {
+              if (action.type === 'add_timeline' && action.summary) {
+                if (timeline === null) timeline = await loadDataset(env, userId, 'timeline');
+                if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                let contactId = '';
+                if (action.contact_name) {
+                  const c = contacts.find(c => c.name === action.contact_name ||
+                    c.name.includes(action.contact_name) ||
+                    (c.aliases && c.aliases.some(a => a.includes(action.contact_name))));
+                  if (c) contactId = c.id;
+                  if (!c) {
+                    const nc = createContact(action.contact_name);
+                    contacts.push(nc); contactsDirty = true; contactId = nc.id;
+                  }
+                }
+                timeline.push(createTimelineEntry(contactId, action.summary, { date: action.date || new Date().toISOString().slice(0, 10) }));
+                timelineDirty = true;
+                trackAction(env, userId, 'interaction_recorded', { contact_name: action.contact_name || '' }).catch(() => {});
+              }
+              if (action.type === 'add_todo' && action.task) {
+                if (todos === null) todos = await loadDataset(env, userId, 'todos');
+                if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                let contactId = '';
+                if (action.contact_name) {
+                  const c = contacts.find(c => c.name === action.contact_name ||
+                    c.name.includes(action.contact_name) ||
+                    (c.aliases && c.aliases.some(a => a.includes(action.contact_name))));
+                  if (c) contactId = c.id;
+                  if (!c) {
+                    const nc = createContact(action.contact_name);
+                    contacts.push(nc); contactsDirty = true; contactId = nc.id;
+                  }
+                }
+                const dueDate = action.due || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+                todos.push({
+                  id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  task: action.task, contact: contactId, due: dueDate,
+                  priority: action.priority || 'P1', status: 'pending',
+                  source: 'wxmp_sync', created_at: new Date().toISOString(),
+                });
+                todosDirty = true;
+              }
+              if (action.type === 'add_contact' && action.name) {
+                if (contacts === null) contacts = await loadDataset(env, userId, 'contacts');
+                if (!contacts.find(c => c.name === action.name)) {
+                  contacts.push(createContact(action.name, { relation: action.relation }));
+                  contactsDirty = true;
+                }
+              }
+              if (action.type === 'complete_todo' && action.task) {
+                if (todos === null) todos = await loadDataset(env, userId, 'todos');
+                const t = todos.find(t => t.task.includes(action.task) && t.status === 'pending');
+                if (t) { t.status = 'completed'; t.completed_at = new Date().toISOString(); todosDirty = true; }
+              }
+            } catch (e) { console.error('[upload_file] action error:', e.message); }
+          }
+          if (contactsDirty) await saveDataset(env, userId, 'contacts', contacts);
+          if (todosDirty) await saveDataset(env, userId, 'todos', todos);
+          if (timelineDirty) await saveDataset(env, userId, 'timeline', timeline);
+        }
+
+        // 4. Build data context from KV
+        const contacts = await loadDataset(env, userId, 'contacts');
+        const todos = await loadDataset(env, userId, 'todos');
+        const timeline = await loadDataset(env, userId, 'timeline');
+        let dataContext = '';
+        if (intent.contact_name) {
+          const c = contacts.find(c => c.name === intent.contact_name ||
+            c.name.includes(intent.contact_name) ||
+            (c.aliases && c.aliases.some(a => a.includes(intent.contact_name))));
+          if (c) {
+            const cTimeline = timeline.filter(t => t.contact === c.id).slice(-5);
+            const cTodos = todos.filter(t => t.contact === c.id && t.status === 'pending');
+            dataContext = `【联系人信息】\n姓名: ${c.name}\n公司: ${c.company || ''}\n职位: ${c.title || ''}\n关系: ${c.relation || ''}\n性质: ${c.nature || ''}\n备注: ${c.notes || ''}\n`;
+            if (cTimeline.length) dataContext += `最近互动: ${cTimeline.map(t => `${t.date}: ${t.summary}`).join('; ')}\n`;
+            if (cTodos.length) dataContext += `待办: ${cTodos.map(t => t.task).join('; ')}\n`;
+          }
+        }
+        if (!dataContext && intent.intent === 'advise') {
+          const top = contacts.slice(0, 10).map(c => `- ${c.name} (${c.relation || c.nature || ''})`).join('\n');
+          dataContext = `【联系人列表】\n${top}\n`;
+        }
+        if (intent.intent === 'query_todo') {
+          const pending = todos.filter(t => t.status === 'pending').slice(0, 15);
+          dataContext = `【待办列表】\n${pending.map(t => `- ${t.task} (due: ${t.due || '无'})`).join('\n')}\n`;
+        }
+
+        // 5. Build system prompt
+        const chatSystem = `你是小维（Welian），一个关系网络智能体。你帮用户成为更好的朋友、更好的家人、更好的合作者。
+
+你的信念：每段关系都值得用心。
+你的人格：事实和数据方面按照诚实原则，具有天才头脑。人情世故方面，有趣的灵魂，有温度的表达。
+
+回复风格：
+- 简洁友好，像朋友在聊天，不是助理在汇报
+- 中文回复，适当用 emoji
+- 回复不要太长，重点突出
+- 记录时：确认记下了并简要复述
+- 查待办时：只列出数据中有的，按紧急程度分组
+- 闲聊时：自然回应，可以引导到关系管理话题
+- 拟写消息时：给出完整可发送的草稿
+
+${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataContext}` : ''}
+
+每次回复末尾附上 3-4 条与当前对话上下文直接相关的后续操作建议，格式：
+<<<SUGGESTIONS>>>
+建议1
+建议2
+建议3`;
+
+        // 6. Build multimodal messages
+        const fileBlock = file.is_image
+          ? { type: 'image', source: { type: 'base64', media_type: file.media_type || 'image/jpeg', data: file.base64 } }
+          : { type: 'document', source: { type: 'base64', media_type: file.media_type || 'application/octet-stream', data: file.base64 } };
+        const textBlock = { type: 'text', text: userText || '请分析这个文件的内容。' };
+        const messages = [
+          ...(history || []).slice(-6).map(h => ({ role: h.role || 'user', content: h.content || '' })),
+          { role: 'user', content: [fileBlock, textBlock] },
+        ];
+
+        // 7. Call LLM (enhanced model for multimodal)
+        const llmResp = await callLLM(null, chatSystem, env, {
+          messages, max_tokens: 1024, temperature: 0.7, model_tier: 'enhanced',
+        });
+
+        if (!llmResp) {
+          return jsonResponse({ error: 'LLM call failed' }, 502);
+        }
+
+        // 8. Billing deduction
+        const usage = llmResp.usage || { input_tokens: 0, output_tokens: 0 };
+        const { points } = await deductBilling(env, userId, usage, 'usage', `wxmp_upload: ${intent.intent || 'chat'}`, 'enhanced');
+
+        return jsonResponse({
+          reply: llmResp.text,
+          intent: intent.intent,
+          billing: {
+            plan: billing.plan,
+            used: billing.used,
+            remaining: await getRemaining(billing, env),
+          },
         });
       }
 
@@ -7296,10 +9249,28 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           });
           const created = await createResp.json();
           if (created.errors) {
-            console.error('[wxmp_register] Clerk create error:', JSON.stringify(created.errors));
-            return jsonResponse({ error: '注册失败', detail: created.errors }, 500);
+            // Email already taken → look up existing Clerk user and reuse
+            const emailExists = created.errors.some(e => e.code === 'form_identifier_exists');
+            if (emailExists) {
+              console.log('[wxmp_register] Email exists, looking up existing Clerk user');
+              const listResp = await fetch(`https://api.clerk.com/v1/users?email_address=${encodeURIComponent(autoEmail)}&limit=1`, {
+                headers: { 'Authorization': `Bearer ${clerkSecretKey}` },
+              });
+              const userList = await listResp.json();
+              if (userList && userList.length > 0 && userList[0].id) {
+                clerkUserId = userList[0].id;
+                console.log('[wxmp_register] Reusing existing Clerk user:', clerkUserId);
+              } else {
+                console.error('[wxmp_register] Clerk lookup failed after email conflict');
+                return jsonResponse({ error: '注册失败，请联系客服' }, 500);
+              }
+            } else {
+              console.error('[wxmp_register] Clerk create error:', JSON.stringify(created.errors));
+              return jsonResponse({ error: '注册失败', detail: created.errors }, 500);
+            }
+          } else {
+            clerkUserId = created.id;
           }
-          clerkUserId = created.id;
         } catch (e) {
           console.error('[wxmp_register] Clerk create error:', e.message);
           return jsonResponse({ error: '注册失败，请重试' }, 500);
@@ -7334,8 +9305,23 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
           return jsonResponse({ ok: true, token, message: '已解绑' });
         }
         if (clerk_user_id) {
-          // Find the wxmp binding that points to this clerk user
-          // List all wechat_bind: keys and find the one matching clerk_user_id
+          // Try reverse mapping first (stored during wxmp_register)
+          const reverseMapping = await env.USER_DATA.get(`clerk_to_wxmp:${clerk_user_id}`);
+          if (reverseMapping) {
+            try {
+              const { openid: openidFromMapping } = JSON.parse(reverseMapping);
+              if (openidFromMapping) {
+                const wxmpUserId = `wxmp_${openidFromMapping}`;
+                await env.USER_DATA.delete(`wechat_bind:${wxmpUserId}`);
+                await env.USER_DATA.delete(`clerk_to_wxmp:${clerk_user_id}`);
+                // 保留 wxmp_registered — 解绑只解除 Web 账号绑定，不撤销注册状态
+                // 用户仍可通过微信登录访问 wxmp 命名空间下的数据
+                const token = `${wxmpUserId}:${env.WELIAN_SYNC_SECRET}`;
+                return jsonResponse({ ok: true, token, message: '已解绑' });
+              }
+            } catch {}
+          }
+          // Fallback: list all wechat_bind: keys and find the one matching clerk_user_id
           const listResult = await env.USER_DATA.list({ prefix: 'wechat_bind:' });
           for (const key of listResult.keys || []) {
             const val = await env.USER_DATA.get(key.name);
@@ -7343,6 +9329,9 @@ ${dataContext ? `以下是用户的相关数据，回答时参考：\n${dataCont
               await env.USER_DATA.delete(key.name);
               // Extract openid from key name: wechat_bind:wxmp_<openid>
               const openidFromKey = key.name.replace('wechat_bind:wxmp_', '');
+              // Also clean up reverse mapping if exists
+              await env.USER_DATA.delete(`clerk_to_wxmp:${clerk_user_id}`);
+              // 保留 wxmp_registered — 解绑不撤销注册
               const token = `wxmp_${openidFromKey}:${env.WELIAN_SYNC_SECRET}`;
               return jsonResponse({ ok: true, token, message: '已解绑' });
             }
@@ -7835,6 +9824,19 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
+      // Self-evolution: read per-user behavioral insights (auto-generated weekly)
+      if (path === '/ai/insights' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Unauthorized' }, 401);
+        const raw = await loadBehavioralInsights(env, userId);
+        if (!raw) return jsonResponse({ insights: [] }, 200);
+        // raw is markdown text; split into individual insight lines (skip headers/blank)
+        const insights = raw.split('\n')
+          .map(l => l.replace(/^[-*\s]+/, '').trim())
+          .filter(l => l && !l.startsWith('#') && l.length > 10);
+        return jsonResponse({ insights }, 200);
+      }
+
       if (path === '/ai/skills' && method === 'GET') {
         const url = new URL(request.url);
         const intent = url.searchParams.get('intent') || '';
@@ -7861,6 +9863,58 @@ ${chatText}
           const storedDp = await env.USER_DATA.get('config:data_priority');
           if (storedDp) dataPriority = JSON.parse(storedDp);
         } catch (e) { /* use defaults */ }
+
+        // Config-driven business logic + feature flags (override via KV config:app)
+        const appDefaults = {
+          thresholds: {
+            cooldown_leverage: 14,
+            cooldown_nurture: 30,
+            page_size_contacts: 100,
+            page_size_search: 50,
+            upcoming_dates_window: 30,
+            dashboard_cache_sec: 30,
+          },
+          evolution_stages: [
+            { name: '初生', icon: '🌱', min_contacts: 0, min_interactions: 0 },
+            { name: '启蒙', icon: '✨', min_contacts: 3, min_interactions: 1 },
+            { name: '成长', icon: '🌿', min_contacts: 10, min_interactions: 20 },
+            { name: '成熟', icon: '🌳', min_contacts: 30, min_interactions: 100 },
+            { name: '精通', icon: '🏆', min_contacts: 50, min_interactions: 300 },
+          ],
+          feature_flags: {
+            signals: true,
+            insights: true,
+            evolution: true,
+            meetings: true,
+            upcoming_dates: true,
+            todo_summary: true,
+          },
+          labels: {
+            priority: { P1: '紧急', P2: '重要', P3: '一般' },
+            postpone_days: [1, 3, 7, 14],
+          },
+          subscribe_templates: {
+            todo_due: '3srg81ewNIb2rBGFL83DoPG22BuHMZxzVwGGoXsevKI',
+          },
+        };
+        let appConfig = appDefaults;
+        try {
+          const storedApp = await env.USER_DATA.get('config:app');
+          if (storedApp) {
+            const parsed = JSON.parse(storedApp);
+            // 深合并：嵌套对象逐字段覆盖，而非整体替换
+            appConfig = {
+              ...appDefaults,
+              ...parsed,
+              thresholds: { ...appDefaults.thresholds, ...(parsed.thresholds || {}) },
+              feature_flags: { ...appDefaults.feature_flags, ...(parsed.feature_flags || {}) },
+              labels: { ...appDefaults.labels, ...(parsed.labels || {}) },
+              subscribe_templates: { ...appDefaults.subscribe_templates, ...(parsed.subscribe_templates || {}) },
+              evolution_stages: parsed.evolution_stages || appDefaults.evolution_stages,
+            };
+          }
+        } catch (e) { /* use defaults */ }
+
         return jsonResponse({
           routing,
           data_priority: dataPriority,
@@ -7869,6 +9923,7 @@ ${chatText}
             enhanced: env.LLM_MODEL_ENHANCED || 'claude-sonnet-4-6',
             premium: env.LLM_MODEL_PREMIUM || 'claude-opus-4-6',
           },
+          ...appConfig,
         });
       }
 
@@ -8040,6 +10095,82 @@ ${chatText}
         return jsonResponse(r.data, r.status);
       }
 
+      // ── SDUI: 返回组件树供前端通用渲染器渲染（减少发版） ──
+      if (path === '/ai/render' && method === 'GET') {
+        const url = new URL(request.url);
+        const page = url.searchParams.get('page') || '';
+        const refresh = url.searchParams.get('refresh') === '1';
+
+        // privacy 页无需登录（用户可能未登录就查看隐私政策）
+        if (page === 'privacy') {
+          return jsonResponse({ page, title: '隐私政策', components: privacyToComponents() });
+        }
+
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        let components = [];
+        let title = '';
+        const authHdr = request.headers.get('Authorization') || '';
+        try {
+          if (page === 'weekly') {
+            const r = await handleWeeklyReport(new Request('https://internal/weekly', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': authHdr },
+              body: JSON.stringify({ refresh }),
+            }), env);
+            if (r.data && r.data.ok) {
+              components = weeklyToComponents(r.data.report, r.data.raw_data);
+              title = '周报';
+            } else if (r.data) {
+              return jsonResponse({ error: r.data.error || '周报生成失败' }, r.status || 500);
+            }
+          } else if (page === 'monthly') {
+            const r = await handleMonthlyReport(new Request('https://internal/monthly', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': authHdr },
+              body: JSON.stringify({ refresh }),
+            }), env);
+            if (r.data && r.data.ok) {
+              components = monthlyToComponents(r.data.report);
+              title = '月报';
+            } else if (r.data) {
+              return jsonResponse({ error: r.data.error || '月报生成失败' }, r.status || 500);
+            }
+          } else if (page === 'annual') {
+            const r = await handleAnnualReport(new Request('https://internal/annual', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': authHdr },
+              body: JSON.stringify({ refresh }),
+            }), env);
+            if (r.data && r.data.ok) {
+              components = annualToComponents(r.data.report);
+              title = '年度报告';
+            } else if (r.data) {
+              return jsonResponse({ error: r.data.error || '年度报告生成失败' }, r.status || 500);
+            }
+          } else if (page === 'signals') {
+            const r = await handleSignalsPreview(request, env);
+            if (r.data) {
+              components = signalsToComponents(r.data);
+              title = '今日信号';
+            }
+          } else if (page === 'privacy') {
+            components = privacyToComponents();
+            title = '隐私政策';
+          } else if (page === 'article') {
+            const articleUrl = url.searchParams.get('url') || '';
+            components = await articleToComponents(articleUrl, request, env);
+            title = '文章';
+          } else {
+            return jsonResponse({ error: 'Unknown page: ' + page }, 400);
+          }
+        } catch (e) {
+          return jsonResponse({ error: e.message || 'Render failed' }, 500);
+        }
+        return jsonResponse({ page, title, components });
+      }
+
       if (path === '/ai/hn_signals' && method === 'POST') {
         const r = await handleHnSignals(request, env);
         return jsonResponse(r.data, r.status);
@@ -8101,6 +10232,22 @@ ${chatText}
       if (path === '/ai/push_poll' && method === 'POST') {
         const r = await handlePushPoll(request, env);
         return jsonResponse(r.data, r.status);
+      }
+
+      // ── 订阅消息授权管理 ──
+
+      if (path === '/ai/wxmp_subscribe' && method === 'POST') {
+        const r = await handleWxmpSubscribe(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // 临时：查询订阅消息模板详情
+      if (path === '/ai/wxmp_subscribe_templates' && method === 'GET') {
+        const accessToken = await getWechatAccessToken(env);
+        if (!accessToken) return jsonResponse({ error: 'no access token' }, 500);
+        const resp = await fetch(`https://api.weixin.qq.com/wxaapi/newtmpl/gettemplate?access_token=${accessToken}`);
+        const data = await resp.json();
+        return jsonResponse(data);
       }
 
       if (path === '/ai/estimate_cost' && method === 'POST') {
@@ -8391,7 +10538,7 @@ ${chatText}
   async scheduled(event, env, ctx) {
     const cronExpr = event.cron || '';
     const tasks = [];
-    // Monday 01:00 UTC → weekly report push
+    // Monday 01:00 UTC → weekly report push + weekly ready subscribe
     if (cronExpr === '0 1 * * 1') {
       tasks.push(handleScheduledPush(env).catch(e => captureException(env, e, { tags: { handler: 'scheduled' } })));
     }
@@ -8400,17 +10547,25 @@ ${chatText}
       tasks.push(handleDailySignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_signals' } })));
       tasks.push(handleDailyAdvisePush(env).catch(e => captureException(env, e, { tags: { handler: 'daily_advise' } })));
     }
+    // Daily 00:00 UTC (08:00 CST) → subscribe message: todo due + daily signals
+    if (cronExpr === '0 0 * * *') {
+      tasks.push(handleTodoDueSubscribePush(env).catch(e => captureException(env, e, { tags: { handler: 'todo_subscribe' } })));
+    }
     // Daily 14:00 UTC (22:00 CST) → evening recap push to WeChat
     if (cronExpr === '0 14 * * *') {
       tasks.push(handleEveningSignalsPush(env).catch(e => captureException(env, e, { tags: { handler: 'evening_recap' } })));
     }
-    // Daily 13:00 UTC (21:00 CST) → festival & important date reminder push (3 days ahead)
+    // Daily 13:00 UTC (21:00 CST) → festival & important date reminder push + subscribe
     if (cronExpr === '0 13 * * *') {
       tasks.push(handleFestivalReminderPush(env).catch(e => captureException(env, e, { tags: { handler: 'festival_reminder' } })));
     }
     // 1st & 15th of month 01:00 UTC (09:00 CST) → biweekly health warning push
     if (cronExpr === '0 1 1,15 * *') {
       tasks.push(handleHealthWarningPush(env).catch(e => captureException(env, e, { tags: { handler: 'health_warning' } })));
+    }
+    // Monday 02:00 UTC (10:00 CST) → self-evolution: analyze metrics, update behavioral insights
+    if (cronExpr === '0 2 * * 1') {
+      tasks.push(handleSelfEvolution(env).catch(e => captureException(env, e, { tags: { handler: 'self_evolution' } })));
     }
     // Fallback: if no cron match, run weekly (backward compat)
     if (tasks.length === 0) {
@@ -8458,12 +10613,14 @@ async function handleWeeklyReport(req, env) {
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
-  // Cache: return same-day cached report if exists
+  // Cache: return same-day cached report if exists (bypass with refresh=1)
   const todayKey = localDateStr(req);
   const cacheKey = `weekly_cache:${userId}:${todayKey}`;
-  const cached = await env.USER_DATA.get(cacheKey);
-  if (cached) {
-    return { status: 200, data: JSON.parse(cached) };
+  if (!body.refresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      return { status: 200, data: JSON.parse(cached) };
+    }
   }
 
   const contacts = await loadDataset(env, userId, 'contacts');
@@ -8551,17 +10708,12 @@ async function handleWeeklyReport(req, env) {
     if (jsonMatch) {
       report = JSON.parse(jsonMatch[0]);
     } else {
-      // LLM didn't return JSON, use raw text as greeting
-      report = { greeting: text };
+      // LLM didn't return JSON — use friendly default instead of raw text (may contain English)
+      report = { greeting: '本周数据已整理好，看看下面的回顾吧' };
     }
   } catch {
-    // JSON parse failed — strip JSON formatting chars from text for readable display
-    const cleaned = llmResp.text
-      .replace(/[{}[\]"]/g, '')
-      .replace(/\\n/g, '\n')
-      .replace(/^\s*[a-z_]+:\s*/gim, '')
-      .trim();
-    report = { greeting: cleaned || '周报生成完成' };
+    // JSON parse failed — don't display raw text residue (may contain English field names)
+    report = { greeting: '本周数据已整理好，看看下面的回顾吧' };
   }
 
   // Deduct billing (unified)
@@ -8597,12 +10749,14 @@ async function handleMonthlyReport(req, env) {
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
-  // Cache: return same-day cached report if exists
+  // Cache: return same-day cached report if exists (bypass with refresh=1)
   const todayKey = localDateStr(req);
   const cacheKey = `monthly_cache:${userId}:${todayKey}`;
-  const cached = await env.USER_DATA.get(cacheKey);
-  if (cached) {
-    return { status: 200, data: JSON.parse(cached) };
+  if (!body.refresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      return { status: 200, data: JSON.parse(cached) };
+    }
   }
 
   const contacts = await loadDataset(env, userId, 'contacts');
@@ -8876,14 +11030,24 @@ async function handleAnnualReport(req, env) {
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
 
+  const now = new Date();
+  const year = now.getFullYear();
+
+  // Cache: return cached report if exists (bypass with refresh=1)
+  const cacheKey = `annual_cache:${userId}:${year}`;
+  if (!body.refresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      return { status: 200, data: JSON.parse(cached) };
+    }
+  }
+
   try {
     const contacts = await loadDataset(env, userId, 'contacts');
     const timeline = await loadDataset(env, userId, 'timeline');
     const todos = await loadDataset(env, userId, 'todos');
     const metrics = await loadMetrics(env, userId);
 
-  const now = new Date();
-  const year = now.getFullYear();
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
 
@@ -9027,7 +11191,6 @@ async function handleAnnualReport(req, env) {
   report.year = year;
 
   // Cache for 24 hours
-    const cacheKey = `annual_cache:${userId}:${year}`;
     await env.USER_DATA.put(cacheKey, JSON.stringify({ ok: true, report }), { expirationTtl: 86400 });
 
     return { status: 200, data: { ok: true, report } };
@@ -9633,26 +11796,30 @@ Generate personalized signals that connect news to their professional network an
 // ── Public signals preview (no auth, no personalization, 6h cache) ──
 
 async function handleSignalsPreview(req, env) {
-  // Cache: 6 hour TTL, shared across all users
+  // Cache: 6 hour TTL, shared across all users (bypass with ?refresh=1)
+  const url = new URL(req.url);
+  const forceRefresh = url.searchParams.get('refresh') === '1';
   const cacheKey = `signals_preview:${new Date().toISOString().slice(0, 13)}`; // hour-level key
-  const cached = await env.USER_DATA.get(cacheKey);
-  if (cached) {
-    const parsed = JSON.parse(cached);
-    // Don't serve cached empty results — regenerate
-    if (parsed.report?.signals?.length > 0) {
-      // Ensure daily snapshot exists even on cache hit
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const existing = await env.USER_DATA.get(`signals_history:${todayKey}`);
-      if (!existing) {
-        await env.USER_DATA.put(`signals_history:${todayKey}`, JSON.stringify({
-          date: todayKey,
-          greeting: parsed.report.greeting || '',
-          signals: parsed.report.signals,
-          themes: parsed.report.themes || [],
-          closing: parsed.report.closing || '',
-        }), { expirationTtl: 2592000 });
+  if (!forceRefresh) {
+    const cached = await env.USER_DATA.get(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Don't serve cached empty results — regenerate
+      if (parsed.report?.signals?.length > 0) {
+        // Ensure daily snapshot exists even on cache hit
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const existing = await env.USER_DATA.get(`signals_history:${todayKey}`);
+        if (!existing) {
+          await env.USER_DATA.put(`signals_history:${todayKey}`, JSON.stringify({
+            date: todayKey,
+            greeting: parsed.report.greeting || '',
+            signals: parsed.report.signals,
+            themes: parsed.report.themes || [],
+            closing: parsed.report.closing || '',
+          }), { expirationTtl: 2592000 });
+        }
+        return { status: 200, data: parsed };
       }
-      return { status: 200, data: parsed };
     }
   }
 
@@ -9695,7 +11862,7 @@ Return JSON:
     }
   ],
   "themes": ["热点主题1", "热点主题2"],
-  "closing": "一句话收尾，引导用户登录 welian.app 获取个性化信号"
+  "closing": "一句话收尾，温暖简短（如'今天信号就到这里，明天见'）。不要引导登录或跳转——底部已有小程序CTA"
 }
 
 Rules:
@@ -9710,7 +11877,7 @@ Rules:
 - 不关联特定用户行业或联系人——这是面向公众的通用高信号简报
 - 如果同一条新闻在多个来源出现，合并为一条，source 列出所有来源
 - 中文输出，简洁有力
-- closing 要引导用户登录获取个性化信号（如"登录 welian.app 查看结合你关系网络的个性化信号"）`;
+- closing 只做简短收尾，不要引导登录或跳转（底部CTA已统一处理小程序入口）`;
 
   const prompt = `Today's news from multiple sources (Hacker News, 36氪, 36氪快讯, 虎嗅, 头条, 微信, 机器之心, 华尔街见闻, 投资界, Product Hunt, TechCrunch, The Verge, ArXiv, V2EX, 财联社, 新浪财经, 证监会, GitHub, InfoQ, 雪球, 第一财经, Reddit ML, HuggingFace):
 ${storiesText}
@@ -9762,7 +11929,7 @@ Select the 15 most important and high-signal stories. Focus on: major funding/ac
       greeting: '今日信号',
       signals: fallbackSignals,
       themes: [],
-      closing: '登录 welian.app 获取个性化信号',
+      closing: '今天信号就到这里，明天见',
     };
   }
 
@@ -9798,14 +11965,17 @@ async function handleSignalsHistory(req, env) {
       days.push(JSON.parse(raw));
     }
   }
-  // Build weekly theme aggregation
-  const themeCount = {};
+  // Build weekly theme aggregation: count signals per tag across 7 days
+  const tagCount = {};
   days.forEach(d => {
-    (d.themes || []).forEach(t => {
-      themeCount[t] = (themeCount[t] || 0) + 1;
+    (d.signals || []).forEach(s => {
+      const tags = Array.isArray(s.tags) ? s.tags : [];
+      tags.forEach(tag => {
+        tagCount[tag] = (tagCount[tag] || 0) + 1;
+      });
     });
   });
-  const weeklyThemes = Object.entries(themeCount)
+  const weeklyThemes = Object.entries(tagCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([theme, count]) => ({ theme, count }));
@@ -9928,7 +12098,7 @@ async function handleOnboardingCreateContacts(req, env) {
       }
     }
     if (parts.length > 0) {
-      const llmResp = await callLLM(parts.join('\n'), await getPrompt(env, 'advise', ADVISE_SYSTEM), env);
+      const llmResp = await callLLM(parts.join('\n'), await augmentWithInsights(env, clerkUserId, await getPrompt(env, 'advise', ADVISE_SYSTEM)), env);
       firstAdvise = llmResp ? llmResp.text : parts.join('\n');
       // Register advise for adoption tracking
       await registerAdvise(env, userId);
@@ -10230,7 +12400,7 @@ async function handleHealthWarningPush(env) {
         msg += '\n';
       }
       msg += '建议尽快找个自然切入点重新互动。\n';
-      msg += '登录 welian.app 查看完整健康分析 →';
+      msg += '微信搜索「Welian」小程序查看完整健康分析 →';
 
       // Push to WeChat queue (if WeChat-bound)
       const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
@@ -10811,7 +12981,7 @@ async function handleDailySignalsPush(env) {
   const report = previewResult.data.report;
   const signals = report.signals || [];
   const themes = report.themes || [];
-  const today = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+  const today = new Date().toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 
   // Save daily snapshot to KV for history (30-day TTL)
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -10823,8 +12993,8 @@ async function handleDailySignalsPush(env) {
     closing: report.closing || '',
   }), { expirationTtl: 2592000 }); // 30 days
 
-  // Build article title (max 32 chars)
-  const title = `📡 今日信号 · ${today}`;
+  // Build article title — use top signal title (max 32 chars)
+  const title = (signals[0]?.title || `${today} 今日信号`).substring(0, 32);
 
   // Build article digest (max 120 chars)
   const topTitles = signals.slice(0, 3).map(s => s.title).join('、');
@@ -10870,11 +13040,11 @@ async function handleDailySignalsPush(env) {
 
   html += '</section>';
 
-  // CTA section — no <a> tag (WeChat strips links in article body), use text + 阅读原文
+  // CTA section — 小程序作为主推荐，阅读原文进入H5信号页（含小程序入口）
   html += `<section style="background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:16px;padding:24px;text-align:center;margin-top:20px;">
-    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">获取个性化信号</h2>
-    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">登录 Welian，信号会结合你的行业、联系人网络和关系目标</p>
-    <p style="color:#fff;font-size:15px;font-weight:600;">点击底部「阅读原文」体验 →</p>
+    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">📱 微信搜索「Welian」小程序</h2>
+    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">随时记录互动、管理关系，获取结合你关系网络的个性化信号</p>
+    <p style="color:#fff;font-size:15px;font-weight:600;">或点击底部「阅读原文」查看完整信号 →</p>
   </section>`;
 
   if (report.closing) {
@@ -11010,8 +13180,8 @@ async function handleDailyEmailDigest(env, report) {
   html += `</div>`;
 
   html += `<div style="text-align:center;padding:20px;background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:12px;margin-bottom:16px">`;
-  html += `<p style="color:#fff;font-size:16px;margin:0 0 8px">登录获取个性化信号</p>`;
-  html += `<p style="color:#fff;font-size:13px;opacity:0.9;margin:0 0 12px">结合你的行业、联系人网络和关系目标</p>`;
+  html += `<p style="color:#fff;font-size:16px;margin:0 0 8px">📱 微信搜索「Welian」小程序</p>`;
+  html += `<p style="color:#fff;font-size:13px;opacity:0.9;margin:0 0 12px">获取结合你关系网络的个性化信号</p>`;
   html += `<a href="https://welian.app/signals.html" style="display:inline-block;padding:10px 28px;background:#fff;color:#4A6741;border-radius:8px;text-decoration:none;font-weight:600">查看完整信号 →</a>`;
   html += `</div>`;
 
@@ -11088,7 +13258,7 @@ Return JSON:
   "trend_confirmation": "今天确认了什么趋势？（早上的判断被验证了还是反转了）",
   "missed": "今天最容易忽略但可能重要的一条（不在头条但值得留意）",
   "tomorrow_watch": "明天值得关注的1-2个方向",
-  "closing": "晚安式收尾，引导用户登录 welian.app"
+  "closing": "晚安式收尾，温暖简短（如'今天辛苦了，早点休息'）。不要引导登录或跳转——底部已有小程序CTA"
 }
 
 Rules:
@@ -11097,7 +13267,7 @@ Rules:
 - missed 是"隐藏信号"——不在头条但可能影响未来
 - tomorrow_watch 是前瞻：基于今天的走势，明天该盯什么
 - 中文输出，回顾语气，像朋友晚上聊天复盘今天
-- closing 要温暖，如"今天辛苦了，早点休息。登录 welian.app 查看个性化回顾"`;
+- closing 只做温暖收尾，不要引导登录或跳转（底部CTA已统一处理小程序入口）`;
 
   const prompt = `Today is ${today}.
 
@@ -11139,7 +13309,7 @@ Generate an evening recap that reviews the day, confirms or updates the morning'
       trend_confirmation: morningThemes.join('、'),
       missed: '',
       tomorrow_watch: '',
-      closing: '今天辛苦了，早点休息。登录 welian.app 查看个性化回顾',
+      closing: '今天辛苦了，早点休息',
     };
     console.log('[evening_recap] Using fallback (LLM failed)');
   }
@@ -11207,11 +13377,11 @@ Generate an evening recap that reviews the day, confirms or updates the morning'
     </section>`;
   }
 
-  // CTA
+  // CTA — 小程序作为主推荐
   html += `<section style="background:linear-gradient(135deg,#4A6741 0%,#5a7a51 100%);border-radius:16px;padding:24px;text-align:center;margin-top:20px;">
-    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">个性化回顾</h2>
-    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">登录 Welian，查看结合你关系网络的全天回顾</p>
-    <p style="color:#fff;font-size:15px;font-weight:600;">点击底部「阅读原文」体验 →</p>
+    <h2 style="color:#fff;font-size:18px;margin-bottom:8px;">📱 微信搜索「Welian」小程序</h2>
+    <p style="color:#fff;font-size:14px;opacity:0.9;margin-bottom:12px;">查看结合你关系网络的全天回顾，随时记录互动、管理关系</p>
+    <p style="color:#fff;font-size:15px;font-weight:600;">或点击底部「阅读原文」查看完整回顾 →</p>
   </section>`;
 
   if (report.closing) {
@@ -11359,6 +13529,34 @@ async function _uploadCoverBlob(env, accessToken, imgBlob, kvKey, coverIdx) {
   return uploadData.media_id;
 }
 
+// Get access_token using mini program credentials (separate from public account)
+async function getMpAccessToken(env, appId, secret) {
+  const cacheKey = `mp_access_token:${appId}`;
+  const cached = await env.USER_DATA.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const resp = await fetch('https://api.weixin.qq.com/cgi-bin/stable_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credential',
+        appid: appId,
+        secret: secret,
+        force_refresh: false,
+      }),
+    });
+    const data = await resp.json();
+    if (data.access_token) {
+      await env.USER_DATA.put(cacheKey, data.access_token, { expirationTtl: 5400 });
+      return data.access_token;
+    }
+    console.error('[mp_token] error:', data.errmsg);
+  } catch (e) {
+    console.error('[mp_token] fetch error:', e.message);
+  }
+  return null;
+}
+
 async function getWechatAccessToken(env) {
   if (!env.WECHAT_APP_ID || !env.WECHAT_APP_SECRET) return null;
 
@@ -11388,6 +13586,161 @@ async function getWechatAccessToken(env) {
     console.error('[wechat] Token fetch error:', e.message);
   }
   return null;
+}
+
+// ── 订阅消息模板 ID（需在微信公众平台申请后替换）──
+const SUBSCRIBE_TEMPLATES = {
+  todo_due: '3srg81ewNIb2rBGFL83DoPG22BuHMZxzVwGGoXsevKI',      // 待办到期提醒
+};
+
+// 前端上报订阅授权
+async function handleWxmpSubscribe(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { template_ids } = body; // array of template IDs user subscribed to
+  if (!Array.isArray(template_ids) || template_ids.length === 0) {
+    return { status: 400, data: { error: 'template_ids required' } };
+  }
+
+  // Get wxmp openid for this user
+  const openid = await getWxmpOpenid(env, userId);
+  if (!openid) {
+    return { status: 200, data: { ok: true, skipped: true, reason: 'no openid' } };
+  }
+
+  // Increment subscription count for each template
+  for (const tplKey of template_ids) {
+    const tplId = SUBSCRIBE_TEMPLATES[tplKey];
+    if (!tplId) continue;
+    const key = `subscribe:${userId}:${tplKey}`;
+    const raw = await env.USER_DATA.get(key);
+    const current = raw ? JSON.parse(raw) : { count: 0, openid };
+    current.count += 1;
+    current.openid = openid;
+    current.updatedAt = new Date().toISOString();
+    await env.USER_DATA.put(key, JSON.stringify(current));
+  }
+
+  return { status: 200, data: { ok: true } };
+}
+
+// 获取用户的 wxmp openid
+async function getWxmpOpenid(env, userId) {
+  // Try reverse mapping: clerk_user_id → wxmp openid
+  const wxmpData = await env.USER_DATA.get(`clerk_to_wxmp:${userId}`);
+  if (wxmpData) {
+    try { return JSON.parse(wxmpData).openid; } catch { return null; }
+  }
+  // If userId itself is wxmp_ prefix
+  if (userId.startsWith('wxmp_')) {
+    return userId.substring(5);
+  }
+  return null;
+}
+
+// 发送订阅消息
+async function sendSubscribeMessage(env, openid, templateKey, data, page) {
+  const tplId = SUBSCRIBE_TEMPLATES[templateKey];
+  if (!tplId) {
+    console.log('[subscribe] template not configured:', templateKey);
+    return false;
+  }
+  const accessToken = await getWechatAccessToken(env);
+  if (!accessToken) {
+    console.error('[subscribe] no access token');
+    return false;
+  }
+  try {
+    const resp = await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${accessToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        touser: openid,
+        template_id: tplId,
+        page: page || 'pages/dashboard/dashboard',
+        data,
+        miniprogram_state: 'formal',
+        lang: 'zh_CN',
+      }),
+    });
+    const result = await resp.json();
+    if (result.errcode === 0) {
+      console.log('[subscribe] sent:', templateKey, 'to', openid);
+      return true;
+    }
+    console.error('[subscribe] send failed:', result.errcode, result.errmsg);
+    return false;
+  } catch (e) {
+    console.error('[subscribe] send error:', e.message);
+    return false;
+  }
+}
+
+// 消耗一次订阅授权额度
+async function consumeSubscription(env, userId, templateKey) {
+  const key = `subscribe:${userId}:${templateKey}`;
+  const raw = await env.USER_DATA.get(key);
+  if (!raw) return false;
+  const sub = JSON.parse(raw);
+  if (sub.count <= 0) return false;
+  sub.count -= 1;
+  await env.USER_DATA.put(key, JSON.stringify(sub));
+  return sub.openid;
+}
+
+// ── 订阅消息定时推送任务 ──
+
+// 待办到期提醒（每天 08:00 CST = 00:00 UTC）
+async function handleTodoDueSubscribePush(env) {
+  const listResult = await env.USER_DATA.list({ prefix: 'subscribe:' });
+  const userTemplateMap = {}; // userId → Set of templateKeys
+  for (const key of listResult.keys) {
+    const parts = key.name.split(':'); // subscribe:userId:templateKey
+    if (parts.length === 3 && parts[2] === 'todo_due') {
+      const raw = await env.USER_DATA.get(key.name);
+      const sub = JSON.parse(raw);
+      if (sub.count > 0) {
+        userTemplateMap[parts[1]] = userTemplateMap[parts[1]] || new Set();
+        userTemplateMap[parts[1]].add('todo_due');
+      }
+    }
+  }
+
+  let sent = 0;
+  for (const userId of Object.keys(userTemplateMap)) {
+    // Load todos due tomorrow
+    const todosRaw = await env.USER_DATA.get(`todos:${userId}`) || '[]';
+    const todos = JSON.parse(todosRaw);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const dueTodos = todos.filter(t => !t.done && t.due && t.due.slice(0, 10) === tomorrowStr);
+    if (dueTodos.length === 0) continue;
+
+    const openid = await consumeSubscription(env, userId, 'todo_due');
+    if (!openid) continue;
+
+    const first = dueTodos[0];
+    // Load contacts to resolve contact name for thing45
+    const contactsRaw = await env.USER_DATA.get(`contacts:${userId}`) || '[]';
+    const contacts = JSON.parse(contactsRaw);
+    const contactName = first.contact
+      ? (contacts.find(c => c.id === first.contact)?.name || '')
+      : '';
+    const truncate = (s, max = 20) => (s || '').slice(0, max) || '无';
+
+    await sendSubscribeMessage(env, openid, 'todo_due', {
+      thing1: { value: truncate(first.task) || '待办事项' },
+      time2: { value: first.due || tomorrowStr },
+      thing3: { value: truncate(first.location) || '未设置' },
+      thing4: { value: truncate(first.task) || '待办事项' },
+      thing45: { value: truncate(contactName) },
+    }, 'pages/todos/todos');
+    sent++;
+  }
+  console.log('[subscribe] todo_due push sent:', sent);
 }
 
 async function pushSignalsToQueues(env, msg) {
@@ -11936,4 +14289,578 @@ async function handleReadUrl(req, env) {
   }
   const result = await readUrl(url, env);
   return { status: 200, data: result };
+}
+
+// ── SDUI 组件树转换函数 ──
+
+// 周报 → 组件树（header + section 分组）
+// 智能处理：长文本拆分 + 始终从 raw_data 构建 section（即使 LLM 没返回结构化字段）
+function weeklyToComponents(report, rawData) {
+  const components = [];
+  let id = 0;
+  const nextId = () => `wk_${++id}`;
+
+  // ── 页面头部（对齐 web 端 📋 社交周报） ──
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  const fmt = d => `${d.getMonth() + 1}月${d.getDate()}日`;
+  const weekRange = `${fmt(weekAgo)} - ${fmt(now)}`;
+  const review = report.review || (rawData && rawData.weekSummary) || {};
+  const greeting = report.greeting || '';
+  const shortGreeting = greeting.length > 60 ? greeting.split(/[。！\n]/)[0] + '。' : greeting;
+
+  components.push({
+    id: nextId(), type: 'header',
+    title: '社交周报',
+    subtitle: shortGreeting || '',
+    date: weekRange,
+  });
+
+  // ── 问候语（长文本时完整展示在卡片内） ──
+  if (greeting && greeting.length > 60) {
+    components.push({
+      id: nextId(), type: 'section',
+      children: [{
+        id: nextId(), type: 'paragraph',
+        content: greeting,
+      }],
+    });
+  }
+
+  // ── 本周回顾（对齐 web 端：互动/完成/待办 + summary） ──
+  const stats = {
+    interactions: review.interactions ?? (rawData && rawData.weekSummary && rawData.weekSummary.interactions) ?? 0,
+    new_todos: review.new_todos ?? (rawData && rawData.weekSummary && rawData.weekSummary.new_todos) ?? 0,
+    completed_todos: review.completed_todos ?? (rawData && rawData.weekSummary && rawData.weekSummary.completed_todos) ?? 0,
+  };
+  const reviewChildren = [{
+    id: nextId(), type: 'stat-group',
+    items: [
+      { label: '互动', value: stats.interactions },
+      { label: '完成', value: stats.completed_todos },
+      { label: '待办', value: stats.new_todos },
+    ],
+  }];
+  if (review.summary) {
+    reviewChildren.push({ id: nextId(), type: 'paragraph', content: review.summary });
+  }
+  components.push({
+    id: nextId(), type: 'section',
+    title: '本周回顾',
+    children: reviewChildren,
+  });
+
+  // ── 近期重要日期（对齐 web 端：名字 — MM-DD 标签） ──
+  const upcomingDates = report.upcoming_dates || (rawData && rawData.upcomingDates) || [];
+  if (upcomingDates.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '近期重要日期', count: upcomingDates.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: upcomingDates.map(d => ({
+          title: d.name || '',
+          subtitle: `${(d.date || '').slice(5)} ${d.label || ''}`.trim(),
+        })),
+      }],
+    });
+  }
+
+  // ── 该联系谁（对齐 web 端：名字 — 原因, → 聊什么） ──
+  const suggestContact = report.suggest_contact || [];
+  if (suggestContact.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '该联系谁', count: suggestContact.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: suggestContact.map(s => ({
+          title: s.name || s.contact || '',
+          subtitle: s.reason || s.why || '',
+          text: s.topic ? `→ 聊什么：${s.topic}` : '',
+        })),
+      }],
+    });
+  }
+
+  // ── 待办事项（对齐 web 端：任务 — 联系人） ──
+  const todoReminders = report.todo_reminders || (rawData && rawData.pendingTodos) || [];
+  if (todoReminders.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '待办事项', count: todoReminders.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: todoReminders.map(t => ({
+          title: t.task || t.content || '',
+          subtitle: t.contact || t.contact_name || '',
+          badge: t.urgency === 'high' || t.priority === 'P1' ? '紧急' : '',
+          badgeStyle: t.urgency === 'high' || t.priority === 'P1' ? 'badge-high' : '',
+        })),
+      }],
+    });
+  }
+
+  // ── 结语（对齐 web 端：居中、柔和色） ──
+  if (report.closing) {
+    components.push({
+      id: nextId(), type: 'section',
+      children: [{
+        id: nextId(), type: 'paragraph',
+        content: report.closing,
+        style: 'muted-center',
+      }],
+    });
+  }
+
+  // ── 构建完整文本用于复制 ──
+  let copyText = `📋 社交周报\n${weekRange}\n\n`;
+  if (greeting) copyText += `${greeting}\n\n`;
+  copyText += `本周回顾\n${stats.interactions} 次互动 · ${stats.completed_todos} 个完成 · ${stats.new_todos} 个待办\n`;
+  if (review.summary) copyText += `${review.summary}\n\n`;
+  if (upcomingDates.length) {
+    copyText += `近期重要日期\n`;
+    upcomingDates.forEach(d => { copyText += `· ${d.name} — ${(d.date || '').slice(5)} ${d.label || ''}\n`; });
+    copyText += '\n';
+  }
+  if (suggestContact.length) {
+    copyText += `该联系谁\n`;
+    suggestContact.forEach(s => {
+      copyText += `· ${s.name || ''} — ${s.reason || ''}\n`;
+      if (s.topic) copyText += `  → 聊什么：${s.topic}\n`;
+    });
+    copyText += '\n';
+  }
+  if (todoReminders.length) {
+    copyText += `待办事项\n`;
+    todoReminders.forEach(t => {
+      copyText += `· ${t.task || t.content || ''}`;
+      if (t.contact || t.contact_name) copyText += ` — ${t.contact || t.contact_name}`;
+      copyText += '\n';
+    });
+    copyText += '\n';
+  }
+  if (report.closing) copyText += `${report.closing}\n`;
+  copyText += `\n— Welian 小维 · welian.app`;
+
+  // ── 操作按钮 ──
+  components.push({
+    id: nextId(), type: 'buttons',
+    items: [
+      { key: 'share', label: '分享周报', action: 'share', style: 'primary' },
+      { key: 'copy', label: '复制周报', action: 'copy', text: copyText, style: 'secondary' },
+    ],
+  });
+
+  return components;
+}
+
+// 月报 → 组件树（header + section 分组）
+function monthlyToComponents(report) {
+  const components = [];
+  let id = 0;
+  const nextId = () => `mo_${++id}`;
+
+  // ── 页面头部（对齐 .page-title + .page-subtitle） ──
+  const now = new Date();
+  components.push({
+    id: nextId(), type: 'header',
+    title: '月度回顾',
+    subtitle: report.greeting || `${now.getFullYear()}年${now.getMonth() + 1}月`,
+    date: `${now.getFullYear()}年${now.getMonth() + 1}月`,
+  });
+
+  // ── 本月数据 ──
+  const stats = report.stats || {};
+  if (Object.keys(stats).length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '本月数据',
+      children: [{
+        id: nextId(), type: 'stat-group',
+        items: [
+          { label: '总联系人', value: stats.total_contacts || 0 },
+          { label: '活跃联系人', value: stats.active_contacts || 0 },
+          { label: '互动次数', value: stats.interactions || 0 },
+          { label: '完成待办', value: stats.completed_todos || 0 },
+        ],
+      }],
+    });
+  }
+
+  // ── 角色回顾 ──
+  const rr = report.role_review || {};
+  const roleCards = [];
+  for (const [key, label, icon] of [['friends', '朋友', '🌱'], ['family', '家人', '🏡'], ['collaborators', '合作者', '🤝']]) {
+    const r = rr[key];
+    if (r && (r.count || r.interactions || r.highlight)) {
+      roleCards.push({
+        id: nextId(), type: 'card',
+        title: `${icon} 作为${label}`,
+        items: [
+          r.count ? { icon: '👥', text: `${r.count}人` } : null,
+          r.interactions ? { icon: '💬', text: `${r.interactions}次互动` } : null,
+          r.highlight ? { icon: '✨', text: r.highlight } : null,
+        ].filter(Boolean),
+      });
+    }
+  }
+  if (roleCards.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '角色回顾',
+      children: roleCards,
+    });
+  }
+
+  // ── 趋势 ──
+  if (report.trends && report.trends.comment) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '趋势分析',
+      children: [{ id: nextId(), type: 'paragraph', content: report.trends.comment }],
+    });
+  }
+
+  // ── 本月亮点 ──
+  if (report.achievements && report.achievements.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '本月亮点', count: report.achievements.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: report.achievements.map(a => ({ title: a })),
+      }],
+    });
+  }
+
+  // ── 下月建议 ──
+  if (report.suggestions && report.suggestions.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '下月建议', count: report.suggestions.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: report.suggestions.map(s => ({ title: s })),
+      }],
+    });
+  }
+
+  // ── 收尾 ──
+  if (report.closing) {
+    components.push({ id: nextId(), type: 'divider' });
+    components.push({ id: nextId(), type: 'paragraph', content: report.closing });
+  }
+
+  // ── 构建完整文本用于复制 ──
+  const monthStr = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+  let copyText = `📊 月度回顾\n${monthStr}\n\n`;
+  if (report.greeting) copyText += `${report.greeting}\n\n`;
+  const copyStats = report.stats || {};
+  if (Object.keys(copyStats).length) {
+    copyText += `本月数据\n`;
+    copyText += `· 总联系人 ${copyStats.total_contacts || 0}\n`;
+    copyText += `· 活跃联系人 ${copyStats.active_contacts || 0}\n`;
+    copyText += `· 互动次数 ${copyStats.interactions || 0}\n`;
+    copyText += `· 完成待办 ${copyStats.completed_todos || 0}\n\n`;
+  }
+  if (report.achievements && report.achievements.length) {
+    copyText += `本月亮点\n`;
+    report.achievements.forEach(a => { copyText += `· ${a}\n`; });
+    copyText += '\n';
+  }
+  if (report.suggestions && report.suggestions.length) {
+    copyText += `下月建议\n`;
+    report.suggestions.forEach(s => { copyText += `· ${s}\n`; });
+    copyText += '\n';
+  }
+  if (report.closing) copyText += `${report.closing}\n`;
+  copyText += `\n— Welian 小维 · welian.app`;
+
+  components.push({
+    id: nextId(), type: 'buttons',
+    items: [
+      { key: 'share', label: '分享月报', action: 'share', style: 'primary' },
+      { key: 'copy', label: '复制月报', action: 'copy', text: copyText, style: 'secondary' },
+    ],
+  });
+
+  return components;
+}
+
+// 年度报告 → 组件树
+function annualToComponents(report) {
+  const components = [];
+  let id = 0;
+  const nextId = () => `an_${++id}`;
+  const year = report.year || new Date().getFullYear();
+
+  // ── 页面头部 ──
+  const greeting = report.greeting || '';
+  const shortGreeting = greeting.length > 60 ? greeting.split(/[。！\n]/)[0] + '。' : greeting;
+  components.push({
+    id: nextId(), type: 'header',
+    title: `${year}年度报告`,
+    subtitle: shortGreeting || '',
+    date: `${year}年`,
+  });
+
+  // ── 问候语（长文本时完整展示） ──
+  if (greeting && greeting.length > 60) {
+    components.push({
+      id: nextId(), type: 'section',
+      children: [{ id: nextId(), type: 'paragraph', content: greeting }],
+    });
+  }
+
+  // ── 年度回顾 ──
+  if (report.review) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '年度回顾',
+      children: [{ id: nextId(), type: 'paragraph', content: report.review }],
+    });
+  }
+
+  // ── 关键数字 ──
+  const keyNumbers = report.key_numbers || [];
+  if (keyNumbers.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '关键数字',
+      children: [{
+        id: nextId(), type: 'stat-group',
+        items: keyNumbers.slice(0, 6).map(k => ({
+          label: k.label || '',
+          value: k.value,
+        })),
+      }],
+    });
+  }
+
+  // ── 关系健康度 ──
+  const health = report.health || {};
+  if (health.active !== undefined || health.cooling !== undefined || health.dormant !== undefined) {
+    const healthItems = [];
+    if (health.active !== undefined) healthItems.push({ label: '活跃', value: health.active });
+    if (health.cooling !== undefined) healthItems.push({ label: '冷却', value: health.cooling });
+    if (health.dormant !== undefined) healthItems.push({ label: '休眠', value: health.dormant });
+    components.push({
+      id: nextId(), type: 'section',
+      title: '关系健康度',
+      children: [{
+        id: nextId(), type: 'stat-group',
+        items: healthItems,
+      }],
+    });
+  }
+
+  // ── 年度高光时刻 ──
+  if (report.highlights) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '年度高光',
+      children: [{ id: nextId(), type: 'paragraph', content: report.highlights }],
+    });
+  }
+
+  // ── 互动最多的联系人 ──
+  const topContacts = report.top_contacts || [];
+  if (topContacts.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '互动排行', count: topContacts.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: topContacts.slice(0, 10).map((c, i) => ({
+          title: c.name || '',
+          subtitle: `${c.count} 次互动`,
+          badge: i < 3 ? `Top ${i + 1}` : '',
+          badgeStyle: i < 3 ? 'badge-mid' : '',
+        })),
+      }],
+    });
+  }
+
+  // ── 成长轨迹 ──
+  if (report.growth) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '成长轨迹',
+      children: [{ id: nextId(), type: 'paragraph', content: report.growth }],
+    });
+  }
+
+  // ── 明年建议 ──
+  const suggestions = report.suggestions || [];
+  if (suggestions.length) {
+    components.push({
+      id: nextId(), type: 'section',
+      title: '明年建议', count: suggestions.length,
+      children: [{
+        id: nextId(), type: 'list',
+        items: suggestions.map(s => ({ title: s })),
+      }],
+    });
+  }
+
+  // ── 构建完整文本用于复制 ──
+  let copyText = `📊 ${year}年度报告\n\n`;
+  if (greeting) copyText += `${greeting}\n\n`;
+  if (report.review) copyText += `年度回顾\n${report.review}\n\n`;
+  if (keyNumbers.length) {
+    copyText += `关键数字\n`;
+    keyNumbers.forEach(k => { copyText += `· ${k.label}: ${k.value}\n`; });
+    copyText += '\n';
+  }
+  if (health.active !== undefined) {
+    copyText += `关系健康度\n`;
+    copyText += `· 活跃 ${health.active || 0}\n`;
+    copyText += `· 冷却 ${health.cooling || 0}\n`;
+    copyText += `· 休眠 ${health.dormant || 0}\n\n`;
+  }
+  if (report.highlights) copyText += `年度高光\n${report.highlights}\n\n`;
+  if (topContacts.length) {
+    copyText += `互动排行\n`;
+    topContacts.slice(0, 10).forEach((c, i) => { copyText += `· ${c.name} — ${c.count}次互动\n`; });
+    copyText += '\n';
+  }
+  if (report.growth) copyText += `成长轨迹\n${report.growth}\n\n`;
+  if (suggestions.length) {
+    copyText += `明年建议\n`;
+    suggestions.forEach(s => { copyText += `· ${s}\n`; });
+    copyText += '\n';
+  }
+  copyText += `— Welian 小维 · welian.app`;
+
+  // ── 操作按钮 ──
+  components.push({
+    id: nextId(), type: 'buttons',
+    items: [
+      { key: 'share', label: '分享年度报告', action: 'share', style: 'primary' },
+      { key: 'copy', label: '复制报告', action: 'copy', text: copyText, style: 'secondary' },
+    ],
+  });
+
+  return components;
+}
+
+
+// 信号 → 组件树（对齐 web 端 signals.html 风格）
+function signalsToComponents(data) {
+  const components = [];
+  let id = 0;
+  const nextId = () => `sg_${++id}`;
+  const report = data.report || data;
+
+  // ── Hero（居中大标题 + 副标题，对齐 web .hero） ──
+  components.push({
+    id: nextId(), type: 'header',
+    title: '📡 今日信号',
+    subtitle: report.greeting || '从多个高质量信息源筛选关键动态，按价值排序',
+  });
+
+  // ── Greeting 段落（如果有） ──
+  if (report.greeting) {
+    components.push({ id: nextId(), type: 'paragraph', content: report.greeting });
+  }
+
+  // ── 热点主题（副标题风格小标题 + 绿色实心标签，对齐 web .section-title + .themes） ──
+  if (report.themes && report.themes.length) {
+    components.push({ id: nextId(), type: 'subtitle', content: '🔥 热点主题' });
+    components.push({ id: nextId(), type: 'tags', items: report.themes });
+  }
+
+  // ── 关键信号（副标题风格小标题 + 独立 card，对齐 web .section-title + .card） ──
+  if (report.signals && report.signals.length) {
+    const sorted = report.signals.slice().sort((a, b) => (b.value_score || 0) - (a.value_score || 0));
+    components.push({ id: nextId(), type: 'subtitle', content: '📊 关键信号（按价值排序）' });
+    for (let i = 0; i < sorted.length; i++) {
+      const s = sorted[i];
+      const score = s.value_score || 0;
+      const scoreTag = score > 0 ? ` ★${score}` : '';
+      const srcTag = s.source ? ` [${s.source}]` : '';
+      // 用 card 类型（旧前端兼容），title 带 inline source/score，items 放 why + 原文链接
+      const cardItems = [];
+      if (s.why) cardItems.push({ text: s.why });
+      if (s.url) cardItems.push({ text: '原文 ›' });
+      components.push({
+        id: nextId(), type: 'card',
+        title: `${i + 1}. ${s.title || s.topic || ''}${srcTag}${scoreTag}`,
+        items: cardItems,
+        action: 'navigate',
+        url: s.url ? `/pages/article/article?url=${encodeURIComponent(s.url)}` : '',
+      });
+    }
+  } else {
+    components.push({
+      id: nextId(), type: 'empty-state',
+      icon: '📭', title: '今天没有特别值得关注的信号',
+      description: '下拉刷新可重新获取',
+    });
+  }
+
+  if (report.closing) {
+    components.push({ id: nextId(), type: 'paragraph', content: report.closing });
+  }
+
+  return components;
+}
+
+// 隐私政策 → 组件树（纯静态，后端可随时更新文案）
+function privacyToComponents() {
+  let id = 0;
+  const nextId = () => `pv_${++id}`;
+  return [
+    { id: nextId(), type: 'title', content: 'Welian 隐私政策' },
+    { id: nextId(), type: 'paragraph', content: 'Welian（维联）尊重并保护你的隐私。本政策说明我们如何收集、使用和保护你的个人信息。' },
+    { id: nextId(), type: 'subtitle', content: '1. 信息收集' },
+    { id: nextId(), type: 'paragraph', content: '我们收集你主动输入的联系人信息、互动记录、待办事项，以及微信授权的公开信息（昵称、头像）。所有数据存储在加密的云端，仅你可见。' },
+    { id: nextId(), type: 'subtitle', content: '2. 数据使用' },
+    { id: nextId(), type: 'paragraph', content: '你的数据仅用于提供关系管理服务，包括生成周报/月报、提醒待办、建议联系。我们不会将你的数据用于广告、出售给第三方。' },
+    { id: nextId(), type: 'subtitle', content: '3. 数据安全' },
+    { id: nextId(), type: 'paragraph', content: '所有数据通过 HTTPS 传输，存储在 Cloudflare 加密 KV 中。AI 处理时使用脱敏数据，不传输完整联系人信息给第三方。' },
+    { id: nextId(), type: 'subtitle', content: '4. 数据删除' },
+    { id: nextId(), type: 'paragraph', content: '你可以随时在「我的」页面删除所有数据，删除后不可恢复。' },
+    { id: nextId(), type: 'subtitle', content: '5. 联系我们' },
+    { id: nextId(), type: 'paragraph', content: '如有隐私相关问题，请联系：support@welian.app' },
+  ];
+}
+
+// 文章 → 组件树
+async function articleToComponents(articleUrl, req, env) {
+  if (!articleUrl) return [{ id: 'art_1', type: 'empty-state', title: '文章链接缺失', description: '请通过信号页进入' }];
+  const result = await readUrl(articleUrl, env);
+  let id = 0;
+  const nextId = () => `art_${++id}`;
+  const components = [];
+
+  // 提取来源域名
+  let sourceDomain = '';
+  try {
+    sourceDomain = new URL(articleUrl).hostname.replace(/^www\./, '');
+  } catch (e) {}
+
+  // 页面头部
+  components.push({
+    id: nextId(), type: 'header',
+    title: result.title || '文章阅读',
+    subtitle: sourceDomain ? `来源：${sourceDomain}` : '',
+  });
+
+  // 正文
+  if (result.content) {
+    components.push({ id: nextId(), type: 'rich-text', content: result.content });
+  }
+
+  // 操作按钮
+  components.push({
+    id: nextId(), type: 'buttons',
+    items: [
+      { key: 'open', label: '阅读原文', action: 'open-url', url: articleUrl, style: 'primary' },
+      { key: 'copy', label: '复制链接', action: 'copy', text: articleUrl, style: 'secondary' },
+    ],
+  });
+
+  return components;
 }

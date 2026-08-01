@@ -1,23 +1,73 @@
 // pages/dashboard/dashboard.js — 角色仪表盘
 // 基于真实 contacts + timeline 数据，按朋友/家人/合作者分组展示本月行为回顾
 const api = require('../../utils/api.js');
+const { buildRoles, classifyTodos, calcEvolutionStage, buildUpcomingDates } = require('../../utils/dashboard-logic.js');
+const app = getApp();
 
 Page({
   data: {
-    month: '',
     roles: [],
     loading: true,
     error: '',
     isEmpty: false,  // 新用户无数据
     stats: {},
+    signals: [],
+    pendingCount: 0,
+    todoSummary: null,  // { overdue: [], today: [] }
+    evolution: null,    // { name, icon, progress, next, stages }
+    evolutionMetrics: null, // { monthInteractions, totalInteractions, contactCount }
+    stageUpgrade: null, // 升级提示 { name, icon, contacts, interactions }
+    upcomingDates: [],  // 未来30天重要日期
+    insights: [],       // AI 行为洞察
+    flags: {},          // feature flags
+    userName: '',
+    syncPinned: false,
+    _lastLoad: 0,
   },
 
-  onShow() {
+  onUnload() {},
+
+  async onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 });
+      this.getTabBar().refresh();
+    }
+    this.setData({ syncPinned: false });
+    if (!api.getToken()) {
+      this.setData({ loading: true });
+      try { await app.loginReady; } catch (e) { return; }
+    }
+    // 30秒内不重复全量加载
+    const now = Date.now();
+    if (this.data._lastLoad && now - this.data._lastLoad < 30000 && this.data.roles.length > 0) {
+      return;
+    }
+    this.setData({ _lastLoad: now });
     this.loadDashboard();
+    this.checkSyncEntry();
   },
 
   onPullDownRefresh() {
     this.loadDashboard(() => wx.stopPullDownRefresh());
+  },
+
+  // 检查后端是否开启同步入口
+  async checkSyncEntry() {
+    try {
+      const token = api.getToken();
+      if (!token) return;
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: 'https://api.welian.app/data/entry',
+          header: { 'Authorization': `Bearer ${token}` },
+          success: resolve,
+          fail: reject,
+        });
+      });
+      if (res.statusCode === 200 && res.data && res.data.sync) {
+        this.setData({ syncPinned: true });
+      }
+    } catch {}
   },
 
   loadDashboard(cb) {
@@ -29,22 +79,81 @@ Page({
       return;
     }
 
-    // 并行获取 contacts(前100) + timeline + stats(全量统计)
+    // 核心数据并行获取（首屏必需）
     Promise.all([
       this.fetchContacts(),
       this.fetchTimeline(),
-      this.fetchStats(),
-    ]).then(([contacts, timeline, stats]) => {
-      const roles = this.buildRoles(contacts, timeline);
-      const isEmpty = stats.total === 0;
+      this.fetchTodos(),
+      this.fetchContactStats(),
+    ]).then(([contactData, timeline, todos, contactStats]) => {
+      const contacts = contactData.contacts;
+      const roles = buildRoles(contacts, timeline);
+      // stats 用后端统计端点的数据（不受分页影响）
+      const stats = {
+        total: contactStats.total || contactData.total || contacts.length,
+        leverage: contactStats.leverage || 0,
+        nurture: contactStats.nurture || 0,
+        dual: contactStats.dual || 0,
+      };
+      const isEmpty = contacts.length === 0;
+      // 进化阶段（stages 从 config 读取，支持后端动态调整）
+      const stages = app.globalData.config.evolution_stages;
+      const totalContacts = contactData.total || contacts.length;
+      const evolution = calcEvolutionStage(totalContacts, timeline.length, stages);
+      // 进化指标（对齐 web 端 2x2 网格）
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthInteractions = timeline.filter(t => new Date(t.date || '') >= monthStart).length;
+      const evolutionMetrics = {
+        monthInteractions,
+        totalInteractions: timeline.length,
+        contactCount: totalContacts,
+      };
+      // 升级检测（用 storage 记录上次阶段）
+      const prevStageIdx = wx.getStorageSync('welian_evolution_stage') || 0;
+      if (evolution.idx > prevStageIdx) {
+        wx.setStorageSync('welian_evolution_stage', evolution.idx);
+        this.setData({ stageUpgrade: { name: evolution.name, icon: evolution.icon, contacts: totalContacts, interactions: timeline.length } });
+      } else if (prevStageIdx === 0 && evolution.idx === 0) {
+        wx.setStorageSync('welian_evolution_stage', 0);
+      }
+      // 近期重要日期（窗口天数从 config 读取）
+      const windowDays = app.threshold('upcoming_dates_window') || 30;
+      const upcomingDates = buildUpcomingDates(contacts, undefined, windowDays);
+      // feature flags
+      const flags = {
+        signals: app.flag('signals'),
+        insights: app.flag('insights'),
+        evolution: app.flag('evolution'),
+        upcoming_dates: app.flag('upcoming_dates'),
+        todo_summary: app.flag('todo_summary'),
+      };
+      // 待办分类：逾期 + 今日
+      const todoSummary = classifyTodos(todos);
       this.setData({
-        month: this.getMonthName(),
         roles,
         stats,
         isEmpty,
+        pendingCount: todos.length,
+        todoSummary,
+        evolution,
+        evolutionMetrics,
+        upcomingDates,
+        flags,
         loading: false,
       });
       if (cb) cb();
+
+      // 非首屏数据异步加载（不阻塞渲染）
+      this.fetchSignals().then((signals) => {
+        this.setData({ signals: signals.slice(0, 3) });
+      }).catch(() => {});
+      this.fetchProfile().then((profile) => {
+        this.setData({ userName: profile.name || '' });
+      }).catch(() => {});
+      this.fetchInsights().then((insights) => {
+        this.setData({ insights });
+      }).catch(() => {});
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
       if (cb) cb();
@@ -58,24 +167,24 @@ Page({
         header: { 'Authorization': 'Bearer ' + api.getToken() },
         success: (res) => {
           if (res.statusCode === 200 && res.data) {
-            resolve(res.data.contacts || []);
+            resolve({ contacts: res.data.contacts || [], total: res.data.total || 0 });
           } else {
-            resolve([]);
+            resolve({ contacts: [], total: 0 });
           }
         },
-        fail: () => resolve([]),
+        fail: () => resolve({ contacts: [], total: 0 }),
       });
     });
   },
 
-  fetchStats() {
+  fetchContactStats() {
     return new Promise((resolve) => {
       wx.request({
-        url: 'https://api.welian.app/ai/wxmp_contact_stats',
+        url: 'https://api.welian.app/data/contacts?stats=1',
         header: { 'Authorization': 'Bearer ' + api.getToken() },
         success: (res) => {
-          if (res.statusCode === 200 && res.data && res.data.stats) {
-            resolve(res.data.stats);
+          if (res.statusCode === 200 && res.data) {
+            resolve(res.data);
           } else {
             resolve({ total: 0, leverage: 0, nurture: 0, dual: 0 });
           }
@@ -85,10 +194,27 @@ Page({
     });
   },
 
+  fetchProfile() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/data/profile',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.profile) {
+            resolve(res.data.profile);
+          } else {
+            resolve({});
+          }
+        },
+        fail: () => resolve({}),
+      });
+    });
+  },
+
   fetchTimeline() {
     return new Promise((resolve) => {
       wx.request({
-        url: 'https://api.welian.app/data/timeline',
+        url: 'https://api.welian.app/data/timeline?limit=100',
         header: { 'Authorization': 'Bearer ' + api.getToken() },
         success: (res) => {
           if (res.statusCode === 200 && res.data) {
@@ -102,108 +228,105 @@ Page({
     });
   },
 
-  // 按 friend/family/collaborator 三角色分组
-  buildRoles(contacts, timeline) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthTimeline = timeline.filter(t => {
-      const d = new Date(t.date || '');
-      return d >= monthStart;
-    });
+  fetchSignals() {
+    return api.getSignals().then((report) => report.signals || []).catch(() => []);
+  },
 
-    // 按关系类型分组联系人
-    const groups = { friend: [], family: [], collaborator: [] };
-    for (const c of contacts) {
-      const rel = (c.relationship || c.relation || '').toLowerCase();
-      const nature = (c.nature || '').toLowerCase();
-      // 判断角色
-      let role = 'collaborator'; // 默认
-      if (/家人|父母|爸|妈|妻|夫|儿子|女儿|兄弟|姐妹|家/.test(rel)) {
-        role = 'family';
-      } else if (/朋友|友|同学|室友|闺蜜|发小/.test(rel)) {
-        role = 'friend';
-      } else if (/合作|同事|客户|老板|领导|合作方|引荐/.test(rel) || nature === 'leverage') {
-        role = 'collaborator';
-      }
-      groups[role].push(c);
-    }
-
-    // 为每个角色生成行为项
-    const roleConfig = [
-      { key: 'friend', label: '作为朋友', icon: '🌱' },
-      { key: 'family', label: '作为家人', icon: '🏡' },
-      { key: 'collaborator', label: '作为合作者', icon: '🤝' },
-    ];
-
-    return roleConfig.map(cfg => {
-      const roleContacts = groups[cfg.key];
-      const items = [];
-
-      // 本月互动数
-      const roleTimeline = monthTimeline.filter(t => {
-        const contact = contacts.find(c => c.id === t.contact || c.name === t.contact_name);
-        return contact && groups[cfg.key].includes(contact);
+  fetchInsights() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/ai/insights',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.insights) {
+            resolve(res.data.insights);
+          } else {
+            resolve([]);
+          }
+        },
+        fail: () => resolve([]),
       });
-
-      if (roleContacts.length === 0) {
-        items.push({ text: '还没有记录这类关系，去「关系」页添加', tone: 'normal' });
-      } else {
-        items.push({ text: `本月记录了 ${roleTimeline.length} 次互动（涉及 ${roleContacts.length} 人）`, tone: roleTimeline.length > 0 ? 'positive' : 'normal' });
-
-        // 列出本月互动过的人
-        const interactedNames = [...new Set(roleTimeline.map(t => t.contact_name || t.contact).filter(Boolean))];
-        if (interactedNames.length > 0) {
-          items.push({ text: `在场：${interactedNames.slice(0, 5).join('、')}`, tone: 'positive' });
-        }
-
-        // 冷却预警（仅合作者）
-        if (cfg.key === 'collaborator') {
-          const cold = roleContacts.filter(c => {
-            const last = roleTimeline
-              .filter(t => t.contact === c.id || t.contact_name === c.name)
-              .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
-            if (!last) return true; // 从未联系
-            const days = Math.floor((now - new Date(last.date)) / 86400000);
-            return days >= 14;
-          });
-          if (cold.length > 0) {
-            items.push({ text: `⚠️ ${cold.length} 人超过 14 天未联系：${cold.slice(0, 3).map(c => c.name).join('、')}`, tone: 'warning' });
-          }
-        }
-
-        // 重要日期提醒（仅家人）
-        if (cfg.key === 'family') {
-          for (const c of roleContacts) {
-            if (c.birthday) {
-              const d = new Date(c.birthday);
-              const next = new Date(now.getFullYear(), d.getMonth(), d.getDate());
-              if (next < now) next.setFullYear(now.getFullYear() + 1);
-              const days = Math.ceil((next - now) / 86400000);
-              if (days <= 30) {
-                items.push({ text: `🎂 ${c.name}生日还有 ${days} 天`, tone: 'warning' });
-              }
-            }
-          }
-        }
-      }
-
-      return { key: cfg.key, label: cfg.label, icon: cfg.icon, items };
     });
   },
 
-  getMonthName() {
-    const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-    return months[new Date().getMonth()];
+  fetchTodos() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/data/todos?status=pending',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data) {
+            resolve(res.data.todos || []);
+          } else {
+            resolve([]);
+          }
+        },
+        fail: () => resolve([]),
+      });
+    });
+  },
+
+  // 最近8周互动趋势 / 角色分组 / 待办分类 已提取到 utils/dashboard-logic.js
+
+
+  // 一键拟消息：跳转到小维对话页，自动发起拟消息请求
+  goDraftMessage(e) {
+    const name = e.currentTarget.dataset.name;
+    if (!name) return;
+    wx.navigateTo({ url: `/pages/sync/sync?draft=${encodeURIComponent(name)}` });
   },
 
   goContacts() {
     wx.switchTab({ url: '/pages/contacts/contacts' });
   },
 
+  goSignals() {
+    wx.navigateTo({ url: '/pages/signals/signals' });
+  },
+
+  closeStageUpgrade() {
+    this.setData({ stageUpgrade: null });
+  },
+
+  goWeekly() {
+    wx.navigateTo({ url: '/pages/weekly/weekly' });
+  },
+
+  goMonthly() {
+    wx.navigateTo({ url: '/pages/monthly/monthly' });
+  },
+
+  goAnnual() {
+    wx.navigateTo({ url: '/pages/annual/annual' });
+  },
+
+  goMeetings() {
+    wx.navigateTo({ url: '/pages/meetings/meetings' });
+  },
+
+  goTimeline() {
+    wx.navigateTo({ url: '/pages/timeline/timeline' });
+  },
+
+  goSync() {
+    wx.navigateTo({ url: '/pages/sync/sync' });
+  },
+
+  goTodos() {
+    wx.switchTab({ url: '/pages/todos/todos' });
+  },
+
   onShareAppMessage() {
     return {
       title: 'Welian — 更好的朋友、更好的家人、更好的合作者',
       path: '/pages/welcome/welcome',
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: 'Welian ∞ — 更好的朋友、更好的家人、更好的合作者',
+      query: '',
     };
   },
 });

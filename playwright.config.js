@@ -34,8 +34,14 @@ export default defineConfig({
     {
       name: 'journey',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: 'l*.spec.js',
+      testMatch: 'l[0-3]*.spec.js',
       retries: 2,
+      timeout: 60000,
+    },
+    {
+      name: 'integration',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: 'l4-*.spec.js',
       timeout: 60000,
     },
   ],

@@ -1,6 +1,6 @@
 <!-- pages/contacts/contacts.wxml — 关系列表页 -->
 <view class="container">
-  <!-- 搜索框 + 扫描按钮 -->
+  <!-- 搜索框 -->
   <view class="search-bar">
     <input
       class="search-input"
@@ -11,31 +11,50 @@
       confirm-type="search"
     />
     <text wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">×</text>
-    <view class="scan-btn" bindtap="scanCard">
-      <text class="scan-icon">📷</text>
-    </view>
   </view>
 
   <!-- 扫描中 -->
   <view wx:if="{{scanning}}" class="scan-loading">
-    <text class="text-accent">正在识别名片…</text>
+    <text class="text-accent">{{importing ? '正在导入…' : '正在识别名片…'}}</text>
   </view>
 
-  <!-- 扫描结果弹窗 -->
+  <!-- 扫描结果弹窗（可编辑确认） -->
   <view wx:if="{{scanResult}}" class="scan-result-mask" bindtap="closeScanResult">
     <view class="scan-result-card" catchtap="">
       <text class="scan-result-title">{{scanResult.message}}</text>
+      <view wx:if="{{scanResult.contact.confidence === 'low'}}" class="scan-confidence-warn">
+        <text class="text-accent text-xs">⚠️ 识别置信度较低，请仔细核对</text>
+      </view>
       <view class="scan-result-info">
-        <view class="info-row"><text class="info-label">姓名</text><text class="info-value">{{scanResult.contact.name}}</text></view>
-        <view wx:if="{{scanResult.contact.company}}" class="info-row"><text class="info-label">公司</text><text class="info-value">{{scanResult.contact.company}}</text></view>
-        <view wx:if="{{scanResult.contact.title}}" class="info-row"><text class="info-label">职位</text><text class="info-value">{{scanResult.contact.title}}</text></view>
-        <view wx:if="{{scanResult.contact.phone}}" class="info-row"><text class="info-label">电话</text><text class="info-value">{{scanResult.contact.phone}}</text></view>
-        <view wx:if="{{scanResult.contact.email}}" class="info-row"><text class="info-label">邮箱</text><text class="info-value">{{scanResult.contact.email}}</text></view>
-        <view wx:if="{{scanResult.contact.relation}}" class="info-row"><text class="info-label">关系</text><text class="info-value">{{scanResult.contact.relation}}</text></view>
+        <view class="info-row-edit">
+          <text class="info-label">姓名</text>
+          <input class="info-input" value="{{scanResult.contact.name}}" bindinput="onScanEdit" data-field="name" placeholder="姓名" />
+        </view>
+        <view class="info-row-edit">
+          <text class="info-label">公司</text>
+          <input class="info-input" value="{{scanResult.contact.company}}" bindinput="onScanEdit" data-field="company" placeholder="公司" />
+        </view>
+        <view class="info-row-edit">
+          <text class="info-label">职位</text>
+          <input class="info-input" value="{{scanResult.contact.title}}" bindinput="onScanEdit" data-field="title" placeholder="职位" />
+        </view>
+        <view class="info-row-edit">
+          <text class="info-label">电话</text>
+          <input class="info-input" value="{{scanResult.contact.phone}}" bindinput="onScanEdit" data-field="phone" placeholder="电话" />
+        </view>
+        <view class="info-row-edit">
+          <text class="info-label">邮箱</text>
+          <input class="info-input" value="{{scanResult.contact.email}}" bindinput="onScanEdit" data-field="email" placeholder="邮箱" />
+        </view>
+        <view class="info-row-edit">
+          <text class="info-label">关系</text>
+          <input class="info-input" value="{{scanResult.contact.relation}}" bindinput="onScanEdit" data-field="relation" placeholder="关系" />
+        </view>
       </view>
       <view class="scan-result-actions">
-        <button wx:if="{{!scanResult.is_duplicate && scanResult.contact.id}}" class="btn btn-block" bindtap="viewScannedContact">查看详情</button>
-        <button class="btn btn-block" style="margin-top:8px" bindtap="closeScanResult">关闭</button>
+        <button wx:if="{{scanResult.is_duplicate}}" class="btn btn-block" bindtap="viewScannedContact">查看已有联系人</button>
+        <button wx:if="{{!scanResult.is_duplicate}}" class="btn btn-block" bindtap="confirmScanSave" loading="{{scanSaving}}">确认保存</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" bindtap="closeScanResult">取消</button>
       </view>
     </view>
   </view>
@@ -59,6 +78,10 @@
   <block wx:else>
     <!-- Tab 切换 -->
     <view class="tab-bar">
+      <view class="tab-item {{activeTab === 'all' ? 'active' : ''}}" bindtap="switchTab" data-tab="all">
+        <text class="tab-text">全部</text>
+        <text class="tab-meta text-dimmer text-xs">{{totalContacts}}人</text>
+      </view>
       <view class="tab-item {{activeTab === 'leverage' ? 'active' : ''}}" bindtap="switchTab" data-tab="leverage">
         <text class="tab-icon">🌳</text>
         <text class="tab-text">撬动型</text>
@@ -68,6 +91,33 @@
         <text class="tab-icon">🌸</text>
         <text class="tab-text">维系型</text>
         <text class="tab-meta text-dimmer text-xs">浇一盆花</text>
+      </view>
+    </view>
+
+    <!-- 分组选择 -->
+    <view class="group-bar">
+      <picker mode="selector" range="{{groupModeOptions}}" value="{{groupModeIndex}}" bindchange="onGroupModeChange">
+        <view class="group-picker">
+          <text class="text-dim text-xs">📑 {{groupModeOptions[groupModeIndex]}}</text>
+        </view>
+      </picker>
+      <!-- 第二层：具体分组项下拉 -->
+      <picker wx:if="{{groupedContacts.length > 0}}" mode="selector" range="{{groupedContactsNames}}" value="{{selectedGroupIndex}}" bindchange="onSelectedGroupChange">
+        <view class="group-picker">
+          <text class="text-dim text-xs">🏷️ {{groupedContactsNames[selectedGroupIndex] || '选择…'}}</text>
+        </view>
+      </picker>
+    </view>
+
+    <!-- 添加联系人入口 -->
+    <view class="add-contact-bar">
+      <view class="add-contact-item" bindtap="scanCard">
+        <text class="add-contact-icon">📷</text>
+        <text class="add-contact-text text-dim text-sm">拍名片</text>
+      </view>
+      <view class="add-contact-item" bindtap="importMenu">
+        <text class="add-contact-icon">📥</text>
+        <text class="add-contact-text text-dim text-sm">导入</text>
       </view>
     </view>
 
@@ -82,28 +132,94 @@
       <view style="margin-top:12px"><button size="mini" bindtap="loadContacts">重试</button></view>
     </view>
 
+    <!-- 全部列表 -->
+    <block wx:if="{{activeTab === 'all' && !loading}}">
+      <view class="list-header">
+        <text class="text-dim text-sm">共 {{allList.length}} 位联系人</text>
+      </view>
+      <!-- 分组模式 + 已选具体分组 → 显示该组联系人 -->
+      <block wx:if="{{groupedContacts.length > 0 && selectedGroup}}">
+        <block wx:for="{{groupedContacts}}" wx:key="key">
+          <block wx:if="{{item.key === selectedGroup}}">
+            <view wx:for="{{item.items}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="card contact-card" catchtap="tapContact" data-id="{{c.id}}">
+              <view class="contact-row">
+                <text class="contact-name">{{c.name}}</text>
+                <text class="tag tag-{{c.nature === '撬动' ? 'leverage' : (c.nature === '维系' ? 'nurture' : 'dual')}}">{{c.nature}}</text>
+              </view>
+              <text class="contact-sub text-dim text-sm">{{c.how || c.bond || c.company || ''}}</text>
+            </view>
+          </block>
+        </block>
+      </block>
+      <!-- 不分组 或 分组模式但未选具体分组 → 直接显示联系人 -->
+      <block wx:if="{{groupedContacts.length === 0}}">
+        <view wx:for="{{allList}}" wx:key="id" class="card contact-card" catchtap="tapContact" data-id="{{item.id}}">
+          <view class="contact-row">
+            <text class="contact-name">{{item.name}}</text>
+            <view class="contact-tags">
+              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+              <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+            </view>
+          </view>
+          <view class="contact-detail">
+            <text class="text-dim text-sm">{{item.how || item.bond || item.company || ''}}</text>
+            <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
+          </view>
+        </view>
+      </block>
+      <view wx:if="{{hasMore && groupedContacts.length === 0}}" class="load-more" catchtap="loadMore">
+        <text class="text-dim text-sm">{{loadingMore ? '加载中…' : '加载更多'}}</text>
+      </view>
+      <view wx:if="{{!hasMore && groupedContacts.length === 0}}" class="load-more">
+        <text class="text-dimmer text-xs">已加载全部</text>
+      </view>
+    </block>
+
     <!-- 撬动型列表 -->
     <block wx:if="{{activeTab === 'leverage' && !loading}}">
       <view class="list-header">
         <text class="text-dim text-sm">用心栽培，定期照料，静候收获（{{leverageList.length}}/{{totalContacts}}）</text>
       </view>
-      <view wx:for="{{leverageList}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
-        <view class="contact-row">
-          <text class="contact-name">{{item.name}}</text>
-          <view class="contact-tags">
-            <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
-            <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+      <!-- 分组模式 + 已选具体分组 → 显示该组联系人 -->
+      <block wx:if="{{groupedContacts.length > 0 && selectedGroup}}">
+        <block wx:for="{{groupedContacts}}" wx:key="key">
+          <block wx:if="{{item.key === selectedGroup}}">
+            <view wx:for="{{item.items}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="card contact-card" catchtap="tapContact" data-id="{{c.id}}">
+              <view class="contact-row">
+                <text class="contact-name">{{c.name}}</text>
+                <view class="contact-tags">
+                  <text class="tag tag-leverage">撬动</text>
+                  <text wx:if="{{c.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+                </view>
+              </view>
+              <view class="contact-detail">
+                <text class="text-dim text-sm">{{c.how}}</text>
+                <text class="text-dimmer text-xs">上次联系：{{c.lastContact}}</text>
+              </view>
+            </view>
+          </block>
+        </block>
+      </block>
+      <!-- 不分组 → 直接显示联系人 -->
+      <block wx:if="{{groupedContacts.length === 0}}">
+        <view wx:for="{{leverageList}}" wx:key="id" class="card contact-card" catchtap="tapContact" data-id="{{item.id}}">
+          <view class="contact-row">
+            <text class="contact-name">{{item.name}}</text>
+            <view class="contact-tags">
+              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+              <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+            </view>
+          </view>
+          <view class="contact-detail">
+            <text class="text-dim text-sm">{{item.how}}</text>
+            <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
           </view>
         </view>
-        <view class="contact-detail">
-          <text class="text-dim text-sm">{{item.how}}</text>
-          <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
-        </view>
-      </view>
-      <view wx:if="{{hasMore}}" class="load-more" bindtap="loadMore">
+      </block>
+      <view wx:if="{{hasMore && groupedContacts.length === 0}}" class="load-more" catchtap="loadMore">
         <text class="text-dim text-sm">{{loadingMore ? '加载中…' : '加载更多'}}</text>
       </view>
-      <view wx:else class="load-more">
+      <view wx:if="{{!hasMore && groupedContacts.length === 0}}" class="load-more">
         <text class="text-dimmer text-xs">已加载全部</text>
       </view>
     </block>
@@ -113,25 +229,48 @@
       <view class="list-header">
         <text class="text-dim text-sm">不需要理由，在场就是全部</text>
       </view>
-      <view wx:for="{{nurtureList}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
-        <view class="contact-row">
-          <text class="contact-name">{{item.name}}</text>
-          <view class="contact-tags">
-            <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+      <!-- 分组模式 + 已选具体分组 → 显示该组联系人 -->
+      <block wx:if="{{groupedContacts.length > 0 && selectedGroup}}">
+        <block wx:for="{{groupedContacts}}" wx:key="key">
+          <block wx:if="{{item.key === selectedGroup}}">
+            <view wx:for="{{item.items}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="card contact-card" catchtap="tapContact" data-id="{{c.id}}">
+              <view class="contact-row">
+                <text class="contact-name">{{c.name}}</text>
+                <text class="tag tag-nurture">维系</text>
+              </view>
+              <view class="contact-detail">
+                <text class="text-dim text-sm">{{c.bond}}</text>
+                <text class="text-dimmer text-xs">上次联系：{{c.lastContact}}</text>
+              </view>
+              <view wx:if="{{c.nextDate}}" class="next-date">
+                <text class="text-accent text-sm">📅 {{c.nextDate}}</text>
+              </view>
+            </view>
+          </block>
+        </block>
+      </block>
+      <!-- 不分组 → 直接显示联系人 -->
+      <block wx:if="{{groupedContacts.length === 0}}">
+        <view wx:for="{{nurtureList}}" wx:key="id" class="card contact-card" catchtap="tapContact" data-id="{{item.id}}">
+          <view class="contact-row">
+            <text class="contact-name">{{item.name}}</text>
+            <view class="contact-tags">
+              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+            </view>
+          </view>
+          <view class="contact-detail">
+            <text class="text-dim text-sm">{{item.bond}}</text>
+            <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
+          </view>
+          <view wx:if="{{item.nextDate}}" class="next-date">
+            <text class="text-accent text-sm">📅 {{item.nextDate}}</text>
           </view>
         </view>
-        <view class="contact-detail">
-          <text class="text-dim text-sm">{{item.bond}}</text>
-          <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
-        </view>
-        <view wx:if="{{item.nextDate}}" class="next-date">
-          <text class="text-accent text-sm">📅 {{item.nextDate}}</text>
-        </view>
-      </view>
-      <view wx:if="{{hasMore}}" class="load-more" bindtap="loadMore">
+      </block>
+      <view wx:if="{{hasMore && groupedContacts.length === 0}}" class="load-more" catchtap="loadMore">
         <text class="text-dim text-sm">{{loadingMore ? '加载中…' : '加载更多'}}</text>
       </view>
-      <view wx:else class="load-more">
+      <view wx:if="{{!hasMore && groupedContacts.length === 0}}" class="load-more">
         <text class="text-dimmer text-xs">已加载全部</text>
       </view>
     </block>

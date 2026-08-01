@@ -1,0 +1,226 @@
+<!-- components/sdui-renderer/sdui-renderer.wxml — 通用 SDUI 渲染器 -->
+<view class="sdui-container">
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="sdui-loading">
+    <view class="sdui-loading-spinner"></view>
+    <text class="text-dimmer text-sm">加载中…</text>
+  </view>
+
+  <!-- 错误态 -->
+  <view wx:if="{{error}}" class="sdui-error">
+    <text class="text-accent text-sm">{{error}}</text>
+  </view>
+
+  <!-- 组件树渲染 -->
+  <block wx:for="{{components}}" wx:key="id">
+
+    <!-- ── 页面头部（hero） ── -->
+    <view wx:if="{{item.type === 'header'}}" class="sdui-header">
+      <view class="sdui-header-bar"></view>
+      <text class="sdui-header-title">{{item.title}}</text>
+      <text wx:if="{{item.subtitle}}" class="sdui-header-subtitle">{{item.subtitle}}</text>
+      <text wx:if="{{item.date}}" class="sdui-header-date">{{item.date}}</text>
+    </view>
+
+    <!-- ── Section 分组卡片 ── -->
+    <view wx:if="{{item.type === 'section'}}" class="sdui-section">
+      <view wx:if="{{item.title}}" class="sdui-section-header">
+        <text wx:if="{{item.icon}}" class="sdui-section-icon">{{item.icon}}</text>
+        <text class="sdui-section-title">{{item.title}}</text>
+        <text wx:if="{{item.count}}" class="sdui-section-count">{{item.count}}</text>
+      </view>
+      <view class="sdui-section-body">
+        <!-- section 内嵌组件 -->
+        <block wx:for="{{item.children}}" wx:for-item="child" wx:key="id">
+
+          <!-- 统计数字组 -->
+          <view wx:if="{{child.type === 'stat-group'}}" class="sdui-stat-group">
+            <view wx:for="{{child.items}}" wx:for-item="stat" wx:key="label" class="sdui-stat-item">
+              <text wx:if="{{stat.icon}}" class="sdui-stat-icon">{{stat.icon}}</text>
+              <text class="sdui-stat-num">{{stat.value}}</text>
+              <text class="sdui-stat-label text-dimmer text-xs">{{stat.label}}</text>
+            </view>
+          </view>
+
+          <!-- 列表 -->
+          <view wx:if="{{child.type === 'list'}}" class="sdui-list">
+            <view wx:for="{{child.items}}" wx:for-item="li" wx:key="index" class="sdui-list-item" bindtap="onTapItem" data-id="{{li.id}}" data-action="{{li.action}}" data-url="{{li.url}}" data-text="{{li.text}}">
+              <view wx:if="{{li.icon}}" class="sdui-list-icon-wrap">
+                <text class="sdui-list-icon">{{li.icon}}</text>
+              </view>
+              <view class="sdui-list-content">
+                <text wx:if="{{li.title}}" class="sdui-list-title">{{li.title}}</text>
+                <text wx:if="{{li.subtitle}}" class="sdui-list-subtitle text-dimmer text-xs">{{li.subtitle}}</text>
+                <text wx:if="{{li.text}}" class="sdui-list-text text-sm">{{li.text}}</text>
+              </view>
+              <view wx:if="{{li.badge}}" class="sdui-list-badge {{li.badgeStyle || ''}}">{{li.badge}}</view>
+              <text wx:if="{{li.action === 'navigate' && li.url}}" class="sdui-list-arrow">›</text>
+            </view>
+          </view>
+
+          <!-- 卡片 -->
+          <view wx:if="{{child.type === 'card'}}" class="sdui-sub-card">
+            <text wx:if="{{child.title}}" class="sdui-sub-card-title">{{child.title}}</text>
+            <view wx:if="{{child.fields && child.fields.length}}" class="sdui-card-fields">
+              <view wx:for="{{child.fields}}" wx:for-item="f" wx:key="label" class="sdui-card-field">
+                <text class="sdui-field-label text-dimmer text-xs">{{f.label}}</text>
+                <text class="sdui-field-value text-sm">{{f.value}}</text>
+              </view>
+            </view>
+            <view wx:if="{{child.items && child.items.length}}" class="sdui-card-items">
+              <view wx:for="{{child.items}}" wx:for-item="ci" wx:key="index" class="sdui-card-item">
+                <text wx:if="{{ci.icon}}" class="sdui-item-icon">{{ci.icon}}</text>
+                <text class="sdui-item-text text-sm">{{ci.text}}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 段落 -->
+          <view wx:if="{{child.type === 'paragraph'}}" class="sdui-paragraph {{child.style === 'muted-center' ? 'sdui-paragraph--muted-center' : ''}}">
+            <text class="text-sm">{{child.content}}</text>
+          </view>
+
+          <!-- 进度条 -->
+          <view wx:if="{{child.type === 'progress-bar'}}" class="sdui-progress-wrap">
+            <view class="sdui-progress-bar">
+              <view class="sdui-progress-fill" style="width:{{child.percent}}%"></view>
+            </view>
+            <text wx:if="{{child.label}}" class="text-dimmer text-xs">{{child.label}}</text>
+          </view>
+
+          <!-- 标签组 -->
+          <view wx:if="{{child.type === 'tags'}}" class="sdui-tags">
+            <view wx:for="{{child.items}}" wx:for-item="tag" wx:key="*this" class="sdui-tag">{{tag}}</view>
+          </view>
+
+        </block>
+      </view>
+    </view>
+
+    <!-- ── 独立组件（不在 section 内时直接渲染） ── -->
+
+    <!-- 标题 -->
+    <view wx:if="{{item.type === 'title'}}" class="sdui-title">
+      <text>{{item.content}}</text>
+    </view>
+
+    <!-- 副标题 -->
+    <view wx:if="{{item.type === 'subtitle'}}" class="sdui-subtitle">
+      <text class="text-dimmer text-sm">{{item.content}}</text>
+    </view>
+
+    <!-- 小标题（web 端 section-title 风格） -->
+    <view wx:if="{{item.type === 'section-label'}}" class="sdui-section-label">
+      <text>{{item.content}}</text>
+    </view>
+
+    <!-- 信号卡片（web 端 .card 风格） -->
+    <view wx:if="{{item.type === 'signal-card'}}" class="sdui-signal-card" bindtap="onTapItem" data-id="{{item.id}}" data-action="{{item.action}}" data-url="{{item.url}}">
+      <view class="sdui-signal-card-title">
+        <text class="sdui-signal-card-index">{{item.index}}</text>
+        <text class="sdui-signal-card-text">{{item.title}}</text>
+        <text wx:if="{{item.source}}" class="sdui-signal-card-src">{{item.source}}</text>
+        <text wx:if="{{item.score}}" class="sdui-signal-card-score {{item.scoreClass}}">{{item.score}}</text>
+      </view>
+      <view wx:if="{{item.url}}" class="sdui-signal-card-meta">
+        <text class="text-dimmer text-xs">原文 ›</text>
+      </view>
+      <view wx:if="{{item.why}}" class="sdui-signal-card-why">
+        <text class="text-sm">{{item.why}}</text>
+      </view>
+      <view wx:if="{{item.tags && item.tags.length}}" class="sdui-signal-card-tags">
+        <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="sdui-signal-card-tag">{{tag}}</text>
+      </view>
+    </view>
+
+    <!-- 段落 -->
+    <view wx:if="{{item.type === 'paragraph'}}" class="sdui-paragraph {{item.style === 'muted-center' ? 'sdui-paragraph--muted-center' : ''}}">
+      <text class="text-sm">{{item.content}}</text>
+    </view>
+
+    <!-- 统计数字组（独立） -->
+    <view wx:if="{{item.type === 'stat-group'}}" class="sdui-stat-group sdui-stat-group--standalone">
+      <view wx:for="{{item.items}}" wx:for-item="stat" wx:key="label" class="sdui-stat-item">
+        <text wx:if="{{stat.icon}}" class="sdui-stat-icon">{{stat.icon}}</text>
+        <text class="sdui-stat-num">{{stat.value}}</text>
+        <text class="sdui-stat-label text-dimmer text-xs">{{stat.label}}</text>
+      </view>
+    </view>
+
+    <!-- 进度条（独立） -->
+    <view wx:if="{{item.type === 'progress-bar'}}" class="sdui-progress-wrap">
+      <view class="sdui-progress-bar">
+        <view class="sdui-progress-fill" style="width:{{item.percent}}%"></view>
+      </view>
+      <text wx:if="{{item.label}}" class="text-dimmer text-xs">{{item.label}}</text>
+    </view>
+
+    <!-- 列表（独立） -->
+    <view wx:if="{{item.type === 'list'}}" class="sdui-list sdui-list--standalone">
+      <view wx:for="{{item.items}}" wx:for-item="li" wx:key="index" class="sdui-list-item" bindtap="onTapItem" data-id="{{li.id}}" data-action="{{li.action}}" data-url="{{li.url}}" data-text="{{li.text}}">
+        <view wx:if="{{li.icon}}" class="sdui-list-icon-wrap">
+          <text class="sdui-list-icon">{{li.icon}}</text>
+        </view>
+        <view class="sdui-list-content">
+          <text wx:if="{{li.title}}" class="sdui-list-title">{{li.title}}</text>
+          <text wx:if="{{li.subtitle}}" class="sdui-list-subtitle text-dimmer text-xs">{{li.subtitle}}</text>
+          <text wx:if="{{li.text}}" class="sdui-list-text text-sm">{{li.text}}</text>
+        </view>
+        <view wx:if="{{li.badge}}" class="sdui-list-badge {{li.badgeStyle || ''}}">{{li.badge}}</view>
+        <text wx:if="{{li.action === 'navigate' && li.url}}" class="sdui-list-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 卡片（独立） -->
+    <view wx:if="{{item.type === 'card'}}" class="sdui-card" bindtap="onTapItem" data-id="{{item.id}}" data-action="{{item.action}}" data-url="{{item.url}}">
+      <text wx:if="{{item.title}}" class="sdui-card-title">{{item.title}}</text>
+      <view wx:if="{{item.fields && item.fields.length}}" class="sdui-card-fields">
+        <view wx:for="{{item.fields}}" wx:for-item="f" wx:key="label" class="sdui-card-field">
+          <text class="sdui-field-label text-dimmer text-xs">{{f.label}}</text>
+          <text class="sdui-field-value text-sm">{{f.value}}</text>
+        </view>
+      </view>
+      <view wx:if="{{item.items && item.items.length}}" class="sdui-card-items">
+        <view wx:for="{{item.items}}" wx:for-item="ci" wx:key="index" class="sdui-card-item">
+          <text wx:if="{{ci.icon}}" class="sdui-item-icon">{{ci.icon}}</text>
+          <text class="sdui-item-text text-sm">{{ci.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 按钮组 -->
+    <view wx:if="{{item.type === 'buttons'}}" class="sdui-buttons">
+      <block wx:for="{{item.items}}" wx:for-item="btn" wx:key="key">
+        <!-- share 按钮用原生 button 触发 onShareAppMessage -->
+        <button wx:if="{{btn.action === 'share'}}" class="sdui-btn {{btn.style || 'secondary'}} sdui-btn-share" open-type="share" data-key="{{btn.key}}">
+          <text>{{btn.label}}</text>
+        </button>
+        <!-- 普通按钮 -->
+        <view wx:else class="sdui-btn {{btn.style || 'secondary'}}" bindtap="onButtonTap" data-id="{{btn.id}}" data-action="{{btn.action}}" data-url="{{btn.url}}" data-key="{{btn.key}}" data-text="{{btn.text}}">
+          <text>{{btn.label}}</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- 富文本 -->
+    <view wx:if="{{item.type === 'rich-text'}}" class="sdui-rich-text">
+      <rich-text nodes="{{item.content}}"></rich-text>
+    </view>
+
+    <!-- 分割线 -->
+    <view wx:if="{{item.type === 'divider'}}" class="sdui-divider"></view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{item.type === 'empty-state'}}" class="sdui-empty">
+      <text wx:if="{{item.icon}}" class="sdui-empty-icon">{{item.icon}}</text>
+      <text wx:if="{{item.title}}" class="sdui-empty-title text-accent">{{item.title}}</text>
+      <text wx:if="{{item.description}}" class="sdui-empty-desc text-dim text-sm">{{item.description}}</text>
+    </view>
+
+    <!-- 标签组（独立） -->
+    <view wx:if="{{item.type === 'tags'}}" class="sdui-tags">
+      <view wx:for="{{item.items}}" wx:for-item="tag" wx:key="*this" class="sdui-tag">{{tag}}</view>
+    </view>
+
+  </block>
+</view>

@@ -1,4 +1,4 @@
-"""Tests for the contact import flow — xlsx→csv, Devin JSON extraction, dedup.
+"""Tests for the contact import flow — Devin JSON extraction, dedup.
 
 All external calls (Devin CLI subprocess, cloud KV HTTP) are mocked. No real
 Devin CLI or network access happens during these tests.
@@ -26,40 +26,6 @@ def _make_agent():
         },
     }
     return agent
-
-
-# ── xlsx → csv (Chinese must not be garbled) ──
-
-def test_xlsx_to_csv(tmp_path):
-    """Convert an xlsx containing Chinese cells to CSV; verify UTF-8 + BOM."""
-    openpyxl = pytest.importorskip("openpyxl")
-
-    xlsx_path = tmp_path / "contacts.xlsx"
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(["姓名", "公司", "职位", "电话"])
-    ws.append(["张三", "腾讯", "产品经理", "13800138000"])
-    ws.append(["李四", "阿里巴巴", "技术专家", "13900139000"])
-    wb.save(xlsx_path)
-
-    agent = _make_agent()
-    csv_path = agent._xlsx_to_csv(str(xlsx_path), "contacts.xlsx")
-
-    # Returned a new csv path (different from the xlsx input)
-    assert csv_path != str(xlsx_path)
-    assert csv_path.endswith(".csv")
-
-    raw = open(csv_path, "rb").read()
-    # utf-8-sig writes a BOM — Chinese must survive intact
-    assert raw.startswith(b"\xef\xbb\xbf"), "CSV should be utf-8-sig (BOM)"
-    text = raw.decode("utf-8-sig")
-    assert "张三" in text
-    assert "腾讯" in text
-    assert "产品经理" in text
-    assert "李四" in text
-    assert "阿里巴巴" in text
-    # Header row preserved
-    assert "姓名" in text
 
 
 # ── Devin CLI JSON extraction (mocked subprocess) ──

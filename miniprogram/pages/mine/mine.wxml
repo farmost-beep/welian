@@ -1,23 +1,15 @@
 <!-- pages/mine/mine.wxml — 我的 -->
 <view class="container">
-  <!-- 品牌头 -->
-  <view class="brand-header">
-    <text class="brand-name">Welian</text>
-    <text class="brand-inf">∞</text>
-  </view>
-  <text class="brand-tagline text-dim">更用心 — 更好的朋友、更好的家人、更好的合作者</text>
-
-  <!-- 当前套餐 -->
+  <!-- 当前版本 -->
   <view class="card plan-card">
     <view class="plan-row">
-      <text class="plan-label">当前套餐</text>
+      <text class="plan-label">当前版本</text>
       <text class="tag tag-{{plan === 'pro' ? 'leverage' : 'dual'}}">{{planLabel}}</text>
     </view>
     <view class="plan-row">
       <text class="plan-label">剩余额度</text>
-      <text class="plan-credits">{{credits}} 点</text>
+      <text class="plan-credits">{{creditsFixed}} 点</text>
     </view>
-    <button class="btn btn-block" bindtap="goBilling">管理套餐 / 充值</button>
   </view>
 
   <!-- 账号绑定 -->
@@ -54,29 +46,82 @@
     </view>
   </view>
 
+  <!-- 个人画像 -->
+  <view class="menu-group">
+    <view class="menu-item" bindtap="goProfile">
+      <text class="menu-icon">🧬</text>
+      <text class="menu-text">个人画像</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+  </view>
+
+  <!-- 邀请好友 -->
+  <view class="card invite-card">
+    <view class="invite-row">
+      <text class="invite-icon">🎁</text>
+      <view class="invite-text">
+        <text class="invite-title">邀请好友</text>
+        <text class="text-dim text-sm">推荐好友一起用心经营关系</text>
+      </view>
+      <view class="invite-btn" bindtap="showInviteQR">邀请</view>
+    </view>
+  </view>
+
   <!-- 功能入口 -->
   <view class="menu-group">
-    <view class="menu-item" bindtap="goChat">
+    <view class="menu-item" bindtap="goSignals">
+      <text class="menu-icon">📡</text>
+      <text class="menu-text">每日信号</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="showGzhQrcode">
+      <text class="menu-icon">📖</text>
+      <text class="menu-text">关注公众号</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item menu-item-contact">
       <text class="menu-icon">💬</text>
-      <text class="menu-text">和小维对话</text>
+      <text class="menu-text">联系客服</text>
+      <text class="menu-arrow text-dimmer">›</text>
+      <button class="contact-overlay" open-type="contact" session-from="welian"></button>
+    </view>
+    <view class="menu-item" bindtap="goPrivacy">
+      <text class="menu-icon">🔒</text>
+      <text class="menu-text">隐私政策</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
-    <view class="menu-item" bindtap="goWeekly">
-      <text class="menu-icon">📋</text>
-      <text class="menu-text">周报</text>
+    <view class="menu-item" bindtap="goPrivacy">
+      <text class="menu-icon">📄</text>
+      <text class="menu-text">用户协议</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
-    <view class="menu-item" bindtap="goBilling">
-      <text class="menu-icon">💳</text>
-      <text class="menu-text">充值 / 套餐</text>
-      <text class="menu-arrow text-dimmer">›</text>
-    </view>
+  </view>
+
+  <!-- 注销账户 -->
+  <view class="card delete-account-card">
+    <text class="delete-account-title">⚠️ 注销账户</text>
+    <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">永久删除你的所有数据，不可恢复。</text>
+    <view style="padding:20rpx;text-align:center;color:#C96442;border:1rpx solid #C96442;border-radius:16rpx;background:#FFF5F0;" bindtap="deleteAccount">注销账户</view>
   </view>
 
   <!-- 关于 -->
   <view class="about">
     <text class="text-dimmer text-xs">维联 — 维系情感，联结目标</text>
     <text class="text-dimmer text-xs">© 2026 Welian ∞</text>
+  </view>
+</view>
+
+<!-- 注销确认弹窗 -->
+<view wx:if="{{showDeleteModal}}" class="delete-overlay" catchtap="cancelDelete">
+  <view class="delete-modal" catchtap="noop">
+    <text class="delete-modal-title">最后确认</text>
+    <text class="delete-modal-desc">这是不可逆操作，所有数据将被永久删除。</text>
+    <text class="delete-modal-hint">请输入"删除"确认：</text>
+    <input class="delete-modal-input" value="{{deleteInput}}" bindinput="onDeleteInput" placeholder="删除" />
+    <view class="delete-modal-actions">
+      <view class="delete-modal-btn delete-modal-cancel" bindtap="cancelDelete">取消</view>
+      <view class="delete-modal-btn delete-modal-confirm" bindtap="confirmDeleteInput">确认注销</view>
+    </view>
   </view>
 </view>
 
@@ -92,5 +137,15 @@
     </view>
     <text class="celebration-title">注册成功！</text>
     <text class="celebration-subtitle text-dim">欢迎加入 Welian，开始用心经营你的关系网络</text>
+  </view>
+</view>
+
+<!-- 公众号二维码弹窗 -->
+<view wx:if="{{showGzh}}" class="gzh-overlay" catchtap="closeGzh">
+  <view class="gzh-modal" catchtap="noop">
+    <text class="gzh-title">📖 四十之后看书</text>
+    <image class="gzh-qrcode" src="/images/gzh_qrcode.png" mode="aspectFit" show-menu-by-longpress="{{true}}" />
+    <text class="gzh-hint text-dim text-sm">长按二维码识别关注</text>
+    <view class="gzh-close-btn" bindtap="closeGzh">关闭</view>
   </view>
 </view>

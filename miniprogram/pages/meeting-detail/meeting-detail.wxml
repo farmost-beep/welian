@@ -1,0 +1,246 @@
+<!-- pages/meeting-detail/meeting-detail.wxml — 会议详情页 -->
+<view class="container">
+  <!-- 加载态 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dimmer text-sm">加载中…</text>
+  </view>
+
+  <!-- 错误态 -->
+  <view wx:if="{{error && !loading}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadDetail">重试</button></view>
+  </view>
+
+  <block wx:if="{{!loading && !error && meeting}}">
+    <!-- 会议基本信息 -->
+    <view class="card info-card">
+      <view class="info-top">
+        <text class="info-title">{{meeting.title}}</text>
+        <text class="status-badge status-{{meeting.status}}">{{statusLabel}}</text>
+      </view>
+      <view class="info-meta">
+        <text class="meta-item">📅 {{meeting.date}}</text>
+        <text wx:if="{{meeting.location}}" class="meta-item">📍 {{meeting.location}}</text>
+        <text wx:if="{{meeting.location}}" class="meta-item nav-btn" bindtap="openLocation">🧭 导航</text>
+      </view>
+      <view wx:if="{{meeting.purpose}}" class="info-purpose">
+        <text class="text-dim text-sm">目的：{{meeting.purpose}}</text>
+      </view>
+      <button class="action-btn" style="margin-top:16rpx" bindtap="addMeetingToCalendar">📅 添加到日历</button>
+    </view>
+
+    <!-- 拍照识别区 -->
+    <view class="card">
+      <text class="section-title">📸 拍照识别</text>
+      <view class="photo-grid">
+        <button
+          class="photo-btn {{uploading === 'agenda' ? 'photo-btn-loading' : ''}}"
+          bindtap="choosePhoto"
+          data-type="agenda"
+          loading="{{uploading === 'agenda'}}"
+          disabled="{{!!uploading}}"
+        >拍议程</button>
+        <button
+          class="photo-btn {{uploading === 'card' ? 'photo-btn-loading' : ''}}"
+          bindtap="choosePhoto"
+          data-type="card"
+          loading="{{uploading === 'card'}}"
+          disabled="{{!!uploading}}"
+        >拍名片</button>
+        <button
+          class="photo-btn {{uploading === 'roster' ? 'photo-btn-loading' : ''}}"
+          bindtap="choosePhoto"
+          data-type="roster"
+          loading="{{uploading === 'roster'}}"
+          disabled="{{!!uploading}}"
+        >拍参会名单</button>
+        <button
+          class="photo-btn {{uploading === 'notes' ? 'photo-btn-loading' : ''}}"
+          bindtap="choosePhoto"
+          data-type="notes"
+          loading="{{uploading === 'notes'}}"
+          disabled="{{!!uploading}}"
+        >拍笔记</button>
+      </view>
+    </view>
+
+    <!-- 参会人 -->
+    <view wx:if="{{meeting.attendees && meeting.attendees.length > 0}}" class="card">
+      <text class="section-title">👥 参会人（{{meeting.attendees.length}}）</text>
+      <view wx:for="{{meeting.attendees}}" wx:key="index" class="list-item" bindtap="openContact" data-id="{{item.contact_id}}">
+        <view class="list-item-main">
+          <text class="list-item-title">{{item.name}}</text>
+          <text wx:if="{{item.title || item.company}}" class="text-dim text-xs">{{item.title}}{{item.title && item.company ? ' · ' : ''}}{{item.company}}</text>
+        </view>
+        <view class="list-item-tags">
+          <text wx:if="{{item.is_existing}}" class="tag tag-existing">已有联系人</text>
+          <text wx:if="{{item.first_meeting}}" class="tag tag-first">首次见面</text>
+          <text wx:if="{{item.contact_id}}" class="tag tag-link">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 议程 -->
+    <view wx:if="{{meeting.agenda && meeting.agenda.length > 0}}" class="card">
+      <text class="section-title">📋 议程</text>
+      <view wx:for="{{meeting.agenda}}" wx:key="index" class="agenda-item">
+        <text wx:if="{{item.time}}" class="agenda-time">{{item.time}}</text>
+        <view class="agenda-main">
+          <text class="agenda-topic">{{item.topic}}</text>
+          <text wx:if="{{item.presenter}}" class="text-dim text-xs">主讲：{{item.presenter}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 业务机会 -->
+    <view wx:if="{{meeting.opportunities && meeting.opportunities.length > 0}}" class="card">
+      <text class="section-title">💡 业务机会</text>
+      <view wx:for="{{meeting.opportunities}}" wx:key="index" class="opp-item">
+        <view class="opp-top">
+          <text class="opp-desc">{{item.description}}</text>
+          <text wx:if="{{item.type}}" class="tag tag-opp">{{item.type}}</text>
+        </view>
+        <view class="opp-meta">
+          <text wx:if="{{item.potential}}" class="text-dim text-xs">潜力：{{item.potential}}</text>
+          <text wx:if="{{item.status}}" class="text-dimmer text-xs">{{item.status}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 照片 -->
+    <view wx:if="{{meeting.photos && meeting.photos.length > 0}}" class="card">
+      <text class="section-title">📷 照片（{{meeting.photos.length}}）</text>
+      <view class="photo-thumbs">
+        <view wx:for="{{meeting.photos}}" wx:key="index" class="photo-thumb" bindtap="previewPhoto" data-url="{{item.image}}">
+          <image src="{{item.image}}" mode="aspectFill" class="thumb-img"></image>
+          <text class="thumb-label">{{item.type === 'agenda' ? '议程' : item.type === 'card' ? '名片' : item.type === 'roster' ? '名单' : '笔记'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 会议总结 -->
+    <view wx:if="{{meeting.summary}}" class="card">
+      <text class="section-title">📝 会议总结</text>
+      <text class="summary-text">{{meeting.summary}}</text>
+    </view>
+
+    <!-- 会前准备 -->
+    <view class="card">
+      <text class="section-title">🧠 会前准备</text>
+      <text class="text-dim text-sm" style="display:block;margin-bottom:16rpx">分析参会人，提示可借议程推进的合作点</text>
+      <button class="btn btn-block" bindtap="runPrep" loading="{{prepLoading}}" disabled="{{prepLoading}}">生成会前准备</button>
+    </view>
+
+    <!-- 会后复盘 -->
+    <view class="card">
+      <text class="section-title">🔄 会后复盘</text>
+      <textarea
+        class="notes-input"
+        value="{{notesText}}"
+        bindinput="onNotesInput"
+        placeholder="输入会议笔记/要点，智能提取机会和跟进…"
+      />
+      <button class="btn btn-block btn-green" style="margin-top:16rpx" bindtap="runReview" loading="{{reviewLoading}}" disabled="{{reviewLoading}}">生成复盘</button>
+    </view>
+
+    <!-- 状态控制 -->
+    <view wx:if="{{meeting.status !== 'completed'}}" class="card status-control-card">
+      <button class="btn btn-block btn-green" bindtap="markCompleted">✓ 标记为已完成</button>
+    </view>
+    <view wx:if="{{meeting.status === 'completed'}}" class="card status-control-card">
+      <button class="btn btn-block" bindtap="markPlanned">↩ 重新设为待开始</button>
+    </view>
+
+    <!-- 删除 -->
+    <button class="btn-delete" bindtap="deleteMeeting">删除会议</button>
+  </block>
+</view>
+
+<!-- 会前准备结果弹窗 -->
+<view wx:if="{{showPrep}}" class="modal-overlay" catchtap="closePrep">
+  <view class="modal-sheet" catchtap="noop">
+    <view class="modal-title">会前准备建议</view>
+    <view wx:if="{{prepResult.summary}}" class="prep-summary">
+      <text class="text-dim text-sm">{{prepResult.summary}}</text>
+    </view>
+    <view wx:if="{{prepResult.suggestions && prepResult.suggestions.length > 0}}">
+      <view wx:for="{{prepResult.suggestions}}" wx:key="index" class="suggestion-item">
+        <text wx:if="{{item.contact_name}}" class="suggestion-name">{{item.contact_name}}</text>
+        <text class="suggestion-text">{{item.suggestion}}</text>
+      </view>
+    </view>
+    <view wx:if="{{(!prepResult.suggestions || prepResult.suggestions.length === 0) && !prepResult.summary}}" class="loading">
+      <text class="text-dimmer text-sm">暂无建议</text>
+    </view>
+    <view class="modal-actions">
+      <button class="action-btn action-btn-primary" bindtap="closePrep">知道了</button>
+    </view>
+  </view>
+</view>
+
+<!-- 会后复盘结果弹窗 -->
+<view wx:if="{{showReview}}" class="modal-overlay" catchtap="closeReview">
+  <view class="modal-sheet" catchtap="noop">
+    <view class="modal-title">会后复盘</view>
+
+    <!-- 自动操作提示 -->
+    <view wx:if="{{reviewResult.created_todos > 0 || reviewResult.auto_completed_todos > 0}}" class="review-auto-actions">
+      <text wx:if="{{reviewResult.created_todos > 0}}" class="text-sm text-green">✓ 已自动创建 {{reviewResult.created_todos}} 条跟进待办</text>
+      <text wx:if="{{reviewResult.auto_completed_todos > 0}}" class="text-sm text-green">✓ 已自动完成 {{reviewResult.auto_completed_todos}} 条会前待办</text>
+    </view>
+
+    <view wx:if="{{reviewResult.unstructured}}" class="review-warning">
+      <text class="text-accent text-xs">⚠ 返回非结构化内容，以下为原文</text>
+    </view>
+
+    <view wx:if="{{reviewResult.summary}}" class="review-section">
+      <text class="review-label">总结</text>
+      <text class="review-text">{{reviewResult.summary}}</text>
+    </view>
+
+    <view wx:if="{{reviewResult.new_contacts && reviewResult.new_contacts.length > 0}}" class="review-section">
+      <text class="review-label">新认识的人（已自动加入联系人）</text>
+      <view wx:for="{{reviewResult.new_contacts}}" wx:key="index" class="review-item">
+        <text class="review-item-text">{{item.name}}</text>
+        <text wx:if="{{item.company || item.title}}" class="text-dim text-xs">{{item.title}}{{item.title && item.company ? ' · ' : ''}}{{item.company}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{reviewResult.follow_up_todos && reviewResult.follow_up_todos.length > 0}}" class="review-section">
+      <text class="review-label">跟进待办（已自动创建）</text>
+      <view wx:for="{{reviewResult.follow_up_todos}}" wx:key="index" class="review-item">
+        <text class="review-item-text">{{item.task}}</text>
+        <view class="review-item-meta">
+          <text wx:if="{{item.contact_name}}" class="text-dim text-xs">{{item.contact_name}}</text>
+          <text wx:if="{{item.due}}" class="text-dimmer text-xs">📅 {{item.due}}</text>
+          <text wx:if="{{item.priority}}" class="text-dimmer text-xs">{{item.priority}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{reviewResult.opportunity_analysis && reviewResult.opportunity_analysis.length > 0}}" class="review-section">
+      <text class="review-label">机会分析</text>
+      <view wx:for="{{reviewResult.opportunity_analysis}}" wx:key="index" class="review-item">
+        <text class="review-item-text">{{item.description}}</text>
+        <text wx:if="{{item.action}}" class="text-dim text-sm">→ {{item.action}}</text>
+        <text wx:if="{{item.contact_name}}" class="text-dimmer text-xs">关联：{{item.contact_name}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{reviewResult.leverage_insights}}" class="review-section">
+      <text class="review-label">撬动建议</text>
+      <text class="review-text">{{reviewResult.leverage_insights}}</text>
+    </view>
+
+    <view wx:if="{{reviewResult.goal_suggestions && reviewResult.goal_suggestions.length > 0}}" class="review-section">
+      <text class="review-label">目标方向</text>
+      <view wx:for="{{reviewResult.goal_suggestions}}" wx:key="index" class="review-bullet">
+        <text class="text-sm">• {{item}}</text>
+      </view>
+    </view>
+
+    <view class="modal-actions">
+      <button class="action-btn action-btn-primary" bindtap="closeReview">完成</button>
+    </view>
+  </view>
+</view>

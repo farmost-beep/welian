@@ -1,56 +1,40 @@
-// pages/signals/signals.js — 每日信号页
+// pages/signals/signals.js — SDUI 信号页（后端驱动渲染）
 const api = require('../../utils/api.js');
+const app = getApp();
 
 Page({
   data: {
-    signals: [],
-    themes: [],
+    components: [],
     loading: true,
     error: '',
-    greeting: '',
   },
 
-  onShow() {
+  async onLoad() {
+    if (!api.getToken()) {
+      try { await app.loginReady; } catch (e) { return; }
+    }
     this.loadSignals();
-  },
-
-  loadSignals() {
-    this.setData({ loading: true, error: '' });
-    api.getSignals().then((report) => {
-      this.setData({
-        signals: report.signals || [],
-        themes: report.themes || [],
-        greeting: report.greeting || '',
-        loading: false,
-      });
-    }).catch((err) => {
-      this.setData({ loading: false, error: err.message || '获取失败' });
-    });
   },
 
   onPullDownRefresh() {
-    this.loadSignals();
-    setTimeout(() => wx.stopPullDownRefresh(), 1000);
+    this.loadSignals(true, () => wx.stopPullDownRefresh());
   },
 
-  // 点击信号卡片 → 打开原文（web-view 代理阅读）
-  openSignal(e) {
-    const url = e.currentTarget.dataset.url;
-    if (!url) {
-      wx.showToast({ title: '暂无原文链接', icon: 'none' });
-      return;
+  async loadSignals(refresh, cb) {
+    this.setData({ loading: true, error: '' });
+    try {
+      const data = await api.request('/ai/render?page=signals' + (refresh ? '&refresh=1' : ''), {}, 'GET');
+      if (data && data.components) {
+        this.setData({ components: data.components, loading: false });
+      } else {
+        this.setData({ loading: false, error: (data && data.error) || '加载失败' });
+      }
+    } catch (e) {
+      this.setData({ loading: false, error: e.message || '网络错误' });
+    } finally {
+      if (cb) cb();
     }
-    wx.navigateTo({
-      url: `/pages/article/article?url=${encodeURIComponent(url)}`,
-    });
   },
 
-  // 分享给微信好友
-  onShareAppMessage() {
-    const themes = this.data.themes.join('、');
-    return {
-      title: `今日信号 · ${themes || '科技商业快讯'}`,
-      path: '/pages/signals/signals',
-    };
-  },
+  onItemTap(e) {},
 });

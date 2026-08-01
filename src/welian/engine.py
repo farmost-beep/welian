@@ -7,7 +7,7 @@ Extends social-agent engine with:
 - Role dashboard: friend / family / collaborator
 - Ethical guardrails: no ROI on nurture relationships
 """
-import json, os, uuid, re, yaml
+import os, uuid, re, yaml
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -114,12 +114,6 @@ def _load(name):
         return store.load_todos()
     if name == "usage":
         return store.load_usage()
-    # Fallback: treat as file path (for custom data outside the store)
-    if isinstance(name, Path):
-        if not name.exists():
-            return []
-        with open(name, "r", encoding="utf-8") as f:
-            return json.load(f)
     return []
 
 def _save(name, data):
@@ -138,13 +132,6 @@ def _save(name, data):
         if isinstance(data, dict):
             store.save_usage(data)
         return
-    # Fallback: treat as file path
-    if isinstance(name, Path):
-        if isinstance(data, (list, dict)) and len(data) == 0:
-            if name.exists() and name.stat().st_size > 2:
-                return
-        with open(name, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ── Nature classification ──
 
@@ -718,3 +705,66 @@ def get_dashboard():
         "leverage_suggestions": len(leverage_advise),
         "nurture_reminders": len(nurture_reminders),
     }
+
+
+# ── Web Perception (ego-browser integration) ──
+
+def perceive_for_meeting(contact_name):
+    """Pre-meeting web perception: gather contact's recent web activity.
+
+    Uses ego-browser to perceive LinkedIn/Twitter/GitHub activity before
+    a meeting. Falls back gracefully if ego-browser is not installed.
+
+    Args:
+        contact_name: Contact name or alias
+
+    Returns:
+        dict with briefing and results, or {"status": "unavailable"} if
+        ego-browser is not installed.
+    """
+    try:
+        from .perception import PerceptionScheduler
+        scheduler = PerceptionScheduler()
+        if not scheduler.is_available():
+            return {"status": "unavailable", "message": "ego-browser 未安装或未运行"}
+        return scheduler.trigger_for_meeting(contact_name)
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def perceive_contact(contact_name, platforms=None):
+    """Manual web perception: user explicitly requests.
+
+    Args:
+        contact_name: Contact name or alias
+        platforms: Optional list of platforms (e.g. ["linkedin", "twitter"])
+
+    Returns:
+        dict with perception results
+    """
+    try:
+        from .perception import PerceptionScheduler
+        scheduler = PerceptionScheduler()
+        if not scheduler.is_available():
+            return {"status": "unavailable", "message": "ego-browser 未安装或未运行"}
+        return scheduler.trigger_manual(contact_name, platforms=platforms)
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def get_perception_history(contact_id=None, days=30):
+    """Query perception history.
+
+    Args:
+        contact_id: Optional contact ID filter
+        days: Look-back window in days
+
+    Returns:
+        List of perception log records
+    """
+    try:
+        from .perception import PerceptionScheduler
+        scheduler = PerceptionScheduler()
+        return scheduler.get_perception_history(contact_id=contact_id, days=days)
+    except Exception:
+        return []

@@ -1,17 +1,34 @@
 {
   "pages": [
-    "pages/signals/signals",
     "pages/dashboard/dashboard",
     "pages/contacts/contacts",
-    "pages/chat/chat",
+    "pages/sync/sync",
     "pages/todos/todos",
     "pages/mine/mine",
     "pages/welcome/welcome",
-    "pages/weekly/weekly",
-    "pages/billing/billing",
     "pages/contact-detail/contact-detail",
-    "pages/article/article"
+    "pages/timeline/timeline",
+    "pages/meetings/meetings",
+    "pages/meeting-detail/meeting-detail",
+    "pages/weekly/weekly",
+    "pages/monthly/monthly",
+    "pages/annual/annual",
+    "pages/signals/signals",
+    "pages/article/article",
+    "pages/webview/webview",
+    "pages/profile/profile",
+    "pages/privacy/privacy",
+    "pages/report/report"
   ],
+  "__usePrivacyCheck__": true,
+  "permission": {
+    "scope.record": {
+      "desc": "用于语音转文字，方便快捷输入"
+    },
+    "scope.writePhotosAlbum": {
+      "desc": "用于保存周报到你的相册"
+    }
+  },
   "window": {
     "navigationBarBackgroundColor": "#F5F4EE",
     "navigationBarTitleText": "Welian ∞",
@@ -20,18 +37,15 @@
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
+    "custom": true,
     "color": "#9A968C",
     "selectedColor": "#C96442",
     "backgroundColor": "#EDEBE3",
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/signals/signals",
-        "text": "信号"
-      },
-      {
         "pagePath": "pages/dashboard/dashboard",
-        "text": "仪表盘"
+        "text": "概览"
       },
       {
         "pagePath": "pages/contacts/contacts",

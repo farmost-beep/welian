@@ -59,6 +59,19 @@ CREATE TABLE IF NOT EXISTS usage (
     user_id TEXT PRIMARY KEY,
     data    TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS perception_log (
+    id          TEXT PRIMARY KEY,
+    contact_id  TEXT,
+    sensor      TEXT,
+    trigger     TEXT,
+    status      TEXT,
+    data        TEXT,
+    summary     TEXT,
+    created_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_perception_contact ON perception_log(contact_id);
+CREATE INDEX IF NOT EXISTS idx_perception_created ON perception_log(created_at);
 """
 
 

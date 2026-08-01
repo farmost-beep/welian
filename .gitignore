@@ -36,3 +36,7 @@ c1_gray_ocr.txt
 .env.prod
 playwright/.clerk
 test-results/
+
+# Secrets
+cloud-worker/.dev.vars
+*.bak

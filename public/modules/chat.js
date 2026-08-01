@@ -855,6 +855,7 @@ export async function send() {
       removeTyping();
       addMsg('ai', reply);
       addSuggestions(reply);
+      saveSessionTurn(text, reply);
     } catch (e) {
       removeTyping();
       if (e.name === 'AbortError') {
@@ -875,6 +876,7 @@ export async function send() {
       removeTyping();
       addMsg('ai', reply);
       addSuggestions(reply);
+      saveSessionTurn(text, reply);
     } catch (e) {
       removeTyping();
       if (e.name === 'AbortError') {

@@ -616,16 +616,14 @@ def _run_doctor():
     home = os.environ.get("WELIAN_HOME", WELIAN_CONFIG_DIR)
     check("WELIAN_HOME", "ok" if os.path.isdir(home) else "fail", home)
 
-    # 3. Data files
+    # 3. Data files (SQLite database)
     data_dir = os.path.join(home, "data")
-    expected_files = ["contacts.json", "timeline.json", "todos.json"]
-    for fname in expected_files:
-        fpath = os.path.join(data_dir, fname)
-        if os.path.exists(fpath):
-            size = os.path.getsize(fpath)
-            check(f"Data: {fname}", "ok", f"{size:,} bytes")
-        else:
-            check(f"Data: {fname}", "fail", "missing")
+    db_path = os.path.join(data_dir, "welian.db")
+    if os.path.exists(db_path):
+        size = os.path.getsize(db_path)
+        check("Data: welian.db", "ok", f"{size:,} bytes")
+    else:
+        check("Data: welian.db", "warn", "not created yet (will auto-create on first use)")
 
     # 4. LLM
     try:

@@ -29,6 +29,7 @@ INTENT_QUERY = "query"        # query contacts/stats
 INTENT_TODO = "todo"          # list upcoming todos/tasks
 INTENT_ALIAS = "alias"        # set alias: "X就是Y" / "X也叫Y"
 INTENT_HELP = "help"
+INTENT_PERCEIVE = "perceive"  # web perception: "感知XX" / "看看XX最近在网上怎么样"
 INTENT_UNKNOWN = "unknown"
 
 # ── Patterns ──
@@ -76,6 +77,12 @@ CHECK_PATTERNS = [
 
 HELP_PATTERNS = [
     r"^帮助$", r"^help$", r"^怎么用", r"^what can you",
+]
+
+PERCEIVE_PATTERNS = [
+    r"感知(.+)", r"看看(.+?)最近.*网上",
+    r"查查(.+?)的.*动态", r"perceive\s+(.+)",
+    r"scan\s+(.+)", r"(.+?)最近.*网上.*怎么样",
 ]
 
 TODO_PATTERNS = [
@@ -130,6 +137,7 @@ def _llm_parse(text):
 - todo: 查看待办事项/日程（如"近期要做什么"、"待办"、"这周安排"）
 - alias: 设置别名/关联（如"X就是Y"、"X也叫Y"、"X是Y的别名"）
 - help: 请求帮助（如"帮助"、"help"、"怎么用"）
+- perceive: 请求Web感知（如"感知张总"、"看看张总最近在网上怎么样"、"查查张总的动态"）
 - chat: 闲聊或无法归类的其他话题
 
 返回格式（仅JSON，不要其他文字）：
@@ -173,6 +181,7 @@ def _llm_parse(text):
         "todo": INTENT_TODO,
         "alias": INTENT_ALIAS,
         "help": INTENT_HELP,
+        "perceive": INTENT_PERCEIVE,
         "chat": INTENT_UNKNOWN,
     }
 
@@ -192,6 +201,8 @@ def _llm_parse(text):
     elif mapped == INTENT_ALIAS:
         payload["alias"] = data.get("alias", "")
         payload["contact"] = data.get("contact", "")
+    elif mapped == INTENT_PERCEIVE:
+        payload["target"] = data.get("target", "")
     elif mapped == INTENT_UNKNOWN:
         payload["raw"] = text
 
@@ -206,6 +217,13 @@ def _regex_parse(t):
     for pat in HELP_PATTERNS:
         if re.search(pat, t, re.IGNORECASE):
             return INTENT_HELP, {}
+
+    # Perceive (web perception)
+    for pat in PERCEIVE_PATTERNS:
+        m = re.match(pat, t, re.IGNORECASE)
+        if m:
+            target = m.group(1).strip()
+            return INTENT_PERCEIVE, {"target": target, "raw": t}
 
     # Record
     for pat in RECORD_PATTERNS:

@@ -16,27 +16,57 @@ Page({
     sendingCode: false,
     binding: false,
     showCelebration: false,
+    showDeleteModal: false,
+    deleteInput: '',
   },
 
-  onShow() {
+  async onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 3 });
+      this.getTabBar().refresh();
+    }
+    if (!api.getToken()) {
+      try { await app.loginReady; } catch (e) { return; }
+    }
     const g = app.globalData;
     this.setData({
       plan: g.plan,
       planLabel: g.plan === 'pro' ? 'Pro' : 'Free',
       credits: g.credits,
+      creditsFixed: (g.credits || 0).toFixed(2),
     });
     this.checkBinding();
+    this.refreshCredits();
+  },
+
+  refreshCredits() {
+    const token = api.getToken();
+    if (!token) return;
+    wx.request({
+      url: 'https://api.welian.app/ai/billing',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      data: {},
+      success: (res) => {
+        if (res.statusCode === 200 && res.data) {
+          const d = res.data;
+          const credits = d.remaining || 0;
+          app.globalData.credits = credits;
+          app.globalData.plan = d.plan;
+          this.setData({
+            credits,
+            creditsFixed: credits.toFixed(2),
+            plan: d.plan,
+            planLabel: d.plan === 'professional' ? '专业版' : d.plan === 'pro' ? 'Pro' : 'Free',
+          });
+        }
+      },
+    });
   },
 
   checkBinding() {
     const token = api.getToken();
-    if (!token) {
-      // 没有token → 自动微信登录获取openid
-      api.ensureLogin().then((t) => {
-        this.checkBindingWithToken(t);
-      }).catch(() => {});
-      return;
-    }
+    if (!token) return; // 未登录，不自动登录
     this.checkBindingWithToken(token);
   },
 
@@ -49,16 +79,35 @@ Page({
     }
   },
 
-  goWeekly() {
-    wx.navigateTo({ url: '/pages/weekly/weekly' });
+  goSignals() {
+    wx.navigateTo({ url: '/pages/signals/signals' });
   },
 
-  goChat() {
-    wx.navigateTo({ url: '/pages/chat/chat' });
+  goProfile() {
+    wx.navigateTo({ url: '/pages/profile/profile' });
   },
 
-  goBilling() {
-    wx.navigateTo({ url: '/pages/billing/billing' });
+  goBilling() {},
+
+  goPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/privacy' });
+  },
+
+  deleteAccount() {
+    console.log('[mine] deleteAccount tapped');
+    wx.showModal({
+      title: '注销前确认',
+      content: '你的联系人、互动记录、待办等数据已导出备份了吗？注销后所有数据将被永久删除，无法恢复。',
+      confirmText: '继续',
+      cancelText: '取消',
+      success: (res) => {
+        if (!res.confirm) return;
+        this._confirmDelete();
+      },
+      fail: (err) => {
+        console.error('[mine] showModal failed:', err);
+      },
+    });
   },
 
   onBindEmailInput(e) {
@@ -125,7 +174,6 @@ Page({
         if (res.statusCode === 200 && res.data.ok) {
           api.clearToken();
           wx.setStorageSync('welian_token', res.data.token);
-          wx.setStorageSync('welian_registered', true);
           this.setData({
             binding: false,
             isBound: true,
@@ -151,12 +199,11 @@ Page({
 
   // 解绑
   unbind() {
-    const { openid } = this.data;
     const token = api.getToken();
     // 已绑定用户 token 是 user_xxx:secret，提取 clerk_user_id
     // 未绑定用户 token 是 wxmp_<openid>:secret，用 openid
     const clerkUserId = token && token.startsWith('user_') ? token.substring(0, token.indexOf(':')) : null;
-    if (!openid && !clerkUserId) {
+    if (!clerkUserId) {
       wx.showToast({ title: '无法解绑，请重新登录', icon: 'none' });
       return;
     }
@@ -167,19 +214,16 @@ Page({
       confirmColor: '#C96442',
       success: (res) => {
         if (!res.confirm) return;
-        const data = {};
-        if (openid) data.openid = openid;
-        if (clerkUserId) data.clerk_user_id = clerkUserId;
+        // 用 clerk_user_id 解绑（后端通过 clerk_to_wxmp 反向映射找到 openid）
         wx.request({
           url: 'https://api.welian.app/ai/wxmp_unbind',
           method: 'POST',
           header: { 'Content-Type': 'application/json' },
-          data,
+          data: { clerk_user_id: clerkUserId },
           success: (res) => {
             if (res.statusCode === 200 && res.data.ok) {
               api.clearToken();
               wx.setStorageSync('welian_token', res.data.token);
-              wx.removeStorageSync('welian_registered');
               this.setData({
                 isBound: false,
                 bindMsg: '',
@@ -188,6 +232,7 @@ Page({
                 codeSent: false,
               });
               wx.showToast({ title: '已解绑', icon: 'none' });
+              // 解绑后回到 welcome 页，会自动微信登录进首页
               setTimeout(() => wx.reLaunch({ url: '/pages/welcome/welcome' }), 1500);
             } else {
               wx.showToast({ title: res.data.error || '解绑失败', icon: 'none' });
@@ -206,7 +251,160 @@ Page({
     };
   },
 
+  onShareTimeline() {
+    return {
+      title: 'Welian ∞ — 维系情感，联结目标',
+      query: '',
+    };
+  },
+
+  showInviteQR() {
+    const token = api.getToken();
+    if (!token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '生成中…' });
+    wx.request({
+      url: 'https://api.welian.app/ai/wxmp_invite_qrcode',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      success: (res) => {
+        wx.hideLoading();
+        if (res.statusCode === 200 && res.data && res.data.ok) {
+          const qrcodeUrl = res.data.qrcode_url;
+          // qrcodeUrl is a data:image/png;base64,... URL
+          // wx.previewImage doesn't support data URLs — write to temp file first
+          if (qrcodeUrl && qrcodeUrl.startsWith('data:image/')) {
+            const base64Data = qrcodeUrl.split(',')[1];
+            const filePath = `${wx.env.USER_DATA_PATH}/invite_qr.png`;
+            const fs = wx.getFileSystemManager();
+            fs.writeFile({
+              filePath,
+              data: base64Data,
+              encoding: 'base64',
+              success: () => {
+                this.setData({ inviteQrUrl: filePath });
+                wx.showModal({
+                  title: '邀请好友',
+                  content: '长按图片保存，发给好友扫码注册即可',
+                  confirmText: '查看图片',
+                  success: (r) => {
+                    if (r.confirm) {
+                      wx.previewImage({ urls: [filePath], current: filePath });
+                    }
+                  },
+                });
+              },
+              fail: () => wx.showToast({ title: '图片生成失败', icon: 'none' }),
+            });
+          } else {
+            this.setData({ inviteQrUrl: qrcodeUrl });
+            wx.showModal({
+              title: '邀请好友',
+              content: '长按图片保存，发给好友扫码注册即可',
+              confirmText: '查看图片',
+              success: (r) => {
+                if (r.confirm && qrcodeUrl) {
+                  wx.previewImage({ urls: [qrcodeUrl], current: qrcodeUrl });
+                }
+              },
+            });
+          }
+        } else {
+          wx.showToast({ title: (res.data && res.data.error) || '生成失败', icon: 'none' });
+        }
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      },
+    });
+  },
+
   dismissCelebration() {
     this.setData({ showCelebration: false });
+  },
+
+  _confirmDelete() {
+    wx.showModal({
+      title: '确定要注销吗？',
+      content: '所有联系人、互动记录、待办和账单数据将被永久删除。',
+      confirmText: '确定',
+      confirmColor: '#C96442',
+      cancelText: '取消',
+      success: (res) => {
+        if (!res.confirm) return;
+        // Step 3: 输入"删除"确认
+        this._typeConfirmDelete();
+      },
+    });
+  },
+
+  _typeConfirmDelete() {
+    this.setData({ showDeleteModal: true, deleteInput: '' });
+  },
+
+  onDeleteInput(e) {
+    this.setData({ deleteInput: e.detail.value });
+  },
+
+  cancelDelete() {
+    this.setData({ showDeleteModal: false, deleteInput: '' });
+  },
+
+  noop() {},
+
+  showGzhQrcode() {
+    this.setData({ showGzh: true });
+  },
+
+  closeGzh() {
+    this.setData({ showGzh: false });
+  },
+
+  confirmDeleteInput() {
+    const input = (this.data.deleteInput || '').trim();
+    if (input !== '删除') {
+      wx.showToast({ title: '输入不匹配', icon: 'none' });
+      return;
+    }
+    this.setData({ showDeleteModal: false });
+    this._executeDelete();
+  },
+
+  _executeDelete() {
+    const token = api.getToken();
+    if (!token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '正在注销…' });
+    wx.request({
+      url: 'https://api.welian.app/data/delete_account',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      data: { confirm: true },
+      success: (res) => {
+        wx.hideLoading();
+        if (res.statusCode === 200 && res.data && res.data.ok) {
+          // 数据已删除 → 清理本地存储，重置登录态，跳转
+          api.clearToken();
+          wx.removeStorageSync('welian_notes_history');
+          // 重置 app.loginReady，让 welcome 页重新走登录流程
+          app.loginReady = app._autoLogin();
+          wx.showToast({ title: '账户已注销', icon: 'none' });
+          setTimeout(() => {
+            wx.reLaunch({ url: '/pages/welcome/welcome' });
+          }, 1500);
+        } else {
+          wx.showToast({ title: (res.data && res.data.error) || '注销失败', icon: 'none' });
+        }
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      },
+    });
   },
 });

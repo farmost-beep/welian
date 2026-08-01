@@ -30,6 +30,20 @@
     <view class="action-bar">
       <button class="action-btn" bindtap="recordInteraction">📝 记录互动</button>
       <button class="action-btn" bindtap="draftMessage">✍️ 拟写消息</button>
+      <button class="action-btn" bindtap="meetingPrep" loading="{{loadingPrep}}">🧐 见面功课</button>
+      <button class="action-btn" open-type="share">📊 关系体检</button>
+    </view>
+
+    <!-- 冷却预警 -->
+    <view wx:if="{{cooldown}}" class="card cooldown-card cooldown-{{cooldown.status}}">
+      <view wx:if="{{cooldown.status === 'cold'}}">
+        <text class="text-accent text-sm">⚠️ 已 {{cooldown.days}} 天未联系</text>
+        <text class="text-dim text-xs" style="display:block;margin-top:4rpx">上次互动：{{cooldown.lastDate}}</text>
+      </view>
+      <view wx:elif="{{cooldown.status === 'cooling'}}">
+        <text class="text-sm" style="color:#C9A042">⏳ 已 {{cooldown.days}} 天未联系</text>
+        <text class="text-dim text-xs" style="display:block;margin-top:4rpx">上次互动：{{cooldown.lastDate}}</text>
+      </view>
     </view>
 
     <!-- 联系信息 -->
@@ -47,10 +61,16 @@
     </view>
 
     <!-- 重要日期 -->
-    <view wx:if="{{contact.birthday}}" class="card">
+    <view wx:if="{{contact.birthday || (contact.important_dates && contact.important_dates.length)}}" class="card">
       <view class="section-title-sm">重要日期</view>
-      <view class="info-row">
+      <view wx:if="{{contact.birthday}}" class="info-row">
         <text class="text-accent text-sm">🎂 生日：{{contact.birthday}}</text>
+      </view>
+      <view wx:if="{{contact.important_dates && contact.important_dates.length}}">
+        <view wx:for="{{contact.important_dates}}" wx:key="index" class="info-row" style="display:flex;align-items:center;justify-content:space-between">
+          <text class="text-accent text-sm">{{item.label || item.name || '重要日期'}}：{{item.date}}</text>
+          <button class="action-btn" style="padding:4rpx 16rpx;font-size:24rpx" bindtap="addToCalendar" data-index="{{index}}">📅 添加到日历</button>
+        </view>
       </view>
     </view>
 
@@ -60,15 +80,109 @@
       <text class="text-dim text-sm">{{contact.notes}}</text>
     </view>
 
+    <!-- 经营型详情 -->
+    <view wx:if="{{(contact.nature === 'leverage' || contact.nature === 'dual') && (contact.leverage_goal || contact.leverage_how || contact.leverage_direction || contact.leverage_goal)}}" class="card">
+      <view class="section-title-sm">🌳 经营信息</view>
+      <view wx:if="{{contact.leverage_goal || contact.leverage_goal}}" class="info-row">
+        <text class="text-dim text-sm">目标：{{contact.leverage_goal || contact.leverage_goal}}</text>
+      </view>
+      <view wx:if="{{contact.leverage_how}}" class="info-row">
+        <text class="text-dim text-sm">路径：{{contact.leverage_how}}</text>
+      </view>
+      <view wx:if="{{contact.leverage_direction}}" class="info-row">
+        <text class="text-dim text-sm">方向：{{contact.leverage_direction}}</text>
+      </view>
+    </view>
+
+    <!-- 陪伴型详情 -->
+    <view wx:if="{{(contact.nature === 'nurture' || contact.nature === 'dual') && contact.nurture_bond}}" class="card">
+      <view class="section-title-sm">🌸 情感纽带</view>
+      <text class="text-dim text-sm">{{contact.nurture_bond}}</text>
+    </view>
+
+    <!-- 别名与标签 -->
+    <view wx:if="{{(contact.aliases && contact.aliases.length) || (contact.tags && contact.tags.length)}}" class="card">
+      <view wx:if="{{contact.aliases && contact.aliases.length}}" class="info-row" style="flex-wrap:wrap">
+        <text class="text-dim text-xs">别名：</text>
+        <text wx:for="{{contact.aliases}}" wx:key="index" class="tag tag-dual" style="margin-right:8rpx">{{item}}</text>
+      </view>
+      <view wx:if="{{contact.tags && contact.tags.length}}" class="info-row" style="flex-wrap:wrap;margin-top:8rpx">
+        <text class="text-dim text-xs">标签：</text>
+        <text wx:for="{{contact.tags}}" wx:key="index" class="tag tag-leverage" style="margin-right:8rpx">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 记忆 -->
+    <view wx:if="{{contact.memories && contact.memories.length}}" class="card">
+      <view class="section-title-sm">💭 记忆</view>
+      <view wx:for="{{contact.memories}}" wx:key="index" class="info-row">
+        <text class="text-dim text-sm">{{item.content || item.text || item}}</text>
+      </view>
+    </view>
+
+    <!-- 在场记录 -->
+    <view wx:if="{{contact.presence_events && contact.presence_events.length}}" class="card">
+      <view class="section-title-sm">🤝 在场时刻</view>
+      <view wx:for="{{contact.presence_events}}" wx:key="index" class="info-row">
+        <text class="text-dim text-sm">{{item.date || ''}} {{item.description || item.event || item}}</text>
+      </view>
+    </view>
+
     <!-- 互动历史 -->
     <view class="card">
-      <view class="section-title-sm">最近互动</view>
+      <view class="section-title-sm" style="display:flex;justify-content:space-between;align-items:center">
+        <text>最近互动</text>
+        <text class="text-accent text-xs" bindtap="showAddTimeline">+ 添加</text>
+      </view>
       <view wx:if="{{timeline.length === 0}}" class="empty-state">
         <text class="text-dimmer text-sm">暂无互动记录</text>
       </view>
       <view wx:for="{{timeline}}" wx:key="id" class="timeline-item">
-        <text class="text-sm">{{item.summary}}</text>
-        <text class="text-dimmer text-xs">{{item.date}}</text>
+        <view style="display:flex;justify-content:space-between;align-items:flex-start">
+          <view style="flex:1">
+            <text class="text-sm">{{item.summary}}</text>
+            <text class="text-dimmer text-xs" style="display:block">{{item.date}}</text>
+          </view>
+          <view style="flex-shrink:0;display:flex;gap:12rpx">
+            <text class="text-dimmer text-xs" bindtap="editTimelineEntry" data-index="{{index}}">✏️</text>
+            <text class="text-dimmer text-xs" bindtap="deleteTimelineEntry" data-index="{{index}}">🗑️</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Timeline 内联表单 -->
+    <view wx:if="{{showTimelineForm}}" class="card">
+      <view class="section-title-sm">{{timelineEditId ? '编辑互动' : '添加互动'}}</view>
+      <view class="edit-field">
+        <text class="edit-label">内容</text>
+        <textarea class="edit-input edit-textarea" value="{{timelineForm.summary}}" bindinput="onTimelineInput" data-field="summary" placeholder="记一下聊了什么…" />
+      </view>
+      <view class="edit-field">
+        <text class="edit-label">日期</text>
+        <picker mode="date" value="{{timelineForm.date}}" bindchange="onTimelineInput" data-field="date">
+          <view class="edit-input">{{timelineForm.date || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="edit-actions">
+        <button class="action-btn" bindtap="cancelTimelineForm">取消</button>
+        <button class="action-btn action-btn-primary" bindtap="saveTimelineEntry" loading="{{savingTimeline}}">保存</button>
+      </view>
+    </view>
+
+    <!-- Web搜索 -->
+    <view class="card">
+      <view class="section-title-sm" style="display:flex;justify-content:space-between;align-items:center">
+        <text>近期动态</text>
+        <text class="text-accent text-xs" bindtap="webSearch">{{webSearching ? '搜索中…' : '🔍 搜索'}}</text>
+      </view>
+      <view wx:if="{{webResults.length === 0 && !webSearching}}" class="empty-state">
+        <text class="text-dimmer text-sm">点击搜索查看公开信息</text>
+      </view>
+      <view wx:for="{{webResults}}" wx:key="index" class="timeline-item">
+        <text class="text-sm" style="font-weight:600">{{item.title}}</text>
+        <text class="text-dim text-xs" style="display:block">{{item.snippet || item.description || ''}}</text>
+        <text class="text-dimmer text-xs" style="display:block">{{item.url || item.link || ''}}</text>
       </view>
     </view>
 
@@ -122,9 +236,67 @@
       <text class="edit-label">备注</text>
       <textarea class="edit-input edit-textarea" value="{{editForm.notes}}" bindinput="onEditInput" data-field="notes" placeholder="备注" />
     </view>
+    <view class="edit-field">
+      <text class="edit-label">别名（用、分隔）</text>
+      <input class="edit-input" value="{{editForm.aliases}}" bindinput="onEditInput" data-field="aliases" placeholder="如：老许、许总" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">标签（用、分隔）</text>
+      <input class="edit-input" value="{{editForm.tags}}" bindinput="onEditInput" data-field="tags" placeholder="如：金融圈、引荐人" />
+    </view>
+    <view wx:if="{{natureIndex === 0 || natureIndex === 2}}" class="edit-field">
+      <text class="edit-label">经营目标</text>
+      <input class="edit-input" value="{{editForm.leverage_goal}}" bindinput="onEditInput" data-field="leverage_goal" placeholder="如：引荐金融科技客户" />
+    </view>
+    <view wx:if="{{natureIndex === 0 || natureIndex === 2}}" class="edit-field">
+      <text class="edit-label">经营路径</text>
+      <input class="edit-input" value="{{editForm.leverage_how}}" bindinput="onEditInput" data-field="leverage_how" placeholder="如：定期交流行业动态" />
+    </view>
+    <view wx:if="{{natureIndex === 0 || natureIndex === 2}}" class="edit-field">
+      <text class="edit-label">经营方向</text>
+      <input class="edit-input" value="{{editForm.leverage_direction}}" bindinput="onEditInput" data-field="leverage_direction" placeholder="如：双向赋能" />
+    </view>
+    <view wx:if="{{natureIndex === 1 || natureIndex === 2}}" class="edit-field">
+      <text class="edit-label">情感纽带</text>
+      <input class="edit-input" value="{{editForm.nurture_bond}}" bindinput="onEditInput" data-field="nurture_bond" placeholder="如：大学室友，一起走过低谷" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">重要日期（每行一个，格式：标签:日期）</text>
+      <textarea class="edit-input edit-textarea" value="{{editForm.important_dates_text}}" bindinput="onEditInput" data-field="important_dates_text" placeholder="结婚纪念日:2015-06-08&#10;孩子生日:2018-03-20" />
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">记忆（每行一条）</text>
+      <textarea class="edit-input edit-textarea" value="{{editForm.memories_text}}" bindinput="onEditInput" data-field="memories_text" placeholder="一起爬过四姑娘山&#10;他帮我渡过了离职那段最难的日子" />
+    </view>
     <view class="edit-actions">
       <button class="action-btn" bindtap="closeEdit">取消</button>
       <button class="action-btn action-btn-primary" bindtap="saveEdit" loading="{{savingEdit}}">保存</button>
+    </view>
+  </view>
+</view>
+
+<!-- 见面功课弹窗 -->
+<view wx:if="{{showPrep}}" class="edit-overlay" catchtap="closePrep">
+  <view class="edit-modal" catchtap="noop">
+    <view class="edit-title">见面功课</view>
+    <view wx:if="{{meetingPrep}}">
+      <view wx:if="{{meetingPrep.summary}}" class="edit-field">
+        <text class="edit-label">概要</text>
+        <text class="text-sm" style="display:block;padding:8rpx 0">{{meetingPrep.summary}}</text>
+      </view>
+      <view wx:if="{{meetingPrep.suggestions && meetingPrep.suggestions.length}}" class="edit-field">
+        <text class="edit-label">建议</text>
+        <view wx:for="{{meetingPrep.suggestions}}" wx:key="index" style="padding:8rpx 0;border-bottom:1rpx solid #D9D5C7">
+          <text wx:if="{{item.contact_name}}" class="text-sm" style="font-weight:600">{{item.contact_name}}</text>
+          <text class="text-sm" style="display:block">{{item.suggestion}}</text>
+        </view>
+      </view>
+      <view wx:if="{{!meetingPrep.summary && !meetingPrep.suggestions}}" class="edit-field">
+        <text class="text-sm" style="display:block;padding:8rpx 0;white-space:pre-wrap;word-break:break-all">{{meetingPrep}}</text>
+      </view>
+    </view>
+    <view class="edit-actions">
+      <button class="action-btn action-btn-primary" bindtap="closePrep">关闭</button>
     </view>
   </view>
 </view>

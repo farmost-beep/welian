@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "文章阅读",
+  "backgroundColor": "#F5F4EE",
+  "usingComponents": {
+    "sdui-renderer": "/components/sdui-renderer/sdui-renderer"
+  }
+}

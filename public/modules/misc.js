@@ -712,6 +712,32 @@ export async function loadSettingsTab() {
       <div id="calendarSyncResult" style="margin-top:8px"></div>
     </div>
     <div class="mine-card">
+      <div class="mine-card-title" class="flex-between" style="cursor:pointer" onclick="toggleSection('customSourceSection','customSourceToggle')">
+        <span>📡 ${zh ? '自定义信号源' : 'Custom Signal Sources'}</span>
+        <span id="customSourceToggle" style="font-size:.7em;color:var(--dim)">▾</span>
+      </div>
+      <div id="customSourceSection" style="display:none">
+        <div class="mine-contact-sub" style="margin-bottom:12px">${zh ? '添加自己的 RSS/Atom 源，信号引擎会自动抓取并纳入每日信号。最多 10 个。' : 'Add your own RSS/Atom feeds. The signal engine will fetch them and include in daily signals. Max 10.'}</div>
+        <div id="customSourceList" style="display:flex;flex-direction:column;gap:8px">
+          <div class="mine-empty">${zh ? '加载中…' : 'Loading…'}</div>
+        </div>
+        <div class="section-divider">
+          <div class="label-muted">${zh ? '添加源' : 'Add source'}</div>
+          <input id="customSourceUrl" placeholder="${zh ? 'RSS/Atom URL (https://...)' : 'RSS/Atom URL (https://...)'}" class="input-field-lg">
+          <input id="customSourceName" placeholder="${zh ? '名称（如：我的科技博客）' : 'Name (e.g. My Tech Blog)'}" class="input-field-lg" style="margin-top:8px">
+          <div class="label-muted-sm">${zh ? '领域' : 'Domain'}</div>
+          <select id="customSourceDomain" class="input-field-lg" style="margin-top:4px">
+            <option value="tech">${zh ? '科技' : 'Tech'}</option>
+            <option value="ai">AI</option>
+            <option value="investment">${zh ? '投资' : 'Investment'}</option>
+            <option value="business">${zh ? '商业' : 'Business'}</option>
+            <option value="general">${zh ? '综合' : 'General'}</option>
+          </select>
+          <button onclick="addCustomSource()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85em">${zh ? '添加' : 'Add'}</button>
+        </div>
+      </div>
+    </div>
+    <div class="mine-card">
       <div class="mine-card-title">👥 ${zh ? '邀请好友' : 'Invite Friends'}</div>
       <div style="font-size:.82em;color:var(--dim);margin-bottom:10px;line-height:1.6">${zh ? '邀请好友注册，你和好友各得 <strong style="color:var(--accent)">100 联点</strong>奖励（最多 50 人）' : 'Invite friends — you and your friend each get <strong style="color:var(--accent)">100 credits</strong> (max 50)'}</div>
       <div id="inviteContent" style="font-size:.85em;color:var(--dim)">${zh ? '加载中…' : 'Loading…'}</div>
@@ -804,6 +830,7 @@ export function toggleSection(sectionId, toggleId) {
     else if (sectionId === 'profileSection') loadProfileForm();
     else if (sectionId === 'goalSection') loadGoalList();
     else if (sectionId === 'skillSection') loadCustomSkillList();
+    else if (sectionId === 'customSourceSection') loadCustomSources();
   }
 }
 
@@ -970,6 +997,56 @@ export async function deleteCustomSkill(skillId) {
   try {
     await mineApi('/data/skills', { action: 'delete', skill_id: skillId });
     loadCustomSkillList();
+  } catch (e) { alert(e.message); }
+}
+
+export async function loadCustomSources() {
+  const zh = currentLang === 'zh';
+  const el = document.getElementById('customSourceList');
+  if (!el) return;
+  try {
+    const resp = await mineApi('/ai/signals/custom_sources');
+    const sources = resp.sources || [];
+    if (sources.length === 0) {
+      el.innerHTML = `<div class="mine-empty">${zh ? '还没有自定义信号源。' : 'No custom sources yet.'}</div>`;
+      return;
+    }
+    el.innerHTML = sources.map(s => {
+      const domainLabel = { tech: zh?'科技':'Tech', ai: 'AI', investment: zh?'投资':'Investment', business: zh?'商业':'Business', general: zh?'综合':'General' }[s.domain] || s.domain;
+      return `
+        <div class="card-item">
+          <div class="flex-between-start">
+            <div style="flex:1">
+              <div style="font-weight:500;font-size:.9em">${escapeHtml(s.name)} <span style="font-size:.7em;color:var(--dim);background:var(--surface);padding:1px 6px;border-radius:4px">${domainLabel}</span></div>
+              <div style="font-size:.75em;color:var(--muted);margin-top:2px;word-break:break-all">${escapeHtml(s.url)}</div>
+            </div>
+            <button onclick="deleteCustomSource('${s.id}')" title="${zh?'删除':'Delete'}" class="btn-icon-danger">×</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="mine-empty">${e.message}</div>`;
+  }
+}
+
+export async function addCustomSource() {
+  const zh = currentLang === 'zh';
+  const url = document.getElementById('customSourceUrl').value.trim();
+  const name = document.getElementById('customSourceName').value.trim();
+  const domain = document.getElementById('customSourceDomain').value;
+  if (!url || !name) { alert(zh ? '请填写 URL 和名称' : 'URL and name required'); return; }
+  try {
+    await mineApi('/ai/signals/custom_sources', 'POST', { url, name, domain });
+    document.getElementById('customSourceUrl').value = '';
+    document.getElementById('customSourceName').value = '';
+    loadCustomSources();
+  } catch (e) { alert(e.message); }
+}
+
+export async function deleteCustomSource(sourceId) {
+  try {
+    await mineApi('/ai/signals/custom_sources', 'DELETE', { id: sourceId });
+    loadCustomSources();
   } catch (e) { alert(e.message); }
 }
 

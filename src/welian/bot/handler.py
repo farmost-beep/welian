@@ -43,10 +43,14 @@ LONG_POLL_TIMEOUT = 35  # seconds (ilink uses 35s long-poll)
 RECONNECT_DELAY = 3     # seconds between failed polls
 MAX_RETRIES = 10        # max consecutive failures before long backoff
 SEND_INTERVAL = 2.5     # min seconds between sends to same user (rate limit)
+CROSS_TYPE_INTERVAL = float(os.environ.get("WELIAN_CROSS_TYPE_INTERVAL", "30.0"))
+                        # min seconds between ANY two sends to same user across methods
+                        # (ilink 服务端跨类型限流比单类型更严；实测 60s 后仍被限，故取 30s)
 
 WELIAN_HOME = Path(os.environ.get("WELIAN_HOME", os.path.expanduser("~/.welian")))
 LOG_DIR = WELIAN_HOME / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+RATE_LIMIT_LOG = LOG_DIR / "rate_limit.jsonl"  # 限流事件独立日志（jsonl 格式，长期可分析）
 
 # ── Logging ──
 
@@ -76,25 +80,34 @@ class IlinkApi:
     def __init__(self, token: str, base_url: str = ILINK_BASE_URL):
         self.token = token
         self.base_url = base_url.rstrip("/")
-        self._next_send: Dict[str, float] = {}
+        self._next_send: Dict[str, float] = {}        # 同类消息节流（per-method）
+        self._cross_type_lock: Dict[str, float] = {}  # 跨类型节流（per-user 全局）
         self._sync_buf = ""
         self._send_counter = 0
         self._typing_ticket_cache: Dict[str, tuple] = {}  # user_id → (ticket, fetched_at)
         self._TICKET_TTL = 24 * 3600  # 24 hours
+        # X-WECHAT-UIN: random per-instance identifier (required for upload session)
+        import base64 as _b64, os as _os
+        self._uin = _b64.b64encode(_os.urandom(4)).decode("ascii")
 
     def _headers(self) -> dict:
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.token}",
             "AuthorizationType": "ilink_bot_token",
+            "X-WECHAT-UIN": self._uin,
         }
 
     def _request(self, path: str, body: dict, timeout: float = 15.0) -> dict:
         url = f"{self.base_url}/{path}"
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(url, data=data, headers=self._headers(), method="POST")
+        # Bypass system proxy (Clash Verge) for ilink — it's a domestic endpoint
+        # and the proxy breaks 35s long-poll connections.
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with opener.open(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
@@ -107,6 +120,41 @@ class IlinkApi:
     def _gen_client_id(self) -> str:
         self._send_counter += 1
         return f"welian_{int(time.time() * 1000)}_{self._send_counter}"
+
+    def _wait_cross_type_lock(self, user_id: str) -> None:
+        """Block until cross-type cooldown for user_id elapses.
+
+        跨消息类型（文字↔文件）连发会触发 ilink 服务端更严格的限流。
+        send_message 和 send_file_message 入口都先调此方法，共享 user 级冷却窗口。
+        """
+        now = time.time()
+        next_available = self._cross_type_lock.get(user_id, 0)
+        if now < next_available:
+            delay = next_available - now
+            logger.debug(f"Cross-type lock: waiting {delay:.1f}s for {user_id[:12]}...")
+            time.sleep(delay)
+
+    def _stamp_cross_type_lock(self, user_id: str, cooldown: float = CROSS_TYPE_INTERVAL) -> None:
+        """Mark user_id as recently-sent; future cross-type sends must wait `cooldown`."""
+        self._cross_type_lock[user_id] = time.time() + cooldown
+
+    def _log_rate_limit_event(self, method: str, user_id: str, attempt: int, delay: float) -> None:
+        """Append a structured rate-limit event to rate_limit.jsonl for long-term analysis."""
+        try:
+            event = {
+                "ts": time.time(),
+                "iso": datetime.utcfromtimestamp(time.time()).isoformat() + "Z",
+                "method": method,
+                "user_id_prefix": user_id[:12],
+                "attempt": attempt,
+                "delay_s": delay,
+                "next_send": self._next_send.get(user_id, 0) - time.time(),
+                "next_cross_type": self._cross_type_lock.get(user_id, 0) - time.time(),
+            }
+            with open(RATE_LIMIT_LOG, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        except Exception as e:
+            logger.debug(f"rate_limit log write failed: {e}")
 
     def get_updates(self) -> dict:
         """Long-poll for new messages. Returns response with msgs[] and sync_buf."""
@@ -168,6 +216,8 @@ class IlinkApi:
             delay = next_available - now
             logger.debug(f"Rate limit: waiting {delay:.1f}s for {to_user_id[:12]}...")
             time.sleep(delay)
+        # 跨类型节流（防 ilink 服务端跨消息类型限流）
+        self._wait_cross_type_lock(to_user_id)
 
         body = {
             "msg": {
@@ -194,13 +244,17 @@ class IlinkApi:
                 if ret == -2:
                     if attempt < max_retries:
                         self._next_send[to_user_id] = time.time() + delay + SEND_INTERVAL
+                        self._stamp_cross_type_lock(to_user_id, cooldown=delay + CROSS_TYPE_INTERVAL)
+                        self._log_rate_limit_event("send_message", to_user_id, attempt, delay)
                         logger.warning(f"Server rate-limited (ret:-2), retry {attempt+1}/{max_retries} in {delay}s")
                         time.sleep(delay)
                         delay = min(delay * 2, 15.0)
                         continue
+                    self._log_rate_limit_event("send_message_giveup", to_user_id, attempt, delay)
                     logger.warning(f"sendMessage rate-limited after {max_retries} retries")
                     return False
                 self._next_send[to_user_id] = time.time() + SEND_INTERVAL
+                self._stamp_cross_type_lock(to_user_id)
                 return ret == 0 or ret is None
             except Exception as e:
                 logger.error(f"Send failed to {to_user_id[:12]}...: {e}")
@@ -226,6 +280,8 @@ class IlinkApi:
             delay = next_available - now
             logger.debug(f"Rate limit: waiting {delay:.1f}s for {to_user_id[:12]}... (file)")
             time.sleep(delay)
+        # 跨类型节流（与 send_message 共享冷却窗口）
+        self._wait_cross_type_lock(to_user_id)
 
         try:
             media = upload_file(self, to_user_id, str(path))
@@ -280,6 +336,7 @@ class IlinkApi:
                     if ret == -2:
                         if attempt < max_retries:
                             self._next_send[to_user_id] = time.time() + delay + SEND_INTERVAL
+                            self._stamp_cross_type_lock(to_user_id, cooldown=delay + CROSS_TYPE_INTERVAL)
                             logger.warning(f"Server rate-limited (ret:-2), file retry {attempt+1}/{max_retries} in {delay}s")
                             time.sleep(delay)
                             delay = min(delay * 2, 15.0)
@@ -287,6 +344,7 @@ class IlinkApi:
                         logger.warning(f"sendFile rate-limited after {max_retries} retries")
                         return False
                     self._next_send[to_user_id] = time.time() + SEND_INTERVAL
+                    self._stamp_cross_type_lock(to_user_id)
                     return ret == 0 or ret is None
                 except Exception as e:
                     logger.error(f"Send file failed to {to_user_id[:12]}...: {e}")
@@ -443,18 +501,9 @@ async def start_typing_keepalive(api: IlinkApi, user_id: str, context_token: str
 
 # ── Silence watchdog ──
 
-SILENCE_WARNING_S = 20  # seconds without output before sending reassurance
+SILENCE_WARNING_S = 60  # seconds without output before sending a minimal status ping
 SILENCE_MESSAGES = [
-    "我还在处理中，这个问题有点复杂，请再稍等一下",
-    "正在努力干活中，马上就有结果了，请稍等片刻",
-    "有点复杂正在处理，再给我一点时间，很快就好",
-    "快好了别着急，正在收尾阶段，马上给你回复",
-    "还在跑呢，任务量比较大，不过马上就能出结果了",
-    "任务比想象的复杂一些，再等等我，正在全力处理",
-    "正在处理中，进展顺利，再等一会儿就好",
-    "还没完不过已经快了，再给我一分钟就能搞定",
-    "我在认真思考这个问题，请再稍等一会儿",
-    "稍微有点棘手，不过已经快解决了，再等我一下",
+    "⏳ 还在处理中…",
 ]
 
 
@@ -487,6 +536,106 @@ async def silence_watchdog(api: IlinkApi, user_id: str, context_token: str,
 import re as _re
 import os as _os
 from os.path import expanduser as _expanduser
+
+# ── Send-file intent matching ──
+
+_SEND_FILE_RE = _re.compile(
+    r"(?:发|发送|传|给我发|发给我|发下|发一下|发个|送我|发过来)"
+    r".*?"
+    r"(?:文件|spec|pdf|报告|文档)?"
+    r"\s*"
+    r"([\w\-./]+(?:\.\w+)?)"
+    r"?"
+    r"(?:文件|spec|pdf|报告|文档)?"
+    r"(?:给我|过来|下|一下)?",
+    _re.IGNORECASE,
+)
+
+# Search directories for file matching
+_FILE_SEARCH_DIRS = [
+    _os.path.expanduser("~/devin/welian/docs"),
+    _os.path.expanduser("~/devin/welian"),
+    "/tmp",
+    _os.path.expanduser("~"),
+]
+
+
+def _match_send_file_intent(text: str):
+    """Detect 'send file' intent and find the matching local file.
+    Returns the file path if found, None otherwise.
+    """
+    text_lower = text.lower().strip()
+
+    # Must contain a "send" keyword
+    send_keywords = ("发", "发送", "传", "送")
+    if not any(k in text_lower for k in send_keywords):
+        return None
+
+    # Must contain a "file" keyword or a filename pattern
+    file_keywords = ("文件", "spec", "pdf", "报告", "文档", "spec", "doc", "md", "txt")
+    has_file_keyword = any(k in text_lower for k in file_keywords)
+
+    # Check for explicit file path in the message
+    paths = extract_file_paths(text)
+    for p in paths:
+        ext = _os.path.splitext(p)[1].lower()
+        if ext in _AUTO_PUSH_EXTENSIONS and _os.path.exists(p):
+            return p
+
+    if not has_file_keyword:
+        return None
+
+    # Extract alphanumeric search terms (English words only, no Chinese)
+    # Chinese text has no spaces, so split() won't work well.
+    # Extract pure ASCII word tokens.
+    tokens = _re.findall(r"[a-zA-Z][a-zA-Z0-9_\-]{1,}", text)
+    # Filter out common command/file-type words (case-insensitive)
+    stop_words = {"spec", "pdf", "doc", "md", "txt", "file", "send", "给我", "文件"}
+    terms = [t for t in tokens if t.lower() not in stop_words and len(t) >= 2]
+
+    if not terms:
+        return None
+
+    # Search for matching files (case-insensitive)
+    # Score each match by how many terms it covers — prefer files matching all terms.
+    import glob
+    all_terms_lower = [t.lower() for t in terms]
+    best_match = None
+    best_score = -1
+
+    for search_dir in _FILE_SEARCH_DIRS:
+        if not _os.path.isdir(search_dir):
+            continue
+        if search_dir.endswith("docs"):
+            for root, dirs, files in _os.walk(search_dir):
+                for fname in files:
+                    fname_lower = fname.lower()
+                    score = sum(1 for t in all_terms_lower if t in fname_lower)
+                    if score > 0:
+                        ext = _os.path.splitext(fname)[1].lower()
+                        if ext in _AUTO_PUSH_EXTENSIONS or ext in (".json", ".py", ".js"):
+                            full = _os.path.join(root, fname)
+                            # Prefer higher score, then shorter filename
+                            if score > best_score or (score == best_score and len(fname) < len(_os.path.basename(best_match or "x" * 999))):
+                                best_match = full
+                                best_score = score
+        else:
+            try:
+                for fname in _os.listdir(search_dir):
+                    fname_lower = fname.lower()
+                    score = sum(1 for t in all_terms_lower if t in fname_lower)
+                    if score > 0 and _os.path.isfile(_os.path.join(search_dir, fname)):
+                        ext = _os.path.splitext(fname)[1].lower()
+                        if ext in _AUTO_PUSH_EXTENSIONS or ext in (".json", ".py", ".js"):
+                            full = _os.path.join(search_dir, fname)
+                            if score > best_score or (score == best_score and len(fname) < len(_os.path.basename(best_match or "x" * 999))):
+                                best_match = full
+                                best_score = score
+            except (PermissionError, OSError):
+                continue
+
+    return best_match
+
 
 _AUTO_PUSH_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico",
@@ -1524,14 +1673,33 @@ async def process_message(user_id: str, text: str, api: IlinkApi, context_token:
         await _process_local_agent(user_id, text, api, context_token)
         return
 
-    # Social AI mode (default)
+    # ── Default: Devin agent with MiniMax fallback ──
+    # Check for "send file" intent first (no agent needed)
+    file_match = _match_send_file_intent(text)
+    if file_match:
+        api.send_message(user_id, f"📂 找到文件，正在发送...", context_token)
+        ok = await asyncio.to_thread(api.send_file_message, user_id, file_match, context_token)
+        if ok:
+            logger.info(f"File sent via intent match: {file_match}")
+        else:
+            api.send_message(user_id, f"❌ 文件发送失败，请稍后重试", context_token)
+        return
+
+    # Try Devin agent first
+    try:
+        from ..agent_bridge import get_bridge
+        bridge = get_bridge()
+        if bridge and bridge.is_available():
+            await _process_local_agent(user_id, text, api, context_token)
+            return
+    except Exception as e:
+        logger.warning(f"Devin agent unavailable, falling back to cloud chat: {e}")
+
+    # Fallback: cloud chat (MiniMax-M3)
     if len(text) > 10:
         api.send_message(user_id, "⏳ 正在处理...", context_token)
-
-    # Start typing keepalive for social mode too
     typing_stop = await start_typing_keepalive(api, user_id, context_token)
     try:
-        # Activate this user's data store (multi-user isolation)
         sessions.activate_store(user_id)
         client = await sessions.get_client(user_id)
         reply = await asyncio.to_thread(client.cloud_chat, text)

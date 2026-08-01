@@ -118,6 +118,27 @@ describe("billing: 402 on insufficient balance", () => {
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(402);
   });
+
+  it("professional plan with exhausted allowance returns 402", async () => {
+    env.USER_DATA._store.set(
+      "billing:testuser",
+      JSON.stringify({
+        plan: "professional",
+        monthKey: monthKey(),
+        used: 1500,
+        purchased: 0,
+        rollover: 0,
+        history: [],
+        subscription: null,
+      })
+    );
+    const req = jsonReq("/ai/chat", {
+      body: { messages: [{ role: "user", content: "你好" }] },
+      headers: authHeader(),
+    });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(402);
+  });
 });
 
 describe("billing: balance query endpoint", () => {
@@ -131,5 +152,28 @@ describe("billing: balance query endpoint", () => {
     expect(data.allowance).toBe(100);
     expect(data.remaining).toBe(100);
     expect(data.used).toBe(0);
+  });
+
+  it("reports professional plan allowance correctly", async () => {
+    const env = baseEnv();
+    env.USER_DATA._store.set(
+      "billing:testuser",
+      JSON.stringify({
+        plan: "professional",
+        monthKey: monthKey(),
+        used: 0,
+        purchased: 0,
+        rollover: 0,
+        history: [],
+        subscription: { plan: "professional_monthly", start: new Date().toISOString(), expire: new Date(Date.now() + 86400000 * 30).toISOString() },
+      })
+    );
+    const req = jsonReq("/ai/billing", { body: {}, headers: authHeader() });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.plan).toBe("professional");
+    expect(data.allowance).toBe(1500);
+    expect(data.remaining).toBe(1500);
   });
 });

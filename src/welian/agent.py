@@ -325,6 +325,7 @@ class LocalAgent:
         self._devin_bridge = None  # lazy-init Devin bridge when engine=devin
         self._ws_loop = None  # asyncio loop for cross-thread WS sends (set in start())
         self.clerk_user_id = None  # set from browser WS auth (dynamic, per-session)
+        self.cloud_uid = None  # cloud user_id for non-owner requests (wxmp_xxx or user_xxx)
 
     def _generate_token(self) -> str:
         return secrets.token_urlsafe(16)
@@ -400,10 +401,30 @@ class LocalAgent:
             else:
                 print(f"  Registered to device: {self.device_id}")
                 print(f"  ⚠ Run 'welian login' to enable multi-device discovery")
+
+            # Schedule periodic re-registration (every 12h) to prevent TTL expiry
+            asyncio.ensure_future(self._re_register_tunnel(registry_key, tunnel_url))
         except FileNotFoundError:
             print("  ⚠ cloudflared not installed — tunnel disabled")
         except Exception as e:
             print(f"  ⚠ Tunnel error: {e}")
+
+    async def _re_register_tunnel(self, registry_key: str, tunnel_url: str):
+        """Periodically re-register tunnel URL to prevent 24h TTL expiry."""
+        import urllib.request
+        while True:
+            await asyncio.sleep(12 * 3600)  # 12 hours
+            try:
+                req = urllib.request.Request(
+                    f"{self.DISCOVERY_URL}/discover/register",
+                    data=json.dumps({"device_id": registry_key, "tunnel_url": tunnel_url}).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=10)
+                print(f"  [tunnel] Re-registered ({registry_key})")
+            except Exception as e:
+                print(f"  [tunnel] Re-registration failed: {e}")
 
     def _get_cloud_user_id(self) -> str:
         """Get user_id for cloud ops: prefer browser Clerk login, fallback to env."""
@@ -411,6 +432,28 @@ class LocalAgent:
             return self.clerk_user_id
         from .cli import _get_user_id
         return _get_user_id() or os.environ.get("WELIAN_USER_TOKEN", "")
+
+    def _is_local_owner(self) -> bool:
+        """Check if the connected WebSocket user is the local machine owner.
+
+        Returns True if:
+        - clerk_user_id matches the local owner's Clerk user_id (from `welian login`)
+        Returns False if:
+        - No clerk_user_id set (remote WS without identity → route to cloud)
+        - clerk_user_id is set but doesn't match local owner
+        - clerk_user_id is set but no local owner identity (can't verify → safe fallback)
+        """
+        if not self.clerk_user_id:
+            # Distinguish direct CLI use vs remote WS without identity.
+            # If there are connected WS clients, this is a remote request → route to cloud.
+            if self.connected_clients:
+                return False  # Remote WS user without identity → safe fallback to cloud
+            return True  # Direct CLI use, not via WS — trust local
+        from .cli import _get_user_id
+        local_owner = _get_user_id()
+        if not local_owner:
+            return False  # Remote WS user but can't verify ownership → route to cloud
+        return self.clerk_user_id == local_owner
 
     def _fetch_cloud_contacts(self) -> list:
         """Fetch contacts from cloud KV."""
@@ -459,44 +502,11 @@ class LocalAgent:
             json.loads(resp.read())
         print(f"  Cloud push: {len(contacts)} contacts → cloud ({user_id})")
 
-    def _xlsx_to_csv(self, file_path: str, filename: str) -> str:
-        """Convert xlsx/xls to CSV file. Returns new file path."""
-        import tempfile
-        from pathlib import Path
-
-        tmp_dir = Path(tempfile.gettempdir()) / "welian-devin-import"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        csv_path = tmp_dir / f"converted-{uuid.uuid4().hex[:8]}.csv"
-
-        lower = filename.lower()
-        if lower.endswith('.xlsx'):
-            import openpyxl
-            wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-            ws = wb.active
-            with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
-                import csv
-                writer = csv.writer(f)
-                for row in ws.iter_rows(values_only=True):
-                    writer.writerow(['' if c is None else str(c) for c in row])
-            wb.close()
-        elif lower.endswith('.xls'):
-            import xlrd
-            wb = xlrd.open_workbook(file_path)
-            ws = wb.sheet_by_index(0)
-            with open(csv_path, 'w', encoding='utf-8-sig', newline='') as f:
-                import csv
-                writer = csv.writer(f)
-                for row_idx in range(ws.nrows):
-                    writer.writerow([str(ws.cell_value(row_idx, col_idx)) for col_idx in range(ws.ncols)])
-        else:
-            return file_path
-
-        return str(csv_path)
-
     def _import_via_devin(self, file_path: str, filename: str) -> dict:
-        """Use Devin CLI (GLM) to extract contacts from an uploaded file.
+        """Use Devin CLI (GLM 5.2) to extract contacts from an uploaded file.
 
-        Converts xlsx/xls to CSV first (Devin reads text, not binary).
+        GLM 5.2 supports multimodal input including XLS files — it can use
+        exec/read tools to parse any file format autonomously.
         Returns {"contacts": [...]} or {"error": "..."}.
         """
         import subprocess
@@ -535,7 +545,7 @@ class LocalAgent:
 文件路径：{file_path}
 
 要求：
-1. 用 read 工具读取文件内容。如果是 xlsx/xls 等表格文件，可以用 shell 工具（如 python3 + openpyxl）读取
+1. 用 read 工具读取文件内容（支持 xlsx/xls/csv/vcf/txt 等格式）
 2. 每个联系人提取以下字段（有就填，没有留空）：
    - name: 姓名（必须有，否则跳过）
    - relation: 关系
@@ -820,8 +830,17 @@ class LocalAgent:
                     reply = await asyncio.get_event_loop().run_in_executor(
                         None, self._devin_direct, text, websocket, req_id, file_info)
                 else:
-                    reply = await asyncio.get_event_loop().run_in_executor(
-                        None, self.edge.chat, text, file_info)
+                    # User verification: if connected user is the local machine owner,
+                    # allow local data access. Otherwise, route to cloud data only.
+                    if self._is_local_owner():
+                        reply = await asyncio.get_event_loop().run_in_executor(
+                            None, self.edge.chat, text, file_info)
+                    else:
+                        # Non-owner: route to cloud with correct identity.
+                        # Prefer clerk_uid (bound user), fall back to cloud_uid (wxmp_xxx).
+                        cloud_identity = self.clerk_user_id or self.cloud_uid or ""
+                        reply = await asyncio.get_event_loop().run_in_executor(
+                            None, self.edge.cloud_chat, text, cloud_identity)
                 return {"type": "response", "id": req_id, "reply": reply}
 
             elif cmd == "devin_direct":
@@ -963,6 +982,48 @@ class LocalAgent:
                     return {"type": "error", "id": req_id, "message": f"pdf-sandbox module not found: {e}"}
                 except Exception as e:
                     return {"type": "error", "id": req_id, "message": f"PDF error: {e}"}
+
+            elif cmd == "text_to_pdf":
+                # Generate PDF from arbitrary report content via welian_pdf.py
+                # msg: {cmd: 'text_to_pdf', content: {title, subtitle, sections:[...]}, filename: 'optional'}
+                import base64 as _b64
+                import subprocess as _sp
+                import tempfile as _tmpf
+                import os as _os
+                from pathlib import Path
+
+                content = msg.get("content", {})
+                filename = msg.get("filename", f"welian_report_{datetime.now().strftime('%Y%m%d')}.pdf")
+                if not content or not content.get("title"):
+                    return {"type": "error", "id": req_id, "message": "missing content.title"}
+
+                try:
+                    script = str(Path.home() / "devin" / "welian" / "scripts" / "welian_pdf.py")
+                    json_in = _tmpf.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+                    pdf_out = _tmpf.NamedTemporaryFile(suffix=".pdf", delete=False)
+                    pdf_out.close()
+                    json.dump(content, json_in, ensure_ascii=False)
+                    json_in.close()
+
+                    result = _sp.run(
+                        ["python3", script, json_in.name, pdf_out.name],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    _os.unlink(json_in.name)
+
+                    if result.returncode != 0:
+                        return {"type": "error", "id": req_id, "message": f"PDF script failed: {result.stderr[:300]}"}
+
+                    pdf_bytes = Path(pdf_out.name).read_bytes()
+                    _os.unlink(pdf_out.name)
+
+                    return {
+                        "type": "response", "id": req_id,
+                        "pdf": _b64.b64encode(pdf_bytes).decode("ascii"),
+                        "filename": filename,
+                    }
+                except Exception as e:
+                    return {"type": "error", "id": req_id, "message": f"text_to_pdf error: {e}"}
 
             elif cmd == "agent_config":
                 # Get or set agent engine config (edge | devin + devin params)
@@ -1140,9 +1201,13 @@ class LocalAgent:
 
                 # Save Clerk user_id from browser for cloud operations
                 clerk_uid = msg.get("clerk_uid", "")
+                cloud_uid = msg.get("cloud_uid", "")
                 if clerk_uid:
                     self.clerk_user_id = clerk_uid
                     print(f"✓ Clerk user: {clerk_uid}")
+                if cloud_uid:
+                    self.cloud_uid = cloud_uid
+                    print(f"✓ Cloud uid: {cloud_uid}")
 
                 await ws_server.send_json({
                     "type": "auth_ok",

@@ -1,0 +1,205 @@
+/* pages/sync/sync.wxss — 通用页面渲染器 */
+.sync-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #F5F4EE;
+}
+
+.sync-status {
+  padding: 16rpx 24rpx;
+  text-align: center;
+}
+.sync-status-text {
+  font-size: 24rpx;
+  color: #C4BFB3;
+}
+
+.sync-scroll {
+  flex: 1;
+  padding: 24rpx;
+  overflow-y: auto;
+}
+
+/* 气泡布局 */
+.sync-bubble-row {
+  display: flex;
+  margin-bottom: 20rpx;
+  align-items: flex-start;
+}
+.sync-bubble-left {
+  justify-content: flex-start;
+}
+.sync-bubble-right {
+  justify-content: flex-end;
+}
+
+/* 头像 */
+.sync-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #4A6741;
+  color: #fff;
+  font-size: 36rpx;
+  text-align: center;
+  line-height: 64rpx;
+  flex-shrink: 0;
+  margin-right: 16rpx;
+}
+
+/* 气泡样式 */
+.sync-bubble {
+  max-width: 75%;
+  padding: 20rpx 28rpx;
+  border-radius: 20rpx;
+}
+.sync-bubble-assistant {
+  background: #FAFAF7;
+  border: 1rpx solid #E8E0D6;
+  border-bottom-left-radius: 6rpx;
+}
+.sync-bubble-user {
+  background: #4A6741;
+  border-bottom-right-radius: 6rpx;
+}
+.sync-bubble-name {
+  font-size: 22rpx;
+  color: #8A8578;
+  display: block;
+  margin-bottom: 6rpx;
+}
+.sync-bubble-text {
+  font-size: 30rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sync-bubble-assistant .sync-bubble-text {
+  color: #1A1915;
+}
+.sync-bubble-user .sync-bubble-text {
+  color: #fff;
+}
+
+/* 锚点 */
+.sync-anchor {
+  height: 1rpx;
+  width: 100%;
+}
+
+/* 打字光标 */
+.sync-typing-cursor {
+  color: #4A6741;
+  animation: sync-blink 1s infinite;
+}
+@keyframes sync-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 卡片组件 */
+.sync-card {
+  background: #FAFAF7;
+  border: 1rpx solid #E8E0D6;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+.sync-card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1915;
+  margin-bottom: 16rpx;
+  display: block;
+}
+.sync-card-fields {
+  margin-bottom: 8rpx;
+}
+.sync-card-field {
+  display: flex;
+  justify-content: space-between;
+  padding: 8rpx 0;
+  border-bottom: 1rpx solid #F0EDE5;
+}
+.sync-card-field:last-child {
+  border-bottom: none;
+}
+.sync-field-label {
+  font-size: 26rpx;
+  color: #8A8578;
+}
+.sync-field-value {
+  font-size: 26rpx;
+  color: #1A1915;
+  text-align: right;
+}
+.sync-card-items {
+  margin-top: 8rpx;
+}
+.sync-card-item {
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #F0EDE5;
+}
+.sync-card-item:last-child {
+  border-bottom: none;
+}
+.sync-item-label {
+  font-size: 24rpx;
+  color: #8A8578;
+  display: block;
+}
+.sync-item-value {
+  font-size: 28rpx;
+  color: #1A1915;
+  display: block;
+  margin-top: 4rpx;
+}
+
+/* 按钮组 */
+.sync-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.sync-btn {
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 28rpx;
+  padding: 12rpx 28rpx;
+  font-size: 26rpx;
+  color: #4A6741;
+}
+
+/* 输入区域 */
+.sync-input-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #EDEBE3;
+  border-top: 1rpx solid #D9D5C7;
+  flex-shrink: 0;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+}
+.sync-input {
+  flex: 1;
+  background: #fff;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  font-size: 30rpx;
+  color: #1A1915;
+}
+.sync-send {
+  margin-left: 16rpx;
+  width: 72rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: center;
+  background: #4A6741;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 36rpx;
+  flex-shrink: 0;
+}

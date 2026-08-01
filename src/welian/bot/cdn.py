@@ -81,7 +81,9 @@ def download_and_decrypt(encrypt_query_param: str, aes_key_b64: str) -> bytes:
     url = f"{CDN_BASE_URL}/download?encrypted_query_param={urllib.parse.quote(encrypt_query_param, safe='')}"
 
     req = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    # Bypass system proxy for CDN download.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(req, timeout=30) as resp:
         encrypted = resp.read()
 
     # Decode AES key — handle both formats:
@@ -103,6 +105,9 @@ def download_and_decrypt(encrypt_query_param: str, aes_key_b64: str) -> bytes:
 
 def _upload_to_cdn(upload_url: str, encrypted: bytes) -> str:
     """Upload encrypted bytes to CDN, return encrypt_query_param from response header."""
+    # Bypass system proxy for CDN — domestic endpoint, proxy breaks uploads.
+    proxy_handler = urllib.request.ProxyHandler({})
+    opener = urllib.request.build_opener(proxy_handler)
     for attempt in range(3):
         try:
             req = urllib.request.Request(
@@ -111,7 +116,7 @@ def _upload_to_cdn(upload_url: str, encrypted: bytes) -> str:
                 method="POST",
                 headers={"Content-Type": "application/octet-stream"},
             )
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with opener.open(req, timeout=60) as resp:
                 param = resp.headers.get("x-encrypted-param")
                 if not param:
                     raise ValueError("CDN upload succeeded but no x-encrypted-param header")

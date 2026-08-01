@@ -1,0 +1,5 @@
+/* pages/monthly/monthly.wxss — SDUI 月报页（样式由 sdui-renderer 组件提供） */
+.container {
+  min-height: 100vh;
+  background: #F5F4EE;
+}

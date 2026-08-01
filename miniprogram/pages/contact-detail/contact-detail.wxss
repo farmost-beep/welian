@@ -51,3 +51,8 @@
   display: flex; gap: 16rpx; margin-top: 24rpx;
 }
 .edit-actions .action-btn { flex: 1; font-size: 28rpx; padding: 16rpx 0; }
+
+/* 冷却预警 */
+.cooldown-card { padding: 16rpx 24rpx; }
+.cooldown-cold { border-left: 6rpx solid #C65D5D; }
+.cooldown-cooling { border-left: 6rpx solid #C9A042; }

@@ -368,6 +368,8 @@ export function onAuthed(user) {
 
   navStatus.style.display = 'inline-flex';
   document.getElementById('billingBtn').style.display = 'inline-block';
+  document.getElementById('demoBtn').style.display = 'none'; // hide roleplay after login
+  document.getElementById('legalFooter').style.display = 'none'; // hide footer after login
   // Load session list (sidebar shows on hover, no need to force open)
   loadSessionList();
   // Close auth modal if open
@@ -443,6 +445,8 @@ export function onSignedOut() {
   authBtn.textContent = I18N[currentLang].sign_in;
   navStatus.style.display = 'none';
   document.getElementById('billingBtn').style.display = 'none';
+  document.getElementById('demoBtn').style.display = ''; // show roleplay when logged out
+  document.getElementById('legalFooter').style.display = ''; // show footer when logged out
   closeSidebar(); // H4: close sidebar on logout
   if (modeBadge) { modeBadge.textContent = ''; modeBadge.className = 'mode-badge'; }
   clearChat();

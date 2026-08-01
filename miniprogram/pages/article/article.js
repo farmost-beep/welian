@@ -1,71 +1,39 @@
-// pages/article/article.js — 原文阅读页（rich-text 渲染）
+// pages/article/article.js — SDUI 文章阅读页（后端驱动渲染）
 const api = require('../../utils/api.js');
+const app = getApp();
 
 Page({
   data: {
-    title: '',
-    content: '',  // HTML string for rich-text
-    url: '',
+    components: [],
     loading: true,
     error: '',
-    unsupported: false,
   },
 
-  onLoad(options) {
-    const url = decodeURIComponent(options.url || '');
-    if (!url) {
-      wx.showToast({ title: '链接无效', icon: 'none' });
-      setTimeout(() => wx.navigateBack(), 1500);
+  async onLoad(query) {
+    this._articleUrl = query.url ? decodeURIComponent(query.url) : '';
+    if (!api.getToken()) {
+      try { await app.loginReady; } catch (e) { return; }
+    }
+    this.loadArticle();
+  },
+
+  async loadArticle() {
+    if (!this._articleUrl) {
+      this.setData({ loading: false, error: '文章链接缺失' });
       return;
     }
-    this.setData({ url });
-    this.loadArticle(url);
-  },
-
-  loadArticle(targetUrl) {
     this.setData({ loading: true, error: '' });
-    wx.request({
-      url: 'https://api.welian.app/ai/proxy_article',
-      method: 'GET',
-      data: { url: targetUrl },
-      success: (res) => {
-        if (res.statusCode === 200 && res.data) {
-          if (res.data.unsupported) {
-            this.setData({ unsupported: true, loading: false });
-          } else if (res.data.ok && res.data.content) {
-            this.setData({
-              title: res.data.title || '',
-              content: res.data.content,
-              loading: false,
-            });
-            wx.setNavigationBarTitle({ title: res.data.title || '原文阅读' });
-          } else {
-            this.setData({ loading: false, error: res.data.error || '加载失败' });
-          }
-        } else {
-          this.setData({ loading: false, error: '网络错误' });
-        }
-      },
-      fail: () => {
-        this.setData({ loading: false, error: '网络错误' });
-      },
-    });
+    try {
+      const data = await api.request('/ai/render?page=article&url=' + encodeURIComponent(this._articleUrl), {}, 'GET');
+      if (data && data.components) {
+        this.setData({ components: data.components, loading: false });
+      } else {
+        this.setData({ loading: false, error: (data && data.error) || '加载失败' });
+      }
+    } catch (e) {
+      this.setData({ loading: false, error: e.message || '网络错误' });
+    }
   },
 
-  // 复制原文链接
-  copyLink() {
-    wx.setClipboardData({
-      data: this.data.url,
-      success: () => {
-        wx.showToast({ title: '链接已复制', icon: 'success' });
-      },
-    });
-  },
-
-  onShareAppMessage() {
-    return {
-      title: this.data.title || 'Welian 今日信号',
-      path: '/pages/signals/signals',
-    };
-  },
+  onButtonTap(e) {},
 });

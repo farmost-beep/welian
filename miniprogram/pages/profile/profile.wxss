@@ -1,0 +1,54 @@
+/* pages/profile/profile.wxss */
+
+.completeness-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 8rpx;
+  margin-bottom: 16rpx;
+}
+.completeness-num {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #C96442;
+}
+
+.profile-field {
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+.field-label {
+  display: block;
+  margin-bottom: 8rpx;
+}
+.field-value {
+  font-size: 28rpx;
+  color: #1A1915;
+  line-height: 1.5;
+}
+
+.profile-field-edit {
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+.field-input {
+  font-size: 28rpx;
+  color: #1A1915;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #E8E5DC;
+  min-height: 48rpx;
+}
+
+.edit-actions {
+  margin-top: 24rpx;
+}
+.btn-ghost {
+  background: transparent;
+  color: #6B6860;
+  border: 1rpx solid #D9D5C7;
+}
+
+.loading {
+  text-align: center;
+  padding: 60rpx 0;
+}

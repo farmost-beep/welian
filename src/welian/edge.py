@@ -44,7 +44,8 @@ class EdgeClient:
         self.user_token = user_token
         self._http_client = None
         self._llm_client = None
-        self._conversation: list = []  # multi-turn chat history
+        self._conversation: list = []  # multi-turn chat history (owner)
+        self._cloud_conversations: dict = {}  # per-user conversation history {uid: [messages]}
         self._MAX_CONVERSATION = 100  # 保留最近 50 轮对话（100 条消息）
 
     def _get_llm(self):
@@ -322,7 +323,7 @@ class EdgeClient:
         if len(self._conversation) > self._MAX_CONVERSATION:
             self._conversation = self._conversation[-self._MAX_CONVERSATION:]
 
-    def cloud_chat(self, text: str) -> str:
+    def cloud_chat(self, text: str, clerk_uid: str = "") -> str:
         """Cloud-based chat flow — same as Web's cloudChat().
 
         Flow:
@@ -331,6 +332,7 @@ class EdgeClient:
         3. POST /ai/chat → LLM generates reply with AGENTS.md system prompt + data context
 
         Uses sync token for auth (user_id:sync_secret).
+        If clerk_uid is provided, uses it as the cloud identity (for non-owner Live mode users).
         """
         text = text.strip()
         if not text:
@@ -340,12 +342,17 @@ class EdgeClient:
             return self.chat(text)
 
         # Build sync token for cloud auth.
+        # If clerk_uid provided (non-owner Live mode user), use it directly.
+        # If clerk_uid is a wxmp_ identity, use it directly (cloud resolves wechat_bind).
         # For WeChat bot: user_id is the raw WeChat ID → hash to wechat_<hash>
         #   Cloud looks up wechat_bind:wechat_<hash> → clerk_user_id
         # For edge agent: user_id is already the Clerk user_id
         # Fallback: WELIAN_USER_TOKEN env var (single-user mode)
         sync_secret = os.environ.get("WELIAN_SYNC_SECRET", "")
-        if self.user_id and self.user_id != "default":
+        if clerk_uid:
+            # Non-owner user — use their identity directly (user_xxx or wxmp_xxx)
+            sync_token = f"{clerk_uid}:{sync_secret}" if sync_secret else clerk_uid
+        elif self.user_id and self.user_id != "default":
             # WeChat bot mode — hash the wechat user id
             import hashlib
             wechat_uid = f"wechat_{hashlib.sha256(self.user_id.encode()).hexdigest()[:16]}"
@@ -396,6 +403,7 @@ class EdgeClient:
             keywords = intent_data.get("keywords", [])
             contact_name = intent_data.get("contact_name", "")
             action_results = intent_data.get("action_results", [])
+            search_results = intent_data.get("search_results", [])
             flywheel_info = ""
             if action_results:
                 ok_actions = [ar for ar in action_results if ar.get("ok")]
@@ -452,14 +460,23 @@ class EdgeClient:
             context_parts = []
             if data_context:
                 context_parts.append(f"相关数据：\n{data_context}")
+            if search_results:
+                search_ctx = "\n---\n".join(
+                    f"标题: {r.get('title', '')}\n摘要: {r.get('snippet', '')}\n来源: {r.get('url', '')}"
+                    for r in search_results
+                )
+                context_parts.append(f"互联网搜索结果：\n{search_ctx}")
             if flywheel_info:
                 context_parts.append(f"系统已自动执行：{flywheel_info}。请在回复中确认已记录。")
             if context_parts:
                 user_content = f'用户消息：{text}\n\n{chr(10).join(context_parts)}\n\n请根据用户的消息和上面的数据，生成回复。直接回复内容，不要加"回复："之类的前缀。'
 
-            # Build messages: full conversation history + current message
-            # 借鉴本地 Agent 模式——发送完整历史，让 LLM 自己管理上下文窗口
-            messages = list(self._conversation)
+            # Build messages: per-user conversation history + current message
+            # Each cloud user gets isolated history (not shared with owner)
+            conv_key = clerk_uid or '_default'
+            if conv_key not in self._cloud_conversations:
+                self._cloud_conversations[conv_key] = []
+            messages = list(self._cloud_conversations[conv_key])
             messages.append({"role": "user", "content": user_content})
 
             # Step 4: Call cloud LLM
@@ -474,11 +491,12 @@ class EdgeClient:
             if not reply:
                 return "（没有收到回复，请重试）"
 
-            # Save turn
-            self._conversation.append({"role": "user", "content": text})
-            self._conversation.append({"role": "assistant", "content": reply})
-            if len(self._conversation) > self._MAX_CONVERSATION:
-                self._conversation = self._conversation[-self._MAX_CONVERSATION:]
+            # Save turn to per-user conversation history
+            conv = self._cloud_conversations[conv_key]
+            conv.append({"role": "user", "content": text})
+            conv.append({"role": "assistant", "content": reply})
+            if len(conv) > self._MAX_CONVERSATION:
+                self._cloud_conversations[conv_key] = conv[-self._MAX_CONVERSATION:]
 
             return reply
 
@@ -615,6 +633,9 @@ class EdgeClient:
         if intent_type == intent.INTENT_REPORT:
             return self._gather_report()
 
+        if intent_type == intent.INTENT_PERCEIVE:
+            return self._gather_perceive(payload)
+
         # chat / help / unknown — minimal context
         return self._gather_overview()
 
@@ -707,6 +728,8 @@ class EdgeClient:
             return self._handle_todo()
         elif intent_type == intent.INTENT_ALIAS:
             return self._gather_alias(payload)
+        elif intent_type == intent.INTENT_PERCEIVE:
+            return self._handle_perceive(payload)
         else:
             return self._fallback(text)
 
@@ -929,6 +952,49 @@ class EdgeClient:
         if todos:
             parts.append(f"相关待办：\n" + "\n".join(f"  · {t['task'][:60]}" for t in todos[:3]))
         return "\n".join(parts)
+
+    def _gather_perceive(self, payload) -> str:
+        """Gather web perception results for LLM formatting."""
+        target = payload.get("target", "")
+        result = engine.perceive_contact(target)
+        if result.get("status") == "unavailable":
+            return f"Web感知不可用：{result.get('message', 'ego-browser未安装')}"
+        if result.get("status") == "error":
+            return f"感知失败：{result.get('error', '未知错误')}"
+        contact = result.get("contact", {})
+        briefing = result.get("briefing", "")
+        results = result.get("results", [])
+
+        parts = [f"联系人：{contact.get('name', target)}"]
+        parts.append(f"感知简报：{briefing}" if briefing else "未感知到有价值的动态")
+        for r in results:
+            platform = r.get("platform", "")
+            status = r.get("status", "")
+            if status == "success":
+                data = r.get("data", {})
+                signals = data.get("signals", [])
+                if signals:
+                    parts.append(f"[{platform}] 信号：")
+                    for s in signals[:3]:
+                        parts.append(f"  · {s.get('description', '')}")
+            elif status == "needs_login":
+                parts.append(f"[{platform}] 需要登录（请在ego-browser中登录）")
+            elif status == "skipped":
+                continue
+        return "\n".join(parts)
+
+    def _handle_perceive(self, payload) -> str:
+        """Template response for perceive intent (no LLM fallback)."""
+        target = payload.get("target", "")
+        result = engine.perceive_contact(target)
+        if result.get("status") == "unavailable":
+            return f"🔍 Web感知不可用：{result.get('message', '')}\n\n安装 ego-browser 后可使用此功能：https://lite.ego.app/download"
+        if result.get("status") == "error":
+            return f"🔍 感知「{target}」时出错：{result.get('error', '')}"
+        briefing = result.get("briefing", "")
+        if briefing:
+            return f"🔍 {target}的Web感知结果：\n\n{briefing}"
+        return f"🔍 已感知「{target}」，未发现值得关注的动态。"
 
     def _gather_draft(self, payload) -> str:
         """Gather context for drafting a message."""

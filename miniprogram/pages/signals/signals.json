@@ -1,4 +1,8 @@
 {
   "navigationBarTitleText": "今日信号",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#F5F4EE",
+  "usingComponents": {
+    "sdui-renderer": "/components/sdui-renderer/sdui-renderer"
+  }
 }

@@ -1,0 +1,4 @@
+<!-- pages/annual/annual.wxml — SDUI 年度报告页（后端驱动渲染） -->
+<view class="container">
+  <sdui-renderer components="{{components}}" loading="{{loading}}" error="{{error}}" bind:itemtap="onItemTap" bind:buttontap="onButtonTap"></sdui-renderer>
+</view>

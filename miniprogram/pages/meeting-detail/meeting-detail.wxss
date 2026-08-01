@@ -1,0 +1,306 @@
+/* pages/meeting-detail/meeting-detail.wxss */
+.loading { text-align: center; padding: 60rpx 0; }
+
+/* 基本信息 */
+.info-card { padding: 24rpx; }
+.info-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.info-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1A1915;
+  flex: 1;
+  line-height: 1.4;
+}
+.info-meta {
+  display: flex;
+  gap: 20rpx;
+  flex-wrap: wrap;
+  margin-bottom: 8rpx;
+}
+.meta-item { font-size: 26rpx; color: #6B6860; }
+.info-purpose { margin-top: 8rpx; }
+
+/* 状态徽章 */
+.status-badge {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 600;
+}
+.status-planned { background: #E0EAF5; color: #3B6FA8; }
+.status-ongoing { background: rgba(74,124,89,0.15); color: #4A7C59; }
+.status-completed { background: #E4E1D6; color: #9A968C; }
+
+/* 拍照按钮区 */
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.photo-btn {
+  flex: 1 1 calc(50% - 8rpx);
+  min-width: 200rpx;
+  font-size: 26rpx;
+  padding: 20rpx 0;
+  background: #EDEBE3;
+  color: #1A1915;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+}
+.photo-btn::after { border: none; }
+.photo-btn[disabled] { opacity: 0.6; }
+.photo-btn-loading { border-color: #C96442; color: #C96442; }
+
+/* 通用列表项 */
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.list-item:last-child { border-bottom: none; }
+.list-item-main { flex: 1; display: flex; flex-direction: column; gap: 4rpx; }
+.list-item-title { font-size: 30rpx; color: #1A1915; }
+
+.tag-first {
+  background: rgba(74,124,89,0.12);
+  color: #4A7C59;
+}
+
+/* 议程 */
+.agenda-item {
+  display: flex;
+  gap: 20rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.agenda-item:last-child { border-bottom: none; }
+.agenda-time {
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #C96442;
+  font-weight: 600;
+  min-width: 120rpx;
+}
+.agenda-main { flex: 1; display: flex; flex-direction: column; gap: 4rpx; }
+.agenda-topic { font-size: 28rpx; color: #1A1915; }
+
+/* 业务机会 */
+.opp-item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.opp-item:last-child { border-bottom: none; }
+.opp-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+.opp-desc { font-size: 28rpx; color: #1A1915; flex: 1; }
+.opp-meta {
+  display: flex;
+  gap: 16rpx;
+}
+.tag-opp {
+  background: #F2E8E0;
+  color: #C96442;
+}
+
+/* 总结 */
+.summary-text {
+  font-size: 28rpx;
+  color: #1A1915;
+  line-height: 1.7;
+  display: block;
+}
+
+/* 笔记输入 */
+.notes-input {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  background: #F5F4EE;
+  min-height: 160rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 绿色按钮 */
+.btn-green { background: #4A7C59 !important; }
+
+/* 状态控制 */
+.status-control-card {
+  text-align: center;
+}
+
+/* 删除按钮 */
+.btn-delete {
+  width: 100%;
+  background: transparent;
+  color: #C65D5D;
+  border: 1rpx solid #C65D5D;
+  border-radius: 16rpx;
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  margin-top: 16rpx;
+  margin-bottom: 48rpx;
+}
+.btn-delete::after { border: none; }
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,25,21,0.5);
+  z-index: 1001;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-sheet {
+  background: #FAFAF7;
+  width: 100%; max-width: 500px;
+  max-height: 85vh; overflow-y: auto;
+  border-radius: 20rpx 20rpx 0 0;
+  padding: 24rpx 32rpx 48rpx;
+}
+.modal-title {
+  font-size: 34rpx; font-weight: 600; color: #1A1915;
+  text-align: center; margin-bottom: 20rpx;
+}
+.modal-actions {
+  display: flex; gap: 16rpx; margin-top: 24rpx;
+}
+.modal-actions .action-btn { flex: 1; font-size: 28rpx; padding: 16rpx 0; }
+.action-btn { font-size: 14px; padding: 10px 0; background: #EDEBE3; color: #C96442; border: none; border-radius: 10px; }
+.action-btn::after { border: none; }
+.action-btn-primary { color: #FAFAF7 !important; background: #4A7C59 !important; }
+
+/* 会前准备建议 */
+.prep-summary {
+  background: #F5F4EE;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 16rpx;
+}
+.suggestion-item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #C96442;
+  display: block;
+  margin-bottom: 6rpx;
+}
+.suggestion-text {
+  font-size: 26rpx;
+  color: #1A1915;
+  line-height: 1.6;
+}
+
+/* 复盘结果 */
+.review-section {
+  margin-bottom: 20rpx;
+}
+.review-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #6B6860;
+  display: block;
+  margin-bottom: 10rpx;
+}
+.review-text {
+  font-size: 28rpx;
+  color: #1A1915;
+  line-height: 1.7;
+  display: block;
+}
+.review-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #E4E1D6;
+}
+.review-item:last-child { border-bottom: none; }
+.review-item-text { font-size: 28rpx; color: #1A1915; flex: 1; }
+
+/* 参会人标签组 */
+.list-item-tags {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+.tag-existing {
+  background: #E8F0E4;
+  color: #4A6741;
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+}
+.tag-link {
+  color: #C96442;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+/* 照片缩略图 */
+.photo-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.photo-thumb {
+  width: 160rpx;
+  position: relative;
+}
+.thumb-img {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #E4E1D6;
+}
+.thumb-label {
+  font-size: 20rpx;
+  color: #6B6860;
+  text-align: center;
+  display: block;
+  margin-top: 4rpx;
+}
+
+/* 复盘新增样式 */
+.review-auto-actions {
+  background: #E8F0E4;
+  border-radius: 12rpx;
+  padding: 16rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.review-warning {
+  margin-bottom: 12rpx;
+}
+.review-item-meta {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+  flex-shrink: 0;
+}
+.review-bullet {
+  padding: 6rpx 0;
+}

@@ -86,7 +86,7 @@ describe("/ai/wxmp_login", () => {
     expect(data.error).toContain("Login failed");
   });
 
-  it("creates new wxmp user and returns token (is_new_user=true)", async () => {
+  it("auto-registers new user and returns token (is_new_user=true, is_registered=true)", async () => {
     globalThis.fetch = async () => wechatSessionResponse("new_openid_001");
     const req = jsonReq("/ai/wxmp_login", { body: { code: "valid_code" } });
     const res = await worker.fetch(req, env, {});
@@ -94,12 +94,39 @@ describe("/ai/wxmp_login", () => {
     const data = await res.json();
     expect(data.ok).toBe(true);
     expect(data.is_new_user).toBe(true);
+    expect(data.is_registered).toBe(true);
     expect(data.openid).toBe("new_openid_001");
+    // No CLERK_SECRET_KEY → fallback to wxmp token
     expect(data.token).toContain("wxmp_new_openid_001:secret");
-    // Verify wxmp_user mapping stored
-    const stored = env.USER_DATA._store.get("wxmp_user:wxmp_new_openid_001");
-    expect(stored).toBeTruthy();
-    expect(JSON.parse(stored).openid).toBe("new_openid_001");
+  });
+
+  it("auto-registers with Clerk when configured, returns user_ token", async () => {
+    env = baseEnv({
+      WXMP_APP_ID: "wx_test_mp",
+      WXMP_APP_SECRET: "mp_secret",
+      CLERK_SECRET_KEY: "clerk_secret",
+    });
+    globalThis.fetch = async (url, opts) => {
+      if (String(url).includes("api.clerk.com") && opts?.method === "POST") {
+        return new Response(JSON.stringify({ id: "user_auto_001" }), {
+          status: 200, headers: { "content-type": "application/json" },
+        });
+      }
+      return wechatSessionResponse("auto_openid_001");
+    };
+    const req = jsonReq("/ai/wxmp_login", { body: { code: "valid_code" } });
+    const res = await worker.fetch(req, env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.is_new_user).toBe(true);
+    expect(data.is_registered).toBe(true);
+    expect(data.token).toContain("user_auto_001:secret");
+    // Verify bindings stored
+    const bind = env.USER_DATA._store.get("wechat_bind:wxmp_auto_openid_001");
+    expect(bind).toBe("user_auto_001");
+    const reg = env.USER_DATA._store.get("wxmp_registered:wxmp_auto_openid_001");
+    expect(JSON.parse(reg).clerk_user_id).toBe("user_auto_001");
   });
 
   it("returns bound Clerk token for already-bound user (is_new_user=false, is_registered=true)", async () => {
@@ -565,11 +592,13 @@ describe("/ai/wxmp_card_scan", () => {
     expect(data.is_duplicate).toBe(false);
     expect(data.contact.name).toBe("张三");
     expect(data.contact.company).toBe("腾讯");
-    expect(data.contact.nature).toBe("leverage");
-    expect(data.contact.tags).toContain("名片扫描");
-    // Verify contact saved
-    const contacts = JSON.parse(env.USER_DATA._store.get("contacts:testuser"));
-    expect(contacts.find(c => c.name === "张三")).toBeTruthy();
+    // card_scan returns OCR result (not saved contact), nature/tags only set on confirm
+    // Verify contact NOT auto-saved (requires confirm step)
+    const saved = env.USER_DATA._store.get("contacts:testuser");
+    if (saved) {
+      const contacts = JSON.parse(saved);
+      expect(contacts.find(c => c.name === "张三")).toBeFalsy();
+    }
   });
 
   it("returns is_duplicate when contact name already exists", async () => {
@@ -597,7 +626,7 @@ describe("/ai/wxmp_card_scan", () => {
     expect(data.existing_id).toBe("c-existing");
   });
 
-  it("returns 400 when LLM response has no name", async () => {
+  it("returns 200 with placeholder name when LLM response has no name", async () => {
     globalThis.fetch = async () => llmJson({
       name: "",
       company: "某公司",
@@ -611,9 +640,11 @@ describe("/ai/wxmp_card_scan", () => {
       headers: authHeader(),
     });
     const res = await worker.fetch(req, env, mockCtx);
-    expect(res.status).toBe(400);
+    // Code now allows empty name (placeholder "未知联系人") for user to edit later
+    expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.error).toContain("未识别到姓名");
+    expect(data.ok).toBe(true);
+    expect(data.contact.name).toBe("未知联系人");
   });
 
   it("handles LLM returning JSON wrapped in markdown code block", async () => {

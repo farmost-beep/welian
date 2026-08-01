@@ -1,0 +1,5 @@
+<!-- pages/webview/webview.wxml — 外部链接 web-view 容器 -->
+<web-view wx:if="{{url}}" src="{{url}}"></web-view>
+<view wx:else class="empty">
+  <text class="text-dimmer text-sm">链接缺失</text>
+</view>

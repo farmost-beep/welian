@@ -38,6 +38,39 @@
   font-size: 28rpx;
 }
 
+/* ── 分组栏 ── */
+.group-bar { padding: 8rpx 0 16rpx; }
+.group-bar picker { display: block; }
+.group-picker {
+  display: inline-block;
+  padding: 16rpx 24rpx;
+  background: #EDEBE3;
+  border-radius: 20rpx;
+  min-height: 60rpx;
+}
+
+/* 分组列表项 */
+.group-item-card { padding: 24rpx; margin-bottom: 12rpx; }
+.group-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.group-item-name { font-size: 30rpx; font-weight: 500; color: #1A1915; flex: 1; }
+.group-item-count { flex-shrink: 0; margin-right: 16rpx; }
+.group-item-arrow { font-size: 36rpx; flex-shrink: 0; }
+
+/* 分组返回栏 */
+.group-back-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  margin-bottom: 16rpx;
+  background: #EDEBE3;
+  border-radius: 12rpx;
+}
+
 /* ── 扫描结果弹窗 ── */
 .scan-result-mask {
   position: fixed;
@@ -75,14 +108,33 @@
   justify-content: space-between;
   align-items: center;
 }
+.info-row-edit {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.info-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1A1915;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 8rpx;
+  padding: 12rpx 16rpx;
+}
 .info-label {
   font-size: 26rpx;
   color: #6B6860;
+  flex-shrink: 0;
+  width: 80rpx;
 }
 .info-value {
   font-size: 28rpx;
   color: #1A1915;
   font-weight: 500;
+}
+.scan-confidence-warn {
+  padding: 12rpx 0;
+  margin-bottom: 8rpx;
 }
 .scan-result-actions {
   display: flex;
@@ -129,6 +181,30 @@
 
 .tab-meta {
   margin-top: 2rpx;
+}
+
+/* ── 添加联系人入口 ── */
+.add-contact-bar {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.add-contact-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 16rpx 0;
+  border-radius: 16rpx;
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+}
+.add-contact-icon {
+  font-size: 32rpx;
+}
+.add-contact-text {
+  font-size: 26rpx;
 }
 
 /* ── 列表 ── */

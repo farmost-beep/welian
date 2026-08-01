@@ -863,4 +863,177 @@ describe("/ai/meeting_photo (mocked LLM)", () => {
     // No attendees/opportunities arrays since it's unstructured
     expect(data.extracted.attendees).toBeUndefined();
   });
+
+  // Regression: agenda prompt must be passed to LLM as system prompt.
+  // Previously the photo_type-specific prompt was defined but never passed
+  // to callLLM — LLM received a generic "You are a helpful assistant" and
+  // had no idea what JSON fields to extract, so auto-fill always failed.
+  it("agenda type passes the agenda extraction prompt to LLM (regression)", async () => {
+    let capturedSystem = "";
+    globalThis.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      capturedSystem = body.system || "";
+      return llmText(JSON.stringify({
+        title: "Q3评审会",
+        date: "2026-07-30",
+        location: "会议室A",
+        agenda: [{ topic: "上季度回顾", time: "14:00", presenter: "" }],
+        purpose: "季度复盘",
+      }));
+    };
+
+    const res = await worker.fetch(jsonReq("/ai/meeting_photo", {
+      body: { photo_type: "agenda", base64: tinyPng, media_type: "image/png" },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.status).toBe("ok");
+    // The system prompt must contain agenda-specific extraction instructions
+    expect(capturedSystem).toContain("议程");
+    expect(capturedSystem).toContain("title");
+    expect(capturedSystem).toContain("agenda");
+    // Extracted fields should be present
+    expect(data.extracted.title).toBe("Q3评审会");
+    expect(data.extracted.agenda).toHaveLength(1);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Self-evolution: behavioral insights generation + injection
+// ═══════════════════════════════════════════════════════════════
+
+describe("Self-evolution: behavioral insights", () => {
+  const originalFetch = globalThis.fetch;
+  let env;
+  // waitUntil must capture the promise so tests can await it
+  let _waitPromise;
+  const mockCtx = { waitUntil: (p) => { _waitPromise = p; } };
+
+  function llmText(text) {
+    return new Response(
+      JSON.stringify({
+        content: [{ type: "text", text }],
+        usage: { input_tokens: 100, output_tokens: 50 },
+        stop_reason: "end_turn",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
+
+  beforeEach(() => { env = baseEnv(); });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it("scheduled handler generates insights from metrics and writes to KV", async () => {
+    // Seed a wechat-bound user with metrics
+    env.USER_DATA._store.set("wechat_bind:wx123", "user_test_001");
+    const wk = "2026-W30";
+    env.USER_DATA._store.set("metrics:user_test_001", JSON.stringify({
+      weekly: {
+        [wk]: { advise_generated: 5, todo_completed: 3, interaction_recorded: 8, draft_generated: 2, signal_action: 1 },
+      },
+      adoptions: [
+        { advise_id: "adv_1", action_type: "todo_completed", ts: new Date().toISOString(), contact: "张总" },
+        { advise_id: "adv_2", action_type: "interaction_recorded", ts: new Date().toISOString(), contact: "李总" },
+      ],
+      last_advise_ts: new Date().toISOString(),
+      last_advise_id: "adv_2",
+    }));
+    // Seed a contact
+    env.USER_DATA._store.set("contacts:user_test_001", JSON.stringify([
+      { id: "c1", name: "张总", nature: "leverage" },
+      { id: "c2", name: "李总", nature: "nurture" },
+    ]));
+
+    // Mock LLM to return insights
+    globalThis.fetch = async () => llmText("• 建议包含具体人名时采纳率78%，泛泛建议仅12%——始终包含具体联系人名\n• 经营型联系人互动频率偏低，建议增加跟进提醒\n• 待办完成率高（85%），用户执行力强——可更积极建议行动");
+
+    // Trigger self-evolution cron
+    await worker.scheduled({ cron: "0 2 * * 1" }, env, mockCtx);
+    await _waitPromise;
+
+    // Verify insights written to KV
+    const insights = env.USER_DATA._store.get("prompt:behavioral_insights:user_test_001.md");
+    expect(insights).toBeTruthy();
+    expect(insights).toContain("•");
+    expect(insights.length).toBeGreaterThan(20);
+  });
+
+  it("skips users with no activity", async () => {
+    env.USER_DATA._store.set("wechat_bind:wx456", "user_test_002");
+    // No metrics for this user
+
+    globalThis.fetch = async () => llmText("should not be called");
+
+    await worker.scheduled({ cron: "0 2 * * 1" }, env, mockCtx);
+    await _waitPromise;
+
+    const insights = env.USER_DATA._store.get("prompt:behavioral_insights:user_test_002.md");
+    expect(insights).toBeUndefined();
+  });
+
+  it("injects behavioral insights into advise system prompt", async () => {
+    // Seed insights for testuser
+    const insightsText = "• 建议包含具体人名时采纳率78%——始终包含具体联系人名";
+    env.USER_DATA._store.set("prompt:behavioral_insights:testuser.md", insightsText);
+
+    // Seed a contact so advise has something to suggest
+    env.USER_DATA._store.set("contacts:testuser", JSON.stringify([
+      { id: "c1", name: "张总", nature: "leverage", last_interaction: "2026-07-01", strength: 4 },
+    ]));
+
+    let capturedSystem = "";
+    globalThis.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      capturedSystem = body.system || "";
+      return llmText("💡 张总 — 2周没联系了，建议聊聊项目进展");
+    };
+
+    const res = await worker.fetch(jsonReq("/ai/advise_cloud", {
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    // The system prompt must contain the behavioral insights
+    expect(capturedSystem).toContain("行为洞察");
+    expect(capturedSystem).toContain("建议包含具体人名");
+  });
+
+  it("does not modify prompt when no insights exist", async () => {
+    // No insights in KV for testuser
+    env.USER_DATA._store.set("contacts:testuser", JSON.stringify([
+      { id: "c1", name: "张总", nature: "leverage", last_interaction: "2026-07-01", strength: 4 },
+    ]));
+
+    let capturedSystem = "";
+    globalThis.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      capturedSystem = body.system || "";
+      return llmText("💡 张总 — 建议联系");
+    };
+
+    await worker.fetch(jsonReq("/ai/advise_cloud", {
+      headers: authHeader(),
+    }), env, mockCtx);
+    // System prompt should NOT contain insights section
+    expect(capturedSystem).not.toContain("行为洞察");
+  });
+
+  it("injects insights into draft system prompt", async () => {
+    const insightsText = "• 经营型draft需要更具体的话题建议";
+    env.USER_DATA._store.set("prompt:behavioral_insights:testuser.md", insightsText);
+
+    let capturedSystem = "";
+    globalThis.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      capturedSystem = body.system || "";
+      return llmText("嘿张总，最近项目进展怎么样？");
+    };
+
+    await worker.fetch(jsonReq("/ai/draft", {
+      body: { name: "张总", nature: "leverage" },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(capturedSystem).toContain("行为洞察");
+    expect(capturedSystem).toContain("经营型draft");
+  });
 });

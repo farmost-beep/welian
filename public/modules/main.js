@@ -2,7 +2,7 @@
 // Imports all modules, exposes onclick handlers to window, runs init code.
 
 import { currentLang, CLOUD_URL } from './state.js';
-import { applyLang, toggleLang, initCookieBanner, acceptCookies, confirmPop, openMine, closeMine, openSupport, closeSupport, switchMineTab, mineApi, loadOverview, loadSettingsTab, loadCalendarFeedUrl, copyCalendarFeedUrl, toggleSection, loadMemoryList, addMemoryManual, deleteMemoryManual, loadGoalList, loadCustomSkillList, addCustomSkill, deleteCustomSkill, addGoalManual, completeGoal, deleteGoal, loadProfileForm, profileFieldInput, saveProfile, syncContactsToCloud, exportMyData, deleteMyAccount, localDateStr, escapeHtml, loadReportsTab, switchReportsSubtab, loadHealthAnalysis, shareOverview } from './misc.js';
+import { applyLang, toggleLang, initCookieBanner, acceptCookies, confirmPop, openMine, closeMine, openSupport, closeSupport, switchMineTab, mineApi, loadOverview, loadSettingsTab, loadCalendarFeedUrl, copyCalendarFeedUrl, toggleSection, loadMemoryList, addMemoryManual, deleteMemoryManual, loadGoalList, loadCustomSkillList, addCustomSkill, deleteCustomSkill, loadCustomSources, addCustomSource, deleteCustomSource, addGoalManual, completeGoal, deleteGoal, loadProfileForm, profileFieldInput, saveProfile, syncContactsToCloud, exportMyData, deleteMyAccount, localDateStr, escapeHtml, loadReportsTab, switchReportsSubtab, loadHealthAnalysis, shareOverview } from './misc.js';
 import { getClerkToken, initClerk, wechatLogin, showPhoneLogin, sendSMS, verifySMS, closeAuth, toggleAuth, mountClerkSignIn, mountClerkSignUp, onAuthed, onSignedOut } from './auth.js';
 import { removeBridge, enableCloudMode, generateSessionSummary, agentConfig, devinDirect, agentChat, getAgentContext, saveAgentTurn, getCloudDataContext, cloudSearch, cloudListTodos, cloudListContacts, agentSearch, fetchRoutingConfig, shouldUseLive, shouldFallbackToCloud, extractIntent, cloudChat, autoConnectAgent, tryUpgradeToLive, upgradeToLive, loadAgentConfigToUI, toggleAgentConfig, onAgentEngineChange, saveAgentConfig, tryBridgeConnect, onAgentConnected, onBridgeMessage, showScenarioPicker, closeScenarioPicker, startSimulation, loadSimulationToCloud, updateGoalTracker, toggleGoalTracker, checkSimulationGoals, rewardCoupon, showBattleCard, downloadBattleCard, shareBattleCard, exitSimulation } from './agent-bridge.js';
 import { saveSessionTurn, loadSessionList, loadSession, startNewSession, deleteSession, renderSessionList, filterSessions, toggleSidebar, closeSidebar, openSidebar, getSystemPrompt, getCurrentDateTimeContext, getUpcomingHolidays, getLunarHolidays, hideWelcome, showWelcome, scrollToBottom, addMsg, addSystemMsg, addTyping, removeTyping, buildUserSuggestions, buildContextAwareSuggestions, addSuggestions, clearChat, handleChatFile, clearChatFile, send, stopChat, quickSend, quickNote, quickDraft, quickDraftTo, loadChatEnhancements, renderDailyDashboard, toggleDashboard, snoozeContact, quickAction, updateTabBadges, showReminderCard, dismissReminder, fetchProactiveSuggestions, renderProactiveSuggestions, proactiveClick, dismissProactive, healthRingSvg, renderDesktopSidebar, toggleRsSection, showTodoDetail, showInteractionDetail, toggleEmptyState, fetchWeather, fetchWeatherFromAPI, weatherEmoji, weatherText, weatherGreeting, showDailyGreeting, showWarmthQuote, showStreakBadge, toggleVoiceInput, addMsgActions, extractPdfPaths, downloadPdfViaAgent, agentReadFile, copyMsgText } from './chat.js';
@@ -45,6 +45,7 @@ w.closeSidebar = closeSidebar;
 w.openSidebar = openSidebar;
 w.filterSessions = filterSessions;
 w.loadSession = loadSession;
+w.deleteSession = deleteSession;
 w.send = send;
 w.stopChat = stopChat;
 w.quickAction = quickAction;
@@ -164,6 +165,9 @@ w.deleteMemoryManual = deleteMemoryManual;
 w.loadGoalList = loadGoalList;
 w.addCustomSkill = addCustomSkill;
 w.deleteCustomSkill = deleteCustomSkill;
+w.loadCustomSources = loadCustomSources;
+w.addCustomSource = addCustomSource;
+w.deleteCustomSource = deleteCustomSource;
 w.addGoalManual = addGoalManual;
 w.completeGoal = completeGoal;
 w.deleteGoal = deleteGoal;
@@ -173,6 +177,9 @@ w.deleteMyAccount = deleteMyAccount;
 
 // ── Init (lines 8594-8632 of original app.js) ──
 applyLang(currentLang);
+// Show roleplay button by default (hidden after login by onAuthed)
+const _demoBtn = document.getElementById('demoBtn');
+if (_demoBtn) _demoBtn.style.display = '';
 initClerk();
 initCookieBanner();
 

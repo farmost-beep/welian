@@ -1,0 +1,52 @@
+<!-- pages/sync/sync.wxml — 通用页面渲染器 -->
+<view class="sync-container">
+  <view class="sync-status" wx:if="{{!connected}}">
+    <text class="sync-status-text">连接中…</text>
+  </view>
+
+  <scroll-view class="sync-scroll" scroll-y scroll-into-view="{{scrollToId}}" scroll-with-animation enhanced show-scrollbar="{{false}}">
+    <block wx:for="{{components}}" wx:key="id">
+      <!-- 文本：按 role 区分左右 -->
+      <view wx:if="{{item.type === 'text'}}" id="{{item.id}}" class="sync-bubble-row {{item.role === 'user' ? 'sync-bubble-right' : 'sync-bubble-left'}}">
+        <view wx:if="{{item.role === 'assistant' && item.avatar}}" class="sync-avatar">{{item.avatar}}</view>
+        <view class="sync-bubble {{item.role === 'user' ? 'sync-bubble-user' : 'sync-bubble-assistant'}}">
+          <text wx:if="{{item.role === 'assistant' && item.name}}" class="sync-bubble-name">{{item.name}}</text>
+          <text class="sync-bubble-text">{{item.content}}<text wx:if="{{item.typing}}" class="sync-typing-cursor">▋</text></text>
+        </view>
+      </view>
+
+      <!-- 卡片：左对齐 -->
+      <view wx:if="{{item.type === 'card'}}" id="{{item.id}}" class="sync-bubble-row sync-bubble-left">
+        <view class="sync-card">
+          <text class="sync-card-title">{{item.title}}</text>
+          <view wx:if="{{item.fields && item.fields.length}}" class="sync-card-fields">
+            <view wx:for="{{item.fields}}" wx:for-item="f" wx:key="label" class="sync-card-field">
+              <text class="sync-field-label">{{f.label}}</text>
+              <text class="sync-field-value">{{f.value}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.items && item.items.length}}" class="sync-card-items">
+            <view wx:for="{{item.items}}" wx:for-item="ci" wx:key="index" class="sync-card-item">
+              <text class="sync-item-label">{{ci.label}}</text>
+              <text class="sync-item-value">{{ci.value}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 按钮组 -->
+      <view wx:if="{{item.type === 'buttons'}}" id="{{item.id}}" class="sync-buttons">
+        <view wx:for="{{item.items}}" wx:for-item="btn" wx:key="*this" class="sync-btn" bindtap="onTap" data-id="{{btn}}">{{btn}}</view>
+      </view>
+
+      <!-- 锚点（不可见，用于滚动定位） -->
+      <view wx:if="{{item.type === 'anchor'}}" id="{{item.id}}" class="sync-anchor"></view>
+    </block>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="sync-input-bar">
+    <input class="sync-input" placeholder="输入内容…" value="{{inputValue}}" bindinput="onInput" confirm-type="send" bindconfirm="onSend" />
+    <view class="sync-send" bindtap="onSend">→</view>
+  </view>
+</view>

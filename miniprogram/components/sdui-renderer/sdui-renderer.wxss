@@ -1,0 +1,507 @@
+/* components/sdui-renderer/sdui-renderer.wxss — 通用 SDUI 渲染器样式 */
+/* 完全对齐 dashboard 原生风格 */
+/* bg=#F5F4EE  surface=#EDEBE3  surface2=#E4E1D6  border=#D9D5C7 */
+/* text=#1A1915  dim=#6B6860  dimmer=#9A968C */
+/* accent=#C96442  accentBg=#F2E8E0  green=#4A7C59 */
+
+/* ════════════════════════════════════════════════
+   容器 — 对齐 .container
+   ════════════════════════════════════════════════ */
+.sdui-container {
+  padding: 32rpx 28rpx 48rpx;
+}
+
+/* ── 加载态 ── */
+.sdui-loading {
+  text-align: center;
+  padding: 60rpx 0;
+}
+.sdui-loading-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid #E4E1D6;
+  border-top-color: #4A7C59;
+  border-radius: 50%;
+  margin: 0 auto 20rpx;
+  animation: sdui-spin 0.8s linear infinite;
+}
+@keyframes sdui-spin { to { transform: rotate(360deg); } }
+
+.sdui-error {
+  text-align: center;
+  padding: 60rpx 0;
+}
+
+/* ════════════════════════════════════════════════
+   页面头部 — 对齐 .header + .page-title + .page-subtitle
+   ════════════════════════════════════════════════ */
+.sdui-header {
+  margin-bottom: 32rpx;
+}
+.sdui-header-bar {
+  display: none;
+}
+.sdui-header-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1A1915;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.sdui-header-subtitle {
+  font-size: 26rpx;
+  color: #6B6860;
+  display: block;
+  margin-bottom: 32rpx;
+  line-height: 1.6;
+}
+.sdui-header-date {
+  font-size: 24rpx;
+  color: #9A968C;
+  display: block;
+  margin-top: 4rpx;
+}
+
+/* ════════════════════════════════════════════════
+   Section — 对齐 .card + .section-title
+   ════════════════════════════════════════════════ */
+.sdui-section {
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+.sdui-section-header {
+  margin-bottom: 16rpx;
+}
+.sdui-section-icon {
+  display: none;
+}
+.sdui-section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+.sdui-section-count {
+  font-size: 22rpx;
+  color: #9A968C;
+  margin-left: 12rpx;
+  font-weight: 400;
+}
+.sdui-section-body {
+  /* 无额外 padding，直接跟在标题下方 */
+}
+
+/* ════════════════════════════════════════════════
+   统计数字组 — 对齐 .stats-bar
+   ════════════════════════════════════════════════ */
+.sdui-stat-group {
+  display: flex;
+  justify-content: space-around;
+  padding: 24rpx 16rpx;
+  background: #EDEBE3;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+}
+.sdui-stat-group--standalone {
+  border: 1rpx solid #D9D5C7;
+  border-radius: 20rpx;
+  padding: 24rpx 16rpx;
+}
+.sdui-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+.sdui-stat-item:not(:last-child)::after {
+  display: none;
+}
+.sdui-stat-icon {
+  display: none;
+}
+.sdui-stat-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #C96442;
+}
+.sdui-stat-label {
+  font-size: 22rpx;
+  color: #9A968C;
+}
+
+/* ════════════════════════════════════════════════
+   列表 — 对齐 .signal-item / .todo-row / .upcoming-row
+   ════════════════════════════════════════════════ */
+.sdui-list--standalone {
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+.sdui-list-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+  gap: 12rpx;
+}
+.sdui-list-item:not(:last-child) {
+  border-bottom: 1rpx solid #D9D5C7;
+}
+/* 无图标圆角框 — 对齐原生 .signal-item 简洁风格 */
+.sdui-list-icon-wrap {
+  display: none;
+}
+.sdui-list-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+}
+.sdui-list-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+.sdui-list-title {
+  font-size: 28rpx;
+  color: #1A1915;
+  line-height: 1.5;
+}
+.sdui-list-subtitle {
+  font-size: 24rpx;
+  color: #6B6860;
+  line-height: 1.4;
+}
+.sdui-list-text {
+  font-size: 26rpx;
+  color: #6B6860;
+  line-height: 1.5;
+}
+.sdui-list-badge {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 2rpx 14rpx;
+  border-radius: 20rpx;
+  background: #E4E1D6;
+  color: #6B6860;
+  margin-top: 4rpx;
+}
+.sdui-list-badge.badge-high {
+  background: #F2E8E0;
+  color: #C96442;
+}
+.sdui-list-badge.badge-mid {
+  background: rgba(74, 124, 89, 0.12);
+  color: #4A7C59;
+}
+.sdui-list-arrow {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #C0BBB0;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════
+   卡片 — 对齐 .card
+   ════════════════════════════════════════════════ */
+.sdui-card {
+  background: #EDEBE3;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+.sdui-sub-card {
+  background: #F5F2EC;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+.sdui-sub-card:last-child { margin-bottom: 0; }
+.sdui-sub-card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+  color: #1A1915;
+}
+.sdui-card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+  color: #1A1915;
+}
+.sdui-card-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.sdui-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.sdui-card-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.sdui-card-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+.sdui-item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.sdui-item-text {
+  font-size: 28rpx;
+  color: #1A1915;
+  line-height: 1.7;
+}
+
+/* ════════════════════════════════════════════════
+   段落 / 标题 / 副标题 — 对齐原生
+   ════════════════════════════════════════════════ */
+.sdui-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1A1915;
+  margin-bottom: 8rpx;
+}
+.sdui-subtitle {
+  font-size: 26rpx;
+  color: #6B6860;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+.sdui-paragraph {
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #1A1915;
+  padding: 8rpx 0;
+}
+.sdui-paragraph--muted-center {
+  text-align: center;
+  color: #6B6860;
+  font-size: 26rpx;
+  padding: 16rpx 0;
+}
+
+/* ════════════════════════════════════════════════
+   小标题 — 对齐 web 端 .section-title
+   ════════════════════════════════════════════════ */
+.sdui-section-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #6B6860;
+  margin: 32rpx 0 16rpx;
+}
+
+/* ════════════════════════════════════════════════
+   信号卡片 — 对齐 web 端 .card
+   ════════════════════════════════════════════════ */
+.sdui-signal-card {
+  background: #FAFAF7;
+  border: 1rpx solid #E0E0E0;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 16rpx;
+}
+.sdui-signal-card-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+.sdui-signal-card-index {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #6B6860;
+  flex-shrink: 0;
+}
+.sdui-signal-card-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1915;
+  line-height: 1.5;
+  flex: 1;
+}
+.sdui-signal-card-src {
+  font-size: 22rpx;
+  color: #8B8B8B;
+  background: #F5F4EE;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+.sdui-signal-card-score {
+  font-size: 24rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.sdui-signal-card-score.high { color: #c0392b; }
+.sdui-signal-card-score.mid { color: #e67e22; }
+.sdui-signal-card-score.low { color: #999; }
+.sdui-signal-card-meta {
+  margin-bottom: 8rpx;
+}
+.sdui-signal-card-why {
+  font-size: 26rpx;
+  color: #6B6860;
+  line-height: 1.6;
+}
+.sdui-signal-card-tags {
+  display: flex;
+  gap: 8rpx;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+.sdui-signal-card-tag {
+  font-size: 22rpx;
+  color: #6B6860;
+  background: #F5F4EE;
+  border: 1rpx solid #E0E0E0;
+  padding: 2rpx 14rpx;
+  border-radius: 12rpx;
+}
+
+/* ════════════════════════════════════════════════
+   进度条 — 对齐 .evolution-progress
+   ════════════════════════════════════════════════ */
+.sdui-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.sdui-progress-bar {
+  flex: 1;
+  height: 12rpx;
+  background: #E8E2D8;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.sdui-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4A6741, #7ec47e);
+  border-radius: 6rpx;
+  transition: width 0.5s;
+}
+
+/* ════════════════════════════════════════════════
+   按钮组 — 对齐 .btn
+   ════════════════════════════════════════════════ */
+.sdui-buttons {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  flex-wrap: wrap;
+}
+.sdui-btn {
+  flex: 1;
+  min-width: 200rpx;
+  text-align: center;
+  padding: 20rpx 40rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.sdui-btn.secondary {
+  background: #EDEBE3;
+  color: #1A1915;
+  border: 1rpx solid #D9D5C7;
+}
+.sdui-btn.primary {
+  background: #C96442;
+  color: #fff;
+  border: none;
+}
+.sdui-btn.outline {
+  background: transparent;
+  border: 1rpx solid #C96442;
+  color: #C96442;
+}
+/* share 按钮重置原生 button 样式 */
+.sdui-btn-share {
+  margin: 0;
+  padding: 20rpx 40rpx;
+  line-height: normal;
+  border: none;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  text-align: center;
+}
+.sdui-btn-share::after {
+  border: none;
+}
+
+/* ════════════════════════════════════════════════
+   富文本
+   ════════════════════════════════════════════════ */
+.sdui-rich-text {
+  line-height: 1.8;
+  padding: 8rpx 0;
+}
+
+/* ════════════════════════════════════════════════
+   分割线 — 对齐 .divider
+   ════════════════════════════════════════════════ */
+.sdui-divider {
+  height: 1rpx;
+  background: #D9D5C7;
+  margin: 24rpx 0;
+}
+
+/* ════════════════════════════════════════════════
+   空状态
+   ════════════════════════════════════════════════ */
+.sdui-empty {
+  text-align: center;
+  padding: 40rpx 24rpx;
+}
+.sdui-empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.sdui-empty-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8rpx;
+  color: #C96442;
+}
+.sdui-empty-desc {
+  font-size: 26rpx;
+  color: #6B6860;
+  display: block;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════
+   标签组 — 对齐 .tag
+   ════════════════════════════════════════════════ */
+.sdui-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+.sdui-tag {
+  display: inline-block;
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+  background: #4A6741;
+  color: #fff;
+}

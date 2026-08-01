@@ -1,0 +1,89 @@
+<!-- pages/report/report.wxml — 关系体检报告页（支持被分享者打开） -->
+<view class="container">
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="text-dim text-sm">正在生成关系体检报告…</text>
+  </view>
+
+  <!-- 报告内容 -->
+  <block wx:if="{{!loading && report}}">
+    <view class="report-header">
+      <text class="report-title">{{report.contactName}} 的关系体检报告</text>
+      <text class="text-dim text-sm">由 {{report.inviterName || '小维用户'}} 发起</text>
+    </view>
+
+    <!-- 关系温度 -->
+    <view class="card">
+      <text class="card-title">关系温度</text>
+      <view class="temp-bar">
+        <view class="temp-fill" style="width: {{report.temperature}}%"></view>
+      </view>
+      <text class="temp-value text-accent">{{report.temperature}}°</text>
+      <text class="text-dim text-sm">{{report.tempDesc}}</text>
+    </view>
+
+    <!-- 互动统计 -->
+    <view class="card">
+      <text class="card-title">互动概况</text>
+      <view class="stat-row">
+        <view class="stat-item">
+          <text class="stat-value">{{report.totalInteractions}}</text>
+          <text class="stat-label text-dim text-xs">总互动</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{report.daysSinceLast}}</text>
+          <text class="stat-label text-dim text-xs">距上次(天)</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{report.avgInterval}}</text>
+          <text class="stat-label text-dim text-xs">平均间隔(天)</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 建议 -->
+    <view class="card" wx:if="{{report.suggestions.length > 0}}">
+      <text class="card-title">跟进建议</text>
+      <view wx:for="{{report.suggestions}}" wx:key="index" class="suggestion-item">
+        <text class="text-sm">• {{item}}</text>
+      </view>
+    </view>
+
+    <!-- 被分享者视角：引导试用 -->
+    <view wx:if="{{isSharedView}}" class="cta-section">
+      <view class="card cta-card">
+        <text class="cta-title">你也想管理自己的关系网络？</text>
+        <text class="text-dim text-sm">Welian 帮你记住每个重要的人，在合适的时机提醒你联系。</text>
+        <button class="btn btn-primary" bindtap="startUsing">免费试用 Welian</button>
+      </view>
+    </view>
+
+    <!-- 分享者视角：分享按钮 -->
+    <view wx:if="{{!isSharedView}}" class="share-section">
+      <button class="btn btn-primary" open-type="share">分享给 {{report.contactName}}</button>
+      <text class="text-dim text-xs">分享后，对方打开即可自动关联</text>
+    </view>
+  </block>
+
+  <!-- 昵称确认（被分享者） -->
+  <view wx:if="{{isSharedView && !nicknameConfirmed}}" class="nickname-confirm">
+    <view class="card">
+      <text class="card-title">确认你的名字</text>
+      <input
+        type="nickname"
+        class="nickname-input"
+        placeholder="点击填写微信昵称"
+        value="{{report.contactName}}"
+        bindblur="onNicknameConfirm"
+        focus="{{true}}"
+      />
+      <text class="text-dim text-xs">用于帮你匹配关系记录</text>
+    </view>
+  </view>
+
+  <!-- 错误态 -->
+  <view wx:if="{{!loading && !report && error}}" class="loading">
+    <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadReport">重试</button></view>
+  </view>
+</view>

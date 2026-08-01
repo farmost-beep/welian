@@ -16,7 +16,8 @@
 
 - **add_timeline和add_todo的联系人查找逻辑不同**：add_timeline用`includes`+`aliases.some(a => a.includes())`三重匹配，add_todo只用`name.includes()`。改其中一个时必须同步另一个，否则用户说昵称时一个能创建一个不能。
 - **contact的nature字段有多种值**：`'leverage'`、`'nurture'`、`'dual'`、`'双重'`。判断时必须同时检查英文和中文值，不能只查一个。已在handleCloudAdvise和handleOnboardingCreateContacts中出现过这个bug。
-- **todo的due日期默认逻辑**：不提供due时默认7天后。用`localDate(req)`不是`new Date()`——前者处理了时区。直接用`new Date()`会导致UTC偏移问题。
+- **todo的due日期默认逻辑**：不提供due时默认7天后。用`localDate(req)`不是`new Date()`——前者处理了时区。直接用`new Date()`会导致UTC偏移问题。**长期任务**：`due === ''`或`null`表示无截止日期（长期任务），`due === undefined`才默认7天。区分"未提供"和"显式空"。
+- **todo完成→自动创建timeline**：`/data/todos/done`标记done后，如果todo有contact字段，自动创建timeline记录（summary=`完成了：{task}`，type=`todo_completed`，source=`todo:{id}`做去重）。无contact的todo不创建timeline。重复调用done不会产生重复timeline。
 - **KV的TTL陷阱**：saveDataset不带expirationTtl——contacts/todos/timeline必须永久保存。之前604800s/7天TTL导致过数据丢失。只有`ctx:${userId}`（data_context）才用7天TTL。
 
 ### LLM调用
@@ -24,6 +25,8 @@
 - **callLLM返回null时要有fallback**：LLM可能超时或返回空。handleAdvise有fallback到`parts.join('\n')`，handleDraft有fallback到模板。新增LLM handler时必须提供fallback。
 - **prompt从KV加载有fallback**：`getPrompt(env, name, fallback)`模式——KV有就用KV的，没有用inline常量。不要假设KV一定有prompt文件。
 - **LLM响应格式**：Anthropic-compatible API返回`{content: [{type: 'text', text: ...}], usage: {input_tokens, output_tokens}}`。不是OpenAI格式。mock时用`llmResponse()`helper。
+- **callLLM的system参数必须实际传递**：handleMeetingPhoto曾把photo_type-specific prompt赋值给`const system = prompts[photo_type]`但callLLM第二个参数用了硬编码字符串——`system`变量定义后从未使用。LLM收到通用"You are a helpful assistant"而非议程提取prompt，不知道要返回什么JSON字段，导致自动填充全部失败。**新增LLM handler时检查：定义的prompt变量是否真的传给了callLLM。**
+- **自进化（行为洞察注入）**：每周一02:00 UTC，`handleSelfEvolution`遍历活跃用户，读metrics数据（adoption率、todo完成率、draft使用率），用LLM分析模式生成3-5条行为洞察，写入`prompt:behavioral_insights:{userId}.md`。advise/draft的4个callLLM调用点通过`augmentWithInsights(env, userId, basePrompt)`注入这些洞察到system prompt。无洞察时不改变行为（fallback到base prompt）。这是per-user的，不是全局的。测试时mockCtx.waitUntil必须捕获promise并await，否则scheduled handler不等待异步完成。
 
 ### 认证
 
