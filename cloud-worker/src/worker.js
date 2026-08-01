@@ -965,7 +965,16 @@ async function handlePerceptionCollect(req, env) {
   }
 
   if (newPerceptions.length > 0) {
-    const existing = await loadDataset(env, userId, 'perceptions');
+    let existing = await loadDataset(env, userId, 'perceptions');
+    // Clean up existing duplicates (by title+day, keep first)
+    const seenExisting = new Set();
+    existing = existing.filter(p => {
+      const day = (p.created_at || '').slice(0, 10);
+      const key = `${p.title}:${day}`;
+      if (seenExisting.has(key)) return false;
+      seenExisting.add(key);
+      return true;
+    });
     const todayStr = new Date().toISOString().slice(0, 10);
     const filtered = newPerceptions.filter(np => {
       return !existing.some(ep =>
