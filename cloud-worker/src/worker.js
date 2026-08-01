@@ -482,6 +482,37 @@ async function handleSelfEvolution(env) {
         console.log(`[self_evolution] Updated insights for ${userId}, len: ${insights.length}`);
         processed++;
       }
+
+      // R3-5: Evaluate sensor quality from perceptions
+      try {
+        const perceptions = await loadDataset(env, userId, 'perceptions');
+        if (perceptions.length > 0) {
+          const bySensor = {};
+          for (const p of perceptions) {
+            const sensor = p.source?.platform || 'unknown';
+            if (!bySensor[sensor]) bySensor[sensor] = { collect_count: 0, confirm_count: 0, reject_count: 0, action_count: 0 };
+            bySensor[sensor].collect_count++;
+            if (p.status === 'confirmed') {
+              bySensor[sensor].confirm_count++;
+              if (p.action_taken) bySensor[sensor].action_count++;
+            } else if (p.status === 'rejected') {
+              bySensor[sensor].reject_count++;
+            }
+          }
+          const quality = {};
+          for (const [sensor, s] of Object.entries(bySensor)) {
+            quality[sensor] = {
+              ...s,
+              accuracy_rate: s.collect_count > 0 ? s.confirm_count / s.collect_count : 0,
+              action_rate: s.confirm_count > 0 ? s.action_count / s.confirm_count : 0,
+              last_evaluated: new Date().toISOString(),
+            };
+          }
+          await env.USER_DATA.put(`sensor_quality:${userId}`, JSON.stringify(quality));
+        }
+      } catch (e) {
+        console.log(`[self_evolution] sensor quality eval failed for ${userId}:`, e.message);
+      }
     } catch (e) {
       console.error(`[self_evolution] Error for ${userId}:`, e.message);
     }
@@ -10871,6 +10902,24 @@ ${chatText}
       if (path === '/ai/perceptions/collect' && method === 'POST') {
         const r = await handlePerceptionCollect(request, env);
         return jsonResponse(r.data, r.status);
+      }
+
+      // ── R3-5: Sensor quality ──
+
+      if (path === '/ai/sensor_quality' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const raw = await env.USER_DATA.get(`sensor_quality:${userId}`);
+        const quality = raw ? JSON.parse(raw) : {};
+        // Determine health status per sensor
+        const report = {};
+        for (const [sensor, s] of Object.entries(quality)) {
+          let status = 'healthy';
+          if (s.accuracy_rate < 0.8) status = 'paused';
+          else if (s.accuracy_rate >= 0.9 && s.action_rate >= 0.2) status = 'auto_eligible';
+          report[sensor] = { ...s, status };
+        }
+        return jsonResponse({ ok: true, sensors: report });
       }
 
       // ── Metrics (P0: North Star + Advice Adoption) ──
