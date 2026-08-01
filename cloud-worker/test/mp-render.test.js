@@ -69,6 +69,9 @@ describe("GET /ai/render", () => {
     expect(cards[0].title).toContain("★9");
     expect(cards[0].title).toContain("[测试]");
     expect(cards[1].title).toContain("★7");
+    // 点击信号直接打开原文（webview）
+    expect(cards[0].url).toContain("/pages/webview/webview?url=");
+    expect(cards[0].url).toContain(encodeURIComponent("https://example.com/1"));
   });
 
   it("signals 页空信号 → empty-state", async () => {

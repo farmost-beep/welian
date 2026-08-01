@@ -15280,7 +15280,7 @@ function signalsToComponents(data) {
       const score = s.value_score || 0;
       const scoreTag = score > 0 ? ` ★${score}` : '';
       const srcTag = s.source ? ` [${s.source}]` : '';
-      // 用 card 类型（旧前端兼容），title 带 inline source/score，items 放 why + 原文链接
+      // 用 card 类型，title 带 inline source/score，items 放 why；点击直接打开原文
       const cardItems = [];
       if (s.why) cardItems.push({ text: s.why });
       if (s.url) cardItems.push({ text: '原文 ›' });
@@ -15289,7 +15289,7 @@ function signalsToComponents(data) {
         title: `${i + 1}. ${s.title || s.topic || ''}${srcTag}${scoreTag}`,
         items: cardItems,
         action: 'navigate',
-        url: s.url ? `/pages/article/article?url=${encodeURIComponent(s.url)}` : '',
+        url: s.url ? `/pages/webview/webview?url=${encodeURIComponent(s.url)}` : '',
       });
     }
   } else {
