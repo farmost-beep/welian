@@ -790,6 +790,109 @@ async function handleActionCardConfirm(req, env) {
   return { status: 200, data: { ok: true, action: 'skip', message: '已跳过' } };
 }
 
+// ── R3-2: Perception sensors ──
+
+// GitHub sensor: collect recent public activity for a contact
+async function collectGitHubPerceptions(env, userId, contact) {
+  const username = contact.platforms?.github || contact.github;
+  if (!username) return [];
+  try {
+    const resp = await fetch(`https://api.github.com/users/${username}/events/public`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Welian-AI' },
+    });
+    if (!resp.ok) {
+      console.log(`[github_sensor] API returned ${resp.status} for ${username}`);
+      return [];
+    }
+    const events = await resp.json();
+    const now = Date.now();
+    const recentEvents = events.filter(e => {
+      const age = (now - new Date(e.created_at).getTime()) / 86400000;
+      return age <= 7;
+    });
+    return recentEvents.slice(0, 5).map(e => {
+      const eventType = e.type || 'activity';
+      const repo = e.repo?.name || '';
+      let title = '';
+      if (eventType === 'PushEvent') {
+        const commits = (e.payload?.commits || []).length;
+        title = `推送了 ${commits} 个提交到 ${repo}`;
+      } else if (eventType === 'CreateEvent') {
+        title = `创建了 ${e.payload?.ref_type || '资源'} ${e.payload?.ref || ''} ${repo ? '在 ' + repo : ''}`;
+      } else if (eventType === 'WatchEvent') {
+        title = `Star 了 ${repo}`;
+      } else if (eventType === 'ForkEvent') {
+        title = `Fork 了 ${repo}`;
+      } else if (eventType === 'IssuesEvent') {
+        title = `${e.payload?.action || '操作'}了 Issue ${repo}`;
+      } else if (eventType === 'PullRequestEvent') {
+        title = `${e.payload?.action || '操作'}了 PR ${repo}`;
+      } else {
+        title = `GitHub 活动: ${eventType} ${repo}`;
+      }
+      return {
+        id: `perc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        contact_id: contact.id,
+        contact_name: contact.name,
+        type: 'github_activity',
+        title: title.trim(),
+        summary: `${contact.name} ${title.trim()}`,
+        source: {
+          url: `https://github.com/${username}`,
+          platform: 'github',
+          collected_at: new Date().toISOString(),
+          original_text: JSON.stringify({ type: eventType, repo, created_at: e.created_at }).slice(0, 500),
+        },
+        confidence: 0.9,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        confirmed_at: null,
+        action_taken: null,
+      };
+    });
+  } catch (e) {
+    console.log('[github_sensor] error:', e.message);
+    return [];
+  }
+}
+
+// R3-2: Perception collection handler — manually triggered
+async function handlePerceptionCollect(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+  const { contact_id, sources = ['github'] } = body;
+  if (!contact_id) return { status: 400, data: { error: 'contact_id required' } };
+
+  const contacts = await loadDataset(env, userId, 'contacts');
+  const contact = contacts.find(c => c.id === contact_id);
+  if (!contact) return { status: 404, data: { error: 'contact not found' } };
+
+  const newPerceptions = [];
+  for (const source of sources) {
+    if (source === 'github') {
+      const percs = await collectGitHubPerceptions(env, userId, contact);
+      newPerceptions.push(...percs);
+    }
+  }
+
+  if (newPerceptions.length > 0) {
+    const existing = await loadDataset(env, userId, 'perceptions');
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const filtered = newPerceptions.filter(np => {
+      return !existing.some(ep =>
+        ep.title === np.title &&
+        (ep.created_at || '').slice(0, 10) === todayStr
+      );
+    });
+    const all = existing.concat(filtered);
+    await saveDataset(env, userId, 'perceptions', all);
+    return { status: 200, data: { ok: true, collected: filtered.length, perceptions: filtered } };
+  }
+
+  return { status: 200, data: { ok: true, collected: 0, perceptions: [], message: '未发现新变化' } };
+}
+
 // ── LLM call (Anthropic-compatible API) ──
 
 async function callLLM(prompt, system, env, options = {}) {
@@ -2574,6 +2677,16 @@ async function handleMeetingPrep(req, env) {
         },
       };
     }
+    if (!contact) {
+      // 会议没有参会人，返回会议基本信息
+      return {
+        status: 200,
+        data: {
+          prep: `📋 会前准备\n\n会议：${meeting.title || ''}\n时间：${meeting.date || ''}\n地点：${meeting.location || '未定'}\n\n暂无参会人信息，建议先拍名片或添加参会人后再生成详细的会前准备。`,
+          usage: { points: 0, remaining: 0, fallback: true },
+        },
+      };
+    }
   }
 
   if (!contact) return { status: 404, data: { error: 'contact not found' } };
@@ -2661,12 +2774,7 @@ async function handleMeetingsCRUD(req, env, method) {
   }
 
   if (method === 'POST') {
-    const title = (body.title || '').trim();
-    if (!title) {
-      return { status: 400, data: { error: 'title required' } };
-    }
-
-    // Update existing if id provided
+    // Update existing if id provided (partial update, no title required)
     if (body.id) {
       const meetings = await loadDataset(env, userId, 'meetings');
       const idx = meetings.findIndex(m => m.id === body.id);
@@ -2677,7 +2785,11 @@ async function handleMeetingsCRUD(req, env, method) {
       }
     }
 
-    // Create new meeting (with dedup: merge into existing same-date+title meeting)
+    // Create new meeting — title required
+    const title = (body.title || '').trim();
+    if (!title) {
+      return { status: 400, data: { error: 'title required' } };
+    }
     const meetingDate = body.date || new Date().toISOString().slice(0, 10);
     const meetings = await loadDataset(env, userId, 'meetings');
     // Check for existing meeting with same date + similar title
@@ -10634,6 +10746,85 @@ ${chatText}
         if (typeof body.max_per_day === 'number') merged.max_per_day = body.max_per_day;
         await saveNotifyPrefs(env, userId, merged);
         return jsonResponse({ ok: true, prefs: merged });
+      }
+
+      // ── R3-1: Perception cards ──
+
+      if (path === '/ai/perceptions' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const url = new URL(request.url);
+        const status = url.searchParams.get('status') || 'pending';
+        const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+        const perceptions = await loadDataset(env, userId, 'perceptions');
+        const filtered = status === 'all' ? perceptions : perceptions.filter(p => p.status === status);
+        const sorted = filtered.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+        const totalPending = perceptions.filter(p => p.status === 'pending').length;
+        return jsonResponse({ ok: true, perceptions: sorted.slice(0, limit), total_pending: totalPending });
+      }
+
+      if (path === '/ai/perceptions/confirm' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { id, action, note } = body;
+        if (!id || !['confirm', 'reject'].includes(action)) {
+          return jsonResponse({ error: 'id and action (confirm|reject) required' }, 400);
+        }
+        const perceptions = await loadDataset(env, userId, 'perceptions');
+        const perc = perceptions.find(p => p.id === id);
+        if (!perc) return jsonResponse({ error: 'perception not found' }, 404);
+
+        if (action === 'confirm') {
+          perc.status = 'confirmed';
+          perc.confirmed_at = new Date().toISOString();
+          perc.reject_note = null;
+          // Write to contact memories
+          const contacts = await loadDataset(env, userId, 'contacts');
+          const contact = contacts.find(c => c.id === perc.contact_id);
+          if (contact) {
+            if (!contact.memories) contact.memories = [];
+            contact.memories.push({
+              content: `[${perc.type}] ${perc.title}`,
+              source: 'perception',
+              perception_id: perc.id,
+              confirmed_at: perc.confirmed_at,
+            });
+            await saveDataset(env, userId, 'contacts', contacts);
+          }
+        } else {
+          perc.status = 'rejected';
+          perc.reject_note = note || '';
+        }
+        await saveDataset(env, userId, 'perceptions', perceptions);
+        return jsonResponse({ ok: true, perception: perc });
+      }
+
+      if (path.startsWith('/ai/perceptions/') && method === 'DELETE') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const percId = path.split('/').pop();
+        const perceptions = await loadDataset(env, userId, 'perceptions');
+        const perc = perceptions.find(p => p.id === percId);
+        if (!perc) return jsonResponse({ error: 'perception not found' }, 404);
+        // If was confirmed, remove from contact memories
+        if (perc.status === 'confirmed' && perc.contact_id) {
+          const contacts = await loadDataset(env, userId, 'contacts');
+          const contact = contacts.find(c => c.id === perc.contact_id);
+          if (contact && contact.memories) {
+            contact.memories = contact.memories.filter(m => m.perception_id !== percId);
+            await saveDataset(env, userId, 'contacts', contacts);
+          }
+        }
+        perc.status = 'rejected';
+        perc.undone_at = new Date().toISOString();
+        await saveDataset(env, userId, 'perceptions', perceptions);
+        return jsonResponse({ ok: true, message: '感知已撤销' });
+      }
+
+      if (path === '/ai/perceptions/collect' && method === 'POST') {
+        const r = await handlePerceptionCollect(request, env);
+        return jsonResponse(r.data, r.status);
       }
 
       // ── Metrics (P0: North Star + Advice Adoption) ──
