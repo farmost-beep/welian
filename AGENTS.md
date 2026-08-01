@@ -201,6 +201,21 @@ If tests fail, deploy aborts. Fix the tests or use `SKIP_TESTS=1` (not recommend
 
 These run in addition to journey tests. Same `SKIP_TESTS=1` / `FULL_TESTS=1` controls apply.
 
+### Pre-deploy miniprogram automator tests
+
+`deploy.cjs` also runs miniprogram automator tests when `miniprogram/` files change:
+
+| Changed file | automator test |
+|--------------|---------------|
+| 任何 `miniprogram/` 文件 | `miniprogram-automated-tests/run-all.js` (5 tests, ~60s) |
+
+**Requires**: WeChat DevTools running with service port enabled (设置 → 安全设置 → 服务端口).
+
+**Controls**:
+- `SKIP_TESTS=1` — skip all tests including automator
+- `SKIP_AUTOMATOR=1` — skip only automator tests (when DevTools unavailable)
+- Default — run automator tests if miniprogram files changed
+
 ### Runtime monitoring (post-deploy observability)
 
 验证体系的最后一环是运行时观测。以下在 Cloudflare dashboard 配置（不是代码变更）：

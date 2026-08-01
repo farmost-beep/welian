@@ -215,6 +215,42 @@ async function main() {
     }
   }
 
+  // ── Pre-deploy gate: miniprogram automator tests (需要微信开发者工具) ──
+  // 仅在 miniprogram/ 文件变更且未跳过测试时运行
+  // 跳过条件: SKIP_TESTS=1 或 SKIP_AUTOMATOR=1（开发者工具未开启时）
+  if (!skipTests && process.env.SKIP_AUTOMATOR !== '1') {
+    let miniprogramChanged = false;
+    try {
+      const allChanged = execSync('git diff --name-only HEAD~1 HEAD && git diff --name-only && git diff --name-only --cached', {
+        cwd: REPO_DIR, encoding: 'utf-8',
+      }).trim().split('\n').filter(f => f.trim());
+      miniprogramChanged = allChanged.some(f => f.startsWith('miniprogram/'));
+    } catch {
+      // git diff failed — skip
+    }
+
+    if (miniprogramChanged) {
+      console.log('\nMiniprogram files changed → running automator tests');
+      const automatorCmd = 'node run-all.js';
+      try {
+        execSync(automatorCmd, {
+          cwd: join(REPO_DIR, 'miniprogram-automated-tests'),
+          stdio: 'inherit',
+          timeout: 120000,
+        });
+        console.log('✅ Miniprogram automator tests passed');
+      } catch (e) {
+        console.error('❌ Miniprogram automator tests FAILED — aborting deploy');
+        console.error('Fix the failing tests or use SKIP_AUTOMATOR=1 to skip (if devtools unavailable).');
+        process.exit(1);
+      }
+    }
+  } else if (skipTests) {
+    console.log('⏭️  Skipping miniprogram automator tests (SKIP_TESTS=1)');
+  } else if (process.env.SKIP_AUTOMATOR === '1') {
+    console.log('⏭️  Skipping miniprogram automator tests (SKIP_AUTOMATOR=1)');
+  }
+
   // Sync AGENTS.md from project root to public/ (single source of truth)
   const { copyFileSync } = require('fs');
   try {
