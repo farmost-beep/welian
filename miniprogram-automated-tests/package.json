@@ -1,0 +1,15 @@
+{
+  "name": "welian-miniprogram-automated-tests",
+  "version": "1.0.0",
+  "description": "Welian 小程序自动化测试 — 基于 miniprogram-automator",
+  "scripts": {
+    "test": "node run-all.js",
+    "test:onboarding": "node tests/onboarding.test.js",
+    "test:dashboard": "node tests/dashboard.test.js",
+    "test:perception": "node tests/perception.test.js",
+    "test:report": "node tests/report.test.js"
+  },
+  "devDependencies": {
+    "miniprogram-automator": "^0.12.1"
+  }
+}

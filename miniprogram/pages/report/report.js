@@ -72,21 +72,15 @@ Page({
       const resp = await api.request('/ai/report', payload, 'POST');
       if (resp && resp.ok) {
         this.setData({ loading: false, report: resp.report });
-      } else if (resp && resp.error === 'Authentication required') {
-        // token 过期，降级为简化报告
-        this.setData({ isSharedView: true, loading: false });
-        this.loadSharedReport('');
       } else {
-        this.setData({ loading: false, error: (resp && resp.error) || '生成报告失败' });
+        // 任何错误（401/400/404）都降级为简化报告，不阻断用户
+        this.setData({ isSharedView: true, loading: false });
+        this.loadSharedReport(contactId ? '' : '');
       }
     } catch (e) {
       // 网络错误时也降级，不阻断用户
-      if (e.message && e.message.includes('401')) {
-        this.setData({ isSharedView: true, loading: false });
-        this.loadSharedReport('');
-      } else {
-        this.setData({ loading: false, error: e.message || '网络错误' });
-      }
+      this.setData({ isSharedView: true, loading: false });
+      this.loadSharedReport('');
     }
   },
 
