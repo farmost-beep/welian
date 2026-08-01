@@ -1,0 +1,71 @@
+<!-- pages/network/network.wxml — 关系网络可视化 -->
+<view class="network-page">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="page-title">关系网络</text>
+    <text class="page-subtitle text-dimmer text-xs">{{graph.stats.totalContacts}} 人 · {{graph.stats.totalConnections}} 条连接</text>
+  </view>
+
+  <!-- 模式切换 -->
+  <view class="mode-tabs">
+    <view class="mode-tab {{mode === 'graph' ? 'active' : ''}}" bindtap="switchMode" data-mode="graph">图谱</view>
+    <view class="mode-tab {{mode === 'path' ? 'active' : ''}}" bindtap="switchMode" data-mode="path">引荐路径</view>
+  </view>
+
+  <!-- 图谱模式 -->
+  <block wx:if="{{mode === 'graph'}}">
+    <view wx:if="{{graph.nodes.length === 0}}" class="empty-state">
+      <text class="text-dimmer text-sm">还没有联系人数据，去添加几个重要的人吧</text>
+    </view>
+    <view wx:elif="{{graph.stats.totalConnections === 0}}" class="empty-state">
+      <text class="text-dimmer text-sm">还没有连接关系。在联系人详情页可以添加人与人之间的关系</text>
+    </view>
+    <view wx:else class="graph-container">
+      <!-- 节点列表（简化版，不做 canvas 绘制） -->
+      <view class="nodes-grid">
+        <view wx:for="{{graph.nodes}}" wx:key="id" class="node-card node-{{item.nature}}" bindtap="goContactDetail" data-id="{{item.id}}">
+          <text class="node-name">{{item.name}}</text>
+          <text wx:if="{{item.company}}" class="node-company text-dimmer text-xs">{{item.company}}</text>
+          <text class="node-nature-tag text-xs">{{item.nature === 'leverage' ? '经营' : item.nature === 'nurture' ? '陪伴' : '双重'}}</text>
+        </view>
+      </view>
+      <!-- 连接列表 -->
+      <view class="edges-section">
+        <text class="section-title-sm">连接关系</text>
+        <view wx:for="{{graph.edges}}" wx:key="index" class="edge-row">
+          <text class="edge-name">{{item.sourceName}}</text>
+          <text class="edge-arrow">→</text>
+          <text class="edge-name">{{item.targetName}}</text>
+          <text wx:if="{{item.desc}}" class="edge-desc text-dimmer text-xs">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 引荐路径模式 -->
+  <block wx:if="{{mode === 'path'}}">
+    <view class="path-form">
+      <input class="path-input" placeholder="从谁（姓名）" value="{{fromName}}" bindinput="onFromInput" />
+      <input class="path-input" placeholder="到谁（姓名）" value="{{toName}}" bindinput="onToInput" />
+      <button class="btn btn-primary" bindtap="searchPath" loading="{{searching}}">查找引荐路径</button>
+    </view>
+    <view wx:if="{{pathResult}}" class="path-result">
+      <view wx:if="{{pathResult.found}}" class="path-found">
+        <text class="path-title text-sm">找到 {{pathResult.hops}} 步引荐路径：</text>
+        <view class="path-chain">
+          <text wx:for="{{pathResult.path}}" wx:key="index" class="path-node">
+            {{item}}{{index < pathResult.path.length - 1 ? ' → ' : ''}}
+          </text>
+        </view>
+      </view>
+      <view wx:else class="path-not-found">
+        <text class="text-dimmer text-sm">{{pathResult.error || '未找到路径'}}</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 隐私说明 -->
+  <view class="privacy-note">
+    <text class="text-dimmer text-xs">只展示你录入或确认的连接，不做关系评分，陪伴型关系不参与路径计算</text>
+  </view>
+</view>

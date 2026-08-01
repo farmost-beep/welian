@@ -8,6 +8,7 @@
     "pages/welcome/welcome",
     "pages/onboarding/onboarding",
     "pages/contact-detail/contact-detail",
+    "pages/network/network",
     "pages/timeline/timeline",
     "pages/meetings/meetings",
     "pages/meeting-detail/meeting-detail",
