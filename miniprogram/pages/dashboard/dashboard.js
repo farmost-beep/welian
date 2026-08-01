@@ -20,6 +20,7 @@ Page({
     upcomingDates: [],  // 未来30天重要日期
     insights: [],       // AI 行为洞察
     behavioralInsights: null,  // R2-4: 自进化行为洞察 { insights, based_on }
+    actionCard: null,          // R2-2: 本周最值得做的行动
     flags: {},          // feature flags
     userName: '',
     syncPinned: false,
@@ -164,6 +165,10 @@ Page({
       this.fetchBehavioralInsights().then((bi) => {
         this.setData({ behavioralInsights: bi });
       }).catch(() => {});
+      // R2-2: 加载本周最值得做的行动
+      this.fetchActionCard().then((ac) => {
+        this.setData({ actionCard: ac });
+      }).catch(() => {});
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
       if (cb) cb();
@@ -296,6 +301,83 @@ Page({
         });
       },
     });
+  },
+
+  // R2-2: 加载本周最值得做的行动
+  fetchActionCard() {
+    return new Promise((resolve) => {
+      wx.request({
+        url: 'https://api.welian.app/ai/action_card',
+        header: { 'Authorization': 'Bearer ' + api.getToken() },
+        success: (res) => {
+          if (res.statusCode === 200 && res.data && res.data.ok && res.data.action_card) {
+            resolve(res.data.action_card);
+          } else {
+            resolve(null);
+          }
+        },
+        fail: () => resolve(null),
+      });
+    });
+  },
+
+  // R2-2: 行动卡 — 拟消息
+  onActionCardDraft(e) {
+    const { contactId, todoId } = e.currentTarget.dataset;
+    wx.request({
+      url: 'https://api.welian.app/ai/action_card/confirm',
+      method: 'POST',
+      header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+      data: { action: 'draft', contact_id: contactId, todo_id: todoId || undefined },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.ok) {
+          wx.showToast({ title: '草稿已生成', icon: 'success' });
+          this.setData({ actionCard: null });
+          // 刷新行动卡
+          this.fetchActionCard().then((ac) => this.setData({ actionCard: ac })).catch(() => {});
+        }
+      },
+      fail: () => wx.showToast({ title: '操作失败', icon: 'none' }),
+    });
+  },
+
+  // R2-2: 行动卡 — 已联系
+  onActionCardDone(e) {
+    const { contactId, todoId } = e.currentTarget.dataset;
+    wx.request({
+      url: 'https://api.welian.app/ai/action_card/confirm',
+      method: 'POST',
+      header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+      data: { action: 'done', contact_id: contactId, todo_id: todoId || undefined },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.ok) {
+          wx.showToast({ title: res.data.message || '已记录', icon: 'success' });
+          this.setData({ actionCard: null });
+          // 刷新行动卡
+          this.fetchActionCard().then((ac) => this.setData({ actionCard: ac })).catch(() => {});
+        }
+      },
+      fail: () => wx.showToast({ title: '操作失败', icon: 'none' }),
+    });
+  },
+
+  // R2-2: 行动卡 — 跳过
+  onActionCardSkip() {
+    wx.request({
+      url: 'https://api.welian.app/ai/action_card/confirm',
+      method: 'POST',
+      header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+      data: { action: 'skip' },
+      success: () => {
+        this.setData({ actionCard: null });
+        this.fetchActionCard().then((ac) => this.setData({ actionCard: ac })).catch(() => {});
+      },
+    });
+  },
+
+  // R2-2: 行动卡整体点击（展开详情或跳转联系人）
+  onActionCardTap() {
+    // 整卡点击不做额外操作，按钮用 catchtap 阻止冒泡
   },
 
   fetchTodos() {

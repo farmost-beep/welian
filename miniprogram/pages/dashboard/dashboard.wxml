@@ -95,6 +95,24 @@
       <text class="text-dimmer text-xs" style="margin-top:8rpx;display:block">查看全部 →</text>
     </view>
 
+    <!-- R2-2: 本周最值得做的一件事 -->
+    <view wx:if="{{!isEmpty && actionCard}}" class="card action-card" bindtap="onActionCardTap">
+      <view class="ac-header">
+        <text class="ac-icon">🎯</text>
+        <text class="ac-title">本周最值得做</text>
+      </view>
+      <text class="ac-reason text-sm">{{actionCard.reason}}</text>
+      <view wx:if="{{actionCard.contact}}" class="ac-contact">
+        <text class="ac-contact-name text-sm">{{actionCard.contact.name}}</text>
+        <text class="ac-topic text-dimmer text-xs">{{actionCard.suggested_topic}}</text>
+      </view>
+      <view class="ac-actions">
+        <view class="ac-btn ac-btn-primary" catchtap="onActionCardDraft" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">拟消息</view>
+        <view class="ac-btn ac-btn-secondary" catchtap="onActionCardDone" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">已联系</view>
+        <view class="ac-btn ac-btn-ghost" catchtap="onActionCardSkip">跳过</view>
+      </view>
+    </view>
+
     <!-- 近期重要日期 -->
     <view wx:if="{{flags.upcoming_dates && upcomingDates.length > 0}}" class="card upcoming-card">
       <view class="section-title-sm">近期重要日期</view>

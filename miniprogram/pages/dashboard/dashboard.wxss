@@ -131,6 +131,72 @@
   line-height: 1.8;
 }
 
+/* ── R2-2: 行动卡 ── */
+.action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  border: 2rpx solid #C96442;
+  background: #FDF6F2;
+}
+.ac-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.ac-icon {
+  font-size: 36rpx;
+}
+.ac-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #C96442;
+}
+.ac-reason {
+  color: #1A1915;
+  line-height: 1.6;
+}
+.ac-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 12rpx 16rpx;
+  background: #FAFAF7;
+  border-radius: 12rpx;
+}
+.ac-contact-name {
+  font-weight: 600;
+  color: #1A1915;
+}
+.ac-topic {
+  line-height: 1.4;
+}
+.ac-actions {
+  display: flex;
+  gap: 16rpx;
+}
+.ac-btn {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+.ac-btn-primary {
+  background: #C96442;
+  color: #fff;
+}
+.ac-btn-secondary {
+  background: #EDEBE3;
+  color: #1A1915;
+}
+.ac-btn-ghost {
+  background: transparent;
+  color: #9A968C;
+  border: 1rpx solid #D9D5C7;
+}
+
 /* ── R2-4: 自进化行为洞察 ── */
 .behavioral-insights-card {
   display: flex;
