@@ -25,13 +25,19 @@ Page({
         _contactName: query.contact,
         _inviterOpenid: query.inviter,
       });
-      // app.js 的 _parseShareContext 已处理社交绑定上报
-      // 这里加载报告供被分享者查看
       this.loadSharedReport(query.contact);
     } else if (query.cid) {
-      // 从联系人详情页分享打开（用 contact_id）
-      this.setData({ _contactId: query.cid });
-      this.loadReport(query.cid);
+      // 从联系人详情页分享打开 — 被分享者可能不是 Welian 用户
+      // 先尝试加载真实报告，无 token 时降级为简化报告
+      const token = api.getToken();
+      if (token) {
+        this.setData({ _contactId: query.cid });
+        this.loadReport(query.cid);
+      } else {
+        // 被分享者未登录，展示引导页
+        this.setData({ isSharedView: true, _contactName: '' });
+        this.loadSharedReport('');
+      }
     } else {
       // 用户自己查看 — 需要登录
       this.loadReport();
@@ -55,7 +61,9 @@ Page({
       await app.loginReady;
       const token = api.getToken();
       if (!token) {
-        this.setData({ loading: false, error: '请先登录' });
+        // 未登录，降级为简化报告
+        this.setData({ isSharedView: true, loading: false });
+        this.loadSharedReport('');
         return;
       }
       // 调用后端生成关系体检报告
@@ -64,11 +72,21 @@ Page({
       const resp = await api.request('/ai/report', payload, 'POST');
       if (resp && resp.ok) {
         this.setData({ loading: false, report: resp.report });
+      } else if (resp && resp.error === 'Authentication required') {
+        // token 过期，降级为简化报告
+        this.setData({ isSharedView: true, loading: false });
+        this.loadSharedReport('');
       } else {
         this.setData({ loading: false, error: (resp && resp.error) || '生成报告失败' });
       }
     } catch (e) {
-      this.setData({ loading: false, error: e.message || '网络错误' });
+      // 网络错误时也降级，不阻断用户
+      if (e.message && e.message.includes('401')) {
+        this.setData({ isSharedView: true, loading: false });
+        this.loadSharedReport('');
+      } else {
+        this.setData({ loading: false, error: e.message || '网络错误' });
+      }
     }
   },
 

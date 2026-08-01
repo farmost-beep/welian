@@ -887,13 +887,24 @@ async function collectGitHubPerceptions(env, userId, contact) {
       const age = (now - new Date(e.created_at).getTime()) / 86400000;
       return age <= 7;
     });
-    return recentEvents.slice(0, 5).map(e => {
+    // Dedup by type+repo+day — GitHub may return multiple events for same action
+    const seen = new Set();
+    const deduped = [];
+    for (const e of recentEvents) {
+      const day = (e.created_at || '').slice(0, 10);
+      const key = `${e.type}:${e.repo?.name || ''}:${day}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(e);
+    }
+    return deduped.slice(0, 5).map(e => {
       const eventType = e.type || 'activity';
       const repo = e.repo?.name || '';
       let title = '';
       if (eventType === 'PushEvent') {
-        const commits = (e.payload?.commits || []).length;
-        title = `推送了 ${commits} 个提交到 ${repo}`;
+        // payload.size is the commit count; fallback to commits array length
+        const commits = e.payload?.size || (e.payload?.commits || []).length;
+        title = commits > 0 ? `推送了 ${commits} 个提交到 ${repo}` : `有新的推送活动 ${repo}`;
       } else if (eventType === 'CreateEvent') {
         title = `创建了 ${e.payload?.ref_type || '资源'} ${e.payload?.ref || ''} ${repo ? '在 ' + repo : ''}`;
       } else if (eventType === 'WatchEvent') {
