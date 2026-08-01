@@ -40,12 +40,6 @@ c1_gray_ocr.txt
 *.mp4
 .welian-agent/
 
-# 旧 Python 代码（已迁移到 cloud-worker）
-src/
-setup.py
-requirements.txt
-pytest.ini
-
 # Secrets
 cloud-worker/.dev.vars
 *.bak
