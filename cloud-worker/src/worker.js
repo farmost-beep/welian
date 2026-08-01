@@ -640,6 +640,33 @@ async function handleActionCard(req, env) {
   const timeline = await loadDataset(env, userId, 'timeline');
   const today = localDate(req);
 
+  // R3-4: Priority 0 — perception-driven action (new changes found)
+  const perceptions = await loadDataset(env, userId, 'perceptions');
+  const pendingPerceptions = perceptions
+    .filter(p => p.status === 'pending' && p.contact_id)
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+  if (pendingPerceptions.length > 0) {
+    const perc = pendingPerceptions[0];
+    const contact = contacts.find(c => c.id === perc.contact_id);
+    if (contact) {
+      return {
+        status: 200,
+        data: {
+          ok: true,
+          action_card: {
+            type: 'perception_driven',
+            reason: perc.title || perc.summary || `发现了${contact.name}的新变化`,
+            contact: { id: contact.id, name: contact.name, nature: contact.nature },
+            suggested_topic: perc.summary ? `${perc.summary}，聊聊这个` : '聊聊最近的变化',
+            draft_available: true,
+            perception_id: perc.id,
+          },
+        },
+      };
+    }
+  }
+
   // Priority 1: overdue todos with contact
   const overdueTodos = todos.filter(t => t.status === 'pending' && t.due && t.contact)
     .filter(t => {
@@ -723,9 +750,24 @@ async function handleActionCardConfirm(req, env) {
   const body = await req.json().catch(() => ({}));
   const userId = await getVerifiedUserId(req, env, body);
   if (!userId) return { status: 401, data: { error: 'Authentication required' } };
-  const { action, contact_id, todo_id, draft_text, suggested_topic } = body;
+  const { action, contact_id, todo_id, draft_text, suggested_topic, perception_id } = body;
   if (!action || !['draft', 'done', 'skip'].includes(action)) {
     return { status: 400, data: { error: 'action must be draft/done/skip' } };
+  }
+
+  // R3-4: Helper to update perception status on action
+  async function updatePerceptionAction(actionType) {
+    if (!perception_id) return;
+    try {
+      const percs = await loadDataset(env, userId, 'perceptions');
+      const perc = percs.find(p => p.id === perception_id);
+      if (perc && perc.status === 'pending') {
+        perc.status = 'confirmed';
+        perc.confirmed_at = new Date().toISOString();
+        perc.action_taken = actionType;
+        await saveDataset(env, userId, 'perceptions', percs);
+      }
+    } catch (e) { /* ignore */ }
   }
 
   if (action === 'draft') {
@@ -735,6 +777,8 @@ async function handleActionCardConfirm(req, env) {
     if (!contact) return { status: 404, data: { error: '联系人不存在' } };
     // Track draft generation
     await trackAction(env, userId, 'draft_generated', { contact_name: contact.name });
+    // R3-4: Update perception status
+    await updatePerceptionAction('draft');
     return {
       status: 200,
       data: {
@@ -764,6 +808,8 @@ async function handleActionCardConfirm(req, env) {
       source: 'action_card',
     });
     await saveDataset(env, userId, 'timeline', timeline);
+    // R3-4: Update perception status
+    await updatePerceptionAction('interaction');
     // Mark todo as done if provided
     if (todo_id) {
       const todos = await loadDataset(env, userId, 'todos');
