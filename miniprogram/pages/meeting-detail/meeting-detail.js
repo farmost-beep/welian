@@ -430,18 +430,29 @@ Page({
   addMeetingToCalendar() {
     const m = this.data.meeting;
     if (!m || !m.date) return;
-    const startDate = new Date(m.date + 'T09:00:00');
-    const startTs = isNaN(startDate.getTime()) ? Date.now() / 1000 : Math.floor(startDate.getTime() / 1000);
+    const dateStr = m.date.includes('T') ? m.date : m.date + 'T09:00:00';
+    const startDate = new Date(dateStr);
+    const startTs = isNaN(startDate.getTime()) ? Math.floor(Date.now() / 1000) : Math.floor(startDate.getTime() / 1000);
+    const endTs = startTs + 3600; // 默认1小时
     wx.addPhoneCalendar({
       title: m.title || 'Welian 会议',
       startTime: startTs,
+      endTime: endTs,
       allDay: false,
       alarm: true,
       alarmOffset: -3600,
       location: m.location || '',
       description: (m.purpose || '') + ' — 来自 Welian 提醒',
       success: () => wx.showToast({ title: '已添加到日历', icon: 'success' }),
-      fail: () => wx.showToast({ title: '添加失败', icon: 'none' }),
+      fail: (err) => {
+        console.error('addPhoneCalendar fail:', err);
+        const msg = (err && err.errMsg) || '';
+        if (msg.includes('auth') || msg.includes('permission')) {
+          wx.showModal({ title: '需要日历权限', content: '请在设置中开启日历权限', confirmText: '去设置', success: (r) => { if (r.confirm) wx.openSetting(); } });
+        } else {
+          wx.showToast({ title: '添加失败：' + (msg || '未知错误'), icon: 'none' });
+        }
+      },
     });
   },
 

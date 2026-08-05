@@ -35,7 +35,7 @@ import * as XLSX from 'xlsx';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -384,6 +384,53 @@ async function loadBehavioralInsights(env, userId) {
   return null;
 }
 
+// R2: Load structured EvolutionInsight objects
+async function loadStructuredInsights(env, userId) {
+  try {
+    const raw = await env.USER_DATA.get(`evolution_insights:${userId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.log('[loadStructuredInsights] KV read failed:', e.message);
+  }
+  return [];
+}
+
+// R2: Save structured insights
+async function saveStructuredInsights(env, userId, insights) {
+  await env.USER_DATA.put(`evolution_insights:${userId}`, JSON.stringify(insights));
+}
+
+// R2: Parse LLM Markdown into structured insight objects with evidence
+function parseStructuredInsights(text, analysisData) {
+  const lines = text.split('\n').filter(l => l.trim());
+  const insights = [];
+  const now = new Date().toISOString();
+  const range = `最近${analysisData.weekly?.length || 4}周`;
+  const sample = (analysisData.totals?.advises || 0) + (analysisData.totals?.interactions || 0) + (analysisData.totals?.drafts || 0);
+
+  for (const line of lines) {
+    const trimmed = line.replace(/^[\d\-\*\•\s]+/, '').trim();
+    if (!trimmed || trimmed.length < 10) continue;
+    // Skip headers like "## 行为洞察"
+    if (trimmed.startsWith('#') || trimmed.startsWith('行为洞察')) continue;
+    insights.push({
+      id: `ins_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${insights.length}`,
+      summary: trimmed.slice(0, 200),
+      evidence: [{
+        metric: 'adoption_rate',
+        value: analysisData.adoption_rate || 0,
+        range,
+        sample,
+      }],
+      effect: '用于优化后续建议',
+      status: 'active',
+      updated_at: now,
+    });
+    if (insights.length >= 5) break;
+  }
+  return insights;
+}
+
 // Augment a base system prompt with per-user behavioral insights (if available)
 async function augmentWithInsights(env, userId, basePrompt) {
   if (!userId) return basePrompt;
@@ -481,9 +528,14 @@ async function handleSelfEvolution(env) {
         { max_tokens: 512, temperature: 0.3, model_tier: 'standard' }
       );
       if (llmResp && llmResp.text && llmResp.text.trim().length > 20) {
-        const insights = llmResp.text.trim();
-        await env.USER_DATA.put(`prompt:behavioral_insights:${userId}.md`, insights);
-        console.log('[self_evolution] Updated insights, len:', insights.length);
+        const insightsText = llmResp.text.trim();
+        // Keep Markdown for backward-compatible prompt injection
+        await env.USER_DATA.put(`prompt:behavioral_insights:${userId}.md`, insightsText);
+
+        // R2: Also store structured EvolutionInsight objects
+        const structuredInsights = parseStructuredInsights(insightsText, analysisData);
+        await env.USER_DATA.put(`evolution_insights:${userId}`, JSON.stringify(structuredInsights));
+        console.log('[self_evolution] Updated insights, len:', insightsText.length, 'structured:', structuredInsights.length);
         processed++;
       }
 
@@ -1480,7 +1532,87 @@ async function collectGitHubPerceptions(env, userId, contact) {
   }
 }
 
-// R3-2: Perception collection handler — manually triggered
+// R3: Web URL perception sensor — fetch page, LLM extract changes
+async function collectWebPerceptions(env, userId, contact, url) {
+  if (!url || !url.startsWith('http')) return [];
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Welian-AI/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) {
+      console.log(`[web_sensor] ${url} returned ${resp.status}`);
+      return [];
+    }
+    const html = await resp.text();
+    // Strip HTML tags to get text content (rough)
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 4000); // Limit to 4k chars for LLM
+
+    if (text.length < 50) return [];
+
+    // Use LLM to extract notable changes about the contact
+    const prompt = `分析以下网页内容，提取与"${contact.name}"相关的值得关注的动态或变化。
+只提取明确提到该联系人（或其公司/项目）的内容。如果没有相关内容，返回空。
+
+网页URL: ${url}
+联系人: ${contact.name}
+${contact.company ? `公司: ${contact.company}` : ''}
+
+网页内容:
+${text}
+
+请用JSON数组格式返回，每条包含:
+- title: 简短描述（20字内）
+- summary: 详细描述（50字内）
+如果没有相关内容，返回 []`;
+
+    const llmResp = await callLLM(prompt, '你是Welian的感知引擎，负责从网页中提取联系人的动态变化。', env, {
+      max_tokens: 512, temperature: 0.2, model_tier: 'standard',
+    });
+
+    if (!llmResp || !llmResp.text) return [];
+
+    let items = [];
+    try {
+      const match = llmResp.text.match(/\[[\s\S]*\]/);
+      if (match) items = JSON.parse(match[0]);
+    } catch (e) {
+      console.log('[web_sensor] LLM parse failed:', e.message);
+      return [];
+    }
+
+    if (!Array.isArray(items) || items.length === 0) return [];
+
+    return items.slice(0, 3).map(item => ({
+      id: `perc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      contact_id: contact.id,
+      contact_name: contact.name,
+      type: 'web_activity',
+      title: (item.title || '网页动态').trim(),
+      summary: `${contact.name} ${(item.summary || item.title || '').trim()}`,
+      source: {
+        url,
+        platform: 'web',
+        collected_at: new Date().toISOString(),
+        original_text: (item.summary || item.title || '').slice(0, 500),
+      },
+      confidence: 0.7,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      confirmed_at: null,
+      action_taken: null,
+    }));
+  } catch (e) {
+    console.log('[web_sensor] error:', e.message);
+    return [];
+  }
+}
 async function handlePerceptionCollect(req, env) {
   const body = await req.json().catch(() => ({}));
   const userId = await getVerifiedUserId(req, env, body);
@@ -1497,6 +1629,13 @@ async function handlePerceptionCollect(req, env) {
     if (source === 'github') {
       const percs = await collectGitHubPerceptions(env, userId, contact);
       newPerceptions.push(...percs);
+    }
+    if (source === 'web') {
+      const urls = body.urls || (body.url ? [body.url] : []);
+      for (const url of urls) {
+        const percs = await collectWebPerceptions(env, userId, contact, url);
+        newPerceptions.push(...percs);
+      }
     }
   }
 
@@ -13726,6 +13865,7 @@ ${chatText}
         const userId = await getVerifiedUserId(request, env, {});
         if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
         const insights = await loadBehavioralInsights(env, userId);
+        const structuredInsights = await loadStructuredInsights(env, userId);
         const metrics = await loadMetrics(env, userId);
         // Compute summary stats for transparency
         const weekKeys = Object.keys(metrics.weekly || {}).sort();
@@ -13743,6 +13883,7 @@ ${chatText}
         return jsonResponse({
           ok: true,
           insights: insights || '',
+          structured_insights: structuredInsights,
           has_insights: !!insights,
           based_on: {
             weeks_analyzed: recentWeeks.length,
@@ -13752,11 +13893,30 @@ ${chatText}
         });
       }
 
+      if (path === '/ai/evolution' && method === 'PATCH') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const { id, status } = body;
+        if (!id || !['active', 'dismissed', 'corrected'].includes(status)) {
+          return jsonResponse({ error: 'id and status (active|dismissed|corrected) required' }, 400);
+        }
+        const structuredInsights = await loadStructuredInsights(env, userId);
+        const idx = structuredInsights.findIndex(i => i.id === id);
+        if (idx < 0) return jsonResponse({ error: 'insight not found' }, 404);
+        structuredInsights[idx].status = status;
+        structuredInsights[idx].updated_at = new Date().toISOString();
+        if (body.effect) structuredInsights[idx].effect = body.effect;
+        await saveStructuredInsights(env, userId, structuredInsights);
+        return jsonResponse({ ok: true, insight: structuredInsights[idx] });
+      }
+
       if (path === '/ai/evolution' && method === 'DELETE') {
         const userId = await getVerifiedUserId(request, env, {});
         if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
         await env.USER_DATA.delete(`prompt:behavioral_insights:${userId}.md`);
-        console.log('[evolution] Insights reset');
+        await env.USER_DATA.delete(`evolution_insights:${userId}`);
+        console.log('[evolution] Insights reset (markdown + structured)');
         return jsonResponse({ ok: true, message: '行为洞察已重置' });
       }
 
@@ -13845,6 +14005,21 @@ ${chatText}
               confirmed_at: perc.confirmed_at,
             });
             await saveDataset(env, userId, 'contacts', contacts);
+
+            // R1: Generate perception_driven Action and store in action_records
+            const evidence = perc.summary || perc.title || perc.source?.original_text || '';
+            const candidate = {
+              contact,
+              perception: perc,
+              reasonHint: perc.title || perc.summary || `记录了${contact.name}的新变化`,
+              source: actionSource('perception', perc.id, evidence),
+              lastInteraction: '',
+            };
+            const today = new Date();
+            const percAction = buildRelationshipAction(userId, candidate, 'perception_driven', today);
+            // Store in action_records so next action_card call can surface it
+            const actionState = await loadActionRecords(env, userId);
+            await rememberPresentedAction(env, userId, percAction, actionState);
           }
         } else {
           perc.status = 'rejected';
@@ -16285,10 +16460,6 @@ async function handleHealthWarningPush(env) {
 
   for (const clerkUserId of userIds) {
     try {
-      // R2-3: Check notification preferences (health_warning uses weekly_report category)
-      const allowed = await checkNotifyPrefs(env, clerkUserId, 'weekly_report');
-      if (!allowed) continue;
-
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
 
@@ -16378,11 +16549,13 @@ async function handleHealthWarningPush(env) {
       msg += '建议尽快找个自然切入点重新互动。\n';
       msg += '微信搜索「Welian」小程序查看完整健康分析 →';
 
-      // Push to WeChat queue (if WeChat-bound)
-      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
-      const queue = queueRaw ? JSON.parse(queueRaw) : [];
-      queue.push({ type: 'health_warning', content: msg, timestamp: new Date().toISOString() });
-      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+      // Unified dispatch
+      const dayKey = new Date().toISOString().slice(0, 10);
+      await dispatchNotification(env, clerkUserId, {
+        category: 'weekly_report',
+        dedupeKey: `health_warning:${dayKey}`,
+        queueMsg: { type: 'health_warning', content: msg },
+      });
 
       // Push to IM channels (TG/飞书/钉钉)
       pushToIMChannels(env, clerkUserId, msg).catch(e =>
@@ -16465,10 +16638,6 @@ async function handleFestivalReminderPush(env) {
 
   for (const clerkUserId of userIds) {
     try {
-      // R2-3: Check notification preferences
-      const allowed = await checkNotifyPrefs(env, clerkUserId, 'festival_reminder');
-      if (!allowed) continue;
-
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       if (contacts.length === 0) continue;
 
@@ -16529,11 +16698,13 @@ async function handleFestivalReminderPush(env) {
       }
       msg += '— Welian 小维 · welian.app';
 
-      // Queue for WeChat bot pickup
-      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
-      const queue = queueRaw ? JSON.parse(queueRaw) : [];
-      queue.push({ type: 'festival_reminder', content: msg, timestamp: today.toISOString() });
-      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+      // Unified dispatch
+      const dayKey = today.toISOString().slice(0, 10);
+      await dispatchNotification(env, clerkUserId, {
+        category: 'festival_reminder',
+        dedupeKey: `festival_reminder:${dayKey}`,
+        queueMsg: { type: 'festival_reminder', content: msg },
+      });
 
       // Push to IM channels
       pushToIMChannels(env, clerkUserId, msg).catch(e =>
@@ -16563,10 +16734,6 @@ async function handleScheduledPush(env) {
 
   for (const { wechatId, clerkUserId } of boundUsers) {
     try {
-      // R2-3: Check notification preferences
-      const allowed = await checkNotifyPrefs(env, clerkUserId, 'weekly_report');
-      if (!allowed) continue;
-
       // Generate weekly report
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
@@ -16631,11 +16798,13 @@ async function handleScheduledPush(env) {
       // Format push message
       const msg = formatWeeklyPushMessage(report);
 
-      // Queue for bot pickup
-      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
-      const queue = queueRaw ? JSON.parse(queueRaw) : [];
-      queue.push({ type: 'weekly_report', content: msg, timestamp: now.toISOString() });
-      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+      // Unified dispatch
+      const weekKey = now.toISOString().slice(0, 10);
+      await dispatchNotification(env, clerkUserId, {
+        category: 'weekly_report',
+        dedupeKey: `weekly_report:${weekKey}`,
+        queueMsg: { type: 'weekly_report', content: msg },
+      });
 
       // Also push to IM channels (Telegram/飞书/钉钉)
       pushToIMChannels(env, clerkUserId, msg).catch(e =>
@@ -16679,10 +16848,6 @@ async function handleDailyAdvisePush(env) {
 
   for (const { wechatId, clerkUserId } of boundUsers) {
     try {
-      // R2-3: Check notification preferences (daily_advise uses daily_signals category)
-      const allowed = await checkNotifyPrefs(env, clerkUserId, 'daily_signals');
-      if (!allowed) continue;
-
       const contacts = await loadDataset(env, clerkUserId, 'contacts');
       const timeline = await loadDataset(env, clerkUserId, 'timeline');
       const todos = await loadDataset(env, clerkUserId, 'todos');
@@ -16768,11 +16933,13 @@ async function handleDailyAdvisePush(env) {
       }
       msg += `— Welian 小维 · welian.app`;
 
-      // Queue for bot pickup
-      const queueRaw = await env.USER_DATA.get(`push_queue:${clerkUserId}`);
-      const queue = queueRaw ? JSON.parse(queueRaw) : [];
-      queue.push({ type: 'daily_advise', content: msg, timestamp: today.toISOString() });
-      await env.USER_DATA.put(`push_queue:${clerkUserId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+      // Unified dispatch
+      const dayKey = today.toISOString().slice(0, 10);
+      await dispatchNotification(env, clerkUserId, {
+        category: 'daily_signals',
+        dedupeKey: `daily_advise:${dayKey}`,
+        queueMsg: { type: 'daily_advise', content: msg },
+      });
 
       // Push to IM channels
       pushToIMChannels(env, clerkUserId, msg).catch(e =>
@@ -17009,6 +17176,47 @@ async function checkNotifyPrefs(env, userId, category) {
     if (count >= prefs.max_per_day) return false;
   }
   return true;
+}
+
+// ── R0: Unified notification dispatcher — single entry for all push channels ──
+// Handles: prefs check, dedupe, daily count, subscribe message, queue push.
+// Returns { sent: true, reason: 'ok' } or { sent: false, reason: '...' }.
+async function dispatchNotification(env, userId, { category, templateKey, data, page, dedupeKey, queueMsg } = {}) {
+  // 1. Prefs check (category + quiet hours + daily max)
+  const allowed = await checkNotifyPrefs(env, userId, category);
+  if (!allowed) return { sent: false, reason: 'prefs_blocked' };
+
+  // 2. Dedupe check (same dedupeKey → skip)
+  if (dedupeKey) {
+    const dedupeFullKey = `notify_dedupe:${userId}:${dedupeKey}`;
+    const seen = await env.USER_DATA.get(dedupeFullKey);
+    if (seen) return { sent: false, reason: 'deduped' };
+    await env.USER_DATA.put(dedupeFullKey, '1', { expirationTtl: 86400 });
+  }
+
+  // 3. Try subscribe message channel (if templateKey provided)
+  let sent = false;
+  if (templateKey) {
+    const openid = await consumeSubscription(env, userId, templateKey);
+    if (openid) {
+      sent = await sendSubscribeMessage(env, openid, templateKey, data || {}, page);
+      if (sent) {
+        await incrementNotifyCount(env, userId);
+      }
+    }
+  }
+
+  // 4. Queue push (for bot pickup / IM)
+  if (queueMsg) {
+    const queueRaw = await env.USER_DATA.get(`push_queue:${userId}`);
+    const queue = queueRaw ? JSON.parse(queueRaw) : [];
+    queue.push({ ...queueMsg, timestamp: new Date().toISOString() });
+    await env.USER_DATA.put(`push_queue:${userId}`, JSON.stringify(queue), { expirationTtl: 86400 });
+    sent = true;
+    await incrementNotifyCount(env, userId);
+  }
+
+  return { sent, reason: sent ? 'ok' : 'no_channel' };
 }
 
 // Increment daily notification count (call after a successful push)
@@ -17762,10 +17970,6 @@ async function handleTodoDueSubscribePush(env) {
 
   let sent = 0;
   for (const userId of Object.keys(userTemplateMap)) {
-    // R2-3: Check notification preferences
-    const allowed = await checkNotifyPrefs(env, userId, 'todo_due');
-    if (!allowed) continue;
-
     // Load todos due tomorrow
     const todosRaw = await env.USER_DATA.get(`todos:${userId}`) || '[]';
     const todos = JSON.parse(todosRaw);
@@ -17774,9 +17978,6 @@ async function handleTodoDueSubscribePush(env) {
     const tomorrowStr = tomorrow.toISOString().slice(0, 10);
     const dueTodos = todos.filter(t => !t.done && t.due && t.due.slice(0, 10) === tomorrowStr);
     if (dueTodos.length === 0) continue;
-
-    const openid = await consumeSubscription(env, userId, 'todo_due');
-    if (!openid) continue;
 
     const first = dueTodos[0];
     // Load contacts to resolve contact name for thing45
@@ -17787,14 +17988,20 @@ async function handleTodoDueSubscribePush(env) {
       : '';
     const truncate = (s, max = 20) => (s || '').slice(0, max) || '无';
 
-    await sendSubscribeMessage(env, openid, 'todo_due', {
-      thing1: { value: truncate(first.task) || '待办事项' },
-      time2: { value: first.due || tomorrowStr },
-      thing3: { value: truncate(first.location) || '未设置' },
-      thing4: { value: truncate(first.task) || '待办事项' },
-      thing45: { value: truncate(contactName) },
-    }, 'pages/todos/todos');
-    sent++;
+    const result = await dispatchNotification(env, userId, {
+      category: 'todo_due',
+      templateKey: 'todo_due',
+      dedupeKey: `todo_due:${first.id}:${tomorrowStr}`,
+      data: {
+        thing1: { value: truncate(first.task) || '待办事项' },
+        time2: { value: first.due || tomorrowStr },
+        thing3: { value: truncate(first.location) || '未设置' },
+        thing4: { value: truncate(first.task) || '待办事项' },
+        thing45: { value: truncate(contactName) },
+      },
+      page: 'pages/todos/todos',
+    });
+    if (result.sent) sent++;
   }
   console.log('[subscribe] todo_due push sent:', sent);
 }

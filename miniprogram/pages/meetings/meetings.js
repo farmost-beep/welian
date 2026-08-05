@@ -200,7 +200,25 @@ Page({
       success: (res) => {
         this.setData({ creating: false });
         if (res.statusCode === 200 && res.data && res.data.ok) {
-          wx.showToast({ title: '已创建', icon: 'success' });
+          const meeting = res.data.meeting || {};
+          // Auto-create a "参会" todo linked to this meeting
+          wx.request({
+            url: 'https://api.welian.app/data/todos',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            data: {
+              task: `参加：${form.title.trim()}`,
+              due: form.date + 'T09:00',
+              priority: 'P1',
+              source: `meeting:${meeting.id}`,
+            },
+            success: (todoRes) => {
+              if (todoRes.statusCode === 200) {
+                console.log('[meeting] auto-todo created for', meeting.id);
+              }
+            },
+          });
+          wx.showToast({ title: '已创建会议+参会待办', icon: 'success' });
           this._pendingAgenda = null;
           this.setData({ showCreate: false });
           this.loadMeetings();
