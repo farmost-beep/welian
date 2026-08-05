@@ -1,12 +1,46 @@
-<view class="tab-bar">
+<view class="tab-bar {{syncEnabled ? 'tab-bar-with-sync' : ''}}">
+  <!-- 概览 -->
   <view
-    wx:for="{{list}}"
-    wx:key="pagePath"
-    class="tab-item {{selected === index ? 'active' : ''}}"
-    data-path="{{item.pagePath}}"
+    class="tab-item {{selected === 0 ? 'active' : ''}}"
+    data-path="{{list[0].pagePath}}"
     bindtap="switchTab"
   >
-    <text class="tab-icon">{{item.icon}}</text>
-    <text class="tab-text">{{item.text}}</text>
+    <text class="tab-icon">{{list[0].icon}}</text>
+    <text class="tab-text">{{list[0].text}}</text>
+  </view>
+  <!-- 关系 -->
+  <view
+    class="tab-item {{selected === 1 ? 'active' : ''}}"
+    data-path="{{list[1].pagePath}}"
+    bindtap="switchTab"
+  >
+    <text class="tab-icon">{{list[1].icon}}</text>
+    <text class="tab-text">{{list[1].text}}</text>
+  </view>
+  <!-- 中间凸起小维按钮（审核时隐藏，占位） -->
+  <view wx:if="{{syncEnabled}}" class="tab-sync-slot" catchtap="goSync">
+    <view class="tab-sync-circle">
+      <text class="tab-sync-icon">维</text>
+    </view>
+    <text class="tab-sync-text">小维</text>
+  </view>
+  <view wx:else class="tab-sync-placeholder"></view>
+  <!-- 待办 -->
+  <view
+    class="tab-item {{selected === 2 ? 'active' : ''}}"
+    data-path="{{list[2].pagePath}}"
+    bindtap="switchTab"
+  >
+    <text class="tab-icon">{{list[2].icon}}</text>
+    <text class="tab-text">{{list[2].text}}</text>
+  </view>
+  <!-- 我的 -->
+  <view
+    class="tab-item {{selected === 3 ? 'active' : ''}}"
+    data-path="{{list[3].pagePath}}"
+    bindtap="switchTab"
+  >
+    <text class="tab-icon">{{list[3].icon}}</text>
+    <text class="tab-text">{{list[3].text}}</text>
   </view>
 </view>

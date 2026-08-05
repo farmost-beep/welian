@@ -9,19 +9,45 @@
     <!-- 完整度 -->
     <view class="completeness-bar">
       <text class="text-dim text-sm">画像完整度</text>
+      <view class="completeness-track">
+        <view class="completeness-fill" style="width:{{completenessPct}}%"></view>
+      </view>
       <text class="completeness-num">{{completeness}}/12</text>
     </view>
 
     <!-- 展示模式 -->
     <block wx:if="{{!editing}}">
-      <view wx:for="{{fields}}" wx:key="key" class="card profile-field">
-        <text class="field-label text-dimmer text-xs">{{item.label}}</text>
-        <text class="field-value {{profile[item.key] ? '' : 'text-dimmer'}}">{{profile[item.key] || '未填写'}}</text>
+      <!-- 基本信息 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">基本信息</text>
+        <view wx:for="{{basicFields}}" wx:key="key" class="profile-row">
+          <text class="profile-row-label text-dimmer text-xs">{{item.label}}</text>
+          <text class="profile-row-value text-sm {{profile[item.key] ? '' : 'text-dimmer'}}">{{profile[item.key] || '未填写'}}</text>
+        </view>
       </view>
 
-      <view wx:if="{{profile.notes}}" class="card profile-field">
-        <text class="field-label text-dimmer text-xs">附注</text>
-        <text class="field-value">{{profile.notes}}</text>
+      <!-- 沟通偏好 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">沟通偏好</text>
+        <view wx:for="{{commFields}}" wx:key="key" class="profile-row">
+          <text class="profile-row-label text-dimmer text-xs">{{item.label}}</text>
+          <text class="profile-row-value text-sm {{profile[item.key] ? '' : 'text-dimmer'}}">{{profile[item.key] || '未填写'}}</text>
+        </view>
+      </view>
+
+      <!-- 目标与方向 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">目标与方向</text>
+        <view wx:for="{{goalFields}}" wx:key="key" class="profile-row">
+          <text class="profile-row-label text-dimmer text-xs">{{item.label}}</text>
+          <text class="profile-row-value text-sm {{profile[item.key] ? '' : 'text-dimmer'}}">{{profile[item.key] || '未填写'}}</text>
+        </view>
+      </view>
+
+      <!-- 附注 -->
+      <view wx:if="{{profile.notes}}" class="card profile-group">
+        <text class="section-title-sm">附注</text>
+        <text class="profile-row-value text-sm">{{profile.notes}}</text>
       </view>
 
       <button class="btn btn-block" bindtap="startEdit">编辑画像</button>
@@ -29,40 +55,38 @@
 
     <!-- 编辑模式 -->
     <block wx:else>
-      <view wx:for="{{fields}}" wx:key="key" class="card profile-field-edit">
-        <text class="field-label text-dimmer text-xs">{{item.label}}</text>
-        <textarea
-          wx:if="{{textareaFields.indexOf(item.key) >= 0}}"
-          class="field-input"
-          placeholder="{{item.placeholder}}"
-          value="{{profile[item.key] || ''}}"
-          bindinput="onInput"
-          data-key="{{item.key}}"
-          auto-height
-          maxlength="-1"
-        />
-        <input
-          wx:else
-          class="field-input"
-          placeholder="{{item.placeholder}}"
-          value="{{profile[item.key] || ''}}"
-          bindinput="onInput"
-          data-key="{{item.key}}"
-        />
+      <!-- 基本信息 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">基本信息</text>
+        <view wx:for="{{basicFields}}" wx:key="key" class="profile-edit-row">
+          <text class="field-label text-dimmer text-xs">{{item.label}}</text>
+          <input class="field-input" placeholder="{{item.placeholder}}" value="{{profile[item.key] || ''}}" bindinput="onInput" data-key="{{item.key}}" />
+        </view>
+      </view>
+
+      <!-- 沟通偏好 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">沟通偏好</text>
+        <view wx:for="{{commFields}}" wx:key="key" class="profile-edit-row">
+          <text class="field-label text-dimmer text-xs">{{item.label}}</text>
+          <input class="field-input" placeholder="{{item.placeholder}}" value="{{profile[item.key] || ''}}" bindinput="onInput" data-key="{{item.key}}" />
+        </view>
+      </view>
+
+      <!-- 目标与方向 -->
+      <view class="card profile-group">
+        <text class="section-title-sm">目标与方向</text>
+        <view wx:for="{{goalFields}}" wx:key="key" class="profile-edit-row">
+          <text class="field-label text-dimmer text-xs">{{item.label}}</text>
+          <textarea wx:if="{{textareaFields.indexOf(item.key) >= 0}}" class="field-input" placeholder="{{item.placeholder}}" value="{{profile[item.key] || ''}}" bindinput="onInput" data-key="{{item.key}}" auto-height maxlength="-1" />
+          <input wx:else class="field-input" placeholder="{{item.placeholder}}" value="{{profile[item.key] || ''}}" bindinput="onInput" data-key="{{item.key}}" />
+        </view>
       </view>
 
       <!-- 附注 -->
-      <view class="card profile-field-edit">
-        <text class="field-label text-dimmer text-xs">附注</text>
-        <textarea
-          class="field-input"
-          placeholder="个人简介、背景资料、备忘…"
-          value="{{profile.notes || ''}}"
-          bindinput="onInput"
-          data-key="notes"
-          auto-height
-          maxlength="-1"
-        />
+      <view class="card profile-group">
+        <text class="section-title-sm">附注</text>
+        <textarea class="field-input" placeholder="个人简介、背景资料、备忘…" value="{{profile.notes || ''}}" bindinput="onInput" data-key="notes" auto-height maxlength="-1" />
       </view>
 
       <view class="edit-actions">

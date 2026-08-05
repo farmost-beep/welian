@@ -31,6 +31,9 @@ describe("eval: intent classification — record actions", () => {
   });
 
   it("eval: '记一下今天和老许聊了项目' → intent=record, add_timeline action", async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-laoxu', name: '老许' },
+    ]));
     globalThis.fetch = async () => intentResponse("record", [
       { type: "add_timeline", contact_name: "老许", summary: "聊了项目", date: new Date().toISOString().slice(0, 10) },
     ]);
@@ -52,6 +55,9 @@ describe("eval: intent classification — record actions", () => {
   });
 
   it("eval: '提醒我下周联系张总' → intent=record, add_todo action with due date", async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-zhangzong', name: '张总' },
+    ]));
     globalThis.fetch = async () => intentResponse("record", [
       { type: "add_todo", task: "联系张总", contact_name: "张总", due: "2026-07-15", priority: "P1" },
     ]);
@@ -75,7 +81,10 @@ describe("eval: intent classification — record actions", () => {
   it("eval: '完成了跟进老许的待办' → intent=record, complete_todo action", async () => {
     // Seed a pending todo first
     env.USER_DATA._store.set("todos:testuser", JSON.stringify([
-      { id: "t-1", contact: "", task: "跟进老许", status: "pending", due: "2026-07-10" },
+      { id: "t-1", contact: "c-laoxu", task: "跟进老许", status: "pending", due: "2026-07-10" },
+    ]));
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-laoxu', name: '老许' },
     ]));
     globalThis.fetch = async () => intentResponse("record", [
       { type: "complete_todo", task: "跟进老许", contact_name: "老许" },

@@ -19,19 +19,19 @@
         <text class="status-badge status-{{meeting.status}}">{{statusLabel}}</text>
       </view>
       <view class="info-meta">
-        <text class="meta-item">📅 {{meeting.date}}</text>
-        <text wx:if="{{meeting.location}}" class="meta-item">📍 {{meeting.location}}</text>
-        <text wx:if="{{meeting.location}}" class="meta-item nav-btn" bindtap="openLocation">🧭 导航</text>
+        <text class="meta-item">{{meeting.date}}</text>
+        <text wx:if="{{meeting.location}}" class="meta-item">{{meeting.location}}</text>
+        <text wx:if="{{meeting.location}}" class="meta-item nav-btn" bindtap="openLocation">导航</text>
       </view>
       <view wx:if="{{meeting.purpose}}" class="info-purpose">
         <text class="text-dim text-sm">目的：{{meeting.purpose}}</text>
       </view>
-      <button class="action-btn" style="margin-top:16rpx" bindtap="addMeetingToCalendar">📅 添加到日历</button>
+      <button class="action-btn" style="margin-top:16rpx" bindtap="addMeetingToCalendar">添加到日历</button>
     </view>
 
     <!-- 拍照识别区 -->
     <view class="card">
-      <text class="section-title">📸 拍照识别</text>
+      <text class="section-title">拍照识别</text>
       <view class="photo-grid">
         <button
           class="photo-btn {{uploading === 'agenda' ? 'photo-btn-loading' : ''}}"
@@ -66,7 +66,7 @@
 
     <!-- 参会人 -->
     <view wx:if="{{meeting.attendees && meeting.attendees.length > 0}}" class="card">
-      <text class="section-title">👥 参会人（{{meeting.attendees.length}}）</text>
+      <text class="section-title">参会人（{{meeting.attendees.length}}）</text>
       <view wx:for="{{meeting.attendees}}" wx:key="index" class="list-item" bindtap="openContact" data-id="{{item.contact_id}}">
         <view class="list-item-main">
           <text class="list-item-title">{{item.name}}</text>
@@ -82,7 +82,7 @@
 
     <!-- 议程 -->
     <view wx:if="{{meeting.agenda && meeting.agenda.length > 0}}" class="card">
-      <text class="section-title">📋 议程</text>
+      <text class="section-title">议程</text>
       <view wx:for="{{meeting.agenda}}" wx:key="index" class="agenda-item">
         <text wx:if="{{item.time}}" class="agenda-time">{{item.time}}</text>
         <view class="agenda-main">
@@ -94,7 +94,7 @@
 
     <!-- 业务机会 -->
     <view wx:if="{{meeting.opportunities && meeting.opportunities.length > 0}}" class="card">
-      <text class="section-title">💡 业务机会</text>
+      <text class="section-title">业务机会</text>
       <view wx:for="{{meeting.opportunities}}" wx:key="index" class="opp-item">
         <view class="opp-top">
           <text class="opp-desc">{{item.description}}</text>
@@ -109,7 +109,7 @@
 
     <!-- 照片 -->
     <view wx:if="{{meeting.photos && meeting.photos.length > 0}}" class="card">
-      <text class="section-title">📷 照片（{{meeting.photos.length}}）</text>
+      <text class="section-title">照片（{{meeting.photos.length}}）</text>
       <view class="photo-thumbs">
         <view wx:for="{{meeting.photos}}" wx:key="index" class="photo-thumb" bindtap="previewPhoto" data-url="{{item.image}}">
           <image src="{{item.image}}" mode="aspectFill" class="thumb-img"></image>
@@ -120,20 +120,20 @@
 
     <!-- 会议总结 -->
     <view wx:if="{{meeting.summary}}" class="card">
-      <text class="section-title">📝 会议总结</text>
+      <text class="section-title">会议总结</text>
       <text class="summary-text">{{meeting.summary}}</text>
     </view>
 
     <!-- 会前准备 -->
     <view class="card">
-      <text class="section-title">🧠 会前准备</text>
+      <text class="section-title">会前准备</text>
       <text class="text-dim text-sm" style="display:block;margin-bottom:16rpx">分析参会人，提示可借议程推进的合作点</text>
       <button class="btn btn-block" bindtap="runPrep" loading="{{prepLoading}}" disabled="{{prepLoading}}">生成会前准备</button>
     </view>
 
     <!-- 会后复盘 -->
     <view class="card">
-      <text class="section-title">🔄 会后复盘</text>
+      <text class="section-title">会后复盘</text>
       <textarea
         class="notes-input"
         value="{{notesText}}"
@@ -212,7 +212,7 @@
         <text class="review-item-text">{{item.task}}</text>
         <view class="review-item-meta">
           <text wx:if="{{item.contact_name}}" class="text-dim text-xs">{{item.contact_name}}</text>
-          <text wx:if="{{item.due}}" class="text-dimmer text-xs">📅 {{item.due}}</text>
+          <text wx:if="{{item.due}}" class="text-dimmer text-xs">{{item.due}}</text>
           <text wx:if="{{item.priority}}" class="text-dimmer text-xs">{{item.priority}}</text>
         </view>
       </view>
@@ -228,7 +228,7 @@
     </view>
 
     <view wx:if="{{reviewResult.leverage_insights}}" class="review-section">
-      <text class="review-label">撬动建议</text>
+      <text class="review-label">经营建议</text>
       <text class="review-text">{{reviewResult.leverage_insights}}</text>
     </view>
 

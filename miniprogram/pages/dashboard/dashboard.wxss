@@ -1,55 +1,114 @@
 /* pages/dashboard/dashboard.wxss */
 
-.header {
-  margin-bottom: 32rpx;
-}
-
 .loading {
   text-align: center;
   padding: 60rpx 0;
 }
 
-/* ── 统计概览 ── */
-.stats-bar {
-  display: flex;
-  justify-content: space-around;
-  padding: 24rpx 16rpx;
-  margin-bottom: 24rpx;
-  background: #EDEBE3;
-  border-radius: 16rpx;
+/* ── 月度故事卡 ── */
+.story-card {
+  padding: 32rpx 28rpx;
+  margin-bottom: 20rpx;
+  background: linear-gradient(135deg, #FAFAF7 0%, #F2F0E8 100%);
 }
-.stat-item {
+.story-header {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
+  align-items: flex-start;
+  gap: 20rpx;
 }
-.stat-num {
-  font-size: 40rpx;
+.story-text-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.story-belief {
+  font-size: 36rpx;
   font-weight: 700;
-  color: #C96442;
+  color: #4A6741;
+  display: block;
+  margin-bottom: 12rpx;
+  letter-spacing: 2rpx;
 }
-.stat-label {
-  font-size: 22rpx;
+.story-text {
+  color: #3A3833;
+  line-height: 1.75;
+  display: block;
+}
+.story-stats {
+  display: flex;
+  gap: 8rpx;
+  flex-wrap: wrap;
+  padding-top: 16rpx;
+  margin-top: 16rpx;
+  border-top: 1rpx solid #E4E1D6;
+}
+.story-stat {
+  white-space: nowrap;
 }
 
-/* ── 快捷入口 ── */
-.quick-links {
+/* ── 进化树印章 ── */
+.tree-seal {
   display: flex;
-  justify-content: space-around;
-  padding: 20rpx 16rpx;
-  margin-bottom: 24rpx;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
+  flex-shrink: 0;
 }
-.quick-link {
+.tree-glow {
+  position: absolute;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74,103,65,0.18) 0%, transparent 70%);
+}
+.tree-icon {
+  font-size: 52rpx;
+  z-index: 1;
+}
+.tree-breathe {
+  animation: treeBreathe 1.5s ease-in-out;
+}
+@keyframes treeBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+.tree-leaf {
+  position: absolute;
+  font-size: 28rpx;
+  animation: leafFloat 2s ease-out forwards;
+  z-index: 2;
+}
+@keyframes leafFloat {
+  0% { opacity: 1; transform: translateY(0) scale(0.5); }
+  50% { opacity: 1; transform: translateY(-30rpx) scale(1); }
+  100% { opacity: 0; transform: translateY(-60rpx) scale(0.8); }
+}
+
+/* ── #5: 季节性提醒卡片 ── */
+.seasonal-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+  background: linear-gradient(135deg, #FAFAF7 0%, #F5F4EE 100%);
+  border-left: 4rpx solid #C96442;
+}
+.seasonal-emoji {
+  font-size: 40rpx;
+  flex-shrink: 0;
+}
+.seasonal-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
+  gap: 4rpx;
 }
-.quick-icon {
-  font-size: 40rpx;
+.seasonal-title {
+  font-weight: 600;
+  color: #1A1915;
 }
-.quick-text {
+.seasonal-hint {
   color: #6B6860;
 }
 
@@ -136,8 +195,6 @@
   display: flex;
   flex-direction: column;
   gap: 16rpx;
-  border: 2rpx solid #C96442;
-  background: #FDF6F2;
 }
 .ac-header {
   display: flex;
@@ -150,7 +207,15 @@
 .ac-title {
   font-size: 28rpx;
   font-weight: 700;
-  color: #C96442;
+  color: #6B6860;
+}
+.ac-series-badge {
+  font-size: 22rpx;
+  color: #4A6741;
+  background: #E8E5DC;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-weight: 600;
 }
 .ac-reason {
   color: #1A1915;
@@ -171,30 +236,35 @@
 .ac-topic {
   line-height: 1.4;
 }
+.ac-source {
+  padding: 8rpx 0 0;
+}
+.ac-source-label {
+  display: block;
+  line-height: 1.5;
+}
 .ac-actions {
   display: flex;
   gap: 16rpx;
 }
 .ac-btn {
   flex: 1;
+  margin: 0;
   text-align: center;
   padding: 16rpx 0;
+  line-height: 1.2;
   border-radius: 12rpx;
   font-size: 26rpx;
   font-weight: 600;
-}
-.ac-btn-primary {
-  background: #C96442;
-  color: #fff;
-}
-.ac-btn-secondary {
-  background: #EDEBE3;
-  color: #1A1915;
-}
-.ac-btn-ghost {
-  background: transparent;
-  color: #9A968C;
   border: 1rpx solid #D9D5C7;
+  color: #1A1915;
+  background: transparent;
+}
+.ac-btn::after {
+  border: none;
+}
+.ac-btn-skip {
+  color: #9A968C;
 }
 
 /* ── R2-4: 自进化行为洞察 ── */
@@ -248,7 +318,18 @@
 }
 .todo-priority {
   flex-shrink: 0;
-  font-size: 24rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 8rpx;
+  border-radius: 6rpx;
+}
+.priority-p1 {
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+}
+.priority-p2 {
+  background: var(--c-surface2);
+  color: var(--c-dim);
 }
 .todo-task {
   flex: 1;
@@ -408,7 +489,7 @@
   background: #FAFAF7;
   width: 100%; max-width: 500px;
   border-radius: 20rpx 20rpx 0 0;
-  padding: 32rpx 32rpx 48rpx;
+  padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom) + 120rpx);
 }
 .modal-actions {
   display: flex; gap: 16rpx; margin-top: 8rpx;
@@ -429,7 +510,9 @@
   padding: 6rpx 0;
 }
 .upcoming-icon {
-  font-size: 16px;
+  font-size: 20rpx;
+  color: var(--c-dim);
+  flex-shrink: 0;
 }
 .upcoming-days {
   margin-left: auto;

@@ -172,6 +172,121 @@
   padding: 40rpx 0;
 }
 
+/* ── 成长模块（从 Dashboard 迁移） ── */
+.evolution-card {
+  margin-bottom: 24rpx;
+}
+.evolution-header {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.evolution-icon {
+  font-size: 20px;
+}
+.evolution-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4A6741;
+}
+.evolution-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.evolution-progress-bar {
+  flex: 1;
+  height: 12rpx;
+  background: #E8E2D8;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.evolution-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4A6741, #7ec47e);
+  border-radius: 6rpx;
+  transition: width 0.5s;
+}
+.evolution-gap {
+  display: block;
+  margin-top: 8rpx;
+}
+.evolution-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 12rpx;
+}
+.evolution-badge {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 16rpx;
+  background: #F5F4EE;
+  color: #8B8B8B;
+}
+.evolution-badge.unlocked {
+  background: #4A6741;
+  color: #fff;
+}
+.evolution-desc {
+  display: block;
+  margin-top: 12rpx;
+  line-height: 1.5;
+}
+
+.evolution-metrics-card {
+  margin-bottom: 24rpx;
+}
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+.metric-item {
+  text-align: center;
+  padding: 16rpx 8rpx;
+  background: #F5F4EE;
+  border-radius: 12rpx;
+}
+.metric-num {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: #4A6741;
+  margin-bottom: 4rpx;
+}
+
+/* ── 自进化行为洞察 ── */
+.behavioral-insights-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.bi-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.bi-body {
+  color: #3A3833;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.bi-meta {
+  padding-top: 8rpx;
+  border-top: 1rpx solid #E8E5DC;
+}
+.bi-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.bi-reset-link {
+  padding: 8rpx 16rpx;
+}
+
 /* ── 注销账户 ── */
 .delete-account-card {
   border: 1rpx solid #E8D5CC;
@@ -315,7 +430,10 @@
 
 .spark {
   position: absolute;
-  font-size: 32rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: var(--c-accent);
   animation: sparkFly 1s ease-out 0.3s both;
 }
 .spark-1 { top: 0; left: -20rpx; animation-delay: 0.3s; }

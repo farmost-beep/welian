@@ -69,7 +69,7 @@ async function testE2EDashboard(mp) {
     h.assert(card.contact, '行动卡有联系人');
 
     // 验证行动卡类型是合法值
-    const validTypes = ['overdue_todo', 'perception_driven', 'advise', 'cold_contact', 'important_date'];
+    const validTypes = ['overdue_todo', 'todo_due', 'meeting_followup', 'signal_match', 'perception_driven', 'advise', 'nurture', 'cold_contact', 'important_date'];
     h.assert(validTypes.includes(card.type), '行动卡类型合法: ' + card.type);
 
     // 6. 测试 skip 操作（最安全，不触发 wx.showLoading）
@@ -77,6 +77,8 @@ async function testE2EDashboard(mp) {
     await page.callMethod('onActionCardSkip');
     await h.sleep(1000);
     h.assert(true, 'skip 操作完成不崩溃');
+    const refreshedData = await h.getPageData(page);
+    h.assert(!refreshedData.actionCard || refreshedData.actionCard.id !== card.id, 'skip 后主行动已刷新且不重复');
 
     // 7. draft/done 操作触发 wx.showLoading + wx.request，会阻塞 automator
     // 在 E2E 中只验证 skip（不阻塞），draft/done 在基础测试中覆盖
@@ -108,5 +110,6 @@ async function testE2EDashboard(mp) {
 
 module.exports = {
   name: 'E2E-2: Dashboard 行动卡完整操作(draft/done/skip+导航)',
+  mutates: true,
   fn: testE2EDashboard,
 };

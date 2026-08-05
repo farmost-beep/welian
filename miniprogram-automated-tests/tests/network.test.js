@@ -1,4 +1,4 @@
-// network.test.js — 测试关系网络可视化页
+// network.test.js — 测试关系连接清单页
 const h = require('../helpers');
 
 async function testNetwork(mp) {
@@ -17,8 +17,8 @@ async function testNetwork(mp) {
   h.assert(Array.isArray(data.graph.edges), 'Graph has edges array');
   h.assert(data.graph.stats, 'Graph has stats');
 
-  // 2. 检查模式切换
-  h.assertEqual(data.mode, 'graph', 'Default mode is graph');
+  // 2. 检查模式切换（默认为 list）
+  h.assertEqual(data.mode, 'list', 'Default mode is list');
 
   // 3. 如果有节点，检查结构
   if (data.graph.nodes.length > 0) {
@@ -59,6 +59,7 @@ async function testNetwork(mp) {
 }
 
 module.exports = {
-  name: '关系网络可视化页',
+  name: '关系连接清单页',
+  mutates: false,
   fn: testNetwork,
 };

@@ -10,28 +10,24 @@
   <!-- 价值主张 -->
   <view class="value-props">
     <view class="prop-item">
-      <text class="prop-icon">📊</text>
       <view class="prop-text">
         <text class="prop-title">仪表盘</text>
         <text class="prop-desc">每月行为回顾，按朋友/家人/合作者分组</text>
       </view>
     </view>
     <view class="prop-item">
-      <text class="prop-icon">🤝</text>
       <view class="prop-text">
         <text class="prop-title">关系管理</text>
         <text class="prop-desc">联系人、互动记录、冷却预警、重要日期</text>
       </view>
     </view>
     <view class="prop-item">
-      <text class="prop-icon">📋</text>
       <view class="prop-text">
         <text class="prop-title">待办事项</text>
         <text class="prop-desc">该联系谁、该做什么，一目了然</text>
       </view>
     </view>
     <view class="prop-item">
-      <text class="prop-icon">📡</text>
       <view class="prop-text">
         <text class="prop-title">科技商业信号</text>
         <text class="prop-desc">每日精选科技商业动态，发现合作机会</text>
@@ -39,10 +35,13 @@
     </view>
   </view>
 
-  <!-- 重试登录按钮（自动登录失败时展示） -->
+  <!-- 登录按钮 + 暂不登录（审核要求：用户可取消/拒绝登录） -->
   <view class="cta-section">
     <button class="btn btn-primary btn-block" bindtap="retryLogin" loading="{{loggingIn}}">
-      {{loggingIn ? '登录中…' : '重新登录'}}
+      {{loggingIn ? '登录中…' : '微信登录'}}
+    </button>
+    <button class="btn btn-skip btn-block" bindtap="skipLogin">
+      暂不登录，先体验
     </button>
   </view>
 

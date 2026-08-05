@@ -1,11 +1,5 @@
 <!-- pages/dashboard/dashboard.wxml — 角色仪表盘 -->
 <view class="container">
-  <!-- 标题 -->
-  <view class="header">
-    <text class="page-title">{{userName || '你好'}}</text>
-    <text class="page-subtitle">每段关系都值得用心</text>
-  </view>
-
   <!-- 加载态 -->
   <view wx:if="{{loading}}" class="loading">
     <text class="text-dimmer text-sm">正在回顾你本月的故事…</text>
@@ -17,52 +11,42 @@
     <view style="margin-top:12px"><button size="mini" bindtap="loadDashboard">重试</button></view>
   </view>
 
-  <block wx:if="{{!loading && !error}}">
-    <!-- 统计概览 -->
-    <view wx:if="{{!isEmpty}}" class="stats-bar">
-      <view class="stat-item">
-        <text class="stat-num">{{stats.total}}</text>
-        <text class="stat-label text-dimmer text-xs">联系人</text>
+  <!-- 未登录态 — 允许游客体验 app shell（审核要求：可跳过登录） -->
+  <view wx:if="{{notLoggedIn && !loading && !error}}" class="loading">
+    <text class="text-sm" style="margin-bottom:8px">登录后查看你的关系网络</text>
+    <text class="text-dimmer text-xs" style="margin-bottom:20px">Welian 帮你成为更好的朋友、更好的家人、更好的合作者</text>
+    <button class="btn btn-primary" size="mini" bindtap="goLogin">微信登录</button>
+  </view>
+
+  <block wx:if="{{!loading && !error && !notLoggedIn}}">
+    <!-- 月度故事卡 — 标语 + 叙事 + 进化树印章 -->
+    <view wx:if="{{!isEmpty}}" class="card story-card">
+      <view class="story-header">
+        <view class="story-text-wrap">
+          <text class="story-belief">每段关系都值得用心</text>
+          <text class="story-text text-sm">{{storyText}}</text>
+        </view>
+        <view wx:if="{{evolution}}" class="tree-seal">
+          <view class="tree-glow"></view>
+          <text class="tree-icon {{treeAnimation ? 'tree-breathe' : ''}}">{{evolution.icon}}</text>
+          <view wx:if="{{treeLeaf}}" class="tree-leaf">{{treeLeaf}}</view>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-num">{{stats.leverage}}</text>
-        <text class="stat-label text-dimmer text-xs">经营型</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-num">{{stats.nurture}}</text>
-        <text class="stat-label text-dimmer text-xs">陪伴型</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-num">{{pendingCount}}</text>
-        <text class="stat-label text-dimmer text-xs">待办</text>
+      <view class="story-stats">
+        <text class="story-stat text-dimmer text-xs">{{stats.total}} 联系人</text>
+        <text class="story-stat text-dimmer text-xs">·</text>
+        <text class="story-stat text-dimmer text-xs">{{evolutionMetrics.monthInteractions}} 次本月互动</text>
+        <text class="story-stat text-dimmer text-xs">·</text>
+        <text class="story-stat text-dimmer text-xs">{{pendingCount}} 待办</text>
       </view>
     </view>
 
-    <!-- 快捷入口 -->
-    <view class="quick-links">
-      <view class="quick-link" bindtap="goWeekly">
-        <text class="quick-icon">📋</text>
-        <text class="quick-text text-sm">周报</text>
-      </view>
-      <view class="quick-link" bindtap="goMonthly">
-        <text class="quick-icon">📊</text>
-        <text class="quick-text text-sm">月报</text>
-      </view>
-      <view class="quick-link" bindtap="goAnnual">
-        <text class="quick-icon">🎉</text>
-        <text class="quick-text text-sm">年度</text>
-      </view>
-      <view class="quick-link" bindtap="goMeetings">
-        <text class="quick-icon">🤝</text>
-        <text class="quick-text text-sm">会议</text>
-      </view>
-      <view class="quick-link" bindtap="goTimeline">
-        <text class="quick-icon">📖</text>
-        <text class="quick-text text-sm">互动</text>
-      </view>
-      <view wx:if="{{syncPinned}}" class="quick-link" bindtap="goSync">
-        <text class="quick-icon">🌱</text>
-        <text class="quick-text text-sm">小维</text>
+    <!-- #5: 季节性关系提醒 -->
+    <view wx:if="{{seasonalCard}}" class="card seasonal-card">
+      <text class="seasonal-emoji">{{seasonalCard.emoji}}</text>
+      <view class="seasonal-body">
+        <text class="seasonal-title text-sm">{{seasonalCard.title}}</text>
+        <text class="seasonal-hint text-dimmer text-xs">{{seasonalCard.hint}}</text>
       </view>
     </view>
 
@@ -81,14 +65,14 @@
       <view wx:if="{{todoSummary.overdue.length > 0}}" class="todo-group">
         <text class="todo-group-label text-accent text-sm">已超期</text>
         <view wx:for="{{todoSummary.overdue}}" wx:key="id" class="todo-row">
-          <text class="todo-priority">{{item.priority === 'P1' ? '🔴' : '🟡'}}</text>
+          <text class="todo-priority {{item.priority === 'P1' ? 'priority-p1' : 'priority-p2'}}">{{item.priority}}</text>
           <text class="todo-task text-sm">{{item.task}}</text>
         </view>
       </view>
       <view wx:if="{{todoSummary.today.length > 0}}" class="todo-group">
         <text class="todo-group-label text-sm">今天</text>
         <view wx:for="{{todoSummary.today}}" wx:key="id" class="todo-row">
-          <text class="todo-priority">{{item.priority === 'P1' ? '🔴' : '🟡'}}</text>
+          <text class="todo-priority {{item.priority === 'P1' ? 'priority-p1' : 'priority-p2'}}">{{item.priority}}</text>
           <text class="todo-task text-sm">{{item.task}}</text>
         </view>
       </view>
@@ -96,20 +80,24 @@
     </view>
 
     <!-- R2-2: 本周最值得做的一件事 -->
-    <view wx:if="{{!isEmpty && actionCard}}" class="card action-card" bindtap="onActionCardTap">
+    <view wx:if="{{!isEmpty && actionCard}}" class="card action-card" bindtap="onActionCardTap" data-action-id="{{actionCard.action_id || actionCard.id}}">
       <view class="ac-header">
-        <text class="ac-icon">🎯</text>
         <text class="ac-title">本周最值得做</text>
+        <text wx:if="{{actionCard.series_id}}" class="ac-series-badge">{{actionCard.series_label}} · 步骤 {{actionCard.series_order + 1}}/{{actionCard.series_total}}</text>
       </view>
       <text class="ac-reason text-sm">{{actionCard.reason}}</text>
       <view wx:if="{{actionCard.contact}}" class="ac-contact">
         <text class="ac-contact-name text-sm">{{actionCard.contact.name}}</text>
         <text class="ac-topic text-dimmer text-xs">{{actionCard.suggested_topic}}</text>
       </view>
+      <view wx:if="{{actionCard.source && actionCard.source.evidence}}" class="ac-source">
+        <text class="ac-source-label text-dimmer text-xs">依据：{{actionCard.source.evidence}}</text>
+      </view>
       <view class="ac-actions">
-        <view class="ac-btn ac-btn-primary" catchtap="onActionCardDraft" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">拟消息</view>
-        <view class="ac-btn ac-btn-secondary" catchtap="onActionCardDone" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">已联系</view>
-        <view class="ac-btn ac-btn-ghost" catchtap="onActionCardSkip">跳过</view>
+        <button class="ac-btn" catchtap="onActionCardDraft" disabled="{{actionBusy}}" loading="{{actionBusy && drafting}}" data-action-id="{{actionCard.action_id || actionCard.id}}" data-action-version="{{actionCard.version}}" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">拟消息</button>
+        <button class="ac-btn" catchtap="onActionCardDone" disabled="{{actionBusy}}" loading="{{actionBusy && drafting}}" data-action-id="{{actionCard.action_id || actionCard.id}}" data-action-version="{{actionCard.version}}" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">已完成</button>
+        <button class="ac-btn" catchtap="onActionCardSnooze" disabled="{{actionBusy}}" loading="{{actionBusy && drafting}}" data-action-id="{{actionCard.action_id || actionCard.id}}" data-action-version="{{actionCard.version}}" data-contact-id="{{actionCard.contact.id}}" data-todo-id="{{actionCard.todo_id || ''}}">稍后</button>
+        <button class="ac-btn ac-btn-skip" catchtap="onActionCardSkip" disabled="{{actionBusy}}" loading="{{actionBusy && drafting}}" data-action-id="{{actionCard.action_id || actionCard.id}}" data-action-version="{{actionCard.version}}">跳过</button>
       </view>
     </view>
 
@@ -117,7 +105,7 @@
     <view wx:if="{{flags.upcoming_dates && upcomingDates.length > 0}}" class="card upcoming-card">
       <view class="section-title-sm">近期重要日期</view>
       <view wx:for="{{upcomingDates}}" wx:key="index" class="upcoming-row">
-        <text class="upcoming-icon">{{item.label === '生日' ? '🎂' : '📅'}}</text>
+        <text class="upcoming-icon">{{item.label}}</text>
         <text class="text-sm">{{item.name}}的{{item.label}}</text>
         <text class="text-dimmer text-xs upcoming-days">{{item.days}}天后</text>
       </view>
@@ -140,7 +128,7 @@
     </view>
 
     <!-- 三角色分栏 -->
-    <block wx:for="{{roles}}" wx:key="key">
+    <block wx:if="{{flags.roles}}" wx:for="{{roles}}" wx:key="key">
       <view class="card role-card">
         <view class="role-header">
           <text class="role-icon">{{item.icon}}</text>
@@ -162,66 +150,6 @@
       </view>
     </block>
 
-    <!-- 进化阶段（底部） -->
-    <view wx:if="{{!isEmpty && flags.evolution && evolution}}" class="card evolution-card">
-      <view class="evolution-header">
-        <text class="evolution-icon">{{evolution.icon}}</text>
-        <text class="evolution-name">{{evolution.name}}</text>
-        <text wx:if="{{evolution.next}}" class="text-dimmer text-xs">→ {{evolution.nextIcon}} {{evolution.next}}</text>
-        <text wx:else class="text-dimmer text-xs">已满级</text>
-      </view>
-      <view class="evolution-progress-wrap">
-        <view class="evolution-progress-bar">
-          <view class="evolution-progress-fill" style="width:{{evolution.progress}}%"></view>
-        </view>
-        <text class="evolution-progress-text text-xs text-dimmer">{{evolution.progress}}%</text>
-      </view>
-      <text wx:if="{{evolution.next}}" class="evolution-gap text-dimmer text-xs">还需 {{evolution.needContacts}} 联系人 · {{evolution.needInteractions}} 互动</text>
-      <!-- 阶段徽章 -->
-      <view class="evolution-badges">
-        <text wx:for="{{evolution.stages}}" wx:key="name" class="evolution-badge {{item.unlocked ? 'unlocked' : ''}}">{{item.icon}} {{item.name}}</text>
-      </view>
-      <text class="evolution-desc text-dimmer text-xs">关系网络成长度 · 多记录互动，自然会成长</text>
-    </view>
-
-    <!-- 进化指标 2x2 网格 -->
-    <view wx:if="{{!isEmpty && flags.evolution && evolutionMetrics}}" class="card evolution-metrics-card">
-      <text class="section-title-sm">📊 进化指标</text>
-      <view class="metrics-grid">
-        <view class="metric-item">
-          <text class="metric-num">{{evolutionMetrics.monthInteractions}}</text>
-          <text class="metric-label text-dimmer text-xs">本月互动</text>
-        </view>
-        <view class="metric-item">
-          <text class="metric-num">{{evolutionMetrics.totalInteractions}}</text>
-          <text class="metric-label text-dimmer text-xs">互动总数</text>
-        </view>
-        <view class="metric-item">
-          <text class="metric-num">{{evolutionMetrics.contactCount}}</text>
-          <text class="metric-label text-dimmer text-xs">联系人</text>
-        </view>
-        <view class="metric-item">
-          <text class="metric-num">{{stats.leverage}}</text>
-          <text class="metric-label text-dimmer text-xs">经营型</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- R2-4: 自进化行为洞察 -->
-    <view wx:if="{{!isEmpty && behavioralInsights}}" class="card behavioral-insights-card">
-      <view class="bi-header">
-        <text class="bi-icon">🧠</text>
-        <text class="section-title-sm">小维学到了</text>
-      </view>
-      <text class="bi-body text-sm">{{behavioralInsights.insights}}</text>
-      <view class="bi-meta">
-        <text class="text-dimmer text-xs">依据：过去 {{behavioralInsights.based_on.weeks_analyzed}} 周 {{behavioralInsights.based_on.total_actions}} 次行动 · 采纳率 {{behavioralInsights.based_on.adoption_rate}}%</text>
-      </view>
-      <view class="bi-actions">
-        <text class="bi-reset-link text-dimmer text-xs" bindtap="resetBehavioralInsights">重置</text>
-      </view>
-    </view>
-
     <!-- 底部说明 -->
     <view class="footer-note">
       <text class="text-dimmer text-xs">Welian 只做行为回顾，不做评分。这个月过得怎么样，由你判断。</text>
@@ -233,7 +161,7 @@
 <view wx:if="{{stageUpgrade}}" class="modal-overlay" catchtap="closeStageUpgrade">
   <view class="modal-sheet" catchtap="noop">
     <view class="stage-upgrade-icon">{{stageUpgrade.icon}}</view>
-    <view class="stage-upgrade-title">🎉 进化到了「{{stageUpgrade.name}}」阶段！</view>
+    <view class="stage-upgrade-title">进化到了「{{stageUpgrade.name}}」阶段！</view>
     <text class="stage-upgrade-desc text-dim text-sm">你的小维现在掌握了 {{stageUpgrade.contacts}} 段关系和 {{stageUpgrade.interactions}} 条互动记忆</text>
     <view class="modal-actions">
       <button class="action-btn action-btn-primary" bindtap="closeStageUpgrade">继续成长</button>

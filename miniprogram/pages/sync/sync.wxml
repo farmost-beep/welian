@@ -36,7 +36,7 @@
 
       <!-- 按钮组 -->
       <view wx:if="{{item.type === 'buttons'}}" id="{{item.id}}" class="sync-buttons">
-        <view wx:for="{{item.items}}" wx:for-item="btn" wx:key="*this" class="sync-btn" bindtap="onTap" data-id="{{btn}}">{{btn}}</view>
+        <view wx:for="{{item.items}}" wx:for-item="btn" wx:key="*this" class="sync-btn" catchtap="onTap" data-id="{{btn}}">{{btn}}</view>
       </view>
 
       <!-- 锚点（不可见，用于滚动定位） -->
@@ -44,9 +44,143 @@
     </block>
   </scroll-view>
 
+  <view wx:if="{{relationshipImporting || (relationshipImportError && !relationshipOverlay)}}" class="relationship-import-status">
+    <text wx:if="{{relationshipImporting}}" class="relationship-import-status-text">{{relationshipImportStatus}}</text>
+    <text wx:if="{{relationshipImportError && !relationshipImporting && !relationshipOverlay}}" class="relationship-import-error">{{relationshipImportError}}</text>
+    <view wx:if="{{relationshipImportError && !relationshipImporting && !relationshipOverlay && relationshipRetryAvailable}}" class="relationship-retry" catchtap="retryRelationshipImport">重试解析</view>
+    <view wx:if="{{relationshipImportError && !relationshipImporting && !relationshipOverlay && !relationshipRetryAvailable}}" class="relationship-retry" catchtap="onAttachmentTap">重新选择文件</view>
+  </view>
+
   <!-- 输入区域 -->
   <view class="sync-input-bar">
+    <view class="sync-attachment" catchtap="onAttachmentTap">+</view>
     <input class="sync-input" placeholder="输入内容…" value="{{inputValue}}" bindinput="onInput" confirm-type="send" bindconfirm="onSend" />
-    <view class="sync-send" bindtap="onSend">→</view>
+    <view class="sync-send" catchtap="onSend">→</view>
+  </view>
+
+  <view wx:if="{{relationshipOverlay}}" class="relationship-overlay" catchtap="cancelRelationshipImport" data-proposal_id="{{relationshipProposalId}}">
+    <view class="relationship-dialog" catchtap="noop">
+      <view class="relationship-dialog-header">
+        <text class="relationship-dialog-title">关系资料预览</text>
+        <text class="relationship-dialog-subtitle">确认后才会更新联系人和关系记录。图片识别结果仅供核对，模糊内容不会自动写入。提示：仅上传联系人、互动、会议等关系资料，请勿上传身份证、银行卡等非关系资料。不会批量导入原始聊天记录或复述私密对话，只提取确认后的关系事实。</text>
+        <view wx:if="{{relationshipImportError}}" class="relationship-apply-feedback">
+          <text class="relationship-apply-feedback-text">{{relationshipImportError}}</text>
+        </view>
+      </view>
+      <scroll-view class="relationship-preview-scroll" scroll-y>
+        <view class="relationship-summary">
+          <text class="relationship-section-title">资料摘要</text>
+          <text class="relationship-summary-text">{{relationshipPreview.summary}}</text>
+          <view wx:if="{{relationshipPreview.source}}" class="relationship-source">
+            <text class="relationship-entry-meta">来源：{{relationshipPreview.source.kind}} · {{relationshipPreview.source.filename}}</text>
+            <text wx:if="{{relationshipPreview.source.image_layout}}" class="relationship-entry-meta">image_layout：{{relationshipPreview.source.image_layout}}</text>
+          </view>
+        </view>
+
+        <view class="relationship-counts">
+          <view wx:for="{{relationshipPreview.countItems}}" wx:for-item="count" wx:key="label" class="relationship-count">
+            <text class="relationship-count-value">{{count.value}}</text>
+            <text class="relationship-count-label">{{count.label}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.contacts.length}}" class="relationship-section">
+          <text class="relationship-section-title">联系人</text>
+          <view wx:for="{{relationshipPreview.contacts}}" wx:for-item="contact" wx:key="name" class="relationship-entry relationship-contact">
+            <view class="relationship-entry-head">
+              <text class="relationship-operation">{{contact.operation}} · {{contact.operationLabel}}</text>
+              <text class="relationship-entry-title">{{contact.name}}</text>
+            </view>
+            <text wx:if="{{contact.company}}" class="relationship-entry-meta">公司：{{contact.company}}</text>
+            <text wx:if="{{contact.title}}" class="relationship-entry-meta">职位：{{contact.title}}</text>
+            <text wx:if="{{contact.nature}}" class="relationship-entry-meta">关系：{{contact.nature}}</text>
+            <text class="relationship-entry-confidence">confidence：{{contact.confidence}}<text wx:if="{{contact.qualityLabel}}"> · {{contact.qualityLabel}}</text></text>
+            <text wx:if="{{contact.evidence}}" class="relationship-entry-evidence">依据摘要：{{contact.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.interactions.length}}" class="relationship-section">
+          <text class="relationship-section-title">互动</text>
+          <view wx:for="{{relationshipPreview.interactions}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.memories.length}}" class="relationship-section">
+          <text class="relationship-section-title">记忆</text>
+          <view wx:for="{{relationshipPreview.memories}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.importantDates.length}}" class="relationship-section">
+          <text class="relationship-section-title">重要日期</text>
+          <view wx:for="{{relationshipPreview.importantDates}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.todos.length}}" class="relationship-section">
+          <text class="relationship-section-title">待办</text>
+          <view wx:for="{{relationshipPreview.todos}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.goals.length}}" class="relationship-section">
+          <text class="relationship-section-title">目标</text>
+          <view wx:for="{{relationshipPreview.goals}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.meetings.length}}" class="relationship-section">
+          <text class="relationship-section-title">会议</text>
+          <view wx:for="{{relationshipPreview.meetings}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.actionCandidates.length}}" class="relationship-section">
+          <text class="relationship-section-title">下一步行动</text>
+          <view wx:for="{{relationshipPreview.actionCandidates}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+            <text wx:if="{{entry.reason}}" class="relationship-entry-meta">原因：{{entry.reason}}</text>
+            <text wx:if="{{entry.meta}}" class="relationship-entry-meta">{{entry.meta}}</text>
+            <text class="relationship-entry-confidence">confidence：{{entry.confidence}}<text wx:if="{{entry.qualityLabel}}"> · {{entry.qualityLabel}}</text></text>
+            <text wx:if="{{entry.evidence}}" class="relationship-entry-evidence">依据摘要：{{entry.evidence}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{relationshipPreview.warnings.length}}" class="relationship-section relationship-warning-section">
+          <text class="relationship-section-title">warnings</text>
+          <view wx:for="{{relationshipPreview.warnings}}" wx:for-item="entry" wx:key="index" class="relationship-entry">
+            <text class="relationship-entry-title">{{entry.summary}}</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="relationship-dialog-actions">
+        <button class="relationship-cancel" catchtap="cancelRelationshipImport" disabled="{{relationshipConfirming}}">取消</button>
+        <button class="relationship-confirm" catchtap="confirmRelationshipImport" loading="{{relationshipConfirming}}" disabled="{{relationshipConfirming}}">{{relationshipImportError ? '重试确认导入' : '确认导入并更新'}}</button>
+      </view>
+    </view>
   </view>
 </view>

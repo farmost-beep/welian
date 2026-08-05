@@ -57,6 +57,7 @@ describe("eval: metrics — North Star weekly tracking", () => {
     });
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(200);
+    await new Promise(resolve => setTimeout(resolve, 0));
     // Check metrics KV
     const metrics = JSON.parse(env.USER_DATA._store.get("metrics:testuser"));
     const wk = Object.keys(metrics.weekly)[0];
@@ -64,6 +65,9 @@ describe("eval: metrics — North Star weekly tracking", () => {
   });
 
   it("eval: add_timeline increments interaction_recorded in weekly metrics", async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-laoxu', name: '老许' },
+    ]));
     globalThis.fetch = async () => {
       const parsed = JSON.stringify({
         intent: "record",
@@ -86,6 +90,7 @@ describe("eval: metrics — North Star weekly tracking", () => {
     });
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(200);
+    await new Promise(resolve => setTimeout(resolve, 0));
     const metrics = JSON.parse(env.USER_DATA._store.get("metrics:testuser"));
     const wk = Object.keys(metrics.weekly)[0];
     expect(metrics.weekly[wk].interaction_recorded).toBe(1);
@@ -141,6 +146,7 @@ describe("eval: metrics — advice adoption tracking (P0-2)", () => {
     });
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(200);
+    await new Promise(resolve => setTimeout(resolve, 0));
     const metrics = JSON.parse(env.USER_DATA._store.get("metrics:testuser"));
     expect(metrics.adoptions).toHaveLength(1);
     expect(metrics.adoptions[0].advise_id).toBe("adv_test_001");

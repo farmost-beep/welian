@@ -1,0 +1,51 @@
+// terminology.wxs — WXML 内联术语映射（WXS 语法，非 JS）
+// API 字段统一为英文：leverage / nurture / dual
+// 显示标签统一为中文：经营型 / 陪伴型 / 双重
+
+var NATURE_API = {
+  leverage: 'leverage',
+  nurture: 'nurture',
+  dual: 'dual',
+  '撬动': 'leverage',
+  '维系': 'nurture',
+  '经营': 'leverage',
+  '陪伴': 'nurture',
+  '经营型': 'leverage',
+  '陪伴型': 'nurture',
+  '双重': 'dual',
+  '双重关系': 'dual'
+};
+
+var NATURE_LABEL = {
+  leverage: '经营型',
+  nurture: '陪伴型',
+  dual: '双重'
+};
+
+var NATURE_TAG = {
+  leverage: 'tag-leverage',
+  nurture: 'tag-nurture',
+  dual: 'tag-dual'
+};
+
+function normalizeNature(nature) {
+  if (!nature) return 'leverage';
+  var key = nature;
+  // WXS 不支持 toLowerCase，手动检查
+  if (NATURE_API[key]) return NATURE_API[key];
+  return 'leverage';
+}
+
+function label(nature) {
+  return NATURE_LABEL[normalizeNature(nature)] || '经营型';
+}
+
+function tagClass(nature) {
+  return NATURE_TAG[normalizeNature(nature)] || 'tag-leverage';
+}
+
+module.exports = {
+  label: label,
+  tagClass: tagClass,
+  normalizeNature: normalizeNature
+};

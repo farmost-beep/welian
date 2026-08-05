@@ -31,6 +31,47 @@
   margin-bottom: 24rpx;
 }
 
+/* #4: 月度点状时间轴 */
+.month-dot-card {
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+.dot-summary {
+  margin-bottom: 16rpx;
+}
+.dot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+.dot {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: #E8E5DC;
+  position: relative;
+}
+.dot.low {
+  background: #A8C49A;
+}
+.dot.mid {
+  background: #6B8E5A;
+}
+.dot.high {
+  background: #4A6741;
+}
+.dot-today {
+  border: 3rpx solid #C96442;
+}
+.dot-label {
+  position: absolute;
+  top: 32rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+
 /* 月份分组标题 */
 .month-header {
   font-size: 28rpx;

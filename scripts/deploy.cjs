@@ -230,8 +230,14 @@ async function main() {
     }
 
     if (miniprogramChanged) {
+      const hasE2EToken = Boolean(process.env.WELIAN_E2E_TOKEN && process.env.WELIAN_E2E_TOKEN.trim());
+      const automatorCmd = hasE2EToken
+        ? 'node run-all.js --full'
+        : 'node run-all.js --safe';
       console.log('\nMiniprogram files changed → running automator tests');
-      const automatorCmd = 'node run-all.js';
+      console.log(hasE2EToken
+        ? 'Dedicated E2E account configured → running safe and mutating tests'
+        : 'No WELIAN_E2E_TOKEN configured → running read-only safe tests');
       try {
         execSync(automatorCmd, {
           cwd: join(REPO_DIR, 'miniprogram-automated-tests'),

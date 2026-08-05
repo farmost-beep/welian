@@ -1,6 +1,6 @@
 // pages/todos/todos.js — 待办事项页
 const api = require('../../utils/api.js');
-const { formatTodos, groupTodos, formatDate, formatDateTime } = require('../../utils/todos-logic.js');
+const { formatTodos, groupTodos, formatDate, formatDateTime, seriesProgress } = require('../../utils/todos-logic.js');
 const app = getApp();
 
 Page({
@@ -34,6 +34,10 @@ Page({
     // 详情
     showDetail: false,
     detailTodo: {},
+    // 序列创建
+    showSeries: false,
+    savingSeries: false,
+    seriesForm: { label: '', steps: [] },
     priorityOptions: ['P1 紧急', 'P2 重要', 'P3 一般'],  // onLoad 时从 config 覆盖
     priorityValues: ['P1', 'P2', 'P3'],                  // onLoad 时从 config 覆盖
     postponeDays: [1, 3, 7, 14],                          // onLoad 时从 config 覆盖
@@ -58,11 +62,13 @@ Page({
   async onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
-      this.getTabBar().refresh();
     }
     if (!api.getToken()) {
       this.setData({ loading: true });
-      try { await app.loginReady; } catch (e) { return; }
+      try { await app.loginReady; } catch (e) { this.setData({ loading: false }); return; }
+    }
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().refresh();
     }
     this.loadTodos();
   },
@@ -89,9 +95,14 @@ Page({
       this.fetchTodos('done'),
     ]).then(([pendingData, doneData]) => {
       const pending = formatTodos(pendingData.todos || []);
+      const seriesGroups = pendingData.series_groups || [];
+      // Add progress dots to series groups
+      seriesGroups.forEach(sg => {
+        sg.progressDots = seriesProgress(sg.steps);
+      });
       this.setData({
         pending,
-        pendingGroups: groupTodos(pending),
+        pendingGroups: groupTodos(pending, seriesGroups),
         doneList: formatTodos(doneData.todos || []),
         doneCount: pendingData.done_count || 0,
         loading: false,
@@ -258,7 +269,13 @@ Page({
           if (!this.data.newIsLongTerm) api.requestSubscribe(['todo_due']);
         } else {
           this.setData({ adding: false });
-          wx.showToast({ title: '添加失败', icon: 'none' });
+          const err = (res.data && res.data.error) || '添加失败';
+          wx.showModal({
+            title: '添加失败',
+            content: err,
+            showCancel: false,
+            confirmText: '知道了',
+          });
         }
       },
       fail: () => {
@@ -275,6 +292,71 @@ Page({
     const todo = all.find(t => t.id === id);
     if (!todo) return;
     this.setData({ showActions: true, actionTodo: todo });
+  },
+
+  // ── 序列卡片：展开/折叠 ──
+  toggleSeries(e) {
+    const seriesId = e.currentTarget.dataset.seriesId;
+    if (!seriesId) return;
+    const groups = this.data.pendingGroups.map(g => ({
+      ...g,
+      items: g.items.map(item => {
+        if (item.isSeries && item.series_id === seriesId) {
+          return { ...item, expanded: !item.expanded };
+        }
+        return item;
+      }),
+    }));
+    this.setData({ pendingGroups: groups });
+  },
+
+  // ── 序列卡片：完成当前步骤 ──
+  markSeriesStepDone(e) {
+    const stepId = e.currentTarget.dataset.stepId;
+    const seriesId = e.currentTarget.dataset.seriesId;
+    if (!stepId) return;
+    // Find the series card to get step info for feedback
+    let seriesCard = null;
+    let stepIndex = -1;
+    for (const g of this.data.pendingGroups) {
+      for (const item of g.items) {
+        if (item.isSeries && item.series_id === seriesId) {
+          seriesCard = item;
+          stepIndex = item.series_steps.findIndex(s => s.id === stepId);
+          break;
+        }
+      }
+      if (seriesCard) break;
+    }
+    wx.request({
+      url: 'https://api.welian.app/data/todos/done',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api.getToken() },
+      data: { id: stepId },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.loadTodos(() => {
+            // Show feedback about next step activation
+            if (seriesCard && stepIndex >= 0) {
+              const total = seriesCard.series_total;
+              const completed = seriesCard.series_completed + 1;
+              if (completed >= total) {
+                wx.showToast({ title: '序列全部完成 🎉', icon: 'success' });
+              } else {
+                const nextStep = seriesCard.series_steps[stepIndex + 1];
+                if (nextStep) {
+                  wx.showToast({ title: `步骤${stepIndex + 1}完成，已激活：${nextStep.task.slice(0, 12)}…`, icon: 'none' });
+                } else {
+                  wx.showToast({ title: '步骤已完成', icon: 'success' });
+                }
+              }
+            } else {
+              wx.showToast({ title: '已完成', icon: 'success' });
+            }
+          });
+        }
+      },
+    });
   },
 
   closeActions() {
@@ -448,6 +530,133 @@ Page({
   // ── 推迟 ──
   doPostpone() {
     this.setData({ showActions: false, showPostpone: true });
+  },
+
+  // ── 创建序列 ──
+  doCreateSeries() {
+    const todo = this.data.actionTodo;
+    this.setData({
+      showActions: false,
+      showSeries: true,
+      seriesForm: {
+        label: todo.task,
+        steps: [{ task: '', due: '' }],
+        baseTodoId: todo.id,
+        baseTodoDue: todo.due || '',
+        baseTodoContact: todo.contact || '',
+      },
+    });
+  },
+
+  closeSeries() {
+    this.setData({ showSeries: false });
+  },
+
+  onSeriesInput(e) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`seriesForm.${field}`]: e.detail.value });
+  },
+
+  onSeriesStepInput(e) {
+    const idx = parseInt(e.currentTarget.dataset.index);
+    const steps = this.data.seriesForm.steps.slice();
+    steps[idx] = { ...steps[idx], task: e.detail.value };
+    this.setData({ 'seriesForm.steps': steps });
+  },
+
+  onSeriesStepDate(e) {
+    const idx = parseInt(e.currentTarget.dataset.index);
+    const steps = this.data.seriesForm.steps.slice();
+    steps[idx] = { ...steps[idx], due: e.detail.value };
+    this.setData({ 'seriesForm.steps': steps });
+  },
+
+  addSeriesStep() {
+    const steps = this.data.seriesForm.steps.concat([{ task: '', due: '' }]);
+    this.setData({ 'seriesForm.steps': steps });
+  },
+
+  removeSeriesStep(e) {
+    const idx = parseInt(e.currentTarget.dataset.index);
+    const steps = this.data.seriesForm.steps.slice();
+    steps.splice(idx, 1);
+    this.setData({ 'seriesForm.steps': steps });
+  },
+
+  saveSeries() {
+    const form = this.data.seriesForm;
+    const label = (form.label || '').trim();
+    if (!label) {
+      wx.showToast({ title: '请填写序列名称', icon: 'none' });
+      return;
+    }
+    const validSteps = form.steps.filter(s => (s.task || '').trim());
+    if (validSteps.length === 0) {
+      wx.showToast({ title: '至少添加一个后续步骤', icon: 'none' });
+      return;
+    }
+    this.setData({ savingSeries: true });
+
+    // Generate series ID client-side
+    const seriesId = `series-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const baseTodoId = form.baseTodoId;
+    const baseTodoDue = form.baseTodoDue;
+    const baseTodoContact = form.baseTodoContact;
+    const totalSteps = validSteps.length + 1; // base + new steps
+
+    // 1. Update base todo with series fields
+    const updateBase = new Promise((resolve, reject) => {
+      wx.request({
+        url: 'https://api.welian.app/data/todos',
+        method: 'POST',
+        header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+        data: {
+          id: baseTodoId,
+          task: this.data.actionTodo.task,
+          contact_id: baseTodoContact,
+          due: baseTodoDue,
+          series_id: seriesId,
+          series_order: 0,
+          series_label: label,
+          series_total: totalSteps,
+          series_active: true,
+        },
+        success: resolve,
+        fail: reject,
+      });
+    });
+
+    // 2. Create subsequent steps
+    const stepPromises = validSteps.map((step, i) => new Promise((resolve, reject) => {
+      wx.request({
+        url: 'https://api.welian.app/data/todos',
+        method: 'POST',
+        header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+        data: {
+          task: step.task,
+          contact_id: baseTodoContact,
+          due: step.due || '',
+          priority: 'P2',
+          source: 'manual_series',
+          series_id: seriesId,
+          series_order: i + 1,
+          series_label: label,
+          series_total: totalSteps,
+          series_active: false,
+        },
+        success: resolve,
+        fail: reject,
+      });
+    }));
+
+    Promise.all([updateBase, ...stepPromises]).then(() => {
+      this.setData({ savingSeries: false, showSeries: false });
+      wx.showToast({ title: '序列已创建', icon: 'success' });
+      this.loadTodos();
+    }).catch(() => {
+      this.setData({ savingSeries: false });
+      wx.showToast({ title: '创建失败', icon: 'none' });
+    });
   },
 
   closePostpone() {

@@ -9,43 +9,40 @@ const NATURE_LABELS = {
 
 Page({
   data: {
-    step: 1,
     currentName: '',
     currentNature: 'leverage',
-    currentRelationship: '',
     added: [],
     submitting: false,
     firstAdvise: '',
     autoFocus: true,
+    nameError: '',
   },
 
   onLoad() {
-    // 检查是否已完成 onboarding
     const app = getApp();
     if (app && app.globalData && app.globalData.openid) {
-      // 已登录用户，检查是否已有联系人
       this.checkExistingContacts();
     }
+  },
+
+  // 页面卸载（含系统返回键）— 标记 onboarded，防止 dashboard 空状态再次跳回
+  onUnload() {
+    const app = getApp();
+    if (app && app.globalData) app.globalData.onboarded = true;
+    try { wx.setStorageSync('welian_onboarded', true); } catch (e) {}
   },
 
   async checkExistingContacts() {
     try {
       const data = await api.request('/data/contacts?limit=1&compact=1');
       if (data && data.contacts && data.contacts.length >= 3) {
-        // 已有足够联系人，直接进 dashboard
         wx.switchTab({ url: '/pages/dashboard/dashboard' });
       }
-    } catch (e) {
-      // 读取失败，继续 onboarding
-    }
+    } catch (e) {}
   },
 
   onNameInput(e) {
-    this.setData({ currentName: e.detail.value });
-  },
-
-  onRelInput(e) {
-    this.setData({ currentRelationship: e.detail.value });
+    this.setData({ currentName: e.detail.value, nameError: '' });
   },
 
   selectNature(e) {
@@ -55,25 +52,33 @@ Page({
   addContact() {
     const name = this.data.currentName.trim();
     if (!name) {
-      wx.showToast({ title: '请输入姓名', icon: 'none' });
+      this.setData({ nameError: '请输入姓名' });
       return;
     }
 
     const added = this.data.added.concat([{
       name,
       nature: this.data.currentNature,
-      relationship: this.data.currentRelationship.trim(),
       natureLabel: NATURE_LABELS[this.data.currentNature] || '',
     }]);
 
     this.setData({
       added,
-      step: Math.min(this.data.step + 1, 3),
       currentName: '',
-      currentRelationship: '',
       autoFocus: true,
+      nameError: '',
     });
   },
+
+  // 删除已添加的联系人
+  removeContact(e) {
+    const index = e.currentTarget.dataset.index;
+    const added = this.data.added.slice();
+    added.splice(index, 1);
+    this.setData({ added });
+  },
+
+  noop() {},
 
   async submitAll() {
     if (this.data.added.length < 1) {
@@ -87,17 +92,14 @@ Page({
       const people = this.data.added.map(c => ({
         name: c.name,
         nature: c.nature,
-        relationship: c.relationship,
       }));
 
       const resp = await api.request('/ai/onboarding/create_contacts', { people }, 'POST');
 
       if (resp && resp.ok) {
-        // 标记 onboarding 完成
         const app = getApp();
-        if (app && app.globalData) {
-          app.globalData.onboarded = true;
-        }
+        if (app && app.globalData) app.globalData.onboarded = true;
+        try { wx.setStorageSync('welian_onboarded', true); } catch (e) {}
 
         this.setData({
           firstAdvise: resp.first_advise || '已为你创建联系人，去仪表盘看看建议吧！',
@@ -117,6 +119,9 @@ Page({
   },
 
   skipOnboarding() {
+    const app = getApp();
+    if (app && app.globalData) app.globalData.onboarded = true;
+    try { wx.setStorageSync('welian_onboarded', true); } catch (e) {}
     wx.switchTab({ url: '/pages/dashboard/dashboard' });
   },
 });

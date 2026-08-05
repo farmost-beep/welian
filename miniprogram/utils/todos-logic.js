@@ -46,8 +46,8 @@ function formatTodos(todos, today = new Date()) {
   }));
 }
 
-// 按 dueStatus 分组
-function groupTodos(todos) {
+// 按 dueStatus 分组，序列待办折叠为一张卡片
+function groupTodos(todos, seriesGroups = []) {
   const groups = [
     { key: 'overdue', label: '已超期', icon: '🔴', items: [] },
     { key: 'today', label: '今天', icon: '⏰', items: [] },
@@ -57,10 +57,64 @@ function groupTodos(todos) {
   ];
   const map = {};
   groups.forEach(g => { map[g.key] = g; });
+
+  // Build set of series todo IDs to skip (they'll be shown as folded cards)
+  const seriesTodoIds = new Set();
+  const seriesCards = [];
+  for (const sg of seriesGroups) {
+    if (!sg.steps || sg.steps.length === 0) continue;
+    const activeStep = sg.active_step || sg.steps.find(s => s.series_active) || sg.steps[0];
+    const activeIndex = sg.steps.findIndex(s => s.id === activeStep.id);
+    const activeTodo = todos.find(t => t.id === activeStep.id);
+    if (!activeTodo) continue;
+    sg.steps.forEach(s => seriesTodoIds.add(s.id));
+    // Format step due labels
+    const stepsWithLabels = sg.steps.map(s => ({
+      ...s,
+      dueLabel: s.due ? formatDate(s.due, today) : '',
+    }));
+    const card = {
+      isSeries: true,
+      series_id: sg.series_id,
+      series_label: sg.label,
+      series_total: sg.total,
+      series_completed: sg.completed,
+      series_percent: sg.total > 0 ? Math.round((sg.completed / sg.total) * 100) : 0,
+      series_steps: stepsWithLabels,
+      active_step: activeStep,
+      active_index: activeIndex >= 0 ? activeIndex : 0,
+      // Use active step's display fields for grouping
+      id: `series_card_${sg.series_id}`,
+      dueStatus: activeTodo.dueStatus,
+      dueLabel: activeTodo.dueLabel,
+      priorityLabel: activeTodo.priorityLabel,
+      contact_name: activeTodo.contact_name,
+      task: activeStep.task,
+    };
+    seriesCards.push(card);
+  }
+
+  // Add non-series todos
   todos.forEach(t => {
+    if (seriesTodoIds.has(t.id)) return;
     if (map[t.dueStatus]) map[t.dueStatus].items.push(t);
   });
+
+  // Add series cards to their active step's due group
+  seriesCards.forEach(card => {
+    if (map[card.dueStatus]) map[card.dueStatus].items.push(card);
+  });
+
   return groups.filter(g => g.items.length > 0);
 }
 
-module.exports = { dueStatus, formatDate, formatDateTime, formatTodos, groupTodos };
+// Build series progress dots: ● for done, ○ for pending
+function seriesProgress(steps) {
+  if (!steps || steps.length === 0) return '';
+  return steps.map((s, i) => {
+    const done = s.done || s.status === 'done' || s.status === 'completed';
+    return done ? '●' : '○';
+  }).join(' ');
+}
+
+module.exports = { dueStatus, formatDate, formatDateTime, formatTodos, groupTodos, seriesProgress };

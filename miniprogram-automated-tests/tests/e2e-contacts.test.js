@@ -106,5 +106,6 @@ async function testE2EContacts(mp) {
 
 module.exports = {
   name: 'E2E-5: Contacts列表搜索→tab切换→点击跳转详情',
+  mutates: false,
   fn: testE2EContacts,
 };

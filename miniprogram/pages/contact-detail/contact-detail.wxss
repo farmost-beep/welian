@@ -1,6 +1,8 @@
 /* pages/contact-detail/contact-detail.wxss */
 .contact-header { padding: 20px 16px; }
 .contact-name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.header-actions { display: flex; gap: 24rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #D9D5C7; }
+.header-actions text { min-height: 44rpx; display: flex; align-items: center; }
 .contact-name-lg { font-size: 22px; font-weight: 600; color: #1A1915; }
 .info-row { margin-top: 6px; }
 .action-bar { display: flex; gap: 10px; margin: 12px 0; }
@@ -42,7 +44,7 @@
   width: 100%; max-width: 500px;
   max-height: 85vh; overflow-y: auto;
   border-radius: 20rpx 20rpx 0 0;
-  padding: 24rpx 32rpx 48rpx;
+  padding: 24rpx 32rpx calc(120rpx + env(safe-area-inset-bottom));
 }
 .edit-title {
   font-size: 34rpx; font-weight: 600; color: #1A1915;
@@ -66,6 +68,30 @@
   display: flex; gap: 16rpx; margin-top: 24rpx;
 }
 .edit-actions .action-btn { flex: 1; font-size: 28rpx; padding: 16rpx 0; }
+
+/* 连接搜索结果 */
+.connect-search-results {
+  max-height: 400rpx;
+  overflow-y: auto;
+  border: 1rpx solid #E8E5DC;
+  border-radius: 10rpx;
+  margin-bottom: 16rpx;
+}
+.connect-search-item {
+  padding: 16rpx 18rpx;
+  border-bottom: 1rpx solid #E8E5DC;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.connect-search-item:last-child { border-bottom: none; }
+.connect-search-item:active { background: #F5F4EE; }
+
+/* 同圈子 */
+.shared-circle-group {
+  margin-bottom: 16rpx;
+}
+.shared-circle-group:last-child { margin-bottom: 0; }
 
 /* 冷却预警 */
 .cooldown-card { padding: 16rpx 24rpx; }

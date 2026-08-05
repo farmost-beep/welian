@@ -1,10 +1,46 @@
 /* app.wxss — 全局样式，对齐 Web 端暖色调 */
 
+/* ── Design Tokens（CSS 变量，基础库 ≥2.7.0 支持） ── */
 page {
-  background: #F5F4EE;
-  color: #1A1915;
+  /* 色彩 */
+  --c-bg: #F5F4EE;
+  --c-surface: #EDEBE3;
+  --c-surface2: #E4E1D6;
+  --c-border: #D9D5C7;
+  --c-text: #1A1915;
+  --c-dim: #6B6860;
+  --c-dimmer: #9A968C;
+  --c-accent: #C96442;
+  --c-accent-bg: #F2E8E0;
+  --c-green: #4A7C59;
+  --c-danger: #C96442;
+  --c-white: #FAFAF7;
+
+  /* 字号 */
+  --fs-xs: 22rpx;
+  --fs-sm: 24rpx;
+  --fs-base: 28rpx;
+  --fs-lg: 32rpx;
+  --fs-xl: 40rpx;
+
+  /* 间距（8rpx 网格） */
+  --sp-1: 8rpx;
+  --sp-2: 16rpx;
+  --sp-3: 24rpx;
+  --sp-4: 32rpx;
+
+  /* 圆角 */
+  --r-sm: 12rpx;
+  --r-md: 16rpx;
+  --r-lg: 20rpx;
+
+  /* 触控目标 */
+  --touch-min: 88rpx;
+
+  background: var(--c-bg);
+  color: var(--c-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 28rpx;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -13,76 +49,74 @@ page {
   padding-bottom: 140rpx;
 }
 
-/* ── 色彩变量（供页面参考，小程序不支持 CSS 变量在 wxss 中全局生效，此处仅注释参考） ── */
-/* bg=#F5F4EE  surface=#EDEBE3  surface2=#E4E1D6  border=#D9D5C7 */
-/* text=#1A1915  dim=#6B6860  dimmer=#9A968C */
-/* accent=#C96442  accentBg=#F2E8E0  green=#4A7C59 */
-
 /* ── 通用容器 ── */
 .container {
-  padding: 32rpx 28rpx;
+  padding: var(--sp-4) 28rpx;
   min-height: 100vh;
   box-sizing: border-box;
 }
 
 /* ── 卡片 ── */
 .card {
-  background: #EDEBE3;
-  border: 1rpx solid #D9D5C7;
-  border-radius: 20rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
+  background: var(--c-surface);
+  border: 1rpx solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
 }
 
 /* ── 标题 ── */
 .page-title {
-  font-size: 40rpx;
+  font-size: var(--fs-xl);
   font-weight: 600;
-  color: #1A1915;
-  margin-bottom: 8rpx;
+  color: var(--c-text);
+  margin-bottom: var(--sp-1);
 }
 
 .page-subtitle {
   font-size: 26rpx;
-  color: #6B6860;
-  margin-bottom: 32rpx;
+  color: var(--c-dim);
+  margin-bottom: var(--sp-4);
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: var(--fs-lg);
   font-weight: 600;
-  color: #1A1915;
-  margin-bottom: 16rpx;
+  color: var(--c-text);
+  margin-bottom: var(--sp-2);
 }
 
 /* ── 文字工具 ── */
-.text-dim { color: #6B6860; }
-.text-dimmer { color: #9A968C; }
-.text-accent { color: #C96442; }
-.text-green { color: #4A7C59; }
-.text-sm { font-size: 24rpx; }
-.text-xs { font-size: 22rpx; }
+.text-dim { color: var(--c-dim); }
+.text-dimmer { color: var(--c-dimmer); }
+.text-accent { color: var(--c-accent); }
+.text-green { color: var(--c-green); }
+.text-sm { font-size: var(--fs-sm); }
+.text-xs { font-size: var(--fs-xs); }
 
 /* ── 按钮 ── */
+/* 最小触控目标 88rpx (≈44pt)，符合 WCAG 2.5.5 */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #C96442;
+  background: var(--c-accent);
   color: #fff;
   border: none;
-  border-radius: 16rpx;
+  border-radius: var(--r-md);
   padding: 20rpx 40rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-base);
   font-weight: 500;
+  min-height: var(--touch-min);
+  box-sizing: border-box;
 }
 
 .btn::after { border: none; }
 
 .btn-secondary {
-  background: #EDEBE3;
-  color: #1A1915;
-  border: 1rpx solid #D9D5C7;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1rpx solid var(--c-border);
 }
 
 .btn-block {
@@ -93,52 +127,86 @@ page {
 /* ── 标签 ── */
 .tag {
   display: inline-block;
-  font-size: 22rpx;
+  font-size: var(--fs-xs);
   padding: 4rpx 16rpx;
   border-radius: 20rpx;
   font-weight: 600;
 }
 
 .tag-leverage {
-  background: #F2E8E0;
-  color: #C96442;
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
 }
 
 .tag-nurture {
   background: rgba(74, 124, 89, 0.12);
-  color: #4A7C59;
+  color: var(--c-green);
 }
 
 .tag-dual {
-  background: #E4E1D6;
-  color: #6B6860;
+  background: var(--c-surface2);
+  color: var(--c-dim);
 }
 
 /* ── 分割线 ── */
 .divider {
   height: 1rpx;
-  background: #D9D5C7;
-  margin: 24rpx 0;
+  background: var(--c-border);
+  margin: var(--sp-3) 0;
 }
 
 /* ── 联系人搜索建议（全局复用） ── */
 .contact-suggestions {
-  background: #FAFAF7;
-  border: 1rpx solid #D9D5C7;
-  border-radius: 12rpx;
-  margin-top: 8rpx;
+  background: var(--c-white);
+  border: 1rpx solid var(--c-border);
+  border-radius: var(--r-sm);
+  margin-top: var(--sp-1);
   max-height: 400rpx;
   overflow-y: auto;
 }
 .contact-suggestion-item {
   display: flex;
   flex-direction: column;
-  padding: 16rpx 20rpx;
-  border-bottom: 1rpx solid #EDEBE3;
+  padding: var(--sp-2) 20rpx;
+  border-bottom: 1rpx solid var(--c-surface);
 }
 .contact-suggestion-item:last-child {
   border-bottom: none;
 }
 .contact-suggestion-item:active {
-  background: #EDEBE3;
+  background: var(--c-surface);
+}
+
+/* ── 触控目标最小尺寸（WCAG 2.5.5） ── */
+.touch-target {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 间距工具（8rpx 网格） ── */
+.gap-8 { gap: var(--sp-1); }
+.gap-16 { gap: var(--sp-2); }
+.gap-24 { gap: var(--sp-3); }
+.gap-32 { gap: var(--sp-4); }
+.mt-8 { margin-top: var(--sp-1); }
+.mt-16 { margin-top: var(--sp-2); }
+.mt-24 { margin-top: var(--sp-3); }
+.mt-32 { margin-top: var(--sp-4); }
+.mb-8 { margin-bottom: var(--sp-1); }
+.mb-16 { margin-bottom: var(--sp-2); }
+.mb-24 { margin-bottom: var(--sp-3); }
+.mb-32 { margin-bottom: var(--sp-4); }
+.pad-16 { padding: var(--sp-2); }
+.pad-24 { padding: var(--sp-3); }
+.pad-32 { padding: var(--sp-4); }
+
+/* ── 无障碍：焦点可见 ── */
+.btn:focus-visible,
+.tab-item:focus-visible,
+.touch-target:focus-visible {
+  outline: 4rpx solid var(--c-accent);
+  outline-offset: 2rpx;
 }

@@ -36,6 +36,13 @@ Page({
     scanSaving: false,
     // 通讯录导入
     importing: false,
+    // 粘贴文本提取联系人
+    pasteModal: false,
+    pasteInput: '',
+    pasteParsing: false,
+    pasteResult: false,
+    pasteResultContacts: [],
+    pasteSaving: false,
   },
 
   onLoad() {
@@ -47,11 +54,13 @@ Page({
   async onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });
-      this.getTabBar().refresh();
     }
     if (!api.getToken()) {
       this.setData({ loading: true });
-      try { await app.loginReady; } catch (e) { return; }
+      try { await app.loginReady; } catch (e) { this.setData({ loading: false }); return; }
+    }
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().refresh();
     }
     this.loadContacts();
   },
@@ -85,8 +94,11 @@ Page({
     api.getContacts(currentOffset, PAGE_SIZE).then((res) => {
       const leverage = this.data.leverageList.concat(res.leverage || []);
       const nurture = this.data.nurtureList.concat(res.nurture || []);
+      // deduplicate dual contacts for allList
+      const levIds = new Set(leverage.map(c => c.id));
+      const all = leverage.concat(nurture.filter(c => !levIds.has(c.id)));
       this.setData({
-        allList: leverage.concat(nurture),
+        allList: all,
         leverageList: leverage,
         nurtureList: nurture,
         currentOffset: currentOffset + PAGE_SIZE,
@@ -168,6 +180,10 @@ Page({
   tapContact(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({ url: `/pages/contact-detail/contact-detail?id=${id}` });
+  },
+
+  goNetwork() {
+    wx.navigateTo({ url: '/pages/network/network' });
   },
 
   // ── 名片扫描 ──
@@ -330,85 +346,116 @@ Page({
     }
   },
 
-  // ── 导入入口（通讯录 / 文件二选一）──
-  importMenu() {
-    if (this.data.importing) return;
-    wx.showActionSheet({
-      itemList: ['📷 截图导入微信通讯录', '从手机通讯录导入', '从文件导入（名片照片/Excel/CSV）'],
-      success: (res) => {
-        if (res.tapIndex === 0) this.importByScreenshot();
-        else if (res.tapIndex === 1) this.importContact();
-        else if (res.tapIndex === 2) this.importFile();
-      },
-    });
+  // ── 粘贴文本提取联系人 ──
+  noop() {},
+
+  pasteText() {
+    this.setData({ pasteModal: true, pasteInput: '', pasteParsing: false });
   },
 
-  // ── 截图导入微信通讯录（多图OCR） ──
-  importByScreenshot() {
-    if (this.data.importing) return;
-    wx.chooseMedia({
-      count: 9,
-      mediaType: ['image'],
-      sourceType: ['album'],
-      success: (res) => {
-        const files = res.tempFiles || [];
-        if (files.length === 0) return;
-        this._importScreenshots(files, 0, []);
-      },
-    });
+  onPasteInput(e) {
+    this.setData({ pasteInput: e.detail.value });
   },
 
-  _importScreenshots(files, index, allContacts) {
-    if (index >= files.length) {
-      this._finishScreenshotImport(allContacts);
+  closePasteModal() {
+    this.setData({ pasteModal: false });
+  },
+
+  submitPasteText() {
+    const text = (this.data.pasteInput || '').trim();
+    if (!text) {
+      wx.showToast({ title: '请粘贴文本', icon: 'none' });
       return;
     }
-    this.setData({ scanning: true, importing: true });
-    const file = files[index];
-    const fs = wx.getFileSystemManager();
-    const base64 = fs.readFileSync(file.tempFilePath, 'base64');
-    const mediaType = file.tempFilePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    this.setData({ pasteParsing: true });
     const token = api.getToken();
     wx.request({
-      url: 'https://api.welian.app/ai/meeting_photo',
+      url: 'https://api.welian.app/ai/import_chunk',
       method: 'POST',
-      header: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      data: { photo_type: 'contacts_screenshot', base64, media_type: mediaType },
-      success: (resp) => {
-        if (resp.statusCode === 200 && resp.data.status === 'ok') {
-          const extracted = resp.data.extracted || {};
-          const contacts = extracted.contacts || [];
-          allContacts.push(...contacts);
-          wx.showToast({ title: `第${index+1}张：识别${contacts.length}人`, icon: 'none' });
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      data: { text },
+      success: (res) => {
+        this.setData({ pasteParsing: false });
+        if (res.statusCode === 200 && res.data) {
+          const contacts = (res.data.contacts || []).filter(c => c.name && c.name.trim());
+          if (contacts.length === 0) {
+            wx.showToast({ title: '未识别到联系人', icon: 'none' });
+            return;
+          }
+          this.setData({
+            pasteModal: false,
+            pasteResult: true,
+            pasteResultContacts: contacts.map(c => ({
+              name: c.name || '',
+              company: c.company || '',
+              title: c.title || '',
+              phone: c.phone || '',
+              email: c.email || '',
+              relation: c.relation || '',
+            })),
+          });
         } else {
-          wx.showToast({ title: `第${index+1}张识别失败`, icon: 'none' });
+          wx.showToast({ title: (res.data && res.data.error) || '提取失败', icon: 'none' });
         }
-        this._importScreenshots(files, index + 1, allContacts);
       },
       fail: () => {
-        wx.showToast({ title: `第${index+1}张上传失败`, icon: 'none' });
-        this._importScreenshots(files, index + 1, allContacts);
+        this.setData({ pasteParsing: false });
+        wx.showToast({ title: '网络错误', icon: 'none' });
       },
     });
   },
 
-  _finishScreenshotImport(allContacts) {
-    this.setData({ scanning: false, importing: false });
-    if (allContacts.length === 0) {
-      wx.showToast({ title: '未识别到联系人', icon: 'none' });
+  onPasteContactEdit(e) {
+    const index = parseInt(e.currentTarget.dataset.index);
+    const field = e.currentTarget.dataset.field;
+    const contacts = this.data.pasteResultContacts;
+    contacts[index][field] = e.detail.value;
+    this.setData({ pasteResultContacts: contacts });
+  },
+
+  closePasteResult() {
+    this.setData({ pasteResult: false });
+  },
+
+  confirmPasteSave() {
+    const contacts = this.data.pasteResultContacts.filter(c => c.name && c.name.trim());
+    if (contacts.length === 0) {
+      wx.showToast({ title: '没有有效联系人', icon: 'none' });
       return;
     }
-    const newOnes = allContacts.filter(c => !c.is_existing);
-    const existing = allContacts.filter(c => c.is_existing);
-    wx.showModal({
-      title: '导入完成',
-      content: `共识别 ${allContacts.length} 位联系人\n新增 ${newOnes.length} 人，已存在 ${existing.length} 人`,
-      showCancel: false,
-      confirmText: '好的',
-      success: () => {
-        this.loadContacts();
+    this.setData({ pasteSaving: true });
+    const token = api.getToken();
+    wx.request({
+      url: 'https://api.welian.app/ai/import_batch',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      data: { contacts },
+      success: (res) => {
+        this.setData({ pasteSaving: false });
+        if (res.statusCode === 200 && res.data) {
+          const imported = res.data.imported || 0;
+          const skipped = res.data.skipped || 0;
+          if (imported > 0) {
+            wx.showToast({ title: `导入${imported}人，跳过${skipped}人`, icon: 'success' });
+            this.setData({ pasteResult: false });
+            this.loadContacts();
+          } else {
+            wx.showToast({ title: '全部已存在', icon: 'none' });
+          }
+        } else {
+          wx.showToast({ title: (res.data && res.data.error) || '保存失败', icon: 'none' });
+        }
+      },
+      fail: () => {
+        this.setData({ pasteSaving: false });
+        wx.showToast({ title: '网络错误', icon: 'none' });
       },
     });
+  },
+
+  // ── 导入入口（从手机通讯录导入）──
+  importMenu() {
+    this.importContact();
   },
 
   onPullDownRefresh() {
@@ -474,80 +521,6 @@ Page({
             this.loadContacts();
           } else {
             wx.showToast({ title: '全部已存在', icon: 'none' });
-          }
-        } else {
-          wx.showToast({ title: (res.data && res.data.error) || '导入失败', icon: 'none' });
-        }
-      },
-      fail: () => {
-        this.setData({ scanning: false, importing: false });
-        wx.showToast({ title: '网络错误', icon: 'none' });
-      },
-    });
-  },
-
-  // ── 通讯录文件导入 ──
-  importFile() {
-    if (this.data.importing) return;
-    wx.chooseMessageFile({
-      count: 1,
-      type: 'file',
-      extension: ['xlsx', 'xls', 'csv', 'vcf', 'txt', 'docx', 'doc', 'pdf'],
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-          wx.showToast({ title: '文件不能超过5MB', icon: 'none' });
-          return;
-        }
-        this.uploadImportFile(file);
-      },
-    });
-  },
-
-  uploadImportFile(file) {
-    this.setData({ scanning: true, importing: true });
-    const fs = wx.getFileSystemManager();
-    fs.readFile({
-      filePath: file.path,
-      encoding: 'base64',
-      success: (r) => {
-        const lowerName = (file.name || '').toLowerCase();
-        let mimeType = 'application/octet-stream';
-        if (lowerName.endsWith('.xlsx')) mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        else if (lowerName.endsWith('.xls')) mimeType = 'application/vnd.ms-excel';
-        else if (lowerName.endsWith('.csv')) mimeType = 'text/csv';
-        else if (lowerName.endsWith('.vcf')) mimeType = 'text/vcard';
-        else if (lowerName.endsWith('.txt')) mimeType = 'text/plain';
-        else if (lowerName.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        else if (lowerName.endsWith('.doc')) mimeType = 'application/msword';
-        else if (lowerName.endsWith('.pdf')) mimeType = 'application/pdf';
-        this.sendImportRequest(r.data, file.name, mimeType);
-      },
-      fail: () => {
-        this.setData({ scanning: false, importing: false });
-        wx.showToast({ title: '文件读取失败', icon: 'none' });
-      },
-    });
-  },
-
-  sendImportRequest(base64, filename, mimeType) {
-    const token = api.getToken();
-    wx.request({
-      url: 'https://api.welian.app/ai/import',
-      method: 'POST',
-      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      data: { base64, filename, mime_type: mimeType },
-      success: (res) => {
-        this.setData({ scanning: false, importing: false });
-        if (res.statusCode === 200 && res.data) {
-          const imported = res.data.imported || 0;
-          const skipped = res.data.skipped || 0;
-          if (imported > 0) {
-            wx.showToast({ title: `导入${imported}人，跳过${skipped}人`, icon: 'success' });
-            this.loadContacts();
-          } else {
-            wx.showToast({ title: '未识别到新联系人', icon: 'none' });
           }
         } else {
           wx.showToast({ title: (res.data && res.data.error) || '导入失败', icon: 'none' });

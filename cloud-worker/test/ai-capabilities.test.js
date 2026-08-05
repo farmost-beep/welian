@@ -159,6 +159,9 @@ describe("/ai/extract_intent", () => {
   });
 
   it("extracts record intent and creates timeline entry", async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-laoxu', name: '老许' },
+    ]));
     globalThis.fetch = async () => llmJson({
       intent: "record",
       contact_name: "老许",
@@ -179,6 +182,9 @@ describe("/ai/extract_intent", () => {
   });
 
   it("extracts add_todo action and creates todo", async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-zhangzong', name: '张总' },
+    ]));
     globalThis.fetch = async () => llmJson({
       intent: "record",
       contact_name: "张总",
@@ -194,6 +200,13 @@ describe("/ai/extract_intent", () => {
     const todos = JSON.parse(env.USER_DATA._store.get("todos:testuser") || "[]");
     expect(todos.length).toBeGreaterThanOrEqual(1);
     expect(todos[0].task).toBe("联系张总");
+    expect(todos[0].source).toBe("chat");
+    expect(todos[0].event_id).toBeTruthy();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const events = JSON.parse(env.USER_DATA._store.get("domain_events:testuser") || "[]");
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: "todo_created", source: "chat", contact_id: "c-zhangzong" }),
+    ]));
   });
 
   it("extracts add_contact action and creates contact", async () => {

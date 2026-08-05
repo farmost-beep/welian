@@ -154,6 +154,8 @@
   color: #1A1915;
   display: block;
   margin-top: 4rpx;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 按钮组 */
@@ -202,4 +204,234 @@
   border-radius: 50%;
   font-size: 36rpx;
   flex-shrink: 0;
+}
+
+.sync-attachment {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 60rpx;
+  margin-right: 12rpx;
+  border: 2rpx solid #4A6741;
+  border-radius: 50%;
+  color: #4A6741;
+  background: #FAFAF7;
+  text-align: center;
+  font-size: 42rpx;
+  font-weight: 300;
+  flex-shrink: 0;
+}
+
+.relationship-import-status {
+  display: flex;
+  align-items: center;
+  min-height: 54rpx;
+  padding: 8rpx 24rpx;
+  background: #FAFAF7;
+  border-top: 1rpx solid #E8E0D6;
+}
+.relationship-import-status-text,
+.relationship-import-error {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8A8578;
+}
+.relationship-import-error {
+  color: #B65D42;
+}
+.relationship-retry {
+  margin-left: 20rpx;
+  padding: 8rpx 20rpx;
+  border: 1rpx solid #4A6741;
+  border-radius: 24rpx;
+  color: #4A6741;
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.relationship-overlay {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: rgba(26, 25, 21, 0.48);
+}
+.relationship-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(100vh - 48rpx - env(safe-area-inset-bottom));
+  max-height: calc(100vh - 48rpx - env(safe-area-inset-bottom));
+  overflow: hidden;
+  border-radius: 24rpx;
+  background: #FAFAF7;
+  box-shadow: 0 12rpx 48rpx rgba(26, 25, 21, 0.2);
+}
+.relationship-dialog-header {
+  padding: 28rpx 28rpx 20rpx;
+  border-bottom: 1rpx solid #E8E0D6;
+  flex-shrink: 0;
+}
+.relationship-dialog-title {
+  display: block;
+  color: #1A1915;
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.relationship-dialog-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  color: #8A8578;
+  font-size: 24rpx;
+}
+.relationship-apply-feedback {
+  margin-top: 16rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 12rpx;
+  background: #FFF2EC;
+}
+.relationship-apply-feedback-text {
+  display: block;
+  color: #B65D42;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+.relationship-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 24rpx 28rpx;
+}
+.relationship-summary {
+  padding-bottom: 20rpx;
+}
+.relationship-summary-text {
+  display: block;
+  margin-top: 10rpx;
+  color: #1A1915;
+  font-size: 28rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.relationship-source {
+  margin-top: 10rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 10rpx;
+  background: #F0EDE5;
+}
+.relationship-counts {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -6rpx 12rpx;
+  padding: 16rpx 8rpx;
+  border-radius: 16rpx;
+  background: #F0EDE5;
+}
+.relationship-count {
+  width: 25%;
+  padding: 8rpx 4rpx;
+  box-sizing: border-box;
+  text-align: center;
+}
+.relationship-count-value {
+  display: block;
+  color: #4A6741;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.relationship-count-label {
+  display: block;
+  margin-top: 2rpx;
+  color: #8A8578;
+  font-size: 22rpx;
+}
+.relationship-section {
+  padding: 18rpx 0 4rpx;
+  border-top: 1rpx solid #E8E0D6;
+}
+.relationship-section-title {
+  display: block;
+  color: #4A6741;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.relationship-entry {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F0EDE5;
+}
+.relationship-entry:last-child {
+  border-bottom: none;
+}
+.relationship-entry-head {
+  display: flex;
+  align-items: center;
+}
+.relationship-operation {
+  margin-right: 10rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+  background: #E5EEE1;
+  color: #4A6741;
+  font-size: 22rpx;
+  flex-shrink: 0;
+}
+.relationship-entry-title {
+  display: block;
+  color: #1A1915;
+  font-size: 28rpx;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.relationship-entry-meta,
+.relationship-entry-confidence,
+.relationship-entry-evidence {
+  display: block;
+  margin-top: 5rpx;
+  color: #8A8578;
+  font-size: 24rpx;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.relationship-entry-confidence {
+  color: #4A6741;
+}
+.relationship-entry-evidence {
+  color: #A36B54;
+}
+.relationship-warning-section .relationship-section-title {
+  color: #B65D42;
+}
+.relationship-dialog-actions {
+  display: flex;
+  padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #E8E0D6;
+  background: #FAFAF7;
+  flex-shrink: 0;
+}
+.relationship-dialog-actions button {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  margin: 0 8rpx;
+  padding: 0 12rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+.relationship-dialog-actions button::after {
+  border: none;
+}
+.relationship-cancel {
+  color: #4A6741;
+  background: #EDEBE3;
+}
+.relationship-confirm {
+  color: #fff;
+  background: #4A6741;
 }

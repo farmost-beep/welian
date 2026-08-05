@@ -122,5 +122,6 @@ async function testE2EContactDetail(mp) {
 
 module.exports = {
   name: 'E2E-3: 联系人详情页完整流程(记录互动+编辑+草稿+见面功课)',
+  mutates: true,
   fn: testE2EContactDetail,
 };

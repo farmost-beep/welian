@@ -1,6 +1,8 @@
 // 测试 Dashboard 纯逻辑函数（miniprogram/utils/dashboard-logic.js）
-import { describe, it, expect } from "vitest";
-import { buildRoles, classifyContact, classifyTodos, calcEvolutionStage, buildUpcomingDates } from "../miniprogram/utils/dashboard-logic.js";
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { buildRoles, classifyContact, classifyTodos, calcEvolutionStage, buildUpcomingDates } from '../../miniprogram/utils/dashboard-logic.js';
 
 // 固定"今天"为 2026-07-27（周一），避免测试随时间漂移
 const TODAY = new Date(2026, 6, 27); // 月份 0-indexed
@@ -249,5 +251,47 @@ describe("dashboard-logic: buildUpcomingDates", () => {
     const contacts = [{ name: "老王", birthday: "2020-07-10T12:00:00" }];
     const dates = buildUpcomingDates(contacts, TODAY);
     expect(dates).toEqual([]); // 明年7月10日 > 30天
+  });
+});
+
+describe('dashboard R1 main action DOM contract', () => {
+  const wxml = readFileSync(resolve(process.cwd(), '../miniprogram/pages/dashboard/dashboard.wxml'), 'utf8');
+  const js = readFileSync(resolve(process.cwd(), '../miniprogram/pages/dashboard/dashboard.js'), 'utf8');
+
+  it('binds the规范 action id/source evidence and primary action buttons', () => {
+    expect(wxml).toContain('data-action-id="{{actionCard.action_id || actionCard.id}}"');
+    expect(wxml).toContain('{{actionCard.source.evidence}}');
+    expect(wxml).toContain('拟消息');
+    expect(wxml).toContain('已完成');
+    expect(wxml).toContain('稍后');
+    expect(wxml).toContain('跳过');
+    expect(wxml).toContain('catchtap="onActionCardSnooze"');
+  });
+
+  it('sends action id and clears the card before refreshing after an action', () => {
+    expect(js).toContain('action_id: actionId || card.action_id || card.id');
+    expect(js).toContain('this.setData({ actionCard: null })');
+    expect(js).toContain('this.fetchActionCard().then');
+    expect(js).toContain('onActionCardSnooze');
+    expect(js).toContain("action: 'snooze'");
+  });
+
+  it('declares and binds the action busy lock for every action button', () => {
+    expect(js).toContain('actionBusy: false');
+    expect(js).toContain('drafting: false');
+    expect(wxml).toContain('data-action-version="{{actionCard.version}}"');
+    expect(wxml).toContain('disabled="{{actionBusy}}"');
+    expect(wxml).toContain('loading="{{actionBusy && drafting}}"');
+    expect(js).toContain('version: actionVersion');
+    for (const handler of ['onActionCardDraft', 'onActionCardDone', 'onActionCardSnooze', 'onActionCardSkip']) {
+      const handlerStart = js.indexOf(`  ${handler}(e)`);
+      expect(handlerStart).toBeGreaterThanOrEqual(0);
+      const handlerBody = js.slice(handlerStart, js.indexOf('\n  }', handlerStart));
+      expect(handlerBody).toContain('actionBusy');
+    }
+  });
+
+  it('does not fetch authenticated action cards for guests', () => {
+    expect(js).toContain('if (this.data.notLoggedIn || !api.getToken()) return Promise.resolve(null);');
   });
 });

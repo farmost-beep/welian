@@ -49,3 +49,4 @@ cloud-worker/.dev.vars
 *.bak
 .env.prod
 playwright/.clerk
+config.local.json

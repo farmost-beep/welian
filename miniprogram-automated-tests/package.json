@@ -4,6 +4,10 @@
   "description": "Welian 小程序自动化测试 — 基于 miniprogram-automator",
   "scripts": {
     "test": "node run-all.js",
+    "test:safe": "node run-all.js --safe",
+    "test:e2e": "node run-all.js --e2e",
+    "test:mutating": "node run-all.js --mutating",
+    "test:full": "node run-all.js --full",
     "test:onboarding": "node tests/onboarding.test.js",
     "test:dashboard": "node tests/dashboard.test.js",
     "test:perception": "node tests/perception.test.js",

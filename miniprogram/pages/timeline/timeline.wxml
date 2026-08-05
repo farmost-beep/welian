@@ -1,8 +1,9 @@
 <!-- pages/timeline/timeline.wxml — 互动记录页 -->
+<wxs src="../../utils/terminology.wxs" module="term" />
 <view class="container">
   <!-- 标题 -->
   <view class="header">
-    <text class="page-title">📖 互动记录</text>
+    <text class="page-title">互动记录</text>
     <text class="page-subtitle">记录每一次用心的互动</text>
   </view>
 
@@ -20,6 +21,18 @@
 
   <!-- 添加按钮 -->
   <button class="btn btn-block add-btn" bindtap="openAdd">＋ 添加互动记录</button>
+
+  <!-- #4: 月度点状时间轴 -->
+  <view wx:if="{{monthDots.length > 0 && !loading}}" class="month-dot-card card">
+    <view class="dot-summary">
+      <text class="text-dim text-sm">本月用心 {{monthInteractions}} 次 · {{monthActiveDays}} 天有互动</text>
+    </view>
+    <view class="dot-grid">
+      <view wx:for="{{monthDots}}" wx:key="day" class="dot {{item.intensity}} {{item.isToday ? 'dot-today' : ''}}">
+        <text wx:if="{{item.day === 1 || item.day === 10 || item.day === 20}}" class="dot-label text-dimmer">{{item.day}}</text>
+      </view>
+    </view>
+  </view>
 
   <!-- 加载态 -->
   <view wx:if="{{loading}}" class="loading">
@@ -56,7 +69,7 @@
         </view>
         <text class="timeline-summary">{{entry.summary}}</text>
         <view wx:if="{{entry.tags && entry.tags.length}}" class="timeline-tags">
-          <text wx:for="{{entry.tags}}" wx:key="*this" wx:for-item="tag" class="tag tag-{{entry.nature || 'leverage'}}">{{tag}}</text>
+          <text wx:for="{{entry.tags}}" wx:key="*this" wx:for-item="tag" class="tag {{term.tagClass(entry.nature)}}">{{tag}}</text>
         </view>
       </view>
     </block>

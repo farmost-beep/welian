@@ -112,6 +112,236 @@
 .todo-due-later { color: #9A968C; }
 .todo-due-nodate { color: #9A968C; }
 .todo-due-normal { color: #9A968C; }
+
+/* ── 序列卡片 ── */
+.todo-series-card {
+  padding: 0;
+  margin-bottom: 16rpx;
+  border-left: 8rpx solid #4A6741;
+  overflow: hidden;
+}
+/* 头部 */
+.series-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx 16rpx;
+  background: #F5F4EE;
+}
+.series-header-left {
+  flex: 1;
+}
+.series-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4A6741;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.series-progress-bar {
+  height: 8rpx;
+  background: #E4E1D6;
+  border-radius: 4rpx;
+  overflow: hidden;
+  margin-bottom: 6rpx;
+}
+.series-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4A6741, #5A7A51);
+  border-radius: 4rpx;
+  transition: width 0.3s;
+}
+.series-progress-text {
+  font-size: 22rpx;
+}
+.series-chevron {
+  font-size: 40rpx;
+  color: #9A968C;
+  transform: rotate(90deg);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+.series-chevron-up {
+  transform: rotate(-90deg);
+}
+/* 当前步骤 */
+.series-current {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 20rpx 24rpx;
+}
+.series-current-num {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #4A6741;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.series-checkbox {
+  width: 40rpx;
+  height: 40rpx;
+}
+.series-current-content {
+  flex: 1;
+}
+/* 展开步骤列表 */
+.series-steps {
+  padding: 0 24rpx 20rpx 24rpx;
+  border-top: 1rpx solid #E8E5DC;
+  margin-top: 4rpx;
+}
+.series-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 16rpx 0 16rpx 0;
+  position: relative;
+}
+.step-num {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #E4E1D6;
+  color: #9A968C;
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.step-line {
+  position: absolute;
+  left: 20rpx;
+  top: 0;
+  bottom: 0;
+  width: 2rpx;
+  background: #E4E1D6;
+  z-index: 0;
+}
+.step-body {
+  flex: 1;
+  padding-top: 4rpx;
+}
+.step-due {
+  display: block;
+  margin-top: 4rpx;
+}
+.step-check {
+  font-size: 32rpx;
+  color: #4A6741;
+  font-weight: 700;
+  flex-shrink: 0;
+  padding-top: 2rpx;
+}
+/* 步骤状态 */
+.series-step-row.step-done .step-num {
+  background: #4A6741;
+  color: #fff;
+}
+.series-step-row.step-done .step-task {
+  color: #9A968C;
+  text-decoration: line-through;
+}
+.series-step-row.step-current .step-num {
+  background: #C96442;
+  color: #fff;
+}
+.series-step-row.step-current .step-task {
+  color: #1A1915;
+  font-weight: 600;
+}
+
+/* ── 创建序列弹窗 ── */
+.series-create-intro {
+  margin-bottom: 20rpx;
+}
+.series-create-steps {
+  margin-bottom: 16rpx;
+}
+.series-create-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  position: relative;
+  margin-bottom: 4rpx;
+}
+.series-create-step .step-num {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #4A6741;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  margin-top: 8rpx;
+}
+.series-create-step .step-num-fixed {
+  background: #C96442;
+}
+.series-create-step .step-line {
+  position: absolute;
+  left: 20rpx;
+  top: 48rpx;
+  bottom: -4rpx;
+  width: 2rpx;
+  background: #D9D5C7;
+  z-index: 0;
+}
+.series-create-step-body {
+  flex: 1;
+  padding-bottom: 16rpx;
+}
+.series-create-step-task {
+  font-size: 28rpx;
+  color: #1A1915;
+  display: block;
+  padding: 10rpx 0 4rpx;
+}
+.series-create-input {
+  margin-bottom: 8rpx;
+}
+.series-create-step-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.series-create-date {
+  font-size: 24rpx;
+  color: #6B6860;
+  padding: 6rpx 16rpx;
+  background: #F5F4EE;
+  border-radius: 8rpx;
+  border: 1rpx solid #D9D5C7;
+}
+.series-create-remove {
+  font-size: 28rpx;
+  color: #C65D5D;
+  padding: 6rpx 12rpx;
+}
+.series-create-add {
+  font-size: 28rpx;
+  color: #4A6741;
+  text-align: center;
+  padding: 16rpx;
+  border: 2rpx dashed #C8D5C0;
+  border-radius: 12rpx;
+  margin-bottom: 24rpx;
+}
 .todo-postponed { font-size: 24rpx; }
 
 /* 操作菜单 */
@@ -125,7 +355,7 @@
   background: #FAFAF7;
   width: 100%; max-width: 500px;
   border-radius: 20rpx 20rpx 0 0;
-  padding: 16rpx 0 32rpx;
+  padding: 16rpx 0 calc(120rpx + env(safe-area-inset-bottom));
 }
 .action-sheet-title {
   font-size: 26rpx; color: #9A968C;
@@ -155,7 +385,7 @@
   width: 100%; max-width: 500px;
   max-height: 85vh; overflow-y: auto;
   border-radius: 20rpx 20rpx 0 0;
-  padding: 24rpx 32rpx 48rpx;
+  padding: 24rpx 32rpx calc(120rpx + env(safe-area-inset-bottom));
 }
 .edit-title {
   font-size: 34rpx; font-weight: 600; color: #1A1915;

@@ -1,4 +1,4 @@
-// report.test.js — 测试关系体检报告流程
+// report.test.js — 测试关系回顾报告流程
 const h = require('../helpers');
 
 async function testReport(mp) {
@@ -13,19 +13,19 @@ async function testReport(mp) {
   console.log('  Report error:', data.error || 'none');
   console.log('  isSharedView:', data.isSharedView);
 
-  // 2. 如果加载成功，检查报告结构
+  // 2. 如果加载成功，检查报告结构（无温度，有事实清单）
   if (data.report) {
     const r = data.report;
     console.log('  Report contactName:', r.contactName);
-    console.log('  Report temperature:', r.temperature);
-    h.assert(typeof r.temperature === 'number', 'Temperature is a number');
-    h.assert(r.temperature >= 0 && r.temperature <= 100, 'Temperature in valid range');
-    h.assert(r.tempDesc, 'Has temperature description');
-    h.assert(Array.isArray(r.suggestions), 'Has suggestions array');
-    // contactName 可能为空（降级为 sharedView 时），不强制要求
+    h.assert(Array.isArray(r.facts), 'Has facts array');
+    h.assert(r.facts.length > 0, 'Facts array is not empty');
+    h.assert(r.totalInteractions !== undefined, 'Has totalInteractions');
+    h.assert(r.daysSinceLast !== undefined, 'Has daysSinceLast');
+    // 不应有温度字段
+    h.assert(r.temperature === undefined, 'No temperature field (removed)');
+    h.assert(r.tempDesc === undefined, 'No tempDesc field (removed)');
   } else if (data.error) {
     console.log('  Report error:', data.error);
-    // 如果是未登录错误，应该降级为 sharedView
     if (data.isSharedView) {
       h.assert(true, 'Degraded to shared view on auth error');
     } else {
@@ -42,16 +42,17 @@ async function testReport(mp) {
 
   // 被分享者（无 token）应该降级为 sharedView，不应该报 404
   if (data2.isSharedView && data2.report) {
+    h.assert(Array.isArray(data2.report.facts), 'Shared report has facts array');
     h.assert(true, 'Shared view degraded correctly (no 404)');
   } else if (data2.report) {
     h.assert(true, 'Report loaded with cid (user is logged in)');
   } else if (data2.error && !data2.isSharedView) {
-    // 这不应该发生 — 如果有 error 应该已经降级
     throw new Error(`Report with cid should not show raw error: ${data2.error}`);
   }
 }
 
 module.exports = {
-  name: '关系体检报告流程',
+  name: '关系回顾报告流程',
+  mutates: false,
   fn: testReport,
 };

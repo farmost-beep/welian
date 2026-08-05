@@ -1,5 +1,5 @@
-// e2e-network.test.js — E2E: Network 图谱→路径搜索→点击节点跳转
-// 旅程: 打开network → 验证图谱 → 切换路径模式 → 搜索路径 → 切换回图谱 → 下拉刷新
+// e2e-network.test.js — E2E: Network 连接列表→路径搜索→点击节点跳转
+// 旅程: 打开network → 验证连接列表 → 切换路径模式 → 搜索路径 → 切换回列表 → 下拉刷新
 const h = require('../helpers');
 
 async function testE2ENetwork(mp) {
@@ -42,11 +42,11 @@ async function testE2ENetwork(mp) {
     h.assert(true, '路径搜索超时但不崩溃');
   }
 
-  // 4. 切换回图谱模式
+  // 4. 切换回连接列表模式
   try {
-    await page.setData({ mode: 'graph' });
+    await page.setData({ mode: 'list' });
     await h.sleep(500);
-    h.assert(true, '切换回 graph 模式');
+    h.assert(true, '切换回 list 模式');
   } catch (e) {
     console.log('  切换超时 — 可接受');
     h.assert(true, '切换超时但不崩溃');
@@ -54,6 +54,7 @@ async function testE2ENetwork(mp) {
 }
 
 module.exports = {
-  name: 'E2E-6: Network图谱→路径搜索→模式切换',
+  name: 'E2E-6: Network连接列表→路径搜索→模式切换',
+  mutates: false,
   fn: testE2ENetwork,
 };

@@ -33,8 +33,8 @@ async function testOnboarding(mp) {
   const onboardingData = await h.getPageData(onboardingPage);
   console.log('  Onboarding data:', JSON.stringify(onboardingData).slice(0, 200));
 
-  // 5. 检查 onboarding 页面有3个联系人输入
-  h.assert(onboardingData.contacts || onboardingData.step !== undefined, 'Onboarding has contact input structure');
+  // 5. 检查 onboarding 页面有联系人输入结构
+  h.assert(onboardingData.added !== undefined || onboardingData.contacts || onboardingData.step !== undefined, 'Onboarding has contact input structure');
 
   // 6. 测试输入联系人
   // 尝试找到输入框
@@ -51,5 +51,6 @@ async function testOnboarding(mp) {
 
 module.exports = {
   name: 'Onboarding 3联系人引导流程',
+  mutates: false,
   fn: testOnboarding,
 };

@@ -60,6 +60,11 @@ Page({
     });
   },
 
+  // 暂不登录 — 允许用户跳过登录进入应用（审核要求：提供取消/拒绝登录的选择权利）
+  skipLogin() {
+    wx.reLaunch({ url: '/pages/dashboard/dashboard' });
+  },
+
   onShow() {},
 
   onShareAppMessage() {

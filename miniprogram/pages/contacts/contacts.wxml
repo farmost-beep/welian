@@ -1,4 +1,5 @@
 <!-- pages/contacts/contacts.wxml — 关系列表页 -->
+<wxs src="../../utils/terminology.wxs" module="term" />
 <view class="container">
   <!-- 搜索框 -->
   <view class="search-bar">
@@ -23,7 +24,7 @@
     <view class="scan-result-card" catchtap="">
       <text class="scan-result-title">{{scanResult.message}}</text>
       <view wx:if="{{scanResult.contact.confidence === 'low'}}" class="scan-confidence-warn">
-        <text class="text-accent text-xs">⚠️ 识别置信度较低，请仔细核对</text>
+        <text class="text-accent text-xs">识别置信度较低，请仔细核对</text>
       </view>
       <view class="scan-result-info">
         <view class="info-row-edit">
@@ -59,6 +60,53 @@
     </view>
   </view>
 
+  <!-- 粘贴文本弹窗 -->
+  <view wx:if="{{pasteModal}}" class="scan-result-mask" bindtap="closePasteModal">
+    <view class="scan-result-card" catchtap="noop">
+      <text class="scan-result-title">粘贴文本提取联系人</text>
+      <view class="paste-textarea-wrap">
+        <textarea
+          class="paste-textarea"
+          placeholder="粘贴一段话，自动提取联系人信息&#10;例如：今天见了张三（腾讯产品经理），他介绍了李四（阿里工程师，13800138000）…"
+          value="{{pasteInput}}"
+          bindinput="onPasteInput"
+          maxlength="2000"
+          auto-height
+        />
+      </view>
+      <view class="scan-result-actions">
+        <button class="btn btn-block btn-primary" bindtap="submitPasteText" loading="{{pasteParsing}}">提取联系人</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" bindtap="closePasteModal">取消</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 粘贴提取结果弹窗（可编辑确认） -->
+  <view wx:if="{{pasteResult}}" class="scan-result-mask" bindtap="closePasteResult">
+    <view class="scan-result-card paste-result-card" catchtap="noop">
+      <text class="scan-result-title">识别到 {{pasteResultContacts.length}} 位联系人</text>
+      <view class="paste-result-list">
+        <view wx:for="{{pasteResultContacts}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="paste-contact-item">
+          <view class="paste-contact-header">
+            <text class="paste-contact-index">{{ci + 1}}</text>
+            <input class="info-input paste-contact-name" value="{{c.name}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="name" placeholder="姓名" />
+          </view>
+          <view class="paste-contact-fields">
+            <input class="info-input" value="{{c.company}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="company" placeholder="公司" />
+            <input class="info-input" value="{{c.title}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="title" placeholder="职位" />
+            <input class="info-input" value="{{c.phone}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="phone" placeholder="电话" />
+            <input class="info-input" value="{{c.email}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="email" placeholder="邮箱" />
+            <input class="info-input" value="{{c.relation}}" bindinput="onPasteContactEdit" data-index="{{ci}}" data-field="relation" placeholder="关系" />
+          </view>
+        </view>
+      </view>
+      <view class="scan-result-actions">
+        <button class="btn btn-block btn-primary" bindtap="confirmPasteSave" loading="{{pasteSaving}}">确认保存</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" bindtap="closePasteResult">取消</button>
+      </view>
+    </view>
+  </view>
+
   <!-- 搜索结果 -->
   <block wx:if="{{searchResults}}">
     <view class="section-title">搜索结果（{{searchResults.length}}）</view>
@@ -68,7 +116,7 @@
     <view wx:for="{{searchResults}}" wx:key="id" class="card contact-card" bindtap="tapContact" data-id="{{item.id}}">
       <view class="contact-row">
         <text class="contact-name">{{item.name}}</text>
-        <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+        <text class="tag {{term.tagClass(item.nature)}}">{{term.label(item.nature)}}</text>
       </view>
       <text class="contact-sub text-dim text-sm">{{item.how || item.bond}}</text>
     </view>
@@ -82,15 +130,17 @@
         <text class="tab-text">全部</text>
         <text class="tab-meta text-dimmer text-xs">{{totalContacts}}人</text>
       </view>
-      <view class="tab-item {{activeTab === 'leverage' ? 'active' : ''}}" bindtap="switchTab" data-tab="leverage">
-        <text class="tab-icon">🌳</text>
-        <text class="tab-text">撬动型</text>
-        <text class="tab-meta text-dimmer text-xs">果园</text>
+      <view class="tab-item {{activeTab === 'leverage' ? 'active' : ''}}" bindtap="switchTab" data-tab="leverage" aria-label="经营型联系人">
+        <text class="tab-text">经营型</text>
+        <text class="tab-meta text-dimmer text-xs">用心栽培</text>
       </view>
-      <view class="tab-item {{activeTab === 'nurture' ? 'active' : ''}}" bindtap="switchTab" data-tab="nurture">
-        <text class="tab-icon">🌸</text>
-        <text class="tab-text">维系型</text>
-        <text class="tab-meta text-dimmer text-xs">浇一盆花</text>
+      <view class="tab-item {{activeTab === 'nurture' ? 'active' : ''}}" bindtap="switchTab" data-tab="nurture" aria-label="陪伴型联系人">
+        <text class="tab-text">陪伴型</text>
+        <text class="tab-meta text-dimmer text-xs">在场陪伴</text>
+      </view>
+      <view class="tab-item tab-item-network" bindtap="goNetwork" aria-label="关系连接">
+        <text class="tab-text">连接</text>
+        <text class="tab-meta text-dimmer text-xs">关系图</text>
       </view>
     </view>
 
@@ -98,25 +148,26 @@
     <view class="group-bar">
       <picker mode="selector" range="{{groupModeOptions}}" value="{{groupModeIndex}}" bindchange="onGroupModeChange">
         <view class="group-picker">
-          <text class="text-dim text-xs">📑 {{groupModeOptions[groupModeIndex]}}</text>
+          <text class="text-dim text-xs">{{groupModeOptions[groupModeIndex]}}</text>
         </view>
       </picker>
       <!-- 第二层：具体分组项下拉 -->
       <picker wx:if="{{groupedContacts.length > 0}}" mode="selector" range="{{groupedContactsNames}}" value="{{selectedGroupIndex}}" bindchange="onSelectedGroupChange">
         <view class="group-picker">
-          <text class="text-dim text-xs">🏷️ {{groupedContactsNames[selectedGroupIndex] || '选择…'}}</text>
+          <text class="text-dim text-xs">{{groupedContactsNames[selectedGroupIndex] || '选择…'}}</text>
         </view>
       </picker>
     </view>
 
     <!-- 添加联系人入口 -->
     <view class="add-contact-bar">
-      <view class="add-contact-item" bindtap="scanCard">
-        <text class="add-contact-icon">📷</text>
+      <view class="add-contact-item" bindtap="scanCard" aria-label="拍名片添加联系人">
         <text class="add-contact-text text-dim text-sm">拍名片</text>
       </view>
-      <view class="add-contact-item" bindtap="importMenu">
-        <text class="add-contact-icon">📥</text>
+      <view class="add-contact-item" bindtap="pasteText" aria-label="粘贴文本提取联系人">
+        <text class="add-contact-text text-dim text-sm">粘贴文本</text>
+      </view>
+      <view class="add-contact-item" bindtap="importMenu" aria-label="导入通讯录">
         <text class="add-contact-text text-dim text-sm">导入</text>
       </view>
     </view>
@@ -144,7 +195,7 @@
             <view wx:for="{{item.items}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="card contact-card" catchtap="tapContact" data-id="{{c.id}}">
               <view class="contact-row">
                 <text class="contact-name">{{c.name}}</text>
-                <text class="tag tag-{{c.nature === '撬动' ? 'leverage' : (c.nature === '维系' ? 'nurture' : 'dual')}}">{{c.nature}}</text>
+                <text class="tag {{term.tagClass(c.nature)}}">{{term.label(c.nature)}}</text>
               </view>
               <text class="contact-sub text-dim text-sm">{{c.how || c.bond || c.company || ''}}</text>
             </view>
@@ -157,8 +208,8 @@
           <view class="contact-row">
             <text class="contact-name">{{item.name}}</text>
             <view class="contact-tags">
-              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
-              <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+              <text class="tag {{term.tagClass(item.nature)}}">{{term.label(item.nature)}}</text>
+              <text wx:if="{{item.cooldown === 'warn' && item.nature !== 'nurture'}}" class="cooldown-warn text-accent text-xs">14天+</text>
             </view>
           </view>
           <view class="contact-detail">
@@ -175,7 +226,7 @@
       </view>
     </block>
 
-    <!-- 撬动型列表 -->
+    <!-- 经营型列表 -->
     <block wx:if="{{activeTab === 'leverage' && !loading}}">
       <view class="list-header">
         <text class="text-dim text-sm">用心栽培，定期照料，静候收获（{{leverageList.length}}/{{totalContacts}}）</text>
@@ -188,8 +239,8 @@
               <view class="contact-row">
                 <text class="contact-name">{{c.name}}</text>
                 <view class="contact-tags">
-                  <text class="tag tag-leverage">撬动</text>
-                  <text wx:if="{{c.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+                  <text class="tag tag-leverage">经营型</text>
+                  <text wx:if="{{c.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">14天+</text>
                 </view>
               </view>
               <view class="contact-detail">
@@ -206,8 +257,8 @@
           <view class="contact-row">
             <text class="contact-name">{{item.name}}</text>
             <view class="contact-tags">
-              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
-              <text wx:if="{{item.cooldown === 'warn'}}" class="cooldown-warn text-accent text-xs">⚠ 14天+</text>
+              <text class="tag {{term.tagClass(item.nature)}}">{{term.label(item.nature)}}</text>
+              <text wx:if="{{item.cooldown === 'warn' && item.nature !== 'nurture'}}" class="cooldown-warn text-accent text-xs">14天+</text>
             </view>
           </view>
           <view class="contact-detail">
@@ -224,7 +275,7 @@
       </view>
     </block>
 
-    <!-- 维系型列表 -->
+    <!-- 陪伴型列表 -->
     <block wx:if="{{activeTab === 'nurture' && !loading}}">
       <view class="list-header">
         <text class="text-dim text-sm">不需要理由，在场就是全部</text>
@@ -236,14 +287,14 @@
             <view wx:for="{{item.items}}" wx:for-item="c" wx:for-index="ci" wx:key="ci" class="card contact-card" catchtap="tapContact" data-id="{{c.id}}">
               <view class="contact-row">
                 <text class="contact-name">{{c.name}}</text>
-                <text class="tag tag-nurture">维系</text>
+                <text class="tag tag-nurture">陪伴型</text>
               </view>
               <view class="contact-detail">
                 <text class="text-dim text-sm">{{c.bond}}</text>
                 <text class="text-dimmer text-xs">上次联系：{{c.lastContact}}</text>
               </view>
               <view wx:if="{{c.nextDate}}" class="next-date">
-                <text class="text-accent text-sm">📅 {{c.nextDate}}</text>
+                <text class="text-accent text-sm">{{c.nextDate}}</text>
               </view>
             </view>
           </block>
@@ -255,7 +306,7 @@
           <view class="contact-row">
             <text class="contact-name">{{item.name}}</text>
             <view class="contact-tags">
-              <text class="tag tag-{{item.nature === '撬动' ? 'leverage' : (item.nature === '维系' ? 'nurture' : 'dual')}}">{{item.nature}}</text>
+              <text class="tag {{term.tagClass(item.nature)}}">{{term.label(item.nature)}}</text>
             </view>
           </view>
           <view class="contact-detail">
@@ -263,7 +314,7 @@
             <text class="text-dimmer text-xs">上次联系：{{item.lastContact}}</text>
           </view>
           <view wx:if="{{item.nextDate}}" class="next-date">
-            <text class="text-accent text-sm">📅 {{item.nextDate}}</text>
+            <text class="text-accent text-sm">{{item.nextDate}}</text>
           </view>
         </view>
       </block>

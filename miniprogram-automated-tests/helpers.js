@@ -6,15 +6,41 @@ const config = require('./config');
 
 let miniProgram = null;
 
+function getE2EToken() {
+  return typeof process.env.WELIAN_E2E_TOKEN === 'string'
+    ? process.env.WELIAN_E2E_TOKEN.trim()
+    : '';
+}
+
 // 启动小程序（复用实例）
-async function launch() {
+async function launch(options = {}) {
   if (miniProgram) return miniProgram;
+  const e2eToken = options.useE2EAccount ? getE2EToken() : '';
+  if (options.useE2EAccount && !e2eToken) {
+    throw new Error('WELIAN_E2E_TOKEN is required for the dedicated E2E account.');
+  }
   console.log('Launching mini program via automator...');
   miniProgram = await automator.launch({
     cliPath: config.cliPath,
     projectPath: config.projectPath,
     timeout: config.timeout,
   });
+
+  if (options.e2eToken) {
+    try {
+      // miniprogram-automator 0.12.1 没有 setStorage API；官方 evaluate API 可在 AppService 中调用 wx.setStorageSync。
+      await miniProgram.evaluate((key, value) => {
+        wx.setStorageSync(key, value);
+      }, 'welian_token', options.e2eToken);
+      await miniProgram.reLaunch('/pages/dashboard/dashboard');
+      console.log('Dedicated E2E account configured.');
+    } catch (e) {
+      try { await miniProgram.close(); } catch (closeError) {}
+      miniProgram = null;
+      throw new Error('Failed to configure the dedicated E2E account.');
+    }
+  }
+
   console.log('Mini program launched.');
   return miniProgram;
 }
@@ -114,28 +140,41 @@ function sleep(ms) {
 }
 
 // 测试运行器
-async function runTest(name, testFn) {
+async function runTest(name, testFn, options = {}) {
   console.log(`\n📋 ${name}`);
   console.log('─'.repeat(50));
-  const mp = await launch();
+  let mp = null;
   try {
+    mp = await launch(options);
     await testFn(mp);
     console.log(`✅ PASSED: ${name}`);
     return true;
   } catch (e) {
     console.error(`❌ FAILED: ${name}`);
     console.error(`   Error: ${e.message}`);
-    await screenshot(mp, name.replace(/\s+/g, '-').toLowerCase());
+    if (mp) await screenshot(mp, name.replace(/\s+/g, '-').toLowerCase());
     return false;
   }
 }
 
 // 运行所有测试
-async function runAll(tests) {
+async function runAll(tests, options = {}) {
   const results = [];
-  for (const { name, fn } of tests) {
-    const passed = await runTest(name, fn);
-    results.push({ name, passed });
+  const skipped = [...(options.skippedTests || [])];
+
+  for (const test of tests) {
+    if (typeof test.mutates !== 'boolean') {
+      throw new Error(`Test is missing explicit mutates metadata: ${test.name || '(unnamed test)'}`);
+    }
+    if (test.mutates && !options.e2eToken) {
+      skipped.push({
+        name: test.name,
+        reason: 'mutating test requires WELIAN_E2E_TOKEN',
+      });
+      continue;
+    }
+    const passed = await runTest(test.name, test.fn, { e2eToken: options.e2eToken });
+    results.push({ name: test.name, passed });
   }
   await close();
 
@@ -147,18 +186,25 @@ async function runAll(tests) {
   for (const r of results) {
     console.log(`  ${r.passed ? '✅' : '❌'} ${r.name}`);
   }
+  for (const s of skipped) {
+    console.log(`  [SKIPPED] ${s.name} — ${s.reason}`);
+  }
   console.log('─'.repeat(50));
   console.log(`  ${passed}/${results.length} passed`);
+  console.log(`  ${skipped.length} skipped`);
   if (failed.length > 0) {
     console.log(`  ${failed.length} failed:`);
     for (const f of failed) {
       console.log(`    - ${f.name}`);
     }
-    process.exit(1);
+    process.exitCode = 1;
+  } else if (results.length === 0) {
+    console.log('  No tests ran.');
   } else {
-    console.log('  All tests passed! 🎉');
-    process.exit(0);
+    console.log('  All selected tests passed!');
   }
+
+  return { results, skipped };
 }
 
 module.exports = {

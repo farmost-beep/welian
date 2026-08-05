@@ -1,17 +1,50 @@
 // dashboard-logic.js — Dashboard 纯逻辑函数（无 wx 依赖，可被 vitest 测试）
 
-// 联系人分类：按 relationship/nature 分到 friend/family/collaborator
-function classifyContact(c) {
+// 默认家人关键词（config 未传入时兜底）
+const DEFAULT_FAMILY_KEYWORDS = ['家人', '父母', '爸妈', '爸爸', '妈妈', '妻', '夫', '儿子', '女儿', '兄弟', '姐妹', '父', '母', '哥', '嫂', '弟', '妹', '舅', '姨', '叔', '伯', '姑', '外婆', '外公', '爷爷', '奶奶'];
+
+// 默认角色配置（config 未传入时兜底）
+const DEFAULT_ROLE_CONFIG = [
+  { key: 'friend', label: '作为朋友', icon: '🌱', cold_days: 30 },
+  { key: 'family', label: '作为家人', icon: '🏡', cold_days: 30 },
+  { key: 'collaborator', label: '作为合作者', icon: '🤝', cold_days: 14 },
+];
+
+// 联系人分类：以 nature 为主，relation 仅在区分家人/朋友时辅助
+// familyKeywords 可从 config 传入（后端驱动）
+function classifyContact(c, familyKeywords) {
   const rel = (c.relationship || c.relation || '').toLowerCase();
   const nature = (c.nature || '').toLowerCase();
-  if (/家人|父母|爸妈|爸爸|妈妈|妻|夫|儿子|女儿|兄弟|姐妹|父|母|哥|嫂|弟|妹|舅|姨|叔|伯|姑|外婆|外公|爷爷|奶奶/.test(rel)) return 'family';
-  if (/朋友|同学|校友|室友|闺蜜|发小|老乡|邻居/.test(rel)) return 'friend';
-  if (nature === 'nurture') return 'friend';
+  const isNurture = nature === 'nurture' || nature === '陪伴' || nature === '陪伴型' || nature === '家人';
+  const isDual = nature === 'dual' || nature === '双重';
+  const keywords = familyKeywords || DEFAULT_FAMILY_KEYWORDS;
+  const familyByRel = keywords.some(kw => rel.includes(kw.toLowerCase()));
+  const friendByRel = /朋友|同学|校友|室友|闺蜜|发小|老乡|邻居/.test(rel);
+
+  // 陪伴型：按 relation 区分家人 vs 朋友
+  if (isNurture) {
+    return familyByRel ? 'family' : 'friend';
+  }
+  // 双重：relation 含家人关键词归 family，否则归朋友（双重关系既有经营面也有情感面）
+  if (isDual) {
+    return familyByRel ? 'family' : 'friend';
+  }
+  // 经营型（默认）：relation 含家人关键词归 family，否则归 collaborator
+  if (familyByRel) return 'family';
+  if (friendByRel) return 'friend';
   return 'collaborator';
 }
 
 // 按 friend/family/collaborator 三角色分组
-function buildRoles(contacts, timeline, now = new Date()) {
+// config 可包含 role_config / family_keywords（后端驱动）
+function buildRoles(contacts, timeline, now, config) {
+  now = now || new Date();
+  config = config || {};
+  const familyKeywords = config.family_keywords || DEFAULT_FAMILY_KEYWORDS;
+  const roleConfigRaw = config.role_config || DEFAULT_ROLE_CONFIG;
+  // 兼容 cold_days 和 coldDays 两种命名
+  const roleConfig = roleConfigRaw.map(r => ({ ...r, coldDays: r.cold_days ?? r.coldDays ?? 30 }));
+
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const monthTimeline = timeline.filter(t => {
@@ -25,14 +58,8 @@ function buildRoles(contacts, timeline, now = new Date()) {
 
   const groups = { friend: [], family: [], collaborator: [] };
   for (const c of contacts) {
-    groups[classifyContact(c)].push(c);
+    groups[classifyContact(c, familyKeywords)].push(c);
   }
-
-  const roleConfig = [
-    { key: 'friend', label: '作为朋友', icon: '🌱', coldDays: 30 },
-    { key: 'family', label: '作为家人', icon: '🏡', coldDays: 30 },
-    { key: 'collaborator', label: '作为合作者', icon: '🤝', coldDays: 14 },
-  ];
 
   return roleConfig.map(cfg => {
     const roleContacts = groups[cfg.key];

@@ -1,28 +1,19 @@
-<!-- pages/report/report.wxml — 关系体检报告页（支持被分享者打开） -->
+<!-- pages/report/report.wxml — 关系回顾报告页（预览→分享，无温度评分） -->
+<wxs src="../../utils/terminology.wxs" module="term" />
 <view class="container">
   <!-- 加载中 -->
   <view wx:if="{{loading}}" class="loading">
-    <text class="text-dim text-sm">正在生成关系体检报告…</text>
+    <text class="text-dim text-sm">正在生成关系回顾…</text>
   </view>
 
   <!-- 报告内容 -->
   <block wx:if="{{!loading && report}}">
     <view class="report-header">
-      <text class="report-title">{{report.contactName}} 的关系体检报告</text>
+      <text class="report-title">{{report.contactName}} 的关系回顾</text>
       <text class="text-dim text-sm">由 {{report.inviterName || '小维用户'}} 发起</text>
     </view>
 
-    <!-- 关系温度 -->
-    <view class="card">
-      <text class="card-title">关系温度</text>
-      <view class="temp-bar">
-        <view class="temp-fill" style="width: {{report.temperature}}%"></view>
-      </view>
-      <text class="temp-value text-accent">{{report.temperature}}°</text>
-      <text class="text-dim text-sm">{{report.tempDesc}}</text>
-    </view>
-
-    <!-- 互动统计 -->
+    <!-- 数据驱动的事实 -->
     <view class="card">
       <text class="card-title">互动概况</text>
       <view class="stat-row">
@@ -41,12 +32,25 @@
       </view>
     </view>
 
-    <!-- 建议 -->
-    <view class="card" wx:if="{{report.suggestions.length > 0}}">
-      <text class="card-title">跟进建议</text>
-      <view wx:for="{{report.suggestions}}" wx:key="index" class="suggestion-item">
+    <!-- 事实清单 -->
+    <view class="card" wx:if="{{report.facts && report.facts.length > 0}}">
+      <text class="card-title">关系记录</text>
+      <view wx:for="{{report.facts}}" wx:key="index" class="suggestion-item">
         <text class="text-sm">• {{item}}</text>
       </view>
+    </view>
+
+    <!-- 上次互动摘要 -->
+    <view class="card" wx:if="{{report.lastInteractionSummary}}">
+      <text class="card-title">上次互动</text>
+      <text class="text-dim text-sm">{{report.lastInteractionSummary}}</text>
+      <text wx:if="{{report.lastInteractionDate}}" class="text-dimmer text-xs">{{report.lastInteractionDate}}</text>
+    </view>
+
+    <!-- 即将到来的重要日期 -->
+    <view class="card" wx:if="{{report.upcomingDate}}">
+      <text class="card-title">即将到来</text>
+      <text class="text-sm">{{report.upcomingDate.label}}：{{report.upcomingDate.date}}</text>
     </view>
 
     <!-- 被分享者视角：引导试用 -->
@@ -58,10 +62,11 @@
       </view>
     </view>
 
-    <!-- 分享者视角：分享按钮 -->
+    <!-- 分享者视角：预览后分享 -->
     <view wx:if="{{!isSharedView}}" class="share-section">
-      <button class="btn btn-primary" open-type="share">分享给 {{report.contactName}}</button>
-      <text class="text-dim text-xs">分享后，对方打开即可自动关联</text>
+      <text class="text-dim text-sm" style="margin-bottom:16rpx">确认报告内容后，分享给 {{report.contactName}}</text>
+      <button class="btn btn-primary" open-type="share" aria-label="分享给 {{report.contactName}}">分享给 {{report.contactName}}</button>
+      <text class="text-dim text-xs" style="margin-top:12rpx">对方打开后会看到这份回顾，并可选择关联你的关系记录</text>
     </view>
   </block>
 

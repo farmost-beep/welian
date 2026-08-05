@@ -117,5 +117,6 @@ async function testE2EPerception(mp) {
 
 module.exports = {
   name: 'E2E-4: 感知变化完整流程(采集→确认→拒绝)',
+  mutates: true,
   fn: testE2EPerception,
 };

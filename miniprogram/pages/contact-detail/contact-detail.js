@@ -1,6 +1,7 @@
 // pages/contact-detail/contact-detail.js
 const api = require('../../utils/api.js');
 const { calcCooldown } = require('../../utils/contact-detail-logic.js');
+const app = getApp();
 
 Page({
   data: {
@@ -29,6 +30,16 @@ Page({
     // Web搜索
     webSearching: false,
     webResults: [],
+    // 连接关系
+    showConnectModal: false,
+    connectSearch: '',
+    connectSearchResults: [],
+    connectTargetId: '',
+    connectTargetName: '',
+    connectDesc: '',
+    connecting: false,
+    // 同圈子
+    sharedCircles: [],
   },
 
   onLoad(options) {
@@ -43,8 +54,24 @@ Page({
       this.setData({ contact, loading: false });
       this.loadTimeline(contact.name);
       this.loadPerceptions();
+      this.loadSharedCircles();
     }).catch((err) => {
       this.setData({ loading: false, error: err.message || '加载失败' });
+    });
+  },
+
+  loadSharedCircles() {
+    const token = api.getToken();
+    if (!token) return;
+    wx.request({
+      url: `https://api.welian.app/ai/network/shared_tags?contact_id=${encodeURIComponent(this.contactId)}`,
+      method: 'GET',
+      header: { 'Authorization': 'Bearer ' + token },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.circles) {
+          this.setData({ sharedCircles: res.data.circles });
+        }
+      },
     });
   },
 
@@ -63,7 +90,7 @@ Page({
           ).slice(0, 10);
           // 计算冷却预警（仅经营型关系）
           const contact = this.data.contact;
-          const cooldown = calcCooldown(entries, contact);
+          const cooldown = calcCooldown(entries, contact, undefined, app.globalData.config.thresholds);
           this.setData({ timeline: entries, cooldown });
         }
       },
@@ -98,7 +125,9 @@ Page({
       data: { contact_name: name, summary, date: new Date().toISOString().slice(0, 10) },
       success: (res) => {
         if (res.statusCode === 200) {
-          wx.showToast({ title: '已记录', icon: 'success' });
+          // #2: 温暖反馈（文案后端驱动）
+          const app = getApp();
+          wx.showToast({ title: app.getWarmMessage(name), icon: 'none', duration: 2500 });
           this.loadTimeline(name);
         } else {
           wx.showToast({ title: '记录失败', icon: 'none' });
@@ -505,7 +534,13 @@ Page({
       success: (res) => {
         this.setData({ savingTimeline: false });
         if (res.statusCode === 200) {
-          wx.showToast({ title: '已保存', icon: 'success' });
+          if (!isEdit) {
+            // #2: 温暖反馈（文案后端驱动）
+            const app = getApp();
+            wx.showToast({ title: app.getWarmMessage(contact.name), icon: 'none', duration: 2500 });
+          } else {
+            wx.showToast({ title: '已保存', icon: 'success' });
+          }
           this.setData({ showTimelineForm: false, timelineEditId: '' });
           this.loadTimeline(contact.name);
         } else {
@@ -583,13 +618,13 @@ Page({
     });
   },
 
-  // 分享关系体检报告给联系人
+  // 分享关系回顾给联系人
   // Privacy: use opaque contact_id instead of contact name; no inviter openid in URL
   onShareAppMessage() {
     const contact = this.data.contact;
     if (!contact) return {};
     return {
-      title: `我给你做了一份关系体检报告`,
+      title: `我给你做了一份关系回顾`,
       path: `/pages/report/report?cid=${encodeURIComponent(contact.id || '')}`,
     };
   },
@@ -598,8 +633,113 @@ Page({
     const contact = this.data.contact;
     if (!contact) return {};
     return {
-      title: `Welian 关系体检`,
+      title: `Welian 关系回顾`,
       query: `cid=${encodeURIComponent(contact.id || '')}`,
     };
+  },
+
+  // ── 连接关系 ──
+  showAddConnection() {
+    this.setData({
+      showConnectModal: true,
+      connectSearch: '',
+      connectSearchResults: [],
+      connectTargetId: '',
+      connectTargetName: '',
+      connectDesc: '',
+    });
+  },
+
+  closeConnectModal() {
+    this.setData({ showConnectModal: false });
+  },
+
+  onConnectSearchInput(e) {
+    const q = e.detail.value.trim();
+    this.setData({ connectSearch: q });
+    if (!q) {
+      this.setData({ connectSearchResults: [] });
+      return;
+    }
+    // Search contacts via API
+    const token = api.getToken();
+    if (!token) return;
+    wx.request({
+      url: `https://api.welian.app/data/contacts?q=${encodeURIComponent(q)}&limit=10&compact=1`,
+      method: 'GET',
+      header: { 'Authorization': 'Bearer ' + token },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.contacts) {
+          // Exclude self
+          const results = res.data.contacts.filter(c => c.id !== this.contactId);
+          this.setData({ connectSearchResults: results });
+        }
+      },
+    });
+  },
+
+  selectConnectTarget(e) {
+    const { id, name } = e.currentTarget.dataset;
+    this.setData({
+      connectTargetId: id,
+      connectTargetName: name,
+      connectSearch: '',
+      connectSearchResults: [],
+    });
+  },
+
+  onConnectDescInput(e) {
+    this.setData({ connectDesc: e.detail.value });
+  },
+
+  async confirmConnection() {
+    const { connectTargetId, connectDesc, connecting } = this.data;
+    if (connecting) return;
+    if (!connectTargetId) {
+      wx.showToast({ title: '请先选择联系人', icon: 'none' });
+      return;
+    }
+    this.setData({ connecting: true });
+    try {
+      await api.request('/ai/network/connect', {
+        contact_id: this.contactId,
+        target_id: connectTargetId,
+        relation_desc: connectDesc.trim(),
+      }, 'POST');
+      this.setData({ connecting: false, showConnectModal: false });
+      wx.showToast({ title: '已添加连接', icon: 'success' });
+      this.loadDetail(); // reload to show new connection
+    } catch (e) {
+      this.setData({ connecting: false });
+      wx.showToast({ title: e.message || '添加失败', icon: 'none' });
+    }
+  },
+
+  removeConnection(e) {
+    const targetId = e.currentTarget.dataset.id;
+    if (!targetId) return;
+    wx.showModal({
+      title: '删除连接',
+      content: '确定删除这条连接关系吗？',
+      confirmText: '删除',
+      confirmColor: '#C96442',
+      success: (res) => {
+        if (!res.confirm) return;
+        api.request('/ai/network/disconnect', {
+          contact_id: this.contactId,
+          target_id: targetId,
+        }, 'POST').then(() => {
+          wx.showToast({ title: '已删除', icon: 'success' });
+          this.loadDetail();
+        }).catch((err) => {
+          wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        });
+      },
+    });
+  },
+
+  goToConnectedContact(e) {
+    const id = e.currentTarget.dataset.id;
+    if (id) wx.navigateTo({ url: `/pages/contact-detail/contact-detail?id=${id}` });
   },
 });

@@ -3,53 +3,44 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 60rpx 48rpx 60rpx;
+  padding: 80rpx 48rpx 48rpx;
   background: #F5F4EE;
 }
 
-/* 进度条 */
-.progress-bar {
+/* ── 品牌头 ── */
+.brand-section {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  gap: 6rpx;
   justify-content: center;
-  margin-bottom: 48rpx;
+  margin-bottom: 8rpx;
 }
-.progress-dot {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: #EDEBE3;
-  color: #9A968C;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  font-weight: 600;
-  transition: all 0.3s;
+.brand-name {
+  font-size: 52rpx;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #1A1915;
 }
-.progress-dot.active {
-  background: #C96442;
-  color: #fff;
+.brand-inf {
+  font-size: 44rpx;
+  color: #C96442;
 }
-.progress-line {
-  width: 80rpx;
-  height: 4rpx;
-  background: #EDEBE3;
-  transition: all 0.3s;
-}
-.progress-line.active {
-  background: #C96442;
+.brand-tagline {
+  font-size: 26rpx;
+  color: #6B6860;
+  text-align: center;
+  margin-bottom: 56rpx;
 }
 
-/* 引导文案 */
+/* ── 引导文案 + 计数器 ── */
 .guide-text {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40rpx;
+  margin-bottom: 32rpx;
 }
 .guide-title {
-  font-size: 36rpx;
+  font-size: 38rpx;
   font-weight: 700;
   color: #1A1915;
   margin-bottom: 8rpx;
@@ -58,9 +49,82 @@
   font-size: 26rpx;
   color: #6B6860;
   text-align: center;
+  margin-bottom: 24rpx;
 }
 
-/* 表单卡片 */
+/* 计数器 */
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+  padding: 8rpx 28rpx;
+  background: #EDEBE3;
+  border-radius: 24rpx;
+  transition: all 0.3s;
+}
+.counter-num {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #C96442;
+}
+.counter-total {
+  font-size: 24rpx;
+  color: #9A968C;
+}
+.counter-full {
+  background: #FDF6F2;
+}
+.counter-full .counter-num {
+  color: #4A7C59;
+}
+
+/* ── 已添加 chip 列表 ── */
+.added-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+.added-chip {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 14rpx 20rpx 14rpx 24rpx;
+  background: #FAFAF7;
+  border: 1rpx solid #E8E5DC;
+  border-radius: 32rpx;
+  animation: chip-pop 0.25s ease-out;
+}
+@keyframes chip-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.chip-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1915;
+}
+.chip-nature {
+  font-size: 22rpx;
+  color: #9A968C;
+}
+.chip-remove {
+  font-size: 32rpx;
+  color: #C0BBB0;
+  width: 36rpx;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-left: 4rpx;
+}
+.chip-remove:active {
+  color: #C96442;
+  background: #FDF6F2;
+}
+
+/* ── 输入卡片 ── */
 .form-card {
   background: #FAFAF7;
   border-radius: 24rpx;
@@ -69,92 +133,71 @@
   margin-bottom: 24rpx;
 }
 .name-input {
-  font-size: 34rpx;
+  font-size: 36rpx;
   padding: 20rpx 0;
   border-bottom: 2rpx solid #E8E5DC;
-  margin-bottom: 28rpx;
+  margin-bottom: 8rpx;
   color: #1A1915;
 }
-.rel-input {
-  font-size: 28rpx;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #E8E5DC;
-  color: #6B6860;
-  margin-top: 8rpx;
+.form-error {
+  display: block;
+  margin-bottom: 12rpx;
 }
 
-/* 关系类型选择 */
-.nature-selector {
+/* ── 关系类型 pill 标签 ── */
+.nature-pills {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  gap: 12rpx;
+  margin-top: 20rpx;
 }
-.nature-option {
+.nature-pill {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20rpx 12rpx;
+  gap: 4rpx;
+  padding: 16rpx 8rpx;
   border-radius: 16rpx;
   border: 2rpx solid #E8E5DC;
   background: #fff;
   transition: all 0.2s;
 }
-.nature-option.selected {
+.nature-pill.selected {
   border-color: #C96442;
   background: #FDF6F2;
 }
-.nature-icon {
-  font-size: 36rpx;
-  margin-bottom: 8rpx;
+.nature-pill:active {
+  transform: scale(0.96);
 }
-.nature-label {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #1A1915;
-  margin-bottom: 4rpx;
+.pill-emoji {
+  font-size: 32rpx;
 }
-.nature-desc {
-  font-size: 20rpx;
-  color: #9A968C;
-  text-align: center;
-}
-
-/* 已添加列表 */
-.added-list {
-  margin-bottom: 24rpx;
-}
-.added-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 28rpx;
-  background: #FAFAF7;
-  border-radius: 16rpx;
-  margin-bottom: 12rpx;
-  border: 1rpx solid #E8E5DC;
-}
-.added-name {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1A1915;
-}
-.added-nature {
+.pill-label {
   font-size: 24rpx;
-  color: #6B6860;
+  font-weight: 600;
+  color: #1A1915;
+}
+.nature-pill.selected .pill-label {
+  color: #C96442;
 }
 
-/* 操作区 */
-.action-section {
+/* ── 底部操作区 ── */
+.action-bar {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20rpx;
+  gap: 16rpx;
   padding-top: 24rpx;
 }
 .btn-primary {
   background: #C96442;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.btn-complete {
+  background: #4A7C59;
   color: #fff;
   font-size: 32rpx;
   font-weight: 600;
@@ -167,14 +210,33 @@
   color: #9A968C;
   padding: 12rpx;
 }
+.skip-link:active {
+  color: #6B6860;
+}
 
-/* 首次建议卡片 */
+/* ── 首次建议 — 全屏遮罩 + 淡入卡片 ── */
+.advise-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
 .advise-card {
-  background: #FAFAF7;
+  background: #F5F4EE;
   border-radius: 24rpx;
-  padding: 36rpx;
+  padding: 40rpx 32rpx;
+  width: 600rpx;
   border: 1rpx solid #E8E5DC;
-  margin-top: 24rpx;
+}
+.advise-fade-in {
+  animation: advise-fade 0.35s ease-out;
+}
+@keyframes advise-fade {
+  from { transform: translateY(40rpx) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 .advise-header {
   display: flex;
@@ -182,7 +244,7 @@
   gap: 12rpx;
   margin-bottom: 20rpx;
 }
-.advise-icon {
+.advise-emoji {
   font-size: 40rpx;
 }
 .advise-title {

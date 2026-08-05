@@ -1,4 +1,4 @@
-// pages/report/report.js — 关系体检报告页
+// pages/report/report.js — 关系回顾报告页
 // 两种场景：
 // 1. 用户自己查看（已登录，有token）→ 生成报告 + 可分享
 // 2. 被分享者打开（query带contact+inviter）→ 静默绑定openid + 展示报告 + 引导试用
@@ -66,7 +66,7 @@ Page({
         this.loadSharedReport('');
         return;
       }
-      // 调用后端生成关系体检报告
+      // 调用后端生成关系回顾报告
       const payload = { type: 'relationship_checkup' };
       if (contactId) payload.contact_id = contactId;
       const resp = await api.request('/ai/report', payload, 'POST');
@@ -92,15 +92,16 @@ Page({
       report: {
         contactName,
         inviterName: '',
-        temperature: 50,
-        tempDesc: '这是一份关系体检报告，帮助你了解和维护人际关系。',
         totalInteractions: '—',
         daysSinceLast: '—',
         avgInterval: '—',
-        suggestions: [
-          '定期联系是维护关系的关键',
-          '记住上次聊的话题，下次接着聊',
-          '在重要日期主动问候',
+        lastInteractionSummary: '',
+        lastInteractionDate: '',
+        upcomingDate: null,
+        nature: '',
+        facts: [
+          '这是一份关系回顾报告',
+          '帮助你了解和维护人际关系',
         ],
       },
     });
@@ -128,7 +129,7 @@ Page({
     // openid 在 wxmp_login 时已返回，存储在 app.globalData
     const openid = app.globalData.openid || '';
     return {
-      title: `我给你做了一份关系体检报告`,
+      title: `我给你做了一份关系回顾`,
       path: `/pages/report/report?contact=${encodeURIComponent(contactName)}&inviter=${openid}`,
     };
   },
@@ -136,7 +137,7 @@ Page({
   onShareTimeline() {
     const contactName = this.data.report?.contactName || '';
     return {
-      title: `Welian 关系体检报告`,
+      title: `Welian 关系回顾`,
       query: `contact=${encodeURIComponent(contactName)}`,
     };
   },

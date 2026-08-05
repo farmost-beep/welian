@@ -1,42 +1,69 @@
-<!-- pages/network/network.wxml — 关系网络可视化 -->
+<!-- pages/network/network.wxml — 关系连接清单 -->
+<wxs src="../../utils/terminology.wxs" module="term" />
 <view class="network-page">
   <!-- 标题 -->
   <view class="header">
-    <text class="page-title">关系网络</text>
+    <text class="page-title">关系连接</text>
     <text class="page-subtitle text-dimmer text-xs">{{graph.stats.totalContacts}} 人 · {{graph.stats.totalConnections}} 条连接</text>
   </view>
 
   <!-- 模式切换 -->
   <view class="mode-tabs">
-    <view class="mode-tab {{mode === 'graph' ? 'active' : ''}}" bindtap="switchMode" data-mode="graph">图谱</view>
-    <view class="mode-tab {{mode === 'path' ? 'active' : ''}}" bindtap="switchMode" data-mode="path">引荐路径</view>
+    <view class="mode-tab {{mode === 'list' ? 'active' : ''}}" bindtap="switchMode" data-mode="list" aria-label="连接列表">连接列表</view>
+    <view class="mode-tab {{mode === 'circles' ? 'active' : ''}}" bindtap="switchMode" data-mode="circles" aria-label="圈子">圈子</view>
+    <view class="mode-tab {{mode === 'path' ? 'active' : ''}}" bindtap="switchMode" data-mode="path" aria-label="引荐路径">引荐路径</view>
   </view>
 
-  <!-- 图谱模式 -->
-  <block wx:if="{{mode === 'graph'}}">
+  <!-- 连接列表模式 -->
+  <block wx:if="{{mode === 'list'}}">
     <view wx:if="{{graph.nodes.length === 0}}" class="empty-state">
-      <text class="text-dimmer text-sm">还没有联系人数据，去添加几个重要的人吧</text>
+      <text class="text-dimmer text-sm">还没有联系人数据</text>
+      <text class="text-dimmer text-xs" style="display:block;margin-top:8rpx">去「关系」页添加几个重要的人吧</text>
     </view>
     <view wx:elif="{{graph.stats.totalConnections === 0}}" class="empty-state">
-      <text class="text-dimmer text-sm">还没有连接关系。在联系人详情页可以添加人与人之间的关系</text>
+      <text class="text-dimmer text-sm">还没有连接关系</text>
+      <text class="text-dimmer text-xs" style="display:block;margin-top:8rpx">在联系人详情页点「+ 添加」连接</text>
+      <view class="empty-cta" bindtap="goContacts">去添加连接</view>
     </view>
     <view wx:else class="graph-container">
-      <!-- 节点列表（简化版，不做 canvas 绘制） -->
-      <view class="nodes-grid">
-        <view wx:for="{{graph.nodes}}" wx:key="id" class="node-card node-{{item.nature}}" bindtap="goContactDetail" data-id="{{item.id}}">
-          <text class="node-name">{{item.name}}</text>
-          <text wx:if="{{item.company}}" class="node-company text-dimmer text-xs">{{item.company}}</text>
-          <text class="node-nature-tag text-xs">{{item.nature === 'leverage' ? '经营' : item.nature === 'nurture' ? '陪伴' : '双重'}}</text>
-        </view>
-      </view>
       <!-- 连接列表 -->
       <view class="edges-section">
-        <text class="section-title-sm">连接关系</text>
+        <view class="section-title-sm" style="display:flex;justify-content:space-between;align-items:center">
+          <text>连接关系（{{graph.stats.totalConnections}}）</text>
+          <text class="text-accent text-xs" bindtap="showAddConnection">+ 添加</text>
+        </view>
         <view wx:for="{{graph.edges}}" wx:key="index" class="edge-row">
-          <text class="edge-name">{{item.sourceName}}</text>
+          <text class="edge-name" bindtap="goContactDetail" data-id="{{item.source}}">{{item.sourceName}}</text>
           <text class="edge-arrow">→</text>
-          <text class="edge-name">{{item.targetName}}</text>
+          <text class="edge-name" bindtap="goContactDetail" data-id="{{item.target}}">{{item.targetName}}</text>
           <text wx:if="{{item.desc}}" class="edge-desc text-dimmer text-xs">{{item.desc}}</text>
+          <text class="edge-delete text-dimmer text-xs" catchtap="deleteConnection" data-source-id="{{item.source}}" data-target-id="{{item.target}}">删除</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 圈子模式 -->
+  <block wx:if="{{mode === 'circles'}}">
+    <view wx:if="{{!graph.circles || graph.circles.length === 0}}" class="empty-state">
+      <text class="text-dimmer text-sm">还没有发现圈子</text>
+      <text class="text-dimmer text-xs" style="display:block;margin-top:8rpx">给联系人添加相同标签，会自动识别为圈子</text>
+    </view>
+    <view wx:else>
+      <view class="circle-search">
+        <input class="path-input" value="{{circleSearch}}" bindinput="onCircleSearchInput" placeholder="搜索圈子或人名…" />
+      </view>
+      <view wx:for="{{filteredCircles}}" wx:key="tag" class="circle-card">
+        <view class="circle-header" bindtap="toggleCircle" data-tag="{{item.tag}}">
+          <text class="circle-tag">{{item.tag}}</text>
+          <text class="circle-count text-dimmer text-xs">{{item.count}}人</text>
+          <text class="circle-toggle text-dimmer text-xs">{{expandedCircle === item.tag ? '收起' : '展开'}}</text>
+        </view>
+        <view wx:if="{{expandedCircle === item.tag}}" class="circle-members">
+          <view wx:for="{{item.members}}" wx:for-item="member" wx:key="id" class="circle-member" bindtap="goContactDetail" data-id="{{member.id}}">
+            <text class="text-sm">{{member.name}}</text>
+            <text wx:if="{{member.company}}" class="text-dimmer text-xs">{{member.company}}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -67,5 +94,52 @@
   <!-- 隐私说明 -->
   <view class="privacy-note">
     <text class="text-dimmer text-xs">只展示你录入或确认的连接，不做关系评分，陪伴型关系不参与路径计算</text>
+  </view>
+</view>
+
+<!-- 添加连接弹窗 -->
+<view wx:if="{{showConnectModal}}" class="connect-overlay" catchtap="closeConnectModal">
+  <view class="connect-modal" catchtap="noop">
+    <text class="connect-title">添加连接</text>
+    <text class="text-dim text-sm" style="display:block;margin-bottom:16rpx">搜索并选择两个联系人建立连接关系</text>
+
+    <!-- 联系人 A -->
+    <view class="connect-field">
+      <text class="connect-label">联系人 A</text>
+      <input class="connect-input" value="{{connectASearch}}" bindinput="onConnectASearchInput" placeholder="输入姓名搜索…" />
+    </view>
+    <view wx:if="{{connectASearchResults.length > 0}}" class="connect-search-results">
+      <view wx:for="{{connectASearchResults}}" wx:key="id" class="connect-search-item" bindtap="selectConnectA" data-id="{{item.id}}" data-name="{{item.name}}">
+        <text class="text-sm">{{item.name}}</text>
+        <text wx:if="{{item.company}}" class="text-dimmer text-xs">{{item.company}}</text>
+      </view>
+    </view>
+    <view wx:if="{{connectAName}}" class="connect-selected">
+      <text class="text-sm">已选：{{connectAName}}</text>
+    </view>
+
+    <!-- 联系人 B -->
+    <view class="connect-field">
+      <text class="connect-label">联系人 B</text>
+      <input class="connect-input" value="{{connectBSearch}}" bindinput="onConnectBSearchInput" placeholder="输入姓名搜索…" />
+    </view>
+    <view wx:if="{{connectBSearchResults.length > 0}}" class="connect-search-results">
+      <view wx:for="{{connectBSearchResults}}" wx:key="id" class="connect-search-item" bindtap="selectConnectB" data-id="{{item.id}}" data-name="{{item.name}}">
+        <text class="text-sm">{{item.name}}</text>
+        <text wx:if="{{item.company}}" class="text-dimmer text-xs">{{item.company}}</text>
+      </view>
+    </view>
+    <view wx:if="{{connectBName}}" class="connect-selected">
+      <text class="text-sm">已选：{{connectBName}}</text>
+    </view>
+
+    <view class="connect-field">
+      <text class="connect-label">关系描述（可选）</text>
+      <input class="connect-input" value="{{connectDesc}}" bindinput="onConnectDescInput" placeholder="如：同行、引荐人、合作伙伴" />
+    </view>
+    <view class="connect-actions">
+      <button class="action-btn" bindtap="closeConnectModal">取消</button>
+      <button class="action-btn action-btn-primary" bindtap="addConnection" loading="{{connecting}}">添加</button>
+    </view>
   </view>
 </view>

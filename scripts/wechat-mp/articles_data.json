@@ -1,0 +1,1401 @@
+{
+  "fetch_time": "2026-08-02T08:00:21.629013",
+  "total_articles": 155,
+  "articles": [
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklpp9zejksC2qk05qh_S-hWCjBYZK02CUmcWvIu_4nuX",
+      "title": "OpenAI确认下一代模型Astra存在，正向监管层展示",
+      "digest": "AI大模型新进展与成本危机、全球地缘冲突升级、新能源与造车新势力分化、外资流向与全球资产配置、AI监管与政策合规；OpenAI确认下一代模型Astra存在，正向监管层展示、俄罗斯大规模袭击乌克兰，摧毁美国公司无人机工厂、卡塔尔LNG船霍尔木",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9MdU4vSU1UVWJ1VVhKMHhxbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2prcmZGMkVwS3BTOElKNWhvOWdjWnRnci02NlNLZkY3TllOc0ZHVzZBUGxFOVBkZjdqaTNoVXZwU3pJR3EwSmR6SDdfcnQtT1lDb2pvTXJYazdDTzdlbjVKa1Bhdm9TNVczWE9KRG9lSzN3fn4%3D&chksm=41bd5e4a76cad75c0cb1a1fa18df5c0996dc53a959c6014f0c776b53f6f9002acfd71df0ccd2#rd",
+      "author": "Welian 小维",
+      "pub_date": "2026-08-02T07:31:01",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMKmiblGmlhibib2ztpe1DIBrJFFemicqcO6StqACua5vLhjy5c7RDZ0hRDEVvIWECrAs0lvwicfDsSibMiaQbib1JArvCViauZVRmAnT60/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkn48pjNZocreU2ZXuZG5NXp6ik99AjlnGiYB7ef2mPlQ",
+      "title": "LangChain四层栈：65M月下载背后",
+      "digest": "LangGraph+LangChain v1+Deep Agents+LangSmith/DeltaChannel 41倍压缩/Klarna 85M用户",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV80WnpPMC9QUUNTKzVCT1RqbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXczSV9PWDcyeng5UE1PeER0TlltWjFnYTVaSkhpY3NYYldNdVY4U3RtelZYMWFkODFlWER1cW0zT1M4OFFCR2JqVjl1cUIwdlBiTFlkd0NoZFRnendkOEcwZ3k1ZzZUQTltbkxJRkUtdUtRfn4%3D&chksm=41bd5e4176cad757ae4c63852c23d08b08e6d7accb8f619a030ac8e94abcb5b61c739bb55496#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-08-01T23:13:29",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMmOqJ7SsK0PoM5fAn6lJfssJPU1KewvrlVsaowntwxdLns6kj516nq0tXM5hUC0ZDSHLCQ5dic3XY4SJQtloMXc562wbQWuQDo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmbMIRTlPtoR3RWVpkBJeRH0xc-KWZS4tHDLLQnN9aA_",
+      "title": "AutoGen已死，LangGraph称王",
+      "digest": "AutoGen维护模式/LangGraph三项第一/CrewAI成本最低/MAF观察6个月",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pLyt3ajYyUXRBN1BlT2I0bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SU5YMVNPdGVCUk5ESFoybGlPRFZGZVVGeXdhRkg5NjVLaktuRUw3RzRBSDVLZlRPalhLRHBPRncyTGdpTE5HZS1GRDV5Q3hiY2N2Wi1MS0tRMXlhc1A5X0tJdG9EZExfYnR1RDVOVENQalRBfn4%3D&chksm=41bd5e3d76cad72b65fcfa8e2042601a0d4cdce296c227e979b29a2a4669169570210bbf2178#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-08-01T23:01:50",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOC0s1HMHtYeMhHyHT1Ricl2A6ZThEPAnUwyvAQwicg5EHO5sJsvY5zA8psWUwN9UibE5KnQE363Sq9rcY5LrE2eXLMkJdA5RnicvA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqxU-MzuT6okhsZJ4O64fe19i0jNaS7lcoTCrnyTbbQf",
+      "title": "AI协作的第五种模式：从\"管理AI\"到\"与AI共生\"",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9ha0UvbXBtOGZxNGd3elBsbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SnRzTDRUWnJzeHdFLXFJTzRKUnd3S3p6UkM2QTM4dW5CSWJNTHJfOVBTYzA5UTNjbl90RWtsVEQ3SThCMGxxaDdMQ1ZWWVBad2N0OUpZbHpaUUUzbXdnRGZrZmNWRExBYTRsTzVaYmNDVUJBfn4%3D&chksm=41bd5e3576cad723f3544ab9b0b994c6fe68b4cd1ee7547fb354287c429d5b966e8f38316d88#rd",
+      "author": "",
+      "pub_date": "2026-08-01T20:14:53",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN8wGBMmibLV4TgFSdXl4Ip9pMkZdZjd7cfPWbgXpFicel43db3J8yslybb8ZOr75cAiawoPXcIH45813icnHTjIqicxCy2Zp136L7c/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkhl1pjci-IFsKrH8zK0GHNylLpFgmJoqLI5XCfN6p33P",
+      "title": "AI智能体'越狱'连环曝光——OpenAI这次承认的，到底有多严重？",
+      "digest": "48小时内：单一实验事件→多起公司内部确认→监管重新入场。这不是单一新闻，是悬在所有AI Agent商业化故事头顶的一把刀。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9LWUd5N2MxWnRMVkNwREVabDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWY1YWN0cnYwMThSOEtIa0xIaTZPdXdic3ppV29SV1d0Q3A3ZHFwLUdBUkxub29XSmdKZDI2bXNFeFc5S1BLc2RBRE9XckpKQUJtOHVhZ09xYV9wdktINmtjQXNaSzU4cWxUMlRKOEJhMGdRfn4%3D&chksm=41bd5e3176cad7276685777e9e5d4f820bf3efc7ac0b31125a1d641c60bd5b75baa0d7c9f8ac#rd",
+      "author": "",
+      "pub_date": "2026-08-01T12:14:41",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdP1uK5pIzOa2PS09vPNsPpG8tClwIGibbTaweGp4OOdmsibib38OeH3riaQoe3wLsDGASoiaM0XRTO0IMc3ib8QFIsOG52GtRZO2sX2s/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkimvuolVG5H8p38UbiB8vkvWxbQ3GEvzrZXCWdNHF1Op",
+      "title": "CoreWeave：AI基建最高Beta赌注",
+      "digest": "",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9qa0dnUFlNUFl4S0kxWEpXbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVdaUUtWdU1JXzlRUkFaSGNjMENMeHFnMWxEdDREWkZKcDdzVnB6b0o2Qmo1TVlWN3U2cjRLa2tMQWhDeGk2SmlnM2x1V3JxUnBCQldyVUx4UjFJblRSN1dvQTFJanlrTXRrYmMyREJOQlFnfn4%3D&chksm=41bd5e1a76cad70cc24222955410d08ae190af20475690704ce786e6fa1762e3479e41a8b362#rd",
+      "author": "",
+      "pub_date": "2026-07-31T14:22:39",
+      "thumb_url": ""
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmscgeYqgmFK_AiAiQSzgtYak8_f0JF9iI45tKL1DaF7",
+      "title": "币安：从上海三星酒店到34万亿美元交易量的加密帝国",
+      "digest": "2017年1500万美元ICO，8年后年交易量34万亿美元，却被迫支付43亿美元罚款，创始人入狱4个月",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9tUlE1b0ErT2lRUm1kMVhpbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TE1wNDJGcmlqSTQyYkJtV2VSMW02SF83RmRhOHMzVnNTN3hXSElDV0FaQVpCYkVYNGNpNWgySEIwMkluRUt1U3ppbV82VDdXdXRaRTM3Zjl5UnBMVnZMbXhRVWxhX1RValZWWXpDQlNXeWRRfn4%3D&chksm=41bd5c1576cad50308c02e686faa12dadc75ef890dc58fe2a5c46d0beac100abfd15a1c81097#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-31T13:52:51",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdO1TyQ16uBia0Z4icW3iandhVmXT6439GUeibpBv2dxUD6ib9ibZud047NkYgrbE0u6ZD2iccG3waHf1GQhHd7jAxqHPuHNacicjhlDKQQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkr669z86r9wUUyrf6ulurglH1YaU9E5zJQb80TLBtvxD",
+      "title": "你每天用AI的2小时到底在做什么",
+      "digest": "2026年重度AI用户日均对话117分钟,但只有23分钟花在真任务上,其余94分钟都在重新措辞、解释背景、修正错误、整理输出。一份AI使用时间追踪报告,拆解这2小时真正流向哪里。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9DWkZKeGpWczZiaXNMc0tkbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0EyRFFnY3ZHVHRLQTlKZ0xIYjA1OVltV1lJNExGcVk0SmUxRm0weUFoNF9QcThUeFhmVTJLMHVnUmxqckJWM3dza3Zfc05neGNHT3ZucVVrbm8zRXAxa1BlekJYUVNUYXNmdHZ4TWFJcUV3fn4%3D&chksm=41bd5e1576cad7033f2e8bda92d74e9dcfe604bc248fe15e0bb5b10ab635fd5cfd0cf5247f9f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-31T12:14:52",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNMk7ggGzjokbJ2nK8YOibcmvxWGFX16snibhSgMC7s66UHTLnM8ESq5Eic2icWeL6kKaXpphjCibcbBOkepQbEp2oERkP3keSVrZxo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjIZazqgN6_ZEotPDxn2KW3zi6PSCuaIY0IJV6NwKGfF",
+      "title": "马克斯《投资最重要的事》：共识太容易，所以共识不值钱",
+      "digest": "第二层思维、风险=永久损失、周期钟摆、好决策≠好结果、防御性投资。AI时代高波动是新常态，风险管理比收益追求更重要。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9xd3JpQlJJeXBkdnJtT2hFbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzF4RWJ6N0VSLUFIQlNWMlBoWi0xZjVDOVZVU0l5NWxXTUxQZi04ampkbF9xc3ZOZXp4NkFjOVhqaUJGeE8xano5czJGbXFCX29KQVVyZWg3MDFnR3RJYW0xb1NkbXlVeUtSQ00xOUlIZkdRfn4%3D&chksm=41bd5eac76cad7baef8cb567d6e60fb2ffeba1473ccdff4dca6ebd7fd4f30f67a6b42e4e533c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T21:45:18",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPlAibeYd9x301wBs6FfkcW9ZrVUAeXcpByPpNlRa9zo4bq1YFXK0a1DtC9oIq5oA5pcsJt3ibD7SIPKmwRo73vzUicPzQ85gWecA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgSJaJQQCDOmo_mN7_KhL8_6FQYAJKGXNzNhprokgrJ-",
+      "title": "钱变贵了，你该换一套操作系统",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9jRndqZGpNa1BsRWRyZmwwbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THZXSFlLNHBMSmpxdFRtSUhLbV9nbk1BM1lxaHFHaXl4ZHhpZ29XQTVwMzA2aEVFcjR1YXpTcWdDUXJKanBBQ2dzd0UyOXdSZy00NVRzOGxOcWtnNU8zUzVVZHNNOWNHSENsS1hnclF6WnFRfn4%3D&chksm=41bd5e9076cad786baf3fb9da8aa1d717c3938a6e677d372a4fd34dcaca35e9b325f3a46dd42#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T21:38:26",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPyjxp1FHnRyKyDhZu5B7COjrUO02ibvmlKCn4ibfcuAFwwRlVicPUZb6UoyjvicdeJtkRA4vM1Q1WtHuSiclwEMgRDmwdWgQleIG5k/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjjMLHDiZ4sjW4NWDJOeT3Nor68fXzY3yBfdCNaOfvQG",
+      "title": "AI时代的认知卸载陷阱:什么该交,什么该留",
+      "digest": "三件事上保留人/三件事上交给 AI:认知卸载的三种陷阱与判断标尺,给三类角色的具体建议",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV82YWhaM0hlOS9ZQndtZDJDbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1R6YXVpZkVRazBpOVEwTEt6dWNEOGg2cFRtaUVxeHZ1Q25tY0pHQ3NPVEVKX1E0U1J0NGNNSFl3MWFycndXYk5iaERiYzRXVnQ5TnRKNXpaN0FCWWxYUXpiWWpYN2pMTDhab2QwSElGUDhnfn4%3D&chksm=41bd5efc76cad7ea75dbcd7ad942d5b524b810d94623fb68e0fb525e08aa5758545afb8c0127#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T20:17:43",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNxibECB6PofNKFlNoG1XAib7YQJdTuOicWJFNpf6HMRNic6Lb9V55mMIZHiacPbicvmPdvfLanfuIYY4qKkLicQ5hhYP0wbn89ys0zb8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkttUvgda2jhfKXvzafhckRcFhTtA7U_IPYG8UblRrft0",
+      "title": "最优不是最好的：西蒙为什么说AI追求最优，人追求满意",
+      "digest": "满意原则vs最优化/程序理性vs实质理性/注意力稀缺1971年预言/波兰尼哈耶克珀尔西蒙四重边界",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV83ZlY5QXNLNjJMNGVOT3VJbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2NDWW1QT3Fib2hxUnNOTGEya21vNk1Nd2RBbVpITkI2OGlGdXJtV1J3ay1FaW5OWk5FVjFka0NoVklGSVVaaEFORU1abDRJX2lONlAwcC02TUZlX1RDRzNqM2JUanUxLXNxdXZEZUMtd05Rfn4%3D&chksm=41bd5ef876cad7eefe71bb5ff444a82c426b1d16ac5878e1f8b946c886249bc0a4bfc6b652bd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T19:57:40",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMjDibRljHib7zocNRVbrsS6MpP3anHjOuNg75faSPHJtIoklN9OlSukP9Op40BtXIpUiaJlXAaUzlAo0pDuOKicedzOyf0BTruPc8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkq6tFhfnyvgK-Xs2DrltV2pS2Ik6vixzLx6827wYMeXW",
+      "title": "银行知识管理的AI化:从文档库到智能助手的转型路径",
+      "digest": "把文档库升级为智能助手,不是 IT 项目,是一次组织能力的范式重构。信贷员每天搜 18 次,60% 不是没找到而是文档淹死在三层目录四套命名五个版本号里。本文拆解四阶转型路径、五个落地坑、三件可以马上做的事。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9oVTR4UW9Pd2l1eFJBczE2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzMtVU5WZllNNlRINE5RYmhJOEtFLXZUWEpEVFJwR29qMWJNU2ZpMS1BaHZWUW9EZ3IzV1JDT1hLSWRJeTdWNHc5WlkxaWx4ZTdXYnFERU8wNmV3d3h3RU1lRVFFX2R3RGtlc3dWcUx6Uk13fn4%3D&chksm=41bd5ee476cad7f2e5571dca9de7cfae5e09e2c5d70e076af758b80c9f09975a30e5403d02e6#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T12:14:36",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOOnJsia1Eic01ia9hkxE2AibQticwFibH8Ticrtib1NGPabSFYWCR4q0giakl3Rr6iaxPTc0ocCNvZeey3rgp3UJ8RpiaIcp6UBKQTqdgK3o/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqKO8dG0sWItRSxVd6fCHZ6f7CuqkAmfUU9jm8hu0va-",
+      "title": "首例自主 Agent 网络攻击：Open",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9CaC9rUy8zZjZ0R0tqWlJCbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SmpibnQtaUxOcWoxVXpacmFIMHZCd2tOdjF5VnMwdjAyZUJlRE1LeGpjUUwzRlYydmFaNk45YlduYjg0M3BxM1AzRk82Sl8yb3NmWmpwb3lSTm4xbWJpZ0tLX0NUS3FPRGs0MUp0NkVFTUd3fn4%3D&chksm=41bd5edc76cad7ca841056dd29c313efc944ce58c0294718b969b70ba925d98ae2a0029ea928#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-30T11:14:01",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOkHZ63icAJf8uPQ3IuB3GUcYH7RpY2J8IUvAjHc1V08E7Ga7JVrEXgBcDY9OXLibaoBxKTHa7LA3KTRwSmhypzJtOZdWdltUs20/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmZ80x1f7Os1kqjnoxbjSj6lBActukoHX2JZ3FrKI_3w",
+      "title": "AI芯片竞争，正在转向系统",
+      "digest": "训练仍会集中，推理加速分化。AI算力胜负不只看芯片，还看HBM、封装、互联、软件与电力构成的系统效率。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9kMEQwc1FSNTd3UUp5Y0RubDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0dHeHJQODFWanZQOWlhMkg3NHpBNVk4a01kcEJxMHBTUjQtSEM1YjF4cVlYMXNzRjJGT1lOZzlxUTR1Y245Rk53dzFWbUxkVTZfSXZRMjYzbkxScmlTckh1VnhjWFlicmtwUjdndzZLZ2hnfn4%3D&chksm=41bd5ecf76cad7d951d1a8204f73372489db3c189c6deb0b046c77da8c3078f1eeea844adb84#rd",
+      "author": "",
+      "pub_date": "2026-07-30T09:30:19",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdN9Yiaxeia25nGs83KcvLqrJ15qFbhdXDdeVenSAjuJFdBPhs1P95Zmafd6MkTKOvQ2NlK9aadSoW83bgIzlibWrHGvyoewLvVp2o/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpzSLhWuF6QK9bzxYak-uCAv0HtPqZUuIZF6r7fhAv8D",
+      "title": "大模型的'幻觉'是 bug 还是 feature？工程上其实是个旋钮问题",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9nWnp1M1JYZnpnMVpuQ2kvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TE5sX053ZWdzTC1JS2tZWWhwTFRnZUZ4VV9qcnpPX2w1V0daWjc0U1RTQUJJYkZyNWJfVmtPR3ZQUjE4M1Jad2QtamZvSndqR3JSYzExUVowQko2TnFRRXFzdGZ5bVVUTzltWGdTOXNPLXZnfn4%3D&chksm=41bd5ecb76cad7dd85315adc103db379a17ba37f305be1434a3f5f7b6592f55bb79bc10780b5#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-29T12:15:19",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN3yf0wNM5cWyicdrkS0hx4f0vxoleX3BhtpT6mhQszP5NbT5OfQoTGiakIYiaQnT42l6dav9qpCTMJo2xCicxtVXowwyGA7Z2flnw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmDikk-5AfvUX4ug_b0INJRIF9xQ9SFn7L3pnfM126AG",
+      "title": "银行后台的'批次诅咒'：报表用Excel不是落后，是30年的路径依赖",
+      "digest": "前中台都已实时化，后台报表还在跑批次——这背后是会计时间观、组织治理、反向技术债三层叠加的范式错位。真正的破局点不在IT办公室，在CFO办公室。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9qb2dMTjFCbnZ5OWtWYlZDbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S09FQmlNWG9Ub09MRGNyZnhsVmVFeDFQeDljMmxJNmZOZXNpZnBmemwzMHBvNWgzTE9reS1iOUFMMEVMZnJ3RUhTajAxR2JpWXRIRnhJc0VGd1A3UFk4Q2Z6RzZOaW01dWJPZUhiclIySVB3fn4%3D&chksm=41bd5ebc76cad7aa50701da13ebbfc613a9bb9320341a0edc35687361a5d74d0b7e057d12119#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-29T07:14:07",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMbnJ0WaMW2TwNyiaOD3ic9UxReHI91iadHbgNW7E7woOwW6LC8nj7L6CY68Rqz8eNo9ujcRGTCTvGJuyHjV4LW1bnVTwkMD18VWU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkkPTvMP_p9RDwvaofdHMCenSE8qhVxxE2mZZQ6V9c-B0",
+      "title": "AI自我闭环：当机器在自己输出上自我强化，人如何检测和打破",
+      "digest": "AI生成A→以A为前提生成B→以B为前提生成C→C反过来验证A。闭环看起来比真实更自洽。五种检测信号、五种打破操作、四层验证体系。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9teFcyNDViOEIxV2FNYkI2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWkyTU92emUzek1FaHRHZ1VnaGNxR3cxV2d3RUFDRUhCSjBfcmMzTmR6X3RLY2gyc0U4SGpBelJxcno5WXR3OThKZEFMaGppZEZKc2JvYnl1bFEyVkJMQ2V6bHJuSkV3a2F5S3lvSnRNeDJnfn4%3D&chksm=41bd5ea076cad7b67174be7ffb35c5e3ab1ea2ab35191aa784309b73d03ddfd8501b4fea58cb#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-28T21:11:48",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdP5O7rpgFc4Vyb4FuGdwUicoZs8ZDqDKEkFGUJfmuibGozgWu5k3domDB2cWeYsZBgR6IcYE1ZLA1sXAicWnB7lbVewz5G1X39P6Y/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqko_0AYbAylLYG1JG22RT6JrEGw48pkdPFZrroOVUul",
+      "title": "银行科技金融的AI改造清单：一份逐环节的可介入点手册",
+      "digest": "从授信报告到贷后管理，把每一道流程拆成可执行的 Agent 任务——这一篇不讲“能不能改”，只讲“怎么改”。全流程26个可介入点、三条落地路径、四条认知误区。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV80dUd2cUpFdmhUUEF1c2RRbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDd0WXAtWmNIQ0dyTzliaXR2UUpkM0RzUkVoeGM5M05wcC1HVTBBZGlQLUQ3eTc3M1I0NGdQYVRPWU1UZE9HcGE4c1kxMVZxVXBodVg1RTd0REI5a1BpSHRDcEtFSkJqWkRfT19vYS0zMjlRfn4%3D&chksm=41bd5e9c76cad78ae3540256063310878692d601c6e58ffa4bbca95627ed5862a99494e0086c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-28T20:14:56",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNlD4Ghle0KW84912zCdqs8o7B1d81B9RMibg4vUwjmFwwh235mlFJMnreqsMIASafnfsTLvjtLS004iaibIg29icf413xDibSHBl6s/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknjvGjKnhCrwC5th9ge91j9RlskZIIF2l_CsPjsDb-qZ",
+      "title": "信息锐度：AI时代最稀缺的能力",
+      "digest": "信噪比恶化时代，分辨锐度就是过滤噪音。三个方法训练你的信息锐度",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV85N0c5Z2oxQ21lQzkzZklqbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2STFBWFRSR3FqQ2hLbGVUS296T0lTUEVQY24wMjIwV0xoU1ZkX1dXTnUwV3l2ZzA5dmIzOTVwMjYtdndmeWhLWFBBaHRkMmdXRDVObXBNOUJUaDJLVnpyOFBTdVk2R211RTZucXdvTTJkSjB3fn4%3D&chksm=41bd5e9876cad78e71777a5756b3d1607f8c317cceefe66765ddc59b8e3c2dfde46d6b1f736a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-28T19:49:58",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdP3TNELibYMdJREjyxHXEV4icEDfIUAnPOp0Ckku2u5ibjUkFoWygxwqHTxvH188TlzVMQkD5SeicB3Y32oxfYsRSvHCSCeAwdUvb0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkp6ayFKi_TzdxO46lv_-PGWWVFzFChVQqczpajumKlf-",
+      "title": "AI 生成内容的著作权属于谁：从法律到伦理的边界探索",
+      "digest": "春风送来了温柔案 vs Thaler 案，中美给出相反答案。工具论、主体论、混合论三种立场背后是三种对人的理解。训练数据合规 2026 年将率先成为硬约束，AI 内容标识会取代权利归属成为核心议题。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9zVnJkY1c0bGxjcWoxWEo4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1BqZ1ZTWFltQmg2Zk1yT3R5ZjliUm5feTVndXVFek5MZWMzbU16d09LcE5qN2RXTWZiT1pLSFA2TmxaQTNFdzJiczlwVmtnNGxOSlFJanRPNU9FYXlURFFtdU1ZWXFUb0NkZ2JtRTFmUTNnfn4%3D&chksm=41bd5e9476cad7824eccb15a13829625bcf9a103b4e4e89bac9a4c5c8441f12ada13e1aa21a1#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-28T12:16:28",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdM7Bib3HrOfl1icQIm9KYX2HT5K7GibiasMhIrSlq7kzqbic4LmnLxa2AibuiaFEzupkVn40tC36qPT2PcbYFjhKGKKRlia7MvSzmCVcNY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYku4tYUh2WA6WZ-ytIJrspHCKeuQEtOx82kASE347MAX4",
+      "title": "多Agent协作的三种失败模式",
+      "digest": "auto",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9vb1h1SisvWkN3Y0pMZlBHbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDkxZEtOMy01bnphZ18xTFZidWZNZzItNEJTQWRqZTdJMmo4RkJZTzgtMVNXVWc2V29qb0tCV0RvU29FMkhJZXNkSXhhRE1Ld05rQ2E3Q003dFFhSUp4M3BhQlRabm1ITVNTMG1ZdWIySGdRfn4%3D&chksm=41bd5e8676cad790dfaf2560ae63d248c7684c4acc2894298700e5f2e38cbb03b6e85218aab7#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-28T07:14:27",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdO5TvD3RHeCe5RGOM0OfbR9jflkib2CfNlibuzMkVnF8YCloPnkG1mWLS8HtjBaOZ0eNsP0QQz1iaIrUJWIbAicqzCCgv1jyBRmLdk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknspXTrFTjD3Nh2Au-11IPJNqzIfPFcuBherwT8IvqNg",
+      "title": "胡适：一个不可救药的乐观主义者，怎样在两面夹攻中保持清醒",
+      "digest": "26岁《文学改良刍议》/大胆假设小心求证/问题与主义论战/包办婚姻厮守终身/两面受敌不改初衷",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9DQi9UZlpveGVDYTI2dktKbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2STNaaURJdnkwSG9xeEhFb3JjeU9aWGh0UEhqWWlHdmlUVHNwdFlsZXROcHVuRGZKRDVvZGVtc3ZZQkpjLXVHbm5HY2paa01iVlJOdlVIaVdncTV5ajBtNWZWTW5vbklZMGJqMFJGV0NSbzhnfn4%3D&chksm=41bd5c9d76cad58bc1ef68e954a104b12ed7ec1070f10b169cff47c77d0dedc818f27fba9a13#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T21:37:48",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMGVmaJExtbvK0G5DlL0icZA0N6l1KOZZvxrQ3o0QaJjBVW5LuWD2bwCBsL2WZsUrZbXjD2bGCqYg4Tf9JbrVYb4tEtkrWrSZnI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYktItpA48xgL8MPyWRr0CQabPDuO7om3GG513E-iqAxfT",
+      "title": "芯屏汽合急终生智：合肥凭什么成为中国最牛产业城市",
+      "digest": "137万辆新能源车全国第一/国产DRAM从0到1/面板占全球1/10/1600亿国资带动5000亿/中科大系占科创板30%",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9nSmp4bkIrbG5IL01CcERXbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SldZVnU0dFZmbzVSOTFnajhjVTEtLUpraVNqS2M4ZEtSZ3ZGSzl6V2pDWWRaUFB6eFk5cDZVenVwN3UtalhScFZPUXlxbVZCMnlVeVZkRXVzMk5lV1JMSDJ5MUNXMGFoZWVRbVR6cUltdTdBfn4%3D&chksm=41bd5f6f76cad6795fc72144dc777f0dd01e62749b3aedfb04916322897d05172a24a0f7f534#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T21:29:39",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOibMENvbVgRJEZRLo9IOOzlEdjfp0SNDicIU3FYLOTs0xblnoERjicH0Ue66HSdne65awB3icta0SVwU83kXFyMZJZTEggpJJL8AI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkoKgObTmxoG-wSlXNQJVhB40LPVbHg0kO6EML3aAQhKo",
+      "title": "合肥两千年：从三国战场到硬科技高地",
+      "digest": "前122年汉武帝设合肥县/三国45年十战/张辽八百破十万/1970中科大南迁/2008砸锅卖铁引进京东方/2026长鑫科技市值3.27万亿",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9VbnpVU0hLZzNMSzBqZGRBbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjB1SXBOaUc4LWdCRFVsRDFiZ1VtX0dDYXJjRGIwekdnR0dEQ2ZZVUktM2ZrSktOMVVuQmdGdzZJbjg0TXlyY2dwSnJPMW5jazFiQUh0RmhwVDlwaVNMc1JzSFFWSVllRWJLQ3k3cW1mM3lBfn4%3D&chksm=41bd5f4476cad652fd3542406139e7d98df4563a5a19653405f258b37ca8117d19561701f919#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T20:41:37",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdM90JJhYPicicSWQDUyqhiaGib2tFs8c2lv1fiaElBiaicbibGxwzW5ziauShLauZWbmDWQXxCKQnzTsD1PWjBuYb8IDuqU46ic3z97CDe3I/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklvFBRuJDoILxbDSathK3s6apVPf4EFXzfhVvjegf4Wz",
+      "title": "本周AI论文观察：一个把字节当桥的小技巧，让不同词表的AI互相学",
+      "digest": "把不同词表的大模型合并进同一个学生模型时，怎么让概率不丢、不错位？7月24日arXiv 2607.22334给了一个干净的解法：把字节当桥。3.7–6.6个点的提升+33–44%的差距收窄+完整的D1/D2/D3守恒——这是开源大模型工程里一个真实存在的卡点。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9FL0poeXlaQzFxZS8zSHZvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SlYyczVDT19GNGJBWl9DWE9mMTd0VUhVMU4yUE5rVUg1QXhjNUFMUTUzaDRXdEdXUURxMFhERlpWMUFreVFPa3dpYjExQ3JldUtEdFNiWjQ5LXJmR0loSnFCSFkyajVuRlhMMTVLTVV2Qm93fn4%3D&chksm=41bd5f5b76cad64d356b49b52671175502d0387970f7525d96aa933f29ca6dd566092c41d70b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T20:28:14",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOzmDXgE0d2sDrQW5xR3zibFv2xKNS0Fd1npicTVpcm7JwzWRNfPIk8jzGkqVWBq3UZVsll9Lic6162rKWrDdWgzb7hABCIAr4iaV4/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvl9-lZAuq174Az-sWMDsdZyQHuYM5EwyTNKLrp8oYmV",
+      "title": "合肥两千年：从三国战场到硬科技高地",
+      "digest": "前122年汉武帝设合肥县/三国45年十战/张辽八百破十万/1970中科大南迁/2008砸锅卖铁引进京东方/2026长鑫科技市值3.27万亿",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV84ajNxZGFRSnlXbFA4ekQ3bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2xKcEdBRERONlJLcE01WnZNZndjajdvaGZqamFuamk3WE1ScWZQZ2FLUzBDVGJmRXVDUnlmNnFwZVRtdkFvQU1EbzN0OEhaTFh1WERoVW1RRURpYWlERzlDWmpWUlhsb0cxLXNvTWtOU1NBfn4%3D&chksm=41bd5f4076cad656e94ac5aacae8d58dce25e0d710ddda43394e1062e5d01a0c5e9a273bf51a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:57:39",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOBqWyUKqCSXnVEzmTlWQHuryiaEmID4EmJJfaH8tA8XF2f96UapoRNJscGcZdzdOzdFYOwJrSruwaef2jvjFiaKTNUtlG7pEMk0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgeumWf-FlmeI_SvDQCU-z8gWxsyCbQrvPcRwGxKC7yB",
+      "title": "合肥没有自己的ETF，但你可以这样配置「合肥资产」",
+      "digest": "长鑫科技上市市值3.27万亿/合肥A股总市值破4万亿/五条赛道三套方案教你用ETF+个股配置合肥硬科技",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV80c3p2UkpwZnNGeVo3eVIxbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TEJhM29BLTlHLXFUdHktWHhsMjAwb2FEY2RUamFPRWZ5dGptUkYzNFhCeC1xZjB2dFFjYzRBai1Lb3NrcExZa3hFUFR0WHJna1llMm1ObE0tQTR3akhHQlVXcl9kV1JFX0RzSGVscUxubmRBfn4%3D&chksm=41bd5f3c76cad62a5a521da185ce2d027a894bca63f9a723d23f2728ce14b634895f3755d877#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:44:34",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdP7iaEnMroOxKCCduoa2jXwib58mb0DwhGrwLoyEv3Z7shzQtkcxu4MVoB6JQqnzL41p2cJ8NGHKibicQ6hPbpYjfyJQX3Au3v8mzQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkg4G7atAFXP9JGdcQJu7tEu1qF9U4r6BtLu8q8IRwYB5",
+      "title": "合肥没有自己的ETF，但你可以这样配置「合肥资产」",
+      "digest": "长鑫科技上市市值3.27万亿/合肥A股总市值破4万亿/五条赛道三套方案教你用ETF+个股配置合肥硬科技",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9oSGR2dXhBbVFvSTA3WkVYbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1pJOGxqVFdkNG9jZTUxNE96b1lIYkgxS2M0dll1TVdZMjRIQ25kclQyTEFEdDhtQ1JDVW1Pb3pfQTlTbXFBdGVRaXlPVVdRY2RFS21zRE5vX25yS0VLbGJIb2wwN1JDdFhnbDcxWEVuZVV3fn4%3D&chksm=41bd5f3876cad62e99613e87dda7446a62fd91012181837443df1677dbee79cf47b34decc7a8#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:40:06",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPLJaeq8JULlCUp6FfzBBI4xTa0kj30LghVdOfuhsLyFY0YDiaH92W2wQaYTOLZGyBODSQiapSZItZjr0xa0fRo9keWf2iaIUj1fs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjqQHg3JvpWjIbOeMC2XLu-j3-uMN7G02XqtvYVYudXc",
+      "title": "合肥没有自己的ETF，但你可以这样配置「合肥资产」",
+      "digest": "长鑫科技上市市值3.27万亿/合肥A股总市值破4万亿/五条赛道三套方案教你用ETF+个股配置合肥硬科技",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9CaWRZenEvS1diZnJHbVFibDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFprZkE0WVVQUmN6VzU0cktkX0VjNVMybnNCMEtCVTh6MXBubGMwSG5fVDI4bV8zTTlsbm5kSlV1X0RpNDVJR2xIZ0tEYnY0SEY5cHRCQmJJLWR2ay04Z2s1aUoxOWJ3dGVuODU1RmpGcEdBfn4%3D&chksm=41bd5f3476cad622df814c9a0e7226b00399fa7fdbffd1ac90427d773dd9e2661ed56264f37a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:27:01",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOXHWhUHSkNufsmPotm2AgZlgdAiaic6qA7oZv66MKJjPiaKibBvibxwZEOEZKZEDBibmIvOtX66TYtNPTOXwKTACBrAiahXprkAYQDhM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYktxKUNL2bXgL1mecp6SwPkO7z2L-Wfwz8m6Ol9Nt0A7Y",
+      "title": "合肥没有自己的ETF，但你可以这样配置「合肥资产」",
+      "digest": "长鑫科技上市市值3.27万亿/合肥A股总市值破4万亿/五条赛道三套方案教你用ETF+个股配置合肥硬科技",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9GYWFRT1VOeUpJWitka3kzbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWJia3RZc3IyaU4xS2tvdkYtMnZnUDZ2NUhYTndBY2IyaktQWllyV0dhcTdwWGpFSWV3TWdMWEVKc1VKOFFaUzZjWUZRUXFUY3laOFpPME0tYUpXeFZiR2JDM01jTE5mbW11MXJHVkhSV29nfn4%3D&chksm=41bd5f3076cad6260fd01f1189bbe8f3302de9f3996d444d5c771af0c0603e79789749caec5e#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:25:10",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNezvTB2DUgDA216fAHPtsZ4UIyFK5M6KEO0nsIn9WydQajjwjgpOziavWWDFma1Zoju3Vea2uecsu0plafCF8TOTWXFm5A1MFk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkr8TZGytduwtVS_iBF2yUarvYbteo-7w8WdRC26WY-Sg",
+      "title": "合肥没有自己的ETF，但你可以这样配置「合肥资产」",
+      "digest": "长鑫科技上市市值3.27万亿/合肥A股总市值破4万亿/五条赛道三套方案教你用ETF+个股配置合肥硬科技",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9EYWQ1UFNzNGdHVGQyNGFFbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3NmdnlMR1JqeFdOT3IyVWpBdnVPVml6T0U3S2pvSDQyUC04OUdGbnItR281dllTSkJIeEQzUW9qT0ZWZ29wNGh0bC1kVVN1NTJ4QkhkbENiN3JNa21GWm5DLWxqX29MajVqekUzNEtldS1nfn4%3D&chksm=41bd5f2c76cad63a8b0fca223a041d53734551855e326c9f627013d49fc2731fbaf1234c2cb9#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:21:44",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPS9pgo4nv6UQbSDkicuuFsJbtTsEHdzhYIO57rTUWic94KyGN5CakUOmsylO2RPAxdeHAsWPCoUFl6ZlhlSwOPsee8QcyuMfvJU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkretzhXg87CvBpNAxj4YCNfgLi546QnHifqHK42IDqSS",
+      "title": "Deep Dive into LLMs互联网压缩成世界模型",
+      "digest": "Karpathy深读1：44TB文本变成15万亿token，预测下一个token为何能装下整个世界",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9sTjU0TEhwU1QxREJYTWxFbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S25rMWVncVlZX0FRZHRlWTdLRFgwTFJqWE9DMUZSTGVMWG44SFZ4SkM3enIyYXduN3RtMGJRdVNJYXhrQ2JzZEI1aVBUWWt5T2pwYmhSNkcwbzJlUkxjUF8zYlB5WGl2b1pETGU3Yjk3SVZ3fn4%3D&chksm=41bd5f1476cad60211550dcf2368b9a1180c71e5788d7a9261c02810a8c9c5fee2229f702104#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T18:20:28",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPe1WYANuooA2YicZS7QRLdicgf6miarCOKLDAkqTJ4r8ECEwI7Y4Ilm9BjUzOrzibhv3SCUiblt6ZHLP47rElBhJ4fjBQM4q7wpKBs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklG9jQ61jsNkBCRr8he8hGDYSBxd9mvAVSpHRkRpxDzm",
+      "title": "科技金融人才的能力模型，正在经历哪三次迭代",
+      "digest": "从 I 型到 T 型，再到 π 型与三栖模型——一份能力模型的迭代路线图，复盘金融、技术、算法三类人才的语言墙与协作瓶颈。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV83WkJmNDFGVmFEb1loeEVSbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXI4eXVXdzJ0QVBXSHlfXzZIaHRtWjVmR0t1Y0lqS3BRY044TmlxR1kyMVUybm9FZDdHeUJZdThmMkM4OWpKY2F2cDU3SmNsRFc3U0d6OWx5SDNydE1vNTFaOFZRdkk2VVY0eEFwYUxpNDZnfn4%3D&chksm=41bd5f2876cad63e044f427e960b59e902c72c04566756da457ed9f3606ab0e3afb685435b87#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T12:14:34",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdP08y1KPXJuJO5MibAfkZEO9D7ia3fr6GTkk9k2Ccl09mLS06hsA7icdNeYEFibzPYkerHc33UNDIQEbGhMazkVgQr1FSy2uBPOdQo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrDQsafjLSElQDp3rC3KrgEs4z1qA-XWxmWstkWLMfG3",
+      "title": "从续写器到对话助手",
+      "digest": "Karpathy深读2：模型为何会幻觉，为何需要token来思考，为何数不清strawberry里有几个r",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV93T3JWZDJLNnNCbFlNelBpbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzNWNGI2UDhfRGYzWHo0azZuZ2ladER5dFpUenF0dV9rX0dFTk1uNl80aTdsY3hjNS1lSUNOTjFiTmphVDhuenkwVTlnb0NoT2htVV9vMnZsYUdveTNpYlp1YW4yLWtNVkRyNzkwRTlvOVN3fn4%3D&chksm=41bd5f1876cad60e63dd55e602cb3f9530fe919675d0a1ab9dc30f4097e4ea4498caefd2b5d8#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T08:35:53",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMjXQTAQhhag5icibialadEHqsj2GvWWwhG3ALgac71EjdgyUjaTfgRTvrfUbG5EYrPJtJEvv9ye2ytmeetPfccE4yfSdZ8ZHDqS0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklpRsVgp06qiOoh03BPEODD8vnlvaP9e0EAiUCubthZA",
+      "title": "让模型自己学会思考",
+      "digest": "Karpathy深读3：DeepSeek R1思考如何涌现，RLHF为何不是真正的RL，AlphaGo的move 37先例",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9vRk41U0xEUVJJcTFKdVFXbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVl2UEFfS21ZNUVqUk9yTmRES0w3QlBsZG8tWmpzbHVNRDlCaTllSF8wVkt5LV9oajlZdVh5YUtadk5mVzhObWZVazRxNEN6YmNkSExNa1VrTy0xT2tqeVdBYldRSDRjOGlINlVNMVRlcTlBfn4%3D&chksm=41bd5f1c76cad60ae7f4259b701b734161556ed3e6fe14fbc158510f37a8731dfe5d3b5d64af#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T08:14:49",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdO9mVDMa9zLJok6KJbfcLAX2Utva4RpfUGe2FkiahicxKro2TXz0iaMNV3ibbxibEkDa0hMcibap9gGLDEMQfIO5PGt5jPclsCtZgZAo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvrrESbmxYgT3Mfy0omAFrrXrrlezg9bjmEK3vwtfrP3",
+      "title": "微调还是RAG？答案不在线上，在账上",
+      "digest": "选错技术路线的真正代价，不是哪个更强，而是哪个更贵。3年TCO算清两条路线的真实成本。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV94KzdnQ3BQQ0FGM3BDYjR2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFdzR2duNTN5M2liemNuRmJ2SHBEQTNZdXllRTY1WXgtblg4anlRVlhRVTZnVi1RMkRoXzlReUhZaUtxcEFZbE83SzJGR1k0TVFMekNDWDZHMmVoS21tZGE1MG4xQkpaeC1xcVlGdzlxb1pnfn4%3D&chksm=41bd5f2476cad632a19bc739cc978b989978e63e0654de76d7ee370d21726df36121231c8332#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-27T07:17:43",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNIiarheovdZDhErWeffAbhYGUDoEg4TPcYGBUpQr6mFgN5Wgl6bPecVOxaIB5VP9gfqJHxT5Wdiah7Q5u8Nk5s03yaSMSNXrgWI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpqQEvgZ4LYkWJpFAOeftF0dYCGeb99Fvet-tBMYC_9a",
+      "title": "OpenAI Presence 拆解：从",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9QaHQyVm1iMmdleG9LaHArbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWVUVlpZYlJ4MnNfUWVSbXhZalNOTExkWkpoYmhTYzlJQkl1OHYxbW04VnVKM0N6ZHQ3bEJkX3puSFl6emtCamNWZS1kYUtuYTVTS0tYT1BwaVVLaEszaEF0SFlOQk0xZGVPbmpaRTVtRE1Rfn4%3D&chksm=41bd5f0a76cad61c1cd232d765f6e48d502afee37f70a9b83e8a15a5f1b001eeaf758fb6b9e3#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-25T22:56:06",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOQtp8MLe2HwA0VtkicA21IicQqvPuTGtFT6pibLSN5VH4UUmkmXBlvflIiaEibQmVTkjwuNQBEkDicMLh85rPSalQqN20DDbgJbGaOU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkt8EvQrb-HlrYPxarYUlgusa6UHWJzQY2ME7Ov1-MJQh",
+      "title": "Agent 平台赛道：OpenAI/An",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV96VHI0TldQMXFqTlRNd1h2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SUlzU19YTHk3bVhMWEw3MkY0Yk16Qnd6U21VeW1nQ1hBY0trbkZwMWktQk5HZElhT001dlpGVFNLQU5sV1BheDZqNFdsbDVEcGVfZ1VZNU15YWRkSkQ2VTlORm1VSG1WMHR0S1pzbmpHTGdRfn4%3D&chksm=41bd5f0276cad614dca3cc78d5cafa50db698ab47be8f935c08bcbd9d7da5d98086cc7e3067a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-25T21:13:44",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOgWP5T5ibiaGGzqVlZMicr6msUlDzaXIITjWDbVuxicsqOvG87licicALhibQsRg5hGCvm6wmPY1568gNp83VEXoc7s07bTvic5UGkGhs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknXzAzca0Eu4jSCAliBYiMBP7CD3m63Co6GrF0fK23pA",
+      "title": "事实与意义：历史写作不可消除的张力",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9DbHhuSUo0VEZVdEJVRE1ObDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THZZTjV1eWZ3VVlHVVU4MS11R2xnR3lDY3JyMHdFcWhWalVRejR2cERIbHd6Zk9rbG5QVWUxcUxWbnRLcGFtLWpGLUN3NlZwMkV4WVJpRlJ4SFhucHpqT2pITkRRTU52TjhoUTF6QnNrRDlnfn4%3D&chksm=41bd5fef76cad6f94599a2b59cb2c7747feccfb63a2953658e4a214b663b1df144fbf8c8e303#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-25T12:41:02",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMc0kLUU7icibckSZEOiblQ9DD0U1CwJAzia7YibkSjAIsHCPh7AlnDhoA9I59czDxzEtywVSlriaLgSibIy9cRTRIkl15THouLgx1ZT4/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmOgMpJdX-U_FlcM-5bVWFB--Y7UuycsGCb1Q7w-JJU_",
+      "title": "OmniRoute深度研究：28K Star的免费AI网关",
+      "digest": "2026年2月创建/5个月28K Star/290+供应商500+模型/15.3亿免费Token/月/RTK+Caveman压缩15-95%/19种路由策略/4层故障切换/MCP+104工具/A2A协议/16+编程工具兼容...",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV94dHVaOEZrc05aTXdGdE5VbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0tmdlZickpwNEpXUzNfbHo1YVVrVWtwaklyejFxX2kxYUlrTzFwcWJmVTZWU01neVFHZUVPNmVoV01RRlAyWjhrcGl2QUdKRHU5NngzQ2FsM1I3bXJMWFAyQURCTFcxSVpwdm9manFHM193fn4%3D&chksm=41bd5fbc76cad6aa8e28c0624343f27ffcc186e82fbad0524bfef9bedbda5759a438874d2e28#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-25T07:42:14",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdN5mXdPZTNcUjs7vahDib0WQzKpkoFtuhZOkTKVFWroUHCvmCUU1LW3ehHPz5jbsGRliaSuSRMwDASAG5D0sbBFiaXOPJ8vUVicz1E/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYki_Rdg4GKUj45hK8nItA0L3rUf6gkMhsqtdVas5cB6s4",
+      "title": "Agent Bricks：1千万亿Token的Agent帝国",
+      "digest": "10万+Agent/1千万亿Token/6大模型/Unity Catalog治理/Databricks AI ARR 17亿",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HL3N1T05tS1pIMkRDWXhZbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TE4yNjFMT3VTcUFUVnRiY2daaHVSeG8zRF9Bck1LckNMbzNQVDNmeE9GQ0tiYWVfNm9IVFVuLVJsaGVRTUNjOEREVnBicjJ4ZkhsVHhuNkowRkFIMHRUU3RFVXVXODdhcF9aa1hsT0hCODF3fn4%3D&chksm=41bd5fb076cad6a6f5783ad78b784577be1fb889d0e43f3601140f8dbb1648310084733dae7e#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-24T18:28:43",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMPmIF7qFS6PY4jJicicIq07PacdqiaYe419aES5YMHZyvT1edrWRYfUN1dK8Oic3l0FhKnzgiap3ibIGRuMDavaSB6mM8mibrunj7DBg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYks4nXe3_KCFPGTSWUCcHPL0LzSGBVhqfJbe5omX9xwNJ",
+      "title": "中国十大成功应用深度研究：10亿用户时代的超级APP帝国",
+      "digest": "微信10.39亿月活断层第一，抖音9.74亿超越支付宝，淘宝跌至9亿——存量博弈下的超级APP生存法则",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9Hb3dsblRpelhkaU1xWEE3bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3BTU0p2b1M0WnZRSmN4SVd2WlVrTkM3Q0E4WEc2ZWg3dkVSdDR1dk80eUFDVjlMS3Nyc1ZZM3pfcmhQejBZbDlERVJrUko3dk5HeXdTdVlWMkxScVp2NF9jbVlvcksxb0pfVnc3TWZxbUhBfn4%3D&chksm=41bd5f9b76cad68d611bac77f2273a2382e36e15c33efdc6f0e8992f08e26fc238a8c746c528#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-22T19:04:01",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMfKyxKv2MHffVsKD02OHnicmC0rmBLoE6YnNiacUxqic7ialbsEUkiaH7js8hUx0Q7UjT56y9kptbE0cIsYbsQBHicL9v85RR4rs3ibY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpGCMFcf-oLgmwyVntCEpgHHE-JiMQE5E61OWcsKnOmy",
+      "title": "当一家公司学会运营自己——Replit的AI组织实验",
+      "digest": "同一批工程师6个月代码产出翻3倍，审查时间持平，事故率持平——Replit CEO Amjad Masad说这不是工具升级，是新组织形态的诞生",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pUHRPQmN4Tk1BVHRjQWxGbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0NBZEJXVi1ZcWZaWWxvZ1NPTzNPRTZVN25CUGtOc2VEaWVsQjNiOFlMUW0zWVd0NUZCWmJ0anJlUWVEZnVwVEd5TTBJZnA1eVRUNEU3Zk5qakVtM2ZvdC1JOXc1UmxhNUpQeF9FelFxOUhRfn4%3D&chksm=41bd5c6b76cad57d021a817ea2d6097e66fd8a392e2544fd0b83a847a0579dce043f8c25510b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-22T09:24:06",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMRUOQWOF4NU60lQUYfauATYyVfL38bxOqJjRbmtaCRRw9CP9ia8IHzibUnBoqxEhARa4OUsrUVRibdibfwv2OMFicUJAEvTWMnoXos/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkl72R832GnTr6tUf6s7L22tsgfz1sdpwsRHHV1jw-YQZ",
+      "title": "开源、闭源与Token经济",
+      "digest": "开源模型份额从1%到15%，Token价格两年降80%却越用越贵，OpenAI年亏209亿——AI产业从模型竞赛进入产业链重构",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8zei82Q0FVODcyV1FUSVNwbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THRJcFJpdzN3NFRMNGwySURIMFktakFKUDc1eV8tYmxxb1BjSmZFN2M0S1dicm9jazBSeHhFcTNiNFFwVUdObG1TWm11bXJUUC1yX0hrOVBnRnUydEZ4U3FoNzR5bFZhNG1CaUxoSjBENzhnfn4%3D&chksm=41bd5c1c76cad50a1a2d850bf42a17e0c8056786f6157629e3da7d32f14ee2c84c84208bd488#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T17:40:28",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPXToNuKvYHcjfcKWlk5LnqVmiafUhpc6J0zIWiasOeIILJD1YCqyCyFYduFUicxsEo5FAvicsjkHcNvFLVtECheqgwndFTBLVzQJ8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvDXeal7IQHpsFaod4Zm1tvU2opl5goWAx06TBqMgnX0",
+      "title": "深入浅出GitHub：从代码仓库到全球最大开发者社区——一份写给所有人的使用指南",
+      "digest": "1.5亿开发者/4.2亿仓库/Git vs GitHub/分支策略Git Flow vs GitHub Flow vs Trunk-based/Pull Request协作/Code Review清单/GitHub Actions五大实战场景/Copilot AI编程/隐藏功能Pages/Gist/CLI/CODEOWNERS/六大常见坑解决方案",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HYXhVcEZyVVl5NWxYbTF1bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDE4U1BLeE5VdGN6cGlKNXJtT1hEZDFvUzlpWUFBS3NublFQM0MyNHAzUXVQQjlncHQ5WERmTmhGR1REbTUxSlR6ZXdHZjhVQk9PWnlPVHh0ZG1VcDRUZkRFVFlaUWVJTFYybnY5VExfZnRBfn4%3D&chksm=41bd5ce276cad5f406dd1dae080b85620463628a1d1a76ff6400e84b91c96c92d3d2e01585e9#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T17:39:41",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdN5ibwOa113zVSG2DmhPGiaaJ6icQgAax3alWO6GbboiaJVdItg1eFwR1gmkIia3vpmseic5iaPwqtiayJdibV9myRZtLtJm1aWXDN8pPn0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkhY1_uvQqMHOI8HFNSmbKCoPRJGGhIar4i912QU02QFW",
+      "title": "顶级销售不靠记忆，靠智能体",
+      "digest": "冷却检测+信号武器化+待办追踪，客户不再流失",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9XR3RmYWF6NWtNcjl2VWJmbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SW85QU53ZFNQZnYzV2RiRHZjQVAzWXp3SWNTMi13UG5lT1hWRFlOa0RvLTBXVHpRQlQyM1h0TjhLT1JDUmkxYUZ0T05ONnZuSk5Wc2JTUWE5Q2lMTGZ4WjhSRGV6QnBVWkFiUHpGaXdqV3VRfn4%3D&chksm=41bd5c4376cad5555e5f94ca8064935b137d87993a78e3cf8371d9abd9fddb0efda6ce0f4ddf#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:22:51",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdP8646SXvzy9gAqT8nvvLibQwUkx5xRVQAMuzXARa806r2icNrbSM0n820ibCqbaPFaQ55HNe44l8XwmjyWvodXXqU0icWqiaYNncyA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkri9lCq60YqMGhKYxvizFBmoVb0qKgEwLFpQ1mitgYyq",
+      "title": "用了90天，它比我还懂我的关系网",
+      "digest": "从初生到精通，数据飞轮让智能体越用越懂你",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8wc1EwRzVVcFFKVnNPMmVpbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFk3YXd3ZXZ5R1UyMXAySFBpWjRmT3l1cmt1S2pDcWRmQkxIM3UxZlE0MVJGRTJqam1IM0VpLWJEWTVQUTVRdTRkS1d6M3Q5dkliWklSQVk5Z29PZFEzSC1UTFZkVl9Pc1RJdWhrM0ptbVRnfn4%3D&chksm=41bd5c3f76cad529b15679f487af77e4e5009a72f3d53d5317d7f0648f847f9a365c58f7f40d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:22:31",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOeI2eZTFJxv6kYPAfRD8wdjCsEkceWlAicZkvljABZrsQnic4ibBTib3UAphnOm3X7pvqrGiaGNtUDBcFCdR1w7zYmaXzEIUznlNFg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmbwMsH3iFjzbWZ0lU6V9XE9JShrpl_H_MDmLKM34jHN",
+      "title": "你有多久没给爸妈打电话了？",
+      "digest": "陪伴型关系不计量，小维帮你记得而非催促",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9Tc0VnWG42MFloc1Y2TUxObDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TF9xM3ZicURUNG9FYkZzdXl1Z0x5Y1BqVXRWYWpmMl81ZlhidzVwQjBLU3YwZVhZRGdEWU5udUNYQ0lQclNxcDVjTFFUcXMyOTg4dEFPV2VRaXczeGVySEMtazZUd0RPRWdhTEo1UjQ4YzlBfn4%3D&chksm=41bd5c3b76cad52da4d82292140e68372fdf93a908f798f6f4296977b4ec529834fb4d31076c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:22:22",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMmq8kfG9PzpeEiafv4LZbXfqSjcfN1Lzwu5VW6PASX7BrTkIJP56y8xfWe5EuS7ibp4o7hF7GweaMw9O3ib6Z7I0licdQzmvicJ3DM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjoU-lUC7Ms7YCTNbfj9fTfhXuq0W3zhoJzoE5i0nXlf",
+      "title": "开完会就忘了？拍张照片全记住",
+      "digest": "会议拍照→AI提取→会后复盘，机会不再流失",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9VSFJxTFpXUHJNWWs5Z015bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXp5RmVLRVlPd1ZSV1duSXFiMFpVWFJ0UWp2aUlEN1ktTFUtbmNxVkNsV2g3WnVuS204SHpiSTBXaXBpSi0zZFFRb0hyUjNkVXctVkt5Zmk2Wkg0dVFFa3I4SkF2RFMxam8tTjRmYjB6dTNnfn4%3D&chksm=41bd5c3776cad521f931a1e2797e310151020d9cf6a252b2488ddb565aaa6eb52c4a96976110#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:22:11",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMCSwT0TXC7yJZbWlJqnsdusPs38yILIEyGn64NibAXnmiaXAWh3bZnHDqarrE7rMFln6jP3fHTdwdePhKvic85tOdickqCmiaUApX8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjUUFLrX6pJFTlvvFzjLXSHzQGP9--ATLcBHGCmGfw1A",
+      "title": "每天刷30分钟新闻，不如让智能体帮你筛",
+      "digest": "13源信号引擎+关系映射，只推和你有关的信息",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9TaWViSEZIOWwwZGtvZE9JbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3gtQXRSMG1RRl8wemNCSjRrUi03ZjlnaWY1RWlYc2EyYVNDLXp1bElzNGQxQTk3WXRHTWNmN0pzZ3B3Zl9jaVNCZU4tdG9HOVNTbERnaWtXSDJOLXRMaXUxSGpQUkJBdUhOUnRrcldUTGR3fn4%3D&chksm=41bd5c3376cad5257d4da1e673e2566a36732bf177bd9db54931386a8fefd878e679025a0f56#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:21:52",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdM9iaicVkx8rvy3T68UUibP0qsSJZeibydJHdw8W3ic9rXqeVUrtj052cRlUXoAfRQapFMypgxScXCh90auTO6KLIQaicXMpGDzDRQOs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkoSY9qG6ejjS25L3b-XAqCbpr8JWUqoiKxS7J0xS-71L",
+      "title": "你的关系网络智能体",
+      "digest": "五个动词+进化机制，越用越懂你的关系网络",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9MWVVrYWpNWmdpM2tBUk5qbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SnZCcVNmNmthQ201REtiRzI0VVF1VVdNRVJROExRZjhIV2IwSnVGblFvSUxtMEVPYkpNaS1PUmI0VWE2cHJUeTdCQW1SRWVhOG4tZm5Wc2FZMzBTcHdXUHFRbWhMZnBBQldEYldCWXJGTk5nfn4%3D&chksm=41bd5c2f76cad539c42f5be505d9344922af0e9c2245140608e176f4ca46129c75003082ab9c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T15:21:32",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdM6764sSlouyicxsSkpOn1a0jA2DUDDX7MwlTeD81uqHGqbSd01x4Cvn86eZibD3iceZIoMKHuwcndeNuv7pjhxDZ0bqcFGoazack/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpeZuNCVf9jtbOgDE9s9JZV1ZvnGp64G8cxDi4ACgRVw",
+      "title": "字节AI战略：豆包3.45亿月活、Seedance单月10亿、火山MaaS份额49.5%，一场计算换智能的梭哈",
+      "digest": "梁汝波全员信/200亿美元贷款/豆包MAU 3.45亿/DAU 2亿/日均Token 180万亿/火山MaaS 49.5%/Seedance短剧渗透95%/2026 AI开支2000-4700亿/净利润-70%/豆包付费68-500元",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9YMEE4eVYxd1NScUJ3ODJwbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1dZNy1MNEhxNzF6YnN1ZmVBM0c1TzVVRmo5MF9QS3h2eUEyTWV5SDN5V2JQNWUyeWowRmc1OGdkZVN4RU02bXlPRjIzV3RnQnlWdUZzVUh4b0I4UTNaSlVKTkc3RGdJMi0yRW9nSGJTREJRfn4%3D&chksm=41bd5cd176cad5c7043b96596d196c642b690862cef01dbeb51752d9597c2e75bcccb2bbb759#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-21T07:08:13",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMVKG5q8nUCNibrDCamibR3qAoI8fkxfkamGbTCLtGCdmOI8eXyfdwJeRE3KJRlRM4wXvCw7vibmqrHyJWxcEVZjuviaqdcLIHsFu0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkntzirJ_u-jjXmCBhPt-CiBahuHWmaWbZ4IH2gdSh5dT",
+      "title": "安贤投资：百亿量化新贵的科学公理",
+      "digest": "两个清华物理系校友，用Axiom公理思维创立的量化公司，8年做到百亿",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9sN1FuMXhETzRMUkNxeUlKbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3EtZnI1SlFCSXdlMzVSU3BBZTVrbHZQbFFWdU0yemMtekc4dGx1TlNzd3lsY0V1VGFKbk9oLUtxeXpIRDFHUGhobnJnODdOOUxQV2lQVlAtNWhuNmJwNGN0U1VVN3RLSlQ1UW9rS05mX3JBfn4%3D&chksm=41bd5cf676cad5e07708aa4f24767463fa854e32a1c1071c3f64a4d8a9cc1402f6c9761b487f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-20T00:17:04",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPtV8LEyic7nfAE6kePAouu89ibicaRdTibYDCQEXzEThYHic6pQHvBYy8aicibIwOvqIpdyBTwH8tId4cyYAwX8xx5Y3ggooyO2hIQvs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgAS026jTVkPnZroHwuTyxnLMAdLipdV7qRcAQyWSAHd",
+      "title": "微软RD-Agent：让AI自动做研发的双Agent工厂——MLE-bench第一名、量化ARR 2倍、三大顶会录用的开源框架",
+      "digest": "微软亚研院/GitHub 13900 stars/Researcher+Developer双Agent/Co-STEER代码生成/MLE-bench 35.1%奖牌率第一名/量化RD-Agent(Q) ARR 2倍/因子减少70%/成本<10美元/NeurIPS 2025+ICML 2026+ACL 2026三大顶会/Qlib集成/多臂老虎机调度/因子-模型联合优化",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pR3dnUldZSUltVmdmUW14bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2STRRX1hPblVmSWFGeHA1OXVla1gzamRlTjZjZEV1TzRJU0dqOU1OdUFxd0RtTl9xOXdBNDc4X3hPNzFtZXFyT1JjOGtBdGllQ2x2QVVlbmZ4V3VrR2xUUkl5dzJQZ2FpLWpybDlQblk5eUxnfn4%3D&chksm=41bd5cea76cad5fccb93529edf025c30df027c48346769f8d1aa6de3a1e1ce4bf0c50bab7e0f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T16:57:16",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN7gzZhMQ6btRkW7h6K1N2R6FY4X7hicU5qyWic6AuN4iaNNXl5JibdORXuGwlXMD8TFh8scOfoIrqOE7nxrWeFZ9BETqtgiamoB5Jk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkj1ptUNLCAa0damZ8oWeHTrZuMAdDxiC1EG8AphmTOKW",
+      "title": "Kronos：清华团队把K线变成语言，120亿条数据训练的金融基础模型，AAAI 2026录用的开源突破",
+      "digest": "清华李健张长水团队/AAAI 2026/120亿条K线/45个全球交易所/BSQ层级分词/OHLCV离散化/零样本RankIC+93%/波动率MAE-9%/合成K线保真度+22%/四版本mini-small-base-large/GitHub 32000 stars/A股Qlib微调/不能直接当交易信号",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9hWVNpVFp3MVQ1TGdUbTNibDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2huM1UwUkxKYTk2OVR0UEdENmQxbXZVOC1FM1RfX1c0NWgtdzZnakpqN2NzaGMybVF5Y2t5OHVMam5MMXZhaTRjTTlKNEc5U0tEUGVaUFdfLTNTYWNIWG8wMTV2b1prcnUzWTlHWWdQU2tRfn4%3D&chksm=41bd5ce676cad5f0a3e835f3f81b8aee2a060e29cf74979d52f201444102556487b64ce89e74#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T16:52:09",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNc1MTPM2P6GIAAQluoaN4RXEuSyMEiaceibPJsPicvcDz3g2yXXbjoQCpGJLwiakYQtbP01EBWDhksjcQx84qdicjO9ShKzbGkCIx0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYktCA57kBpPZpVnOUUS6EZZlNAhfDrWLMSoQaCKL-gRxa",
+      "title": "国产GPU四小龙：英伟达H20断供后的算力大考——摩尔线程、沐曦、壁仞、燧原的上市狂欢与盈利困局",
+      "digest": "H20断供220万张缺口/国产份额41%→60%/四小龙累计亏损305亿/摩尔线程首日+425%/沐曦+693%/壁仞港股53.75亿/燧原腾讯依赖71.84%/华为昇腾81.2万张断层领先/字节850亿芯片预算",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8yYk1xdVg0Syt3UnVvVkxWbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THRSb2dTdnprbFpLS1FqVWQwaUVONkNGWlBCT0d3LUJwbWczaWVJVUpibC1YS2ZvblJMcWQyU0gxS1JQeWtCZ0diUVJBMjd3TVp5V3NLZGNMbnJpazdFNHNtTWg4czFjNGM2ZGdwbTlIWDZRfn4%3D&chksm=41bd5cd576cad5c37ce92bed7bcc1e76c2e769685e0648b2c44410dfc61e38e40cd3395ad76c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T14:38:57",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMzGaR2PiabW9XDW0DYticvdzbky3Un8hI2RD5gsP8ZRLoZLobEfvzfiaicKKa21MYgfb8JHW3gEOEXkPWAhXpVCmvURWFH1bwnrsg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYktjymV7AeYk0eIAfn68TU_MRLPPeQ1YGZJCGIxc-Gx_F",
+      "title": "腾讯AI战略：混元登顶OpenRouter、元宝接入微信、百亿押注DeepSeek，一场广积粮缓称王的慢胜利",
+      "digest": "姚顺雨上任首席AI科学家/混元Hy3 295B MoE/OpenRouter 3.66万亿Token第一/元宝MAU 5735万/微信14亿月活/ima月活1300万/搜狗AI用户破亿/六小虎全覆盖+DeepSeek百亿/2025 AI投入180亿2026翻番",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV95eDlFSDZTaU1ZQWVHaEc5bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2STJZRzg1VjcyNFZsZWVnTjREcWU0T3Y1UHdPWkRtamZjTkx2ZVg4Mk1HVUFjRkpBNjNHTGx5WUJiaGFRbVJReFlidGxuWW1CaHllWHpKMmNJRkdqMUV1UU9LaVRlQWZ1Nm56U0hwQXFFZHB3fn4%3D&chksm=41bd5ccd76cad5dbf08841a34e7736ff7365843bf7d51d854ee4ef34bf1c4d9b48cb0b198753#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T11:49:07",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdM8V3pXkAcHt2SNficyicC8Dyoaz7cag1Qu58EpibEHgkIZSmia520v14ZXvfUac80AicWwMoaCYtMNTT4aNkTonxXT6Cj9PCTGVvjY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkp6HUSCY9eERsm878Mr_I7COb0BHPrPTQxN_uSxYpwX2",
+      "title": "阶跃星辰：北智谱南阶跃，多模态重路径能否换来100亿美元IPO",
+      "digest": "姜大昕+印奇组合/26个模型20个多模态/Step3开源321B/Step-Video-T2V/Step-Audio/吉利AgentOS/OPPO装机4200万/B+轮50亿/Pre-IPO估值$40-60亿/IPO目标$100亿/六小虎路径分化",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9LWXl0T2hsMmxGNytiWEl4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3BVVnJaTFVhOUNHZE1QWGhobldHYTFaMm5FTkJQQmw5VUxyak80V1lZSE9Nc2hxc3hsbkFZSGllNGs3N1lESVhsN1Y1UDVZT1h2dy1fd0tuNjUzZEVfSnlVRW5MRGlpRDBvT0lVMW1wNU5nfn4%3D&chksm=41bd5cc976cad5df9dabac5b12f452471d3c86975c56dd015db6a25890ec8a5fdb455c6b4716#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T11:44:50",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOTROfjEKmdiaYk5iaYV1XdMo2bZIba2KHWD2zvgfwBfWibXFdZDrZVtxCicQB8IbP6icbR6QgbicVQNaQmG5BmSQsn6iaOWyrm2LSGk4/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgXZRqkAoKf-Pku4_yUXw6FCHZnoRvSSxTB8fxLLdsaP",
+      "title": "库帕思：中国首家AI语料超级工厂，上海国资为什么要做一家数据炼油厂",
+      "digest": "上海市委市政府组建/22个股东/黄海清任CEO/1125语料框架/采洗标测用/具身智能5000万条/对标Scale AI 290亿估值/国资+市场化中国解法",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9yd2FXRnlUZTZSVWNkeDNubDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2c4NHVuYlhKVHdESTBWSnhUQ1gtM3NxOEl0TC1NQzRSTllFV1FYcGd4WnV4VzVpWHE2Q1JkVzhqdVd0Q1lZNjhySGQweWliQzlvU0RWcVdZWVlrSnZYOEJKX1BzTnhFNVYtaXFrc0thUEhBfn4%3D&chksm=41bd5cc576cad5d35a498f12cd9480da8951650f7c768870a21584bc025b65c04a6177a50fe7#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T11:41:11",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMWCibyeNUibTvfoywDMN6vOhAnYLf5HibRoTG8k9BXxHm6ebq2ta7W7x0WwYcYNibkMConwnWmFjXHbRibP0O5OM7mPxTLht4SsXkM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjVfEITJRKVd73ouif0o3ZftT2JBMH-o-DhcWqRAuawl",
+      "title": "硅基流动：中国最大独立Token工厂的IPO悖论——卖得越多亏得越多，77亿估值靠什么撑",
+      "digest": "袁进辉二次创业/77亿估值/140倍PS/公有云毛利率-119%/5亿赎回负债/1.5%份额vs87%/结构性中立/国产算力适配/三巨头价格战",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9lSStlUnJiaW1zN0NyenM4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGM2c3h3RlNQU2M2Z2ZBUV9fdUlPcHQzTUFwcXE4bDJGeGpaMDZQMEg0SlpaYndpMmxJbjF1dElndWhRbGFJWkpmRUJpVkVObnYzR2RuaC1LU0VkX054ZFRfRjNwd3BXaUNNQjgxT1pNR19Bfn4%3D&chksm=41bd5cc176cad5d78bce65d0fef99f470b0d1a3ad2993e9f2fb23c47ed40165884521065e0e2#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T11:36:15",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOobyh1qaKh5zfrIccq8oLo13rg4vUoiaXqEmJdnda7u3paUuAMez9KvGOs2GlbTX5qQmQ59LdHwQlvtJIeBw0784KqibR99IfzM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmrtmVUgUtNu5eMQ7JAS3_bQEWDlEaBlwx25aPsh-Jg-",
+      "title": "给AI一台专属Mac：一个10亿Token玩家的Agent隔离方案",
+      "digest": "16步搭建AI专属Mac/Computer Use over SSH/手机遥控Agent/Agent驱动Agent/物理隔离成为标配",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9uM3JSOVRvT1lYc2Z2MHpIbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1l3VTdiX1R2WlZzdW5yWVRlY2ZrV3pqdlBWWEtURWZ4Yl9US1EycE1HLS1wQnVwQ05nUzBiTGJETVZweHpVN2ltX0tCcUFWUERYb2lQcnFPYkhrejdMNXVZb2NPLVdDaHFtbUtNNnpMLW9nfn4%3D&chksm=41bd5cb576cad5a364f318b56469d424b57cc7f1df09213dd4a8f92614407921adc0242a7336#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T09:06:42",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMf2DKaNeAdtEc6kVu1RicDbzibFB0Xsr73zxqliaHa1FBePW4OmNw5ECwGsfaGS0Snay4sM4ajlZeWYeSwpuUTU6yxic4rfHds63Y/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklVYsmlyjWHJNT-72cKQftX9XweOkcMi_AvFjL5HCNXT",
+      "title": "Mozilla发布开源AI现状报告：能力差距3.3%，真正战场在上一层",
+      "digest": "开源AI已拿下多数生产token，中国模型3:1领先。但部署率落后、Agent框架层成新战场，写入权限模型仍缺失。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV80UkloNGIrcnRmSnJXODl3bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THFaTENRMWZVNEhqbXdNSkJ1SEdBb1Fsa1h0ZFVfejJGMXpaNVc1X1JjU1VMVkQzRXJyRFpQalpmcFNSeGdXcHhPcWEyNGgzSV84dnBxV000RENrZDM4OUF1VkViNDhZa1FzWC11d1F5Vktnfn4%3D&chksm=41bd5c8976cad59f1030bfc9dfd56a6cbd4e4b200aca57785b382d3f127158a77c0999772f08#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T08:26:32",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPZiaOuILQm7T9pFibQIe4ef7WOu1jUFj1nBBJc8X0uPpI9bicguDhWQ0S6UIwmUjI1nKE6rNbJZd6D1JxuVq95zicicibGfzDgZZHB4/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrM7LpXAbcEF28MOE2nCUZg4f2Uyg8aVtGaQSyh9fT_f",
+      "title": "这个AI产品为什么值得关注",
+      "digest": "auto",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9YVlI1RVBCN2ZBQkR2U1NwbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3E4MEUyUzJTbzF1dHppaE1pbjkycUpXaHY4cjcyLVBvYzl1Rm1aU0JyOXJpd2ZHQUhQNUMwN1pndTZub3NXdkNuOXB5SDNwWGxMVjNyR0RtREtveUxzZ2szVlB6SzlldzJ6a3pXSEItRDRBfn4%3D&chksm=41bd5c9976cad58f070f5f72c67e1428dced46c65000199f147b04883391726cc5bce6551d95#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-19T07:55:05",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdO6ibhsXXHpY8xo3PpdE7EmiaKTDqwyGbhr7U0SZN5EzF9LxRhnXlCSsmNoult7yAIjv7HvlcYduwcE7VryYaQ6ByjAkiamGPCJCg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmFgKjFbf2qrEcYsmuAs_3hWiKxKbGhbfe4G7g6p4WIQ",
+      "title": "记不住上次和朋友聊了什么？welian.app帮你管好所有关系",
+      "digest": "六件事解决关系维护全部痛点：记录/功课/拟消息/周报/日历同步/信号简报。附产品路线图。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9KZXVVVjdRWEI0SURBcEhvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2Sk5HX2s3M0pLcVhsZGVMQm1zZGhhc3Bfdi1iSnlRNUN6cUc5T1Azd1h4YVctMkdDYVNqRDc1a281dVJrdTdrMzJ3RjJtdDJuZmtEV29PX0dwa1h4YVJZOVZ1WHUtdmdFVlVkR19IM21CT01Rfn4%3D&chksm=41bd5d6176cad477ba81808ea007e736f2cc81f2fb03d380e7eadd5e8e4462149b1364a0b465#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-18T11:40:39",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPkYPwxXwRbJshp2rqme95hNm5HKHVagslTF4WWSF6Urpud13wpP5jCAfX5BaCWZatECuIRibkZlHQA3WZ23cic7icJKgFmor1Rgo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYksyHiOd0NtotD1-V2oVWKLo6J0uJ97TU-e_YLoos3cP0",
+      "title": "李渔：十七世纪的生活方式博主，怎样把日子过成了一门生意",
+      "digest": "10部戏曲/《闲情偶寄》234题/芥子园书铺200年/一家40口靠品味吃饭/可能是《肉蒲团》作者",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9qT0J1dzhINXA2a3R1QmhIbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDdQYTRidkx3NndaLXpINHNIQVY3M1RDX3oxWWZOMV84Z041MjAwUEQ1bDNENTNlcDNtR0UyWnNGVWlYdjNOX253Y2V6RDJYVjNkWm53UkQ2ckVGcEFsc1pmT0V1Ujh4cmZXLWNpdzJvWDV3fn4%3D&chksm=41bd5c8c76cad59add559e8d83c075248cdc385b5e98ed0059eec6ffad53b6acaa20577468f0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-18T11:05:57",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPYgEQ9VmuJeWb7qgPMskJWhgP3pnauH6Hq63ZvoR1QbYcWXaNbeeEleeNq4tRztr0Cj6xMadliaNc6WCs1OIVYhcicgLJDxu7Dw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkopIQv-dhc5_f_4W7JIL5-P0NEBnZjV3f5JFn-qgeO86",
+      "title": "正在发酵的 AI 圈第一争议：Claude Code 后门事件，把用户识别这件事撕到了明面上",
+      "digest": "一句话：AI 工具厂商有没有权利在不告知用户的前提下，用隐蔽技术手段识别特定国籍的用户？围绕这件事，国内厂商全面禁用 + 监管介入 + 全球开发者社区撕裂——而真正的撕裂线下沉为行业常态。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9kYlZlcGxpa3A1THRUeEVFbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjF0SmhzYW9YckF5eGRNdzN2dmFpeXRLaThKWkxsc3V5dFFINWg2dS1nZnJiYW9sZUVDOXBKT2dqUllwVW82YjRPaXBjLXVGTUpCVmZRdUdLZm5hMDVRS1JkcVFKcC0tS0szbkxHa0ZBUTRBfn4%3D&chksm=41bd5d6d76cad47b68e90086c6ebca1f4bc4093913c12d984b085fbbf4120cb915393eff9c50#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-18T04:59:54",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNqdCEiaszFKAblSn9DoCpxRujyQbzBPCgVVAYxL3dic4JhVZIMGpEoxRWnj1AdcgUhocKrLbOAhQM6g5e0WDFLBwFbuzsdFXEXM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkusLZooPge7mdsrdul-10X8MwgX6wM0l2Kk-vD5z-Q52",
+      "title": "金圣叹：刑场上的段子手，怎样把砍头写成了一副对联",
+      "digest": "腰斩水浒/六才子书/刑场对联/一笑受刑——中国文学批评史上最狂的段子手完整拆解",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9aeFdPb3ltN1FxNHY4WlJubDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGNkRVlpNFotNnJ5LUFVd01Ld0p3Vnl3azg4YU5vbjRtcFhEMWM3VVRGNXdVeEJSWXIwTGJNME1EeHJrVWd4YlNMQ3pYcFNsREZfQ0xQNUpSNE52bkFLWHFrekRTZkFuTlVGWXBJSlVzTXlBfn4%3D&chksm=41bd5d7676cad4604fdf19dc406241229a27327e52f4ae2eedd5ac7c6157375e6f047e02841a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-17T22:14:13",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPVjUX301RVqm9N7E3bTHTBxSvhp7B8UjyUVcF79g2GttFEQLApOSyDV3KQrp9fYIHFd3g7fUPmRrribbicglYGD7L1tOEobOXVY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkhXRnkQeJJnEuxDKAmrF0S5_nr6P4G03pxo-9k8Cx_Gl",
+      "title": "当AI学会怀疑自己",
+      "digest": "真正可靠的AI，不是会说我不确定，而是能用外部证据纠正自己，并在无法验证或风险过高时停下来。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9OdFRUUElST01FNElsc1EvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SkE2OUJjRWh6cU5GamplZmFXaUVadlJLcFJTZTZoMFE3QUdtME1XMlBSNHZQX0lPSk5lVUsyaHJaRFZwS2d4MkY5TFQzQy1idkhwUU1EekVQbWoyVFZpNE53eVZua2tFOUhleU11MTNzSjlBfn4%3D&chksm=41bd5d2a76cad43cacdd93b834d50cbf8cd657fa036bafd76010703f0df61eed73be6c6b4900#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-17T07:30:13",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdO0YkDPdo7FicuuibP140QcAvRpgYug667Q56679d2aSm1ghQzjGwWmIic3U3GLSDibw5g2YDHFgz7yPUhia0ClKbTrA7FiaPfje6LibM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkoeQxOc434XuAdRmUiSkbFhgQ4bIFOt-bBfcobjGqtGg",
+      "title": "上海的有趣灵魂",
+      "digest": "弄堂爷叔的智慧/腔调阿婆的体面/咖啡馆里的存在主义/上海式自嘲幽默",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pcWRXK2dZa1dyRk5DdWltbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGR5Y2tac1dMZjJRdmliVjMtMmxncGVTYmx4TV9hdE1vWlVEVjJOUU1wdWJIZzlCYVF5QXAzWlNNYU1BQnNOZmYwUHRHNk8yNVhEZGxtLUpTM0NLQzNlTzFVTHhZaHExMVlsZ2xDRHpNN2tRfn4%3D&chksm=41bd5d1e76cad4082b23b0b56497c9369f99a076d50d314398677c0e5172df583428a62a4838#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-17T02:06:07",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNlNqa5WKC0FfIosLksEyDd9BBmCtxhic986iatFSD3qzGp1YPRMhNyibTsscfZEpGq1tR3NdsIahpYnp09B86qOl5o0MJ6km7WCE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkst305MwhF1BnZtLY6ebQ5UNoZOvERf_pH0ug68XAy_5",
+      "title": "有趣的灵魂：历史上那些不正经的天才",
+      "digest": "苏轼流放途中发明东坡肉/金圣叹刑场惦记花生米/张岱亡国后写回忆录/蒙田退入塔楼观察自己",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9uTW5vdklqNXhKQmFqU0o5bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGllRzBfWE9qQUkxNGpqUjBPaHJ0MHdpemRoaHk1Z1RaUTE1YXNHeTVvWm4wMURoaWd3X1pKVVdzUUZzMk1xS2RjYnJRQ25ESGNpUVlwVk1WWDRQdmNNb2NZMjd2Z2ViNndXWDUtaXZxa0l3fn4%3D&chksm=41bd5d2276cad434ce9fab08ffb6bc6c4d8231e5726a705cd0099c719c40a3ac21f69a4aee14#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-17T02:00:49",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMpjDpOarf7HibJ9blB4LdE9jW2n9nZNFPNCibuBqNxL6g7DsshAZFp5cVFOBWelp2yPia1PQwwWxJXLvplYX2MOEfmFywVa6aJv8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkq2sQe1WtkVlzYKQ_20SruRRxToBUBk2bsjLBjw-1A9x",
+      "title": "AI模型的个性从哪来：温度、top_p、system prompt的工程化真相",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9tRTZ1RnFaT0Vhd2hsVVUzbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SndCdVhkYlJja2JlSmI3VXlnYllXeUdSU0I4YV9JLTFYQ3BmZHpGSzZDaldEQjlRMUg4WjFpOUpyZmYyYjY5WlJ2SlE3eDBfdV9uNFJZb2w3c1BCakNvVWUtUmRvMHRGMnJJUTh2UE9ZS0N3fn4%3D&chksm=41bd5d1b76cad40d753500ef2f3d365556e69e2908866cd573a9c6adbb9b8c1f29b46f906764#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-16T20:14:55",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOfmicTBw5HEAaGsYuXqLicXMUof357Eljia4uvlrjNEfkLHrNwx3c88wYBy2VRqeUO36mSFrnZTQeueWo3y5AmMYsyXicicgDPfS9g/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkiXObCJGDKUKLUIOzS0fAvgqvWxsnwpKtrjbIrUT6VIi",
+      "title": "AI行业的杰文斯悖论：为什么AI越高效，算力黑洞反而越大",
+      "digest": "1865年Jevons发现煤炭效率越高消耗越大；2026年同一剧本正在算力上重演。模型变便宜不是终点，便宜是新一轮扩张的入场券。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9FU0oxQ21DVG9hZEhwOGIybDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2Skpia0U4eTk5ckd4YWl2VF9LQTZtSjFmRjh3a1FXcHVJZG5vS01ZMXJ5QnlXNi1rZnUtVWMxZDBaa3YySHFRRDVQd3dXMTdLbDB5QVN4Wm00ZTROaEF4THR3SDdKdk5rdW5PaHR3YmUyZzBRfn4%3D&chksm=41bd5d0f76cad419a1561d1bcac0c7d253b40eca1db14d85b1e430d200adb1f4a66b9d176afd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-16T07:14:25",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPzcvFJUBlOK117b9aoiagAZyPUnmJBzyIr4yqdynhpAZBm2W65h7HrNdibWIbppvDKrQNqmUzdP32khIjKfQ6SrfDHMZ0YdwdCs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkq8UVTZDRuAxylHiCw3lsRicUAs4zjeUf0XR9obQdu19",
+      "title": "Claude Fable 5 完整指南",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV96K2hUK3pSZXB4WVRIWnRsbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SnVYREtzWU9YRmhjUkFxYjJrYndneEJpaWNYOURMX2Y5X2p2ZzhrTG5QWU9fS2g3MmpfY1JjRndtTk80TUdpSUFnMHJTRFM1Y01pc2pJZEtFNEtIWjBMTXEyNTI0N0xTNFZqRlpwQmtiY3dRfn4%3D&chksm=41bd5d0b76cad41db4a4cffadfa42a7c01fbd736e47986ea69d7efb4a316822f9e566dad75fd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-16T03:49:17",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdO6lVacC0HO00DfNBwLASE0WHOcrzx5icqxvHBR5Eneicq7Mribgic27Orh0UichFibiak7leFn3n2Cm7PegGMkGME0kx6MHcZhGoMzZk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknMvRN8j17faq2mtvTU_E1U76fvdh4UOjJAcUztZTgMQ",
+      "title": "Claude Code深度拆解：框架、源代码与最佳实践",
+      "digest": "46KB源代码分析/741行/5路搜索+对抗验证，Claude Code最深度研究",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV90cE5Ec0hqeVYwR1l2TzVlbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SW40Qzdjc2RWQzFRUGFWNmZ1b3JyMGtZMER6eEZZSEQ1MnE1R05BaEF2YTZlSzZRa1NCNExacXBiSXVBQnRJaVpJZmlfWHlObkpFY2dlQUtwVlBGNGFtT0t6ZXk3VUhDejlvYl8xQ09RN0lnfn4%3D&chksm=41bd5df776cad4e197328b9d9a398da555f29dddc5abc71987504147f520c9ba17a0f39053ef#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-16T00:22:36",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNwdFxDz88cetSf9OggWQEor7KrMXvJZfOYk54AUf3KDc3gH4mU09jVZwk4KOA1xvDicdRtYFOWXBl5H94wk15Q19gsO1u3iba5E/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmr6_FausJQmDSb3jHzq3zCQAh0A8kjqyig3VIwD2JE3",
+      "title": "Claude Code框架架构深度分析2026",
+      "digest": "672行/A级研究，Agent Teams/MCP协议/Lifecycle Hooks全景解析",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9SMVkvYXVjak1YY25XSVVLbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1RLcDJzTDVoWGR5aUdGeEcyNHpxd1FIc1R1c08wNHViV3Z0MTVtdkZ6c0xXTUZPRHIxUGRCeXd0WWViU2o0ejVHYkhJV2ZWWkszelhsTlpWSXFsU1V4NVlHaXJmd3E1TDBPUzNnV3RicVVRfn4%3D&chksm=41bd5dfb76cad4edf75c54cf9ca9fa78956dd0ac281cf978eada7ae585b560d3326e33b973f3#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-16T00:21:16",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPiaIUgTzg2FHSwuHQgpY5Gl9dVZfcDtAs3DyGazPb0FppoKL75TnDqiad5D8ibjCVepcskvXZS19tqtE7O3alTsicOJRzDntjfwGc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpDK21j_CnJPzgygKfRd9fpY8X8kUZ2f3B-JnrnGIpOG",
+      "title": "AI编程工具的市场格局：从Copilot到Claude Code",
+      "digest": "2025下半年至2026上半年AI编程赛道经历三轮地震级重定价：Cursor D轮估值293亿美元，Claude Code ARR破25亿美元，Windsurf从30亿收购到2.5亿剥离。这条赛道演示了模型API化后每一个垂直工具市场都将被原生AI重写的范式。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV81eFJVWTdrTStoN2J2Y1Q2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGw4MjJuTy1LWEdPelNnXzEyTFpDZThDWGZkaXdSYjFzVEZ4V3gzWlRPb3BTNlBnV09DbG5SVFRnYmxpcnBPdHlDNUJsU0pTaWxtcWNKN0l3c0tsZXo2RUV2VHZxcjRhVjJuemUxaXA5TFhRfn4%3D&chksm=41bd5d0776cad4119199abdfc2250b595ae035f5921fee6aca8e4e242a4c8b0d575fc44c3a56#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-15T20:15:25",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMvBwkVu4YPKicozPqd2NAqg4aLcJUbgrIUlT1HRdLhWID6sVXNJu9QjHhBe2QTBFWe4uq9CnHquRFu8Bia3Cqnl2YzUJj6cGA5I/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqJSMHtgtedETakWxxuDWuK17BX1rSVIqNawxzmGRhGB",
+      "title": "上海AI创业生态全景：从模速空间到大模型之都",
+      "digest": "6370亿产业/169款大模型/30万人才/模速空间+北杨+张江三层生态",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HMUlxelFGZmJGT3BhUXVCbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TG1tQ2dGNXhKNDB0bHJ3bUcxSDNqenpGUnUtcEJ4V0ZBWUViaW9Fank2SUVUZWMySGE0MTZ3dy1sZXFMUG04YTQ1WGFHR3VBTFZxR1l3Q29yWGwydHRqY2RrWHZsR3ZYWk9wb3h5ZXM5WTlBfn4%3D&chksm=41bd5dff76cad4e98adf5dfd1cebda1f42fd0c480bb9ad117f5567e4813d8f08c99acbb8c800#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-15T18:38:07",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNsmOyJ7ZsicDKxibCKhjEFG6kIYSu8iajs1mSjK7dlmUhldibOxTKxoChQBdNhcM4iauXfd02JcN46eYVf2RfA7DAm5t70xHFD7yAQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrMb3R6tG26YQ7VJB6qlW-SIvoUlo0XKrr5K6gM3dv3T",
+      "title": "为什么你的 AI 总是答非所问：从上下文",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9OSjF2N0tQQkp4eEFJejJtbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SkhSbDM1Nk5rZ2tLbVVFV0daS0RTN0hnY2g4b3J6cjVRdlRWaTJFOW41TG9PQjB0NXpQNF9GMnVKRzNYYmRZQWpMWXNOYnFkWXU5Q1FlYlg5YTV0NFdlV3NaelZ5WlY4dDM4UE5SYU44TXZ3fn4%3D&chksm=41bd5dec76cad4fab90a6a5d6df8e23b75c72b94d7d41024f2c83b005e205655f3387e424e87#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-15T12:15:15",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPSVPAZLv6WNVwicZuib2fRekLoick15wBuKNvJu1GibaSw0pDoCC1us9niaSpYhF5E2zaSjN960nbs0MKOguJRj5ccTkZiaCBiaFoKvA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkn6vfvOde9CqVtMXkpghfW-LMwLIdX55M65DRb_TJWJT",
+      "title": "3个月22k星，港大造了个AI交易Agent：Vibe-Trading深度拆解",
+      "digest": "GitHub上AI交易是最卷的赛道也是水最深的赛道，10000个demo里终于有一个能用的了",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV92MGM4cDVDajdGUHlTalJGbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjZ3bWozanB5ZTIxNGdvZ2tBQnJ0OW1zSVIwcFd2UWdLd3Mwb3phcDF3cllVWVc2RkNESEFfX202TGJ6Q1pMRVFtbDNvTV85UzlBSGNHWHFnWGJld0FpdG1sQXY3NUtDc0FPYVFLaXliVUNBfn4%3D&chksm=41bd5de176cad4f7b9675dc02fa5bd9830f9f4f874716fa849e24a2a4fd30155e8ca5595f1a6#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-15T10:42:05",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPnQZDGhOcktkg3G0luDoQXUJZsjrn06nnVIibt5F38kASktWF3aW43X6ddRDMpckIKibPOF9LHCvO3RupITpJv59WVhtOMOSeMo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkkYl1xz73ax7XjhKRi9hjfp7q0-4HMNvCxqBqd9baA6D",
+      "title": "科创企业评估的AI辅助框架：让看不见的东西被看见",
+      "digest": "财务三张表是滞后指标，科创企业的真实价值藏在非财务信息里。本文提出五维非财务雷达（技术/人才/客户/政策/知识产权）+ AI辅助四层流程，让评估者从找数据转向做判断。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9zSFVhcFZPRkxOODM1d0w0bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFhub3NtMTFmWDZGT21fNlJDUm42dWdBelUwYzJlRVZRZWtQRjBIeUlndDlmdS1iSXRreUs2UmJXb29zeFdxY1RUM2lUYnZrWWo0cDY2akg5Q1djd1NkRndZd0hkMGpDWXVEQkhMRy0tQnp3fn4%3D&chksm=41bd5ddd76cad4cb5c70307b088a43672a47e646066578f20436859dab21fa27920e460e702a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-15T08:11:45",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMyS2cxkyEledbOCricFREjiaH8OFnjfw1Ew6QQXA7W6kuiaicJo82mLvzY4YGXW3R9yWYib0b1F1ciaF1ZYLZictbXUo0X6Md2P4W1icc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkoYupTvppFrnFJ--WSEYxgnpK5ZuQ9cX1vnj85h8Ezga",
+      "title": "AI生成内容的著作权属于谁：从法律到伦理的边界探索",
+      "digest": "AI写文章版权归谁？AI画图能被盗版吗？AI内容被滥用谁来负责？北京互联网法院已给出首例判决。三个核心法律问题、三个伦理边界、三个工程化应对——从独创性投入到训练数据合理使用，从深度伪造到AI内容标识，构建完整的认知框架。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8yQlR4bHBzMDJvRDFwMTRGbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWw4NzBpN0JoZnF2NHBzSmxGSGFHQU95RjU1SVZPcTYybk1Fd0NGYXVpVThwOEtrWjd3UTJ6eG5JYVNYNHZYdnNYdS1sa3BBeHBqbTUxQmo3SFlyazBJSkJBVjRrNnExQURBVkpJNk1xT1pRfn4%3D&chksm=41bd421876cacb0e1b0f3169f4424983f89109f04afa7df8339f342764d438198393102d9f7a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-09T18:17:51",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMxuuoCmQbugnUOSfD3DomoUtRGGEics4ejOU0AChqz9asia8Arfd0b2A9uYuWtU79kKJegUpPglFEjNOVaPDWzibom2otiacYTJ0M/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklaU3nVXCXxDS7QigIThxVexK6Knm66YMB4Q1VpSJCi1",
+      "title": "银行数字化转型的最后一公里：为什么前中台都变了，后台报表还在用Excel",
+      "digest": "前中台改造基本完成，后台成了被遗忘的角落。某头部城商行后台系统数字化率仅18%，80%以上报表仍依赖Excel。后台数字化不是下一个改造项目，是独立的、长期的、需要高层持续支持的工程。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9RSnNoV1EwUEJjeTlNSDhKbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SlFMdmsxQmNBbzZRZXlyWUNXVXlhSTR6YzB0bWtKYTVGeUVzTnBKWEJvTmUxdVlrYmRQd1VHX3V5NEF4QlZtSVJLODVxeXU0akFkUWtSVnQzVG1ISXBLOHhmRlo3cGtiOGFZdmxQRW5UUVp3fn4%3D&chksm=41bd421676cacb0091f70393aa3b492149b0c2f6c2ba4f922209aa1627f57d86228fcc592e54#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-09T12:52:51",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNbpwWNm1RbETkD7MQ8zlFHZ4uL4gOS4qEWyEIP9U1BbCBJRo92nSmib7t189g6IsTqu3Uk08FSHwTVLBEyqFFvpeu9jIdAvXVE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYktF4auO9Ut0UJi8EP3wIXG8YUf9kOyWmTlfK2z2P-vIM",
+      "title": "AI模型的个性从哪来：温度、top_p、system prompt——模型个性的工程化控制",
+      "digest": "AI模型没有真正的个性，但用户感受到的个性非常真实。温度、top_p、system prompt、few-shot、tool use——五种控制方式共同决定了模型的输出风格和行为边界。会调教AI个性，比知道所有参数更重要。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV94bnhOdjY2eGF6ZUxSbDIvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjdQUXlYbW1GTUpFazZoTGJ0QW9pSEZXNC1tSHdnaWR1bGtoLWh3cDZVamF5eE9fLXVja2o2QzNwbm01WE5yYzBIN1l1ZzE1OXZzZzhZWlVINEc0U0ZHOEVKSUNGeWdGcTRBWXlLR0NpMXpRfn4%3D&chksm=41bd421276cacb042f0ea968f59a3630661ea896524b5b6de86ff6d547d74f3b0d50a8a7f93b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-09T07:43:41",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOKWmVYBjhHiciaKVrkYr8mNQy3DeFnyaAO45eQD7JvzG09UU91tudyianFN83OuiaMZCU3N5iaEXSq206upCbwHN71WgbeZWeGRibsY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknIBZ7wqIIlIlyFJHvGayXHfR_k2NO5_EkKZSpGmixvQ",
+      "title": "企业级AI应用的市场地图：CRM/ERP/客服/代码——哪些赛道真正跑通了PMF",
+      "digest": "代码生成续费率>90%全面跑通PMF，智能客服正在突破，CRM+AI局部验证，ERP+AI最晚突破。企业不再为‘AI能力’付费，而是为‘AI解决的具体问题’付费。应用层收入占比首次超过基础设施。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9ISlM0K3VTUDAvdEVEcjRabDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXVWQThubHFtMVF5UFdTS3FMeEdtdmpWaHFMX3ctaUFUQTh4QzNNOTRSQUFTTkZIc3BZQUx5NXBDTnJ6RkY4MGRDdC1PdG9LZVNiV05ySmlDT3lfM0FfSXZYU3RyUXd3dWxjUmpoVno2cW13fn4%3D&chksm=41bd420376cacb1501973938f3b64d5cac5e432851bdf8958b10ef7286979af065e9d4af22a6#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-08T18:17:53",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMOO2xXiaPia7w79TU0jz5UjHkm4nWgEkGusRF1t03NjeJgX7pBrrqFE05ZK4xDVkKicj4wanNUjb0TR9ibJP2mC0cMr1ojs3b2AVg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrhRqMvF0EK_Q-N-Wnw7_jKdrEP2iOsieGAmKhQQyRRl",
+      "title": "Prompt工程已死，Prompt设计永生：从写prompt到设计prompt系统的范式转移",
+      "digest": "作为技能，Prompt工程正在贬值；作为工程学科，Prompt设计正在崛起。从单条prompt到prompt组合、从硬编码到动态生成、从一次性优化到持续评估——三个变化正在重新定义这门学科。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9lRkhwZUc3REk1d21MSnoybDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXRHNTZvUllXblgtTllNYndKdnBhZkh2QXN1cnlpdlBwMTA0cG42WDNqanFZQUp0bW95U3VGZFRCU0t2MGE5ZzBPVnV0NXYtN28zeWJtT3V2RkJ2WUxlb1RvUDZOTmNoZm5LWHJDSVg5U2lBfn4%3D&chksm=41bd42f276cacbe44e1f6bf0339841ef4f50c9c019a11739ca82053082693ce304b28aac5b54#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-08T12:52:40",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMw2g2DCuteTaJuNQNAEcM7uldiaEdiboWb8L9icHrbHzLCRolqB4n77MAf4rpQklKn20PS8sMQMHgfHBnwvicW6L77ickHohTUkIoY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgaRm3cJpNQ9jU6B5MYCUdg7FMoXwGd8Z_KwYjJmdCWx",
+      "title": "Agent编排的四种模式与选型",
+      "digest": "顺序、路由、广播、协商——四种Agent协作模式怎么选，一个判断框架，一个自检清单",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8vM0hORXUrTTcyVmxwZjVpbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFVNUHhBVW8way0zOWJfd0gzMmZFRjZhM3Zhc1BaTVhycUlwakFTUTZCZkxscnpaZXVybzJHT2dLc1VRUmV6M2RUdkNRUEdqbTU2RUcyTURtVEFTTkZZYlVDemdHOTdJUGtkZi1FRE9sSzR3fn4%3D&chksm=41bd43d076cacac68bb49a3b4fe984bd408b64ef94b5f75a5f2abb15551892affdcb2897692b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-08T11:34:04",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMU9QNNJapX27lZ4jvdibBz5QjeVjs4NiamibcmibUnoCVBfAgo64eGl0T7fmjM4V6MXfTBIkqia8fRUoHIR5fJw7Al4H3UNITHic19U/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkucl0o5R3pYDAhs0wdvRnzHEXMgotQk2uY-mNrTyJlZS",
+      "title": "当AI学会怀疑自己：置信度校准、自我纠错、反思链的元认知进化",
+      "digest": "AI最大的进步不是答对更多题，而是知道什么时候自己可能在胡说。置信度校准、自我纠错、反思链——三类元认知能力的进化，让AI从自信地错到知道自己可能错。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9Ea3FIZkc4VG45blo1ZG1VbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SU5LcGY2RHR4SElSR19FMVoyZmhTdE80U3F5TzQtNVBkdUozb3RMZmRoVkRHUkdTOFFsRVZJWVdRMmFxdU9CdWk4WWNLSnhjdTdJeG1URGgyd05NVTVMRHQ3TGlmOG1uTzNCaGxUM04xMUx3fn4%3D&chksm=41bd42e876cacbfea8792baaaabc7d42ed8fe1f5f14d99ed58135dcd6597418efd65293cc8c8#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-08T07:43:37",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNPg43B5xHBiaVoYgy2Z4xqRlicF5uUjSsVe4HBOic4kpF5JRbfqUCU3tJLeezjwrC1ZEmDTNic1kzx0TibANmBYbtzbqHTa3icVI7WM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqQiLk5EEV9_Z6tsEYaC_oeAGHF-mNDbAUnO4BjTscp-",
+      "title": "全球云服务行业深度研究：AI重塑云的底层逻辑与投资机会",
+      "digest": "### 市场规模",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pWW9Xbm9IeGpvblMyQVFabDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWEwbTNwMDctNVRjakxGTUxuTWtvOU96bW1IcFVfRlB1Q2R0TklFb2tMQ0FMZzBnbkxMRjRFU3FPWF9Bc3lMQ2lSc2FLZHpzQURpMlBVOHRsVzZnU2dWdWZvVWRWZVJlYV9zcVhwU1E3Mjdnfn4%3D&chksm=41bd42e476cacbf202927a53ba8ac7dc73a189e0ceafa78822325910831102aa50738e214c87#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-08T01:01:55",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNPm0YgfGHPnyhibOKTaLf9zyia6dgjn1jv8u5Cg7RTTe7yEKfGsicL82sz01Fib026F4WGQAzZrJ9RxqK4PUcW2lD0P8eC4j830GQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkkSjEzAq5jC1TU6NhEBwBUrxdaMpxoEQK9opRmUp14Lz",
+      "title": "中国云服务行业深度研究：AI重塑格局，卖铲人胜出",
+      "digest": "AI云化重塑中国云格局，运营商云+火山引擎崛起打破传统。重资产+低利润特性未变，上游卖铲人胜出。推荐核心50%仓位：微软+中国移动+中际旭创。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV93MWsxUjVEUXBjUjNFZ0dobDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWljbnhKMlE3b0c1b2tmTGFmMFJtUFo4MkRseXBVNG1RQUd5UmwzQXhtSkpHUVFqV0VhMzhXZXVBR1ZXd0pxNUFuSndpX0o3Q2ZkRF9OUlptTlhOMmFoeVRsWl94VHdaYVVVTDYwcVdyZFhRfn4%3D&chksm=41bd42a876cacbbe099e4557d74a6a604a78b5ea98259d96927282e56b0d5147749700ac18b4#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T21:34:29",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNicTEzDWAcJden2pDbBODoCCjcbTZ0v7vd55eLPPiaDsPak0NL92k01moEyc5flBNlOKrjicjichGEAf9C53b4eemNXiaCILhPq2ZY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkuSF6223qICtum_wHjo1sO-IEZm_KAwgs6VzXtKeqNxB",
+      "title": "中国云服务行业深度研究：AI重塑格局，卖铲人胜出",
+      "digest": "AI云化重塑中国云格局，运营商云+火山引擎崛起打破传统。重资产+低利润特性未变，上游卖铲人胜出。推荐核心50%仓位：微软+中国移动+中际旭创。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9CVXgvZkJMZWdKZWgrcFVRbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SXpoaGRHM3pFSTBjQ2xycXduWXg2ZkV2cGJuR1BKXzlwOXItWG9fOThzYWxBUWZfcFBHeDBHUHp6NmwyUXB5ZTdfZ2NHcm5qbjdLc1pld211c2gtT1FiZi1yalc5RzZyY21OWVJqN0h5Tm5Bfn4%3D&chksm=41bd428076cacb961ce0b41c8825d1c7f3230cf8e2fc02bb1d05511781d86ac7faf03beee63c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T21:02:15",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOg4YZtEsgHNUiacdYicxL5mObyuSMgWHRLO6PmxJ9qrCj2KlQhRy3icplRicqHnpSfbEtqFnIFN5s5w9xXX5Sh0CYGn2Yd6ibiauPa0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjRxVGK911cdXkpPrgWNWuhGobuv34RSrzcffnwjALQF",
+      "title": "智能网联新能源汽车：百年汽车工业的范式转移，选股比选赛道更重要",
+      "digest": "### 2.1 产业链结构（手机易读版）",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV80aGR1TjRDWHppenVUTDZPbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWpOQXcyNzctcWlFcVlYam1CVl9fMkZLVEg5SzFZVExZbG9SS2ViUGdvU29tUjJhYWtqeGtYNjFZMEdfTGZJalk4UDBhZjh2cVlwQUxuT1RHT1pMVVVlTmhaRlZvMzVIbWxZSWg5aGdXbkFnfn4%3D&chksm=41bd437476caca62cf422848db81057ecc0cfbdefa23daba695038fb5fe71c99c4a4ce12824a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T21:01:43",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNjibjsWMicWEDicbdv9tnfqWicQE6bibn9Qyh8DRUSMbxkJ2r7dqLWS9gXo1GqHianXEhGmSyp4qmeq32wYk1eaZXcBLEOTsia0Q5SjE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklv0mP-HinhBLtCvqggsGhvQpFn20nsz_PS24Yz5d_ge",
+      "title": "智能网联新能源汽车：百年汽车工业的范式转移",
+      "digest": "★★★★☆（行业是文明级范式转移，但内部分化极大，\"卖铲人\" > \"淘金者\"）",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8wWEdwOUZDV3JQUjVLRFc1bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzBYdHJSaXdJaTcwVExrRldHcUtlckNpa0NvX2lYWFhCUUtnWGd6NkVvcGctSk8tcFVmTzNxUXJZZmJnZWhVSWttSnJNUWNxWW1yV25DeTlmbkxtUGw2ZzNqdHF3SmNXLVZXUldBS0xWczRBfn4%3D&chksm=41bd436c76caca7a8d92a4bf51d0f0885331c079a662250fcbf936eda3f3b5355a4af3db85b5#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:50:17",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOzzE6A8uqMD4TeeNUtm36VlKzXTKePzzXylibEAicxibxSwNUtlGzfnWhICKMRKqxmeK6ibWGkAeYVc9nVkpCKgzzVK3q6oLibuwZc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYko4GUAxuKXHLzW0jZCnxxJQryHPFXGAjr69R_LGTYJWb",
+      "title": "中国云服务行业深度研究：AI重塑格局，卖铲人胜出",
+      "digest": "★★★★☆（行业值得战略性配置，但选股比选赛道更重要）",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9KSnpVZ0lyL3o1eWJQTEM2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3dvd0VXU0xsMHZZb1lBZHRqNXh0d3lseWNtSHl4bldVSHVvaVVXazJmSEY3TWxaeER4d0RBR3lrZTZrS18tUTFteHU4MEduTG1ja2VmMGRJdk1NeldQRmtSRHE3SlNOSXNIc3NfNGR2LVlnfn4%3D&chksm=41bd437076caca667bbbd28ef889d56213408d6994a248f1ef4d375aecff98ebe75c26b21546#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:47:59",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdM8KwLglFLDibQruSKN0W79VVeBvFSdDwLDUviaJ73qWMicXg8jWlyQuUYNkic39icicpyPqZd4zADXKt69jn3MAVC6ureHSgia5v3GqA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgofB8UdqkvEnwH5pzOTJpUOAC7x2flV9ZuFXBpbIkFt",
+      "title": "AI协作的五种模式",
+      "digest": "从工具到助手到队友到专家——第五种是共创：AI提出方向，你修正，双方共同迭代。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8zcEMwOXYxdjJNQnFQZzdHbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0ptc2EtVFVsNlZ5VVM3bWFiYmZoVnIzeTROVEg0dnhrak1SemJWeWVSTWNCbXVRbGYtb1BtaXo2bVdjT0ZsbUotZ2xfd1FlUHVSQkM0eUhwWWs2SWtuUTVldUhUVENoSnpYRk5JTkhwYnFRfn4%3D&chksm=41bd432876caca3e539be83e0f5a7ace5352bc888f5341986424e61de31355f4fc4c03a53531#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:15:43",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOaviaJZUKGwicqEoO3qIibiawyqZklQzDQe54D6CwTMbgmzHy5YzSGnibydLc8E7bf1kAuB0SOibm9PO9u3w8pNsYLbslxAAf7JDqXQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkr5n6I1eSSlEYH4JnBLQb7OMbmS3QyKZTouDJ4vwGLWT",
+      "title": "你每天用AI的2小时到底在做什么",
+      "digest": "搜索替代型30%、效率工具型50%、认知延伸型20%——三种模式，两种价值。记录一周看你的分布。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9heklnYlAyQXBMZHhET0IybDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGM1Wk5WNHNZZ1VwSkVMeXA0WS1HdHdjT1RnMkxxeFZYWTdrRG5rMWlRTGpmNjEzczZjOXYwUG5fMERwVk44ZVlJamJKcEFKNXE4eTZnYktGaTNuenoxSkcyNXNManlsODF6QU1JWE90dEJnfn4%3D&chksm=41bd43ec76cacafabc1607cc0e33d4d1794b8d9acebd4d88f195e8ed50c70b59008a4a72cb00#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:15:38",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMFvsJF7KgMzb58bsEUKYFQuGP0t9C6ic9syzzUxicwWtSPSmJXzPsVbib6p9ts8jqicopMGsZ8Ze3nxdcNiaxbVrIsEovehqaQvTXA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknV_RSlmVwCNqYlvmm4pf1W-MCBVQpnVD2B3dxjXUgSG",
+      "title": "这个AI产品为什么值得关注",
+      "digest": "Notion AI的升级代表了一个方向：AI从工具变成环境。不是功能多了，是嵌入深了。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9jT20reWRIYXpvWjdvT3lNbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1ZaNER3cmlCYm8zUEExZE9UcGtJSjdNeGJiOUlMZmVwSzdZTmxFdGotSW9BVXpMNlZ2ZkhfVjRPSXZxVE5iNjBvZmNpZW16SjdGUW5UTFJDdHpCZ1BWREdsU250c09kcFNvb1hHNUl3aElnfn4%3D&chksm=41bd43f876cacaee8ccf1e092c030ae257b2f03ff2f8b8aa46d7269def6df4c2bcd656302058#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:15:33",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMJBm4dklVlstZrFibuFZ4ibvOE34ouErXgCsia7hyiaPGTplichmP3LJQgcALvTgJLVbuaxobnhQGHgWXG25FzZE3GpSiabefFoWbRY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkq2itp6rQUXZt7O865UTitcJF_v-T93MZMgC47n8-t9a",
+      "title": "银行科技金融的AI改造清单（模拟）",
+      "digest": "三个阶段6个项目的12个月落地规划+ROI预期500-800万年回报，可执行的进度和关键风控",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9NTEhrcE51YlNtdDNVYk01bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SThQTzdyaFY1eVJnUUM5LXZXUlozRkxYbFpWQTczdVViWTBBWV9KSURuWHZjWVhTTnlQZDZEM2tSQWIza1RsbEJJSWdrS1FOcVp1VElQSTdUZEFBd0lndGNCVGZENkxSZUhvSWxuTTZfYkd3fn4%3D&chksm=41bd433a76caca2c4adea4efee75414d6b8edc4fa0940b10ad765c0ccca27c2282cc726db2b3#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:15:12",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPb3o6EGdqCYhPHS47ZsnwFVY2spYDKmq7ibLq2aBfnsh6w834ictZXODFfRrDWvnWfSrrfyGIoE5CtoGaLjQnZo6C4iaEAewiayrc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmhH_UdvZAy6tQzc1HOaTdan-MASUnOViuiQfAs0O1Q9",
+      "title": "科技金融人才的能力模型迭代",
+      "digest": "从T型到π型——AI抹平了技术操作门槛，复合知识不再是壁垒。两根支柱：银行专业深度+AI协作能力。一条横杠：学习敏捷度。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9sUDNGdnNkaXV6OXdVbEdjbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SnBWbzZ6RGJ1N0VhdDVvVTlaVlpuSmlOc3JsZ2RJSlVEYUhqQmp5OTJjMWhEWWNQR3RoVkd4bXhXemtWZHd3cXdITXEwUkZJTGd3N0VQSGtNUm5VallaaVN2cWlKYnlKRWtUbjEyWGU0YTZRfn4%3D&chksm=41bd431076caca06e67212d4631e2dafd49aaddd021b24f810b289e286cf7d8944fbb547f7ad#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:15:05",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMgdP0nC7BQaBc2MAax0eIhBxaEHmibAODibrpWicuFe4Ll55DI0ibJsuAASwHD9yjiaOiaqibNnmHgFfBp7hS5Ltx9VicZzHxV0hO4ibias/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkiKMG-x88YjZleGmq--wv4bWOcct9cdoXHzX3O1Hmf4y",
+      "title": "从报表到决策：AI辅助的经营分析",
+      "digest": "传统报表完成的是描述不是分析。AI把从数据到洞察的时间压缩到十分之一——自动摘要、异常标记、假设生成，但决策还是人做。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9lemdtRGZ1ZGNYK1l1L0JjbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SUoxLWJlRmdKSFhrcHpzZHpqUGdEU0tqVVRzcDZXYzRoQmE1NXRKclV4WFZYZUZvWHY3a2ZTbE56YkZsRGV2TGFpRWNkRkNWYWdHXzNjMHlYNklPM3ZuYlgwMTNPSk1LSFNQSTl1UlNaT1dRfn4%3D&chksm=41bd43fc76cacaea7fea9f67cb0ab4c51aac4d064cd1120717ed09c45af3f9b8519828157806#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:14:44",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNuEcDAXvdqs9OQh04E2nNicBD9OIqSzw6QBU0I6IicQAc9JRazSF6N5Brw2GMuhuKNaw20Gn6VEOrbB2YFEbkt8ibLeWwmb0nIIk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrWxXPpEF7H2P3jljQCZ9Jvbkfgt70Run19B0DAL6ixD",
+      "title": "普惠金融的AI成本账",
+      "digest": "一笔普惠贷款的作业时间从10小时降到2-3小时——但前提是流程先理顺。数据源和标准化作业是降本的前提条件。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9TWm11dkJ2dGRCeUN4WGlZbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SmxjdHc0aEM5UElkT0hfRTRBVlZnVW9acmVRb2hob0ZNV1lMX3pOMi1kczFHRlg5ZXN3NzE1cEo5YURuWU85YkFQQlhZX3p0RVM5UzVvZjd4enNtTU83azc1SE1NREFMYXJhb3FKRzZ5WUdBfn4%3D&chksm=41bd430476caca12c42cc12c200612d323e57c4c7eefa46ba2175de4294fbef5318e93e93c0d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T20:14:36",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPZMW0RhicKvnDXKzfk9anMQc4QwKxxfZgBFnkzhTI0utQysenmTDPPyDdNzfNZibNzEJr5s13TOGWmH6YsbBianPsghojX1JwsJ0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmgxn5H-6f0iIds8zRKmxgsm9SEo6R4x8BkF1Kbvjt70",
+      "title": "本周AI最有意思的一篇论文：用一篇看懂AI的一个小进步",
+      "digest": "把推理拆成四层：模式识别、上下文推理、反事实推理、元认知推理。结论反直觉——L3反事实推理是当前最大瓶颈，L4元认知推理几乎不存在。参数规模不再是分水岭。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9Db0dRTUtpSXpTMjlTa0d2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SkUtVWVGaS1PQmpnYk0xUzRQa3lEM0RRdVZSRGE1UFhXV2d2ZHdHNXBOdVRCWXh5Y3lhTTZjcVdsSXBfd0trNXFqbWdmQVlmSTVDX2ZjN0xMSXBXay1yUkdDb0x4Szh6R1BFQzEtVlM3aDBBfn4%3D&chksm=41bd436876caca7ea7181ad2fb3e7214c10efb922c884f6629f2f99aa7a40f3226de6193c86c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T18:17:48",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdO7KLfvzH9Ak8RGKst6uAbUC2HRqHdoiaR7v9BYhCDBu2QNC1lsj7p6lZLXGiaHmiaTKOnb3xmCnxSCcuqXEH6QaxaNVnsYRg77Qg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrxC9WX2cm--ZF-RulbB53xNKK3h6_i1ejsQUD09lmVs",
+      "title": "从零到组合：AI辅助投资方法论",
+      "digest": "七步Pipeline+双层组合架构+8项宏观定位硬规则——一套完整的个人投资工程化方法论，含github开源项目",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV83Mk5xeW5EVndtRTllSGkxbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TE5iOGgzQllVN0dDaDllaktxbk9DcmdFTnJ1cnRsNE1kVEEteGVkS2o1TWtxT0gzVlZvVDBsZmQ5Zy10NkZPTlplb2Zhd1N2Tl9TS3lWV0ozSFNCQm1IYzEtSldOZExkd0RYQlNhV3pkVXlBfn4%3D&chksm=41bd435176caca47cb6485a58414d0929ebfb8b5607149f0e6af692b34613e3d29a61218d741#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T11:18:42",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNlLkVbCpqTjia5UXHtNE6ucibJnezYVXVgRqIJ9ajCUOr4lmf5Fcoias78XjPQZ4j7QYdQ4ep4C75ibvdQcoyZVib3a9Jdf2z4QH10/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkueVxMVUKe4-8dzRjCQLen3qnAwMOTEowN02AGLLhgo3",
+      "title": "v3核心+事件/情绪卫星：双层组合设计",
+      "digest": "在v3长期持仓基础上叠加事件/情绪收益——核心层85%压舱石+卫星层10%超额+5%机动。4个子策略，预期年化15.3%",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pZ3ZFOE1UUm1ha1JLQUtobDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SmFCWXpIS3Zvd3h6VEQ1RE1feDd4S3UyM0pHc2RjTk5mNTVhX1FoQldSVG5xNVJldjg0X1luQzVwM2lRVXYxdXdTUDJOTklQZDlaZlhNR3plVnRWYktyMXBmbTN0czlEMzIwV0laUjMydUp3fn4%3D&chksm=41bd434d76caca5bc7e35afc700c2102724f179337f65166a8963ce5da74f27571fe0ad006cd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T10:47:14",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOia7qVRkIaURQd8RFKKDIl92mf0EjgKkrquOZysYEv19gY93vOebl86AA4UV2JsYOz3c4Z9wcnln3wbZRHqWeU4NuXZiaX1uM8o/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYku3rIibgN38lOwiMaQ3abPb3skxicrDYRb3PHVZbkc3M",
+      "title": "v3组合实操指南：券商下单参数",
+      "digest": "8家组合的券商下单参数——具体数量、限价、时点。Phase 1/2/3三批建仓，60%首批，25%补仓，5%机动",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pbnF6TUR1a1gxNElKbFVsbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWpxT2JoaVlIM3hvWlZWSDhBZXlRTTN4OF9vTDh1TnhSdjVFRzlaVUxpb1l2aW1XMXg2a3hVSmJpXzVpUFhva2dSTUVtU2tEUlNVYWJ6cVczQ2k2cnRUWHp6VGI1UXlqa3RaSk4xZXdWaEZRfn4%3D&chksm=41bd434976caca5f4eb51e5b28762dd6fc9d1af62d788871c617c680aafebe570b41304a897f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T10:39:14",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMGx5rS1QxQ0yd4CSXU1BibLQKB4hMibSMQoL4SYcgsjFU9Or0ic5JwRY1AROksy8VCD7cfZOEvqsLGIzHFUALf81eN3vxN9ibx8JM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYki-QE2AtXsh0UqTE4jW4pTSDhFXQELzw_qyvXOF7VDJX",
+      "title": "8家启动组合：完整投资框架",
+      "digest": "从6家升级到8家——AI算力+军工+资源3个新增行业。一份从宏观判断到组合配置的全套实操",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9mUjRQcmtCT3lCcUxlZGwwbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWlnUVNpMzZabnVmU2Eyc1hRS29DRDJNbFJ6UkhMLWlmbjZnWm5hQjdBeHJLelIyTjFBMVg2Tm5oRVJPWjZ2OFpqWUt5LXJ6YWpCVDhRRlV3YmZ3ZlA2M3IybDRZYURkdTF1T3p3T25vaWZRfn4%3D&chksm=41bd434576caca5382a878e72ce1ef6b2ff67fc0190d89ea9c23d68ded5df66a842ddebf0d9e#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T10:34:48",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMibjibkFdeZ82h226hhibib8120guGl4RmBqvwhIwibopAHFXuBXibLSoQV23Pd3PzjiccTqgS67CQnaejcDlHUffCDzZOHTHHjiaib4wM/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjyA0k692fH5zGCpvGmMkbF3Cl3TgoXdJKzohqiaYzlJ",
+      "title": "阶段0宏观定位：2026年中判断与组合修复",
+      "digest": "经济周期触底回升早期，宽松货币+扩张财政+低利率+政策支持——一份完整的宏观判断+投资含义分析，识别当前组合的3个结构性缺失。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9lWmw5UDhpYU5YeEJKcFhUbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THNYQ09QSXdTbEVZRmVCWTk3UFJES1ZpX0cyYy1NNmdMQ1ByNldKWlFBd2duUzhoNUt3dVlwcUZ1T19OYldoa2w2cmE0NFVfcm83NmZWaVlVU2hzenIzbHc2em5xblpNRWdqOEdXTHhzSXd3fn4%3D&chksm=41bd434176caca57172d3e9995ef832cbaccfa74e5cba62ec47dd4476a2f1b45a21ad6cffcbd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T10:33:05",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOzIo29VmjyrrL1CURmXwHUVpPQ4UBVtyDOiaukVoWiaSCP3b97OBCNn5kECYOzibiaicGA89C3xShpkicsaaAJmiaNmP9YOdmaUPiceVU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgg9IcU_6G_0oVGY0czYD-sl0pB-2AYTpQer0hhH3GYx",
+      "title": "从零开始的组合配置：5个赛道+1份流水线",
+      "digest": "抛弃单只股思维，5个赛道6家启动组合，每家5句话论文+季度跟踪。从零到组合的完整实操记录。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9RdmMzYVpYME9GMldxcVphbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SW5scklERzliaGNjSzByYk1RUWdvNW5CSUN4LXdHLV9UX215b3pPcDhrampIMkVaYWhfUFdldnh6Z1hNZFliNWdXeTNBUEVGT05SWnVvN0RPcWVOOGJ6akp3V09sNGx3ZDVQbGU1cVpXNktRfn4%3D&chksm=41bd433d76caca2b7ea494a1a5967c6302540e59ac5913d4976b656ca9329fb16622dd39ae16#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-07T10:27:29",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOrWpPZxbKPEQvMj0WN5v52NvPEjCtkLiaMvnqIBVbficViapTpoy4xCZicj72UHEiaEiaBtcd6NBnz4iaRFvicP44CrqnY771aTTNhG1A/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYksEvhkM-rybspu0kXbDXI7_vwovLY3zVT9Lo_X8DfGjn",
+      "title": "AI生成内容的著作权属于谁",
+      "digest": "纯AI生成无版权、AI辅助+人类创作有版权、AI生成+人类筛选最模糊——三条边界一次说清。各国规则对照+企业操作建议。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9waktEM3FXU3BYMDF3S3BObDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3ZRcHM4U1R2NDRQMXB0SmRwQ0x2SFU5ZTJGOGxlY3pWQ0xOMno0YmVEaFVYY0ZpcXBzczE2T0dkVTE0R0l4ZkNWZmxDYXN2ZFF2TXZQU05TbDB3Y2g4Tm9FV1ZHbWpmbzBpNVJIY212V3ZRfn4%3D&chksm=41bd43e876cacafe07a26909eb6c88fc692699d3b9b8a94b91f5acd937807dbbab389e96c52d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-06T18:56:31",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPPY8Lbp9coZcDRYo7tU0QpdGahLowskSay807HjYwbicwWHGpOsQx8Wqlia6zNc1URU1XcR9cHqYu4GuZ1kxYYydYtgqYckKibicw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYku5JopBBrJ1wbqvnTJRgDygrAYUcNnJaXsmGl2Hc_0MR",
+      "title": "银行合规工作的AI增能",
+      "digest": "合规审查辅助、关联关系挖掘、监管报告生成——三个经过验证的AI落点，以及合规场景的授权级别建议",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9uTlFGNVI3Sk9xM1lzUU5ObDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S0REbHN6S0UyVFFvZ0ZLdEVrZEFwRzA1LUliTFUxMlVwV1BpaXpwVnFkY1Y2YlhFajdoVmszNGUyODNxZlAtcHJoTkVwOXkwdGR2YkZ5SUN6aENIamo4Z0tJd0NYdzc5cV9tMUlTT194WFdBfn4%3D&chksm=41bd430076caca1611b660be08e1498fbf64bc8af6f876c9072d427fcdec9e466e1cbfe8ed5a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-06T18:31:30",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOyzp4Qk8iaicbSSynYQ9QMPOwNRKvhVlRCcyZbphsKhs5neKb7DWaRl0sl1bKz5MQa5DV8kFPRVcLQIHbxdlfP0GJaSf2QiaF18s/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkkUzZv4aIansjt-RF5uTrCXvoZ7myzUSkSBQLssMmdrc",
+      "title": "解剖上海：一座超级城市是如何运作的",
+      "digest": "从青草沙水库到江桥市场，从西气东输到一网统管——六个维度解剖2500万人的超级城市生命线，看那些看不见的骨架如何支撑上海的日常运转",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8vbmg2YnhrTVJpdjlVUXFmbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWp6bExtUDFnQmppM2JxZTU1d0RjUzNKdjNadkJpWG50c1pUWFlEa0FiUDExLUFLZlJtZk5LdGN6ZUlob04taTFRd2pCZkItR3hjVDVtNS10aTJ2ZzVEZFN2R1FyTXpKaTl1T0xRTkoyc2Z3fn4%3D&chksm=41bd40de76cac9c85747c53e9530233f82da0a953ff779bf624dd57585202e57f343f37bb1ae#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-06T12:22:01",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPwibjVL1sLgNblJtGITuYicj90B2T9ic4dIO48ibyZo5V6e7IR20vlw0SPewwjAIHwybPsj7oLvs3u5Hicw8iaMOsSRomOzbemnEYAA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjRq8BMd2Kf-oSv8ha3vMKzb-LYbc6BHQVtIaMwcPklj",
+      "title": "AI协作成熟度模型：从工具到组织的五个层级",
+      "digest": "不是所有用AI都在同一个层次上。你在哪一层，决定了AI是你的工具、同事、还是你的一部分。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9xczZJeDY3M3RrNHBKUGE5bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2xWU3RaM3N4aE05Yk80U2ROOXhpNWl1c2RwVEpyS0hJY3dqaUprM3hXWE5wbDZIMnYxRy00Yk1KN3MybFZkclh3UU1DdUFaeGZsU01jVlVOV3ZmMW13ZnFZaU9iN0l5OXAtaDZWSXBGSzdnfn4%3D&chksm=41bd40da76cac9cc7149e32d80ef64603e2eacf84185cb0e59716f226b0e4ef6c13a23c3017e#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-05T18:39:19",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNjL8wUV14dE4lB3NHUicY1xmiclicHQK2WQxALYz8hE3bZ9P42iaA7LpTkg7BtxaNUXTB16lxodfmzyIv52eEvVwhydcb4XjxibqRo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkuFfYRMVrGUHxMb7zBY7e4PK21N54fU3WFygcrOSB8Ud",
+      "title": "人生杠杆30天启动计划：执行建议",
+      "digest": "知道杠杆没用，用了才有用。30天执行计划，针对你的现状量身定制。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9nOEZlUEI3OEszWTdMTEhrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzhGX3hiTUlxdGNzYXF5RnM2MWNoa2ppNy1CbExCUGYwYlo5Q2hTQWFIc0FhREswRkNOdVFYcEEyeGR4S1k5ZjdUdmE5REJUMmZZNV95YmtjSHIzQjhoYmpEMldhTGhyV2x0VElTcGFUaHBBfn4%3D&chksm=41bd417f76cac86911d7dcc08f287468f37852b8758660d8b82eced8efb16074c9b36817dd7d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-05T08:14:48",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPCKz8PeumLVbMc9oWBffcibnMcn7KciacLicajdYgBvkgMNX3dISo240dT4KESjonRsms5UkQgpXVMiaUmWYtYFMmUmh5L9g6YFtg/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqcLnnBnols5GeY1yxxDU1Fsxvf5BqYmkpCx83yBNUss",
+      "title": "普通老百姓能够掌握的人生杠杆工具",
+      "digest": "七种不需要本金、不需要背景的杠杆。用有限的资源撬动更大的产出。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV84N3p2Z1pDYjd4TXA0OVRLbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2Sk1HbEx1cmtLR0ZxbHJsX0w4Y2hCLXFLd0E2a0NHYmRhOEREMjhteVB2Sk1DdDlQNVpZbmRmQUJEbmNWajJCd3B1ZjJYc2Y0cl9RREoyR3Q0U3BXT0hvajVCNWpKNXg1X1o1SjY5NVJIaGRBfn4%3D&chksm=41bd417476cac86267a9a9892a5586019188862c8d00c38decde4e6eeb7221ab620b016f020d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-04T17:59:51",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNHVyZoYRA3LSPJtxf2k7pjjvwmppzxafK3UnxtibgWpgufDZjwhfJ31KSvgAibQh7zIaxvlOiaFhCfBrSItebqcxJvSPIFsOj1mo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYko4S-yfVi8bfxOPM4wfxO6pFekC8ctoA8iVSNvgDKRJ2",
+      "title": "布罗代尔的地中海：一部改变了历史学本身的书",
+      "digest": "大多数历史书写的是人。布罗代尔写的是海。三层时间框架，把历史学从事件史转向了结构史。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9pakpsTHBsRyt4WlNZOVdTbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFFWMmtCTUhveDdPaTlBV0xTc3lXcERHb29FNVJyZTJtTW1uODNGRklZaXdUU0EwaDhldWMxdlNJX0hvWWlBVUozellESzBDbllyMkFlM3lDYU1uTnNEUnZnN2xGLXF3bEhpZGtoNEltOWlnfn4%3D&chksm=41bd413676cac8200fd0822463f9587100c0bec7e2adbce2d5b63615c9ae7bdfb8025a9aa671#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-04T06:20:56",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMRicibB84BUicTkQCC45saVnFAdkwzIZAeJuLIKvuebsVxlZec0xxuAWyE6ZzVZicSJdtfib1YuHf7R15arNnibRwvxmeZTcgGgFoxU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYksXnOt4fCjzBgGPVl-3XHrxYSB3wPvRubHRsBoamb5KY",
+      "title": "布罗代尔与《地中海》：一本改变了历史学写作的书",
+      "digest": "这本书的厚度不是重点。重点是它重新定义了历史学——从事件史到结构史，从英雄到地中海本身。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9jUWNWMGtVeEJycVFBb2xBbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGRSNUYtU3VYNU9YaVUzM3g4bzlBWjhOWmM5VTR0X19lSEJ6UUVDc01WRTNfN1h1VExEYWhLWVF6NTV0c3laMDdEaTRsanRLWGhveHZUXzdSREsyNFQxSEp4al9DeERhT09KTUVPNG1BRWxBfn4%3D&chksm=41bd413276cac8244a5a157a94cc500d51fd0afb3da698109164aa3a8656dc7a5a86a5875a05#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-04T06:20:38",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOObNs1upQjwpJ3fk3Z9hupgFDMm2wibFCh71Lu8l0mEE4RiaBvfTSicJkyx6cMe01LZ7ZJib0z8pbymazxntDBABqgmTElsbibCibiag/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpJaRNrOD8-6FUqKVzyfVOQyeoJDpXx1Pa7vLC7CPryK",
+      "title": "历史是什么：人类对历史本体的认识论演化",
+      "digest": "从神话到算法，两千年里人类对历史是什么的六种回答。每一种回答都是那个时代的自画像。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9KUUxJOU14aUNTck1vcmRlbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SzU1d01tTUkxMGh4UDBscVk4T21rakhEbmUzeG5XODlqNkNYazVsN0c1UTNqdktrTzlhczMzd1otRV9oWFBvOU1FU2o4ajNoakxqXzc3VE9kM055b3hhSS13SE00Uk5iM3hTYmFhWVlLazF3fn4%3D&chksm=41bd412f76cac83941bdb0cb4467055761832ab53aa2ac5c4e679827a9b9168134714b056c5b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T22:54:59",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOQtF9icOJiczq7JY86uvbicOjXeSkI42Hicpr2IB0GS1TibwGjHESjcibM4HzLCw7gtoycdia0sQUw9hI7O30behnatCgeSkgttOVZnY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvJRCnd0gsMxyMysvG2yjGG2i1HCY6_Q-Z63QdBZWwUN",
+      "title": "人类如何理解历史：历史本体论的认识论演化",
+      "digest": "从神话到大数据，两千多年来人类回答历史是什么的七个阶段。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV93RGUvMDRDbC9mWUxUY1BabDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TEhGVHVvQXI0WW1nMWFZQXQxRUxhMUFHZ0JsNXJreE85SF9VNzNkbmxDeE9Za2lLMWpPd1BzX1pGeTBnSmNGM20zYVZfcHZlbWc2RjlVQnByUmlPbWZtUlNhWnhfeXdSLTVKLXNlaUYzcGVRfn4%3D&chksm=41bd412a76cac83c7733fd63791537eb78921c5a1b3788da57ddac3ce626eb1ddfcc2bd1af8a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T22:54:58",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPOT7ia8khC1IHc38rc1ibIr3mFYCr4nUJvdXicJxTqtqmC6e2O5CzoLbh5ib1mM1c27vR1EIO5XCOFh9NnAJd2gLc7Q9u45ZlXD2U/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkiIGLHyOUbs5CQ5Hs4w-php1Zvhbbw104_8zpainrNu9",
+      "title": "外国人在上海：一百八十年的身份演变",
+      "digest": "从1843年的英国领事到2026年的外籍创业者。外国人在上海的身份演变，就是这座城市开放程度的晴雨表。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9UNVkzcldZRUh6eDJEc1I3bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjhMY2w0Vm5zUFJKNWxPMFFlTm5IM29KOWhPMHVBMzdJdTR6eWVzY2FGTmloTlBzbzlBOEp3Rm9UekJKcWJvT2FOVzNaYUl1UzJVX0Z3ZEpFOVdUTzc2eFc0Ulh4N2ljQzRvQUM1QVp1RExBfn4%3D&chksm=41bd412776cac83154779480f100c85a22a68beb2501ce88a03e4fcf4070d645c7d82b923c43#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T22:25:13",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOiamG5jGSmNia1l2TebicQqOx8YPHqnvKOibHogu6m13JSrNE8iahTEW9Egia7jIj2SR3Xh4Nt7PK0N4GlyKNM8c4nA7wpLENdm2gDA/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrvP0nh2-8UgpdCsj8o7BoEilfclb4qUdF_rogNSHz0Z",
+      "title": "外国人在上海：从26人到17万人的180年",
+      "digest": "1843年26个英国人，1942年15万，1970年只剩70人，今天超过17万。这不是外国人入境史，这是上海城市基因的演变史。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HN3c3VW5IaERCT1VYNWVkbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjF2U0VkZ0M1a2hVQ3czejhyQWoxdHQ2SzRBRXNiM2pFd3RJejBrOWRycWNmME9OdWxsb25tdmE0YkppOFBldnFNQWZ2aERLNzJFVjRPVkViZ1pwd0dGNEw1a3I4YjJhcUY0d2hadThkZzJBfn4%3D&chksm=41bd412276cac83401d380b10c504e49ff08107edc4c4e0e8543fd7ca96bf5e647127e203366#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T22:25:12",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdP7aX0wpjyXCk7sIAIP9wBzzZ3uqetyJMNlplOktLPDc8c75mNOg4A2CaS0YrPXSRKgJozicIoZ6RgytktLTFQwqMHL6q0VibWEw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkoKwJOKeg1YVCIpccbPJftu2w9H0xJfObskUIExzzyhY",
+      "title": "杭州做模型，上海搞应用：长三角AI产业链的分工逻辑",
+      "digest": "600家AI企业+2300家药企+146%融资增长，用数据和经济学解释为什么分工是必然。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9yRHZyNjZmRnk1VTR0eGYvbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2THBQUGl0Snd1cVVQZzJMZlFiaHRjbkxrSjdXTk9lSjM3WEJUcnIwcndHS0hzV2ZQOEtzWWVjQUQwWTBJTVN5TDE0cmpvM1YySFJWOWlsTFk3V2h3S0xUaW5VV2ZickVpOU9VNTl3bC1BakN3fn4%3D&chksm=41bd41fb76cac8ede16fa4eed5fac69a1b4239d94413e5f9c9466cdc2ee82724c6d6e437bd95#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T17:54:14",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNKrxoFPSemQ5Wg82P3tcFMgrg3ccTJ9XF4Eibs1db9bMS0WrgvVMDLujMzE7pulu5ty3Kkme4p9KFFicubibTsQbMZlVjr8EgFoc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrix9jFneTjPhSztKDviUfIU92FiDthXbKzs_eBNyDvd",
+      "title": "杭州做模型，上海搞应用：长三角AI产业链的分工逻辑",
+      "digest": "理解这条分工链上谁的利润率最高、谁的议价权最大、谁的现金流最稳，才是做科技金融的人真正需要搞清楚的东西。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9TTjczV2JMenl6cjVOaHFrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1NOYTVYVzQ5ZFhLTG9SS2hwQmhtbG1QWmlBRnFmOFhPYUh6UGNFbkxlbFdyb2tHYTJUZTZSWFkzQW5JQzFaV0VYdmttcllWdFpZdWZoNWlIbUtzY2VfN2wyLW1EQWpYRDBmNll5MzdXQ2h3fn4%3D&chksm=41bd41f776cac8e1fc38561b82ef57256b0363814cab5f0401e0eefc4285ea98d544a0476859#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T17:53:57",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOXqVyZyibiboL95TpsUic35Fj6OAzC8XxR0dibnPHY9J0YfUpsJdBdmcgPuibFwzkl7hgZlZeIr4syQTbLcjZhAmYb6HceQr0pQCwU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkp71xzo_PwYR0Lb8hs5Up-Inh-kY8AD3ylpnz5DGyhlP",
+      "title": "双城记：上海和杭州正在形成类似\"硅谷+旧金山\"的分工",
+      "digest": "一个做模型，一个做应用。两座城市各自练了二十年的肌肉记忆，不是偶然，是最优分工。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9oMlN1WVdhYkNLcjIwbDUrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3BsYzlRX0ZDTHk4Z1pNODBQVXdEMzctSW9xZ0hWVUJRNzE1VDh5R2VyTkR1REpPLXpSempjVUhWZWVFOC1qVVhBMEF3S0RQcTgtTnIxUkZhY3JCM2Y5ZGRnUXd6UmdCWThpbENtWEtaR0Nnfn4%3D&chksm=41bd41f376cac8e50609886efeadd46f57a974406a179cc491e40c6bfe29e7f7f0303bb48b78#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T17:41:01",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPibPIsawUW2PLuXm92A7icN2xdCf7BmuvKaadX9eU4GlYhSfMicqgYBf4Zpnj4JibDe2WpSdkreRe3BX02deoPHNDKQ8wwcdmLyibY/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklfzGiWBjIQ2J05iui8GdeOS1aXjSyB_dr0pXdIRlzrW",
+      "title": "杭州做模型，上海搞应用：长三角AI产业链的分工逻辑",
+      "digest": "杭州做模型，上海搞应用——不是谁规划的，是自己长出来的。一个正在发生的产业地理重组，和一个银行从业者的一线观察。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9VOGt2UXp0QUdjQ241NVpSbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2FIb2h1ZXBKZGk1dFJBNUN2dFdkbjMwZ05XdVU3WDZhYktIbTNIQ01vVWp2c1otbXpoOUZ1NTF1MmxHdDh5Z3NJd2tjbkFfVnZGSWhmR1dSSlBXS2RVcFY0cEtYSkg5RDRIUHM3blprTE9Bfn4%3D&chksm=41bd41ef76cac8f99cd2a9fe4734a7d0268d6d2730f43669fe6caa15f115ad294c148b7042d2#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T17:07:32",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOhicEoR9FR06BDqD7RtY9TvENnV9qQWWXEPyF8sgy7BzU18jAEqBTvofdkJAklia00rzweO5HJfeCESlPHzpUVqoHzk0mwdIylE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkgJAPdcf64n8EM652buSXWVHwVTPW3MQfg8KGMZ1LMEp",
+      "title": "本地大模型工程化：从安装到框架使用的完整指南",
+      "digest": "不是教你怎么下载模型。是教你怎么把它用起来，变成每天都能用的工程化工具。从硬件选型→Ollama安装→调参配置→API封装→RAG→完整框架。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9WbmZ0bXBvRjNUcGJtMEUrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TFZuUGFOSDVhZ2dnSThob2hTZEljWGVtQ0RoeW9IaHdyb0RqODJNcElTeU40eGV5bm5vV3ZPQWNXbmhKaWdJeDVuNkdwSTM0eHB2YzVrMEZjOWtoR0dQSkZoTE4zbW1jNURHSGYxamVqVE1Rfn4%3D&chksm=41bd41c776cac8d1118707f7bb8158628fd86df2f928f2c3e23c7cfeffb4a6c7ce0e85a98285#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T13:57:03",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNxR38MVcDYRcIIO1PiaxGNwbpMbMgGhicS3Wxria3x7U3AZITegLCAWKXic0ynkFPJwxvQov0ms59L4eYoRg4qVIvicJDtQfu79Y5U/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYksaiL771nLZyOWhXt6kTdY5GpFcVT1_5DxP0cZNKweih",
+      "title": "从装一个本地大模型，到搭一套工程化框架",
+      "digest": "从Ollama一句话安装到完整RAG系统，六个阶段逐步进阶。2026年本地跑模型，90%的日常任务完全够用。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV93RS80cHRBT2ttek5tMkZubDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SndSR0RyMDhuQnQwMHNiVFlkUkZRemoyR0JyRllVMGF6MWZfMlNpUnlXdHZjSER2cVdKZlFDX1RSTzZ4VlZqblFBclhCNTVBYlVYNEcxemRFRTNBTlJ1SjU4RGtNQVZTUzhzdF90bmZEU21nfn4%3D&chksm=41bd41c376cac8d5406e4533da092d34e9b16b126b626aa7a7a5808bb22ff2c062376311f739#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T13:56:51",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPyGBibiay7etX2JuTNECibVWklKiaXQetIibCGk6Y4j1y99kymicXbdzYKgOV1jNiaMfFmz609KMUyooWyHKWmHKwBGpuY0RoRhKSENk/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknoX2Y0pBrvwhl7KiRufcz98e_qXDcgnZay7Y3pphmqZ",
+      "title": "上海烧烤史：从两毛钱一串到深夜食堂的三十年",
+      "digest": "从1980年代新疆人带来的两毛钱一串羊肉串，到人均800元的日式烧鸟。上海烧烤三十年，是一部城市夜晚的记忆切片。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9GN0pwcWhId2Y2bjJySkxqbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SjZLc0JEY2N1V2dIZzFmWjQzMW5jOVlnRHpreUpGeTJSS1hWb3pLN2h2ckkxTURuVGlPVkwtWUtEVG5UVzExSUFNVHNMRlZPSm5KZ091dk0yaFdFN1QtNlpQUENVWk9XcE9uNld4OFpGQ2RBfn4%3D&chksm=41bd41bb76cac8adef6da5650fe7f79be73b921718c4f21067f0aa8ea88fcf9f648379f208a0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T13:17:15",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdM30W3qqXc9bnDLMmIoze97KlycXuBibjNUf6icIibOVnTWgdouF1XbxjT7hUZM31QUGy8uFD5UXiakdbT3fxz3MQ0aqicCHml9NFu8/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknJ889wxXkW8L4P7IzRzqlYil0tWIYItmERPyikF4W2R",
+      "title": "上海烧烤史：从两毛钱一串到深夜食堂的三十年",
+      "digest": "从1980年代新疆人带来的两毛钱一串羊肉串，到人均800元的日式烧鸟。上海烧烤三十年，是一部城市夜晚的记忆切片。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9CMTU2VXkramc4SUNScGpUbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SldROWxkdU5mbTZKZ1F2RmRzWXhwTkVma2JfUWdWVnBKekc4V2RXN1BMMjhUNC00QmtwRU9mMWNHQmo4aGVIaXd1RHMxX0FqS2h0ZUhJMWRHUGhKRm0yRUlud0lCcVFudGo0N0c4YXpTWjNRfn4%3D&chksm=41bd41b776cac8a1396d8faf9e16a23ce2019b18a6c94176ebd881d4af3caaeb74de33cf011b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T13:14:59",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPdIgd2BQQWjNia7Cc7JWTI6SicbDfdWUtenVyhvJibLKr8hQciaXOrwzqO3WAvM2Wpx2fibevJKnEBGKicReB6icheYZ7Cic8M5IQliaIc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmXSTxqCJmJxqH7a_nlecOZ1YFBchsM6GL2dZnR72-YB",
+      "title": "上海烧烤史：从两毛钱一串到深夜食堂的三十年",
+      "digest": "从1980年代新疆人带来的两毛钱一串羊肉串，到人均800元的日式烧鸟。上海烧烤三十年，是一部城市夜晚的记忆切片。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV96cG9yVjJkUWh1UldDV3pPbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SUU3VWVjdHc2cWNJVW9ZUFZmd0xNeEdZYlp4NGVTV3lJUlFHc05zUDJINHBCSEFPSTN3OHRVb3pURThBVFc1aEdnNjV4dVQyekEzQW8zUzIzRDJkRmVrSVFnTmVBc3hBUVNjOUl4Z3EzdWlBfn4%3D&chksm=41bd41af76cac8b90b294abfb0eedbc9bab5bcff8390a980045985ade2246d4193ea185aa983#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T13:13:00",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdPEcNzhkBz1wVH8icKbLl4RvuEK1uScYdnbljibViaBL8SvmZ7evADnubNwrm8gTSmebgXAohianfSic11uSsOgic1wMwOUaicRPPKmb4/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknyYVwJHrmgpdSnF-hZU10aY9ycTh0rkbTKW3p2OVDU7",
+      "title": "AI产业链价值重构：应用层·数据层·分发层",
+      "digest": "AI价值重心正从模型层和芯片层向应用层/数据层/分发层迁移。三层全球合计,000亿+市场，A股30-40家标的深度分析。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV95dU96dHZGZFNMeEFLTkc4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SUxpRFlWOU1NVFpfYUY2bVFvTDhHZ3lqT0E1WUJ1LXpzQi02R2NYUkcyYmF2b1hDbmNpNHgtMnRRM1BTQUY0LWNJbThfSmxyNF9OX3lnUm1TT1gzdHFzaTdWYXJodkVBd3FNY0YxY2U3UFBBfn4%3D&chksm=41bd419b76cac88d0a18e5357240fa616f22274e27ef4aed005cfa548406f8eb8048291ce48f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-03T08:50:11",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNsoL1GlctcXET0KxZfM8X8xibNdv1iabOYO2ZoP99mcesfO1UsvhnwGg1UgU5vibqkCZNN8UohGrP6yQgZE4dV2ZLuNr4miccWjDs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkl6PWMn5pseI_n0OH7_9SCjmH-PnzSdYpejsbUxL7NK5",
+      "title": "几本可以慢慢读的哲学书",
+      "digest": "有些书只想被你读一次，有些书愿意被你读很多次。后者不多",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9qU3dqYkhJdGxZdzZlanBZbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVU3TzFZUWFXQlM5UkZoV0U0LUxIdklvNkdzOEx3RFZWNmlNc1NBMFB4aWphY1ExeDM1eTl2ZnZFZzdQUF9zemJHX3owRHA5YmY2YkJVQjItMEIxTTg4d01HSkQ0RG9pU01leUNoVHVqcEhBfn4%3D&chksm=41bd46df76cacfc9a957ed6d6b80fdb4e41d9ce17444dd5e344865ce7b1deffdafdca9a63dc4#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T08:11:54",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOzgXCM3iabIXCJkyVt6kfBMrWNFtbD3ohxozgpU7ZyJKwy6MibTZ0SFicTFjyFN67v9hFXMXVOFp13iaRQ7b1Q2HfBwOVe1cK5LFc/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYknXo2s0EyZbTaSl2gqQWqakKe1eCCSX5_-K03wGnLteJ",
+      "title": "一个人的申辩",
+      "digest": "苏格拉底在法庭上说：好人不会被伤害，无论是生前还是死后。说完他喝下了毒酒",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8wUjg4Z2QwMXpib2VLQU53bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWhlWFItV2R3QjVJeExwak9jWmt1WFVwX3Rxd3NDM0FqUEpDNFI1b1BtZDY2d2JIVm43aGtrYVpBMmhDNVF5aFlGcFg4LUNWVzdoUnJxRlB1a0ljWGxTb0ViM3VEaDhiUFhkWlA5VnlOV2pRfn4%3D&chksm=41bd46db76cacfcd0f3fd46150ae170fb75c8c51450b069f5e2c5c5a8bff4a5bf9d845e7b378#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T06:35:27",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMgXwMuPicRJPcFsVWwcrxw4AaOgETicZbslGv4dibzpfqibfnI2wZiace6d2dwrltgxOiaUibko1iblUuiaia0Izg4VN3QTKBfMmvZKfxOw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkprBcl8Hc-Svsj9dRCSCsnySZnCoPKWRoSI8xtLuB07b",
+      "title": "值得读十遍的书",
+      "digest": "卡尔维诺说过：经典不是你正在读的书，而是你正在重读的书",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV91QStLakxaa2hPUkpvME5LbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2ZDS3YtS0JKZUg0Y1AzbzJaczdMNDljZDlTQm95UXZNQUNWaVVXVC1rZVNNbUlBTk5sUmx0eXhBeHpmWEptbW5GYTcyVHpkYWdZaDJiZ29qUFUtSk55Q1pqTy1nZVpqUUNOVFBSVUlONUhBfn4%3D&chksm=41bd46d776cacfc106b834d56b7e29dce33772a7b53cb07552360241babb0b97a49d17b2075b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T06:28:20",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOQOUfgcYGrrxL2SYWcx6FEmYdTlicBcBCicdjhPltdDT0Av8sUic3VCfiakOZKQKEm88DiaUgEcmk1B3FumxrS2hGVZHq2n3Z4epTs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkj9-W-avywYATQQM6xdgH81jrjWsv2SKZlRJnO8jyIiN",
+      "title": "库恩《科学革命的结构》与AI：范式转换正在我们眼前发生",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9RNHROMXgzMVpObUtDSWEzbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SWdXbE9VWWhlTlYzcHFLVkVYRWZlYWlDaUdQOUJkcUhHQ0dOWWE5ckhpclI2VUZNMHNpYTBTdEkxOGdFUlc4Xzd4dGJjRnBKX1VDdXpWdzdBWFVpZGxrNGpxcVdLRXFRTlZsRUVnQ3I3RDhBfn4%3D&chksm=41bd4ac776cac3d1c9205c5af35cc2fa9daccd919d292440950578e02146df32ccea5e4d176e#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T06:04:21",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN8c2VBYlic5ZgoTgYwk1093c8ed6ycDVWhp7ibNe7iaEkgsxKhCvsVkxq0pMtNdxMRJNIegEtnEwRK0V2y0J1fe6BHAwuZUUl3Ck/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkj2lJ-M52gaqk9Sxzr2v5oukD7XTFOarqTEdzhVZSmqZ",
+      "title": "spec：一个本地运行的社交AI应用，自动追踪所有社交关系",
+      "digest": "本地运行的关系管家AI，自动追踪社交动态，不用再记谁上次聊了什么",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9JbDdDYmlLajdkS29xeWR4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDNHY1ZqdWpqalo2ZU5CcnRyUHl5aTF1UGEzb1F2TUpObGZFNGRHTnR6TFZvSFo0YUtfVHNuTWh6NnpuRWtmaXYyQUVQR0lpNDFMNzBYS0txc21sS21qRWJfVi13SDltakJPWThyTVhNMEx3fn4%3D&chksm=41bd46cb76cacfdd6cda6640635260b4713b5c7784da5d3375b0e0e3949c838ea7bd96d201a8#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T06:01:00",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNZf7e6yKYSaRF1SQibSE3aSRCpy2bsK5nibictzyvplSBicBITC5s2ezQ07TKycJDhDlZM4Eq7icLia5cZElxAqUWUSr3zLp9xhLfck/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYksD8ekAClDOU7Ucx1nFyk0lQgwy9vq29xe5YXdx2ZIUL",
+      "title": "被申辩的人是你——重读《苏格拉底的申辩》",
+      "digest": "他不是在辩护，而是在用死亡完成哲学论证。一百页的小书，合上之后才开始工作",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9mWW5saGpVZWorc1lQcEQzbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2RqcVBaRlhYYkRUaFZXT1JGQnoxSlktZU5yNnlTY1RGMWNTdUwtVzluSzdyY1FmQmJPRTFVYTZUQVVsd1RVaUwySkhxV1hfOHpLa1BzZi00b1NYenkyVTB4WDc4bVdrVVBaYWtYN0RYRV9Rfn4%3D&chksm=41bd46d376cacfc54dd0363d0377f7ee5bf064dc6dfb1a4b6ce153da3f9c00c4c184480dd371#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-02T05:49:11",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMxM0LknJCE6OHcGqW9pljqqLqXkxTt8HcPEtA731ryIicVx3w2icDOCdSlibafMEcYrVQmmeKvIz42wlkuHtNSaiaKPt4qAC0EzXU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkg9v8v2edVL0VRGWvI_1sK6iLFHy57xC5HtudvvzIBPK",
+      "title": "合肥创投深度研究：4000亿产业投资生态的机遇与风险",
+      "digest": "合肥创投生态管理总规模超4000亿、孵化46家上市企业。从银行科技金融视角出发，深度分析合作机会与风险边界",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HeTM1Y2lzRlRBV2x2WWp2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2t3UG9JOFRyRG1aY3p5czNDRmw3REdJOXhHY1VnLTBlWXliWG9BQXZOTVVuLUhSSmxuWncxMlhKWmFfMHBTczk1aWprbWRWR3pkLTNaWVpHOF9fdHQ0V0ZtQUI4UXA4YWlldzhFRmlPUk93fn4%3D&chksm=41bd46cf76cacfd9cb3139dfe72e881d0c28c366e1086324cb5212e9e2a16f944319c47fd17a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-07-01T21:39:57",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOx9iaXQaP9u349yTHmCGHweS06uN5RkWMVDMX3aWEIuS0CkgoPVeVhlsDDdtcADLvw3SH1m6VU1GH6KMRvPY8bDSX83BgkV6pw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjuLYpYR5zC1aaqr85BpFF-3tUeqK5RDc1c7A46HyjNK",
+      "title": "AI时代最稀缺的能力，叫判断力",
+      "digest": "历史·哲学·文学·艺术·AI——五条线的品味梳理，指向同一个答案",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9JSjkxbmE2M2dMK3Yrc0NybDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2xzTHotV0N6Tmp6ZGU1bW9ybmtmNGFjMTNXcFR6clM3b3lUX1lQRDBzbmlTRFltcFBWc00xallHcGpFQW1PUU1iNTVCTURLT0E2NFN5MDh4VVdZWm9vM1RZbmFPWGh0OXNxWmNteE5DLWF3fn4%3D&chksm=41bd476276cace7491827ca5fb323766d00e7a15612aeeec4cb65561de307c0ac8810ea5aab0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-28T23:23:18",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNOt9bHKvsvvAarBMlBwMKc1QRxZ9VJrWF5GwOPtgZEAG0YfdLfBKhz8XtiaMbR5BVAwWVht7XzPo7u9crxdER5nqq7afBdqnia0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkofkLx_5EmplwLwBlAhrwj8htaAEYiV9lKU16gtDsZLd",
+      "title": "万历十五年：被高估的张居正与被低估的申时行",
+      "digest": "张居正执政十年各地税额没有调整。申时行的阴阳理论和打滚哲学才是全书最大遗产。万历十五年卖四十年不是因为准确预言明朝，而是因为它描写的困境根本就不是明朝的。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV92bXc5ZXYwcWtRUW1kZDZ2bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TEcxM2c0QndMamVYU2RfOVQ1cGxGNmFXMnVvajJzOXIwUXhVcnJwVWR6Rl9xUXpDLU9IRGJhV3VIWVJpSEJTOHF1T1dNd0o4UkRZakZ4a1Mzb0s1UUZIaF9RT1JrUG53UUZaMWdUdUh6aHhnfn4%3D&chksm=41bd472476cace321093a93e2bf14cce9c0eae4db7e3c73aa20d314a05e150f94d64d9108dab#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-27T06:50:39",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdM0a0Wb3xzX4GGrBiae1Nu4nOE63icoHvRvMRHc3o2nvAgtnbiaMXyzJcbIXJC1KHTUcIF2ibV4cZiaPzrQkR6fBl0pvbZJGfJrAayE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrERKcRR0vxStSoJYBqYCA2FXb36u3A_ZuHXjD37Q5mF",
+      "title": "万历十五年与2026——黄仁宇四百年前预言了AI时代的困境",
+      "digest": "1587年无事，2026年也无事。黄仁宇说一个系统最危险的时刻不是巨变时，而是所有人都觉得没什么大事的时候。数目字管理、张居正改革、海瑞与戚继光——每一段都在说AI时代。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9VdzJnWmszRmsyaStuQWxRbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SmdtcEI3YjVQOW9veTlqaHdhdFgwTmh6eVN6MUhReHMyd0hRaklqYktKUGs1czR6MHBpV1MxelUtLXItYkVpdU8wdm5QeTl6SFk2cTZiOWJZVEFxeWZWRlQ2bGhfNnplVlNDY0NWZzItRS13fn4%3D&chksm=41bd472076cace367eaa4c7069e1e66db475151a74a92bfff85455b7cf0c7d1118b092a232fb#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-27T06:47:22",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNv5D2ZEtkiczkNcQckfvInhKWyNBVlzJFiaVtcWgibBHy82N3nrDgiaUWYnsEvNlf9kVY13dumibyPyDY0MRzQHmwnKETMjqETWaSw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjL2U9kZgS4VWSoVKX4nCnR07LaSdGV2hHqbelIEG0Qm",
+      "title": "星际穿越与AI的底层对话",
+      "digest": "《星际穿越》十年后再看，看到的是人类智能与机器智能之间那场跨越维度的对话。书架矩阵与Transformer、引力与Prompt、塔斯的数据与人类的信任——一场关于AI的深层隐喻。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8zOG85SWZSNFJ6YlV5cGNpbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVZzT1VRM2lHVGluV0ZHRE9iN3A5SWZBZ2tuSmNpbzVXRGk0UC15Z2JOR1hKRnJhRnpKanAxN3pyT2NsWGQ2d0IycWpWZzRQbUEzc3RyUGFQWkFZMGd1T19adlktdmFwN1NlODRwQ1dFRGVnfn4%3D&chksm=41bd471476cace02de58d0dd7e6191d2419bd3e6acaa483488ace431b91e1d33d58db1d85786#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-27T05:17:43",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdNIIu5rjZkK1785J0ujYUoK46rsYwAecbqvxpwXhKc5iavH67Rs1ibibCefBpo5YQy1Wkg3iaWj12hryXiaiaCflqODoBqHDkXYXBRpI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYko00zVvDSLBuX1QRP2WxRV3V5xVPfEfxlU5HaXWQf5fZ",
+      "title": "手搓一个大模型：原理、步骤与后续迭代",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9OQVJ0dERXU1huQ0pNeThrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3VpbFFkLThlczFoUzdPRWZjTF9vY1RVdXRpSXBtR2ZYZEJ0RGpISmdLZWd6ZW44RWZMRkJzQmxiLTg4aFBseF9OUTFQNHdKZUVVRjg4N21sTjJ4Ty1QQ01wMUlTVHdjb2lPbzBLbU1iS1N3fn4%3D&chksm=41bd479a76cace8ce0059df3d357401dbde70b42763cef4339b8913eb2a9346d011de0134691#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-27T05:01:46",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOPCJn96Q4HvBch8AaUW0GkPmeL3B273vY9NcRksKaYUltiaLYaH1iaiae1xLicgFhKRqIWaHs8iaTd7icLH5d96uAcPhbbp8XLmbdbs/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjMdWNt0V2m62C_uqp2FVjesttUIHO4OINhio5WIFvp0",
+      "title": "AI入门(2/5)：ChatGPT的核心只有一行公式",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9YazY2Qlc2UHFzOVFGb1pJbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TGxQSkVaM3Y3NWdNZ1FCX3VJV3NUMFpWZVE1QXdsUW04aWkycGFCTjBoQXFmVGhYcUs0MFNyZlR0cl9wcHVac200MnhGT1RYQVZJQmpUOWdrbjU0eG1jcU96Ni15ajBJYm5JZEVhME1pUmV3fn4%3D&chksm=41bd4a8976cac39fe60bbbbadd3e02c8c4d9bbb3129c4d0b98ce912fabeb8cafc6fe086da208#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-27T05:00:52",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN18xibXw9dYcIWI5E7fFz0dNGBu6JZVCeFLMgFy5ljrRJoR8SNEokb0O23oxrxmzDoERNArIia7QVWkpItwVoicLvL22cqUFcDJQ/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkrJ5htf3CpAq78HPO6wWaKARQTlUteNAinsAK75Nywow",
+      "title": "从零实现一个大模型：五层知识体系",
+      "digest": "从数学地基到推理优化——搭建大模型需要的全部理论知识，一张地图讲清楚。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9DQlZMVmMxb1Z2bE5QaC9TbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3JKbFp5RnN6cDVxeVB2THlRcnBOTjB4bzlLNzBqaXdrLU9GUEpDWHBWcGI3MzhJSlgtaTNGWHp1Tm51dGJSdTl4TlNlQ25sekczZkIzdUdEZjlHeEdJWGk2TWFXYmdvdFZpMlJCNFdUS2dRfn4%3D&chksm=41bd47c876cacede8b1086942ddf320c932fe5b8700c2ecbea6615e1adfb676b2d3ea9d564c2#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-25T17:51:47",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdPibTo00bN0qZdJxuib7zN7w9ngmaXeBXkPCIcGUo4biabsyfYrFfy7TWKaD2ogU78wqY3BNr3f8VemictqoTAxTEcc9bkic8iadoM4A/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkhjbF71xnWPMZFnwLGCH1jlaYlMyoDQbJ8gfS5uPNt1M",
+      "title": "CPO产业时间线：从百亿到千亿，光互联的四年跃迁",
+      "digest": "2024 Broadcom出货→2025 NVIDIA入局→2026超越茅台→2027规模放量。CPO产业完整时间线与易中天三股走势。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9UeGFyYjlmZWk2OHYzU3JTbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2Smg2WmdzNktGT0RMbjhyQURDeHBSYzRBay10dVRmbmRYYjN3SHdnNm1GRU5OSUtkMjlsMEU4cWwtZjZwWFBmY1hHTkdkaUg1Z3FIbHVkaFg1dlNVamVpTXR0dUNsbVVHcmNjRVpDWURmdWV3fn4%3D&chksm=41bd47c476caced28001f0140ecee32b3e4863e8f250cc3442763bb30c84eff644c2187791d0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-25T17:44:51",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMDBf6PaNzoaGBTEUPeL6X4bCwY9LswTAC30qGjepGHdWCMXZdebvwEoyAX7rdlBULGYfib72K6a6QxnqBzZcYjhLR3WibglVGVo/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvxdLqIuGTkzj4fbE_ebcyAaJRLA4e4LwohhsDVdW9b8",
+      "title": "证券行业深度研究：大并购+大分化+大转型",
+      "digest": "佣金率年降20%跌破万1.73, 四成券商破净——证券行业正经历从'通道商'到'资产管理者'的根本转型。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9ON3IycldBL1RES1U5cllTbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDBDLTVWdmd0azE5ZzVUdnFjd0pSX0NOdEtVSmg5NS1OTjdRU2s3Rk1xQzlVN2VIa0ZNblJTemlyUVdhazAzQjEtZ0ZhVkxNNUs2ckhQUzhXWnZFcVoyMERUd3h3alk4RWFWZUtzV0NVVF9Rfn4%3D&chksm=41bd47b576cacea389c7d1402cf6e01da56530db1278ac1b702bbe12be9215971366cea86da0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-25T13:23:18",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdOma4ZMOotCDxe8uFSOvwfHQhMXdyWyyvRZyFSib9IaiaspYUK2APN57k1q55MUCwbaVdMNicgCgvyEr1RarjN8rUuCx7xAwlgD8M/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkiDsLa1cIiK3O50cnSnPICVTBVqqmcpnqWG2fKTGGl6v",
+      "title": "从零实现一个大模型：五层知识体系",
+      "digest": "从数学地基到推理优化——搭建大模型需要的全部理论知识，一张地图讲清楚。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9CVUMzSC8vZzlYYWJmZGU4bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SnBIYUQyU05Ka2ozalYzUmlTa3BIZFpCN1RhVWV0dE4zZ3pxbVVCQndFWkIzbVcxdmlwbTBZNFd6QklhVE1uUlhUbW13STVIenFvMi1oNER5bkdLeC1RQ0p4Wm0tUUFHTEZESVh2MXMwYWZ3fn4%3D&chksm=41bd47b976caceaf92ff57c3f0c534c301c25688373407433bf01953956d68ca28f372ae792c#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-25T13:22:43",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOsiaM87SYEXkFEKlv8dDGbpEibQwbHY62hzmSq7niaiaicicE0McZDIVkCWSsehFVbHmIsoKcS28yhR1MsQfZSg2D7Cwcr4YoE2ia7KU/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYku5Zow2Je9P81K4MAIQoI-8IVZxJoCgUma1G4myX3TIU",
+      "title": "萨特《存在与虚无》与AI：自由是不是智能的终极形式",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9KRTBMUkJZbnNFL0wyUDJSbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVd4VllQdlcwYzhjRXdISC1fS0RhSHVPQTM3UGlpNmFtZkdYcUN4WEZ0VmxocVRZOXJNSjFVR3JlZkxsdXB2RklucFpXRWRWazhYVzlaSjliUUVOOUdRZWJNWl9QVUo2ZUNtY1hOS2lYZDNRfn4%3D&chksm=41bd4acf76cac3d99de32e7e0f7e3ee63b269b4e3e737298d200622749996203b5fa342f8afd#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-23T17:29:36",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMMsia5KC50Nu1IUuhIpu0IapdGuO6O88UlrxsrjRtSqXXMMFwGze8IxPdDh6iaE9KwxGdQm3ibkNBZBQ2eLFjUE6ZcB9ZMgqk2bE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkpQ5FhiU_-mGOfmLreMQx50kxW-N6XXZC5Y3ox_eAByp",
+      "title": "波普尔《科学发现的逻辑》与AI：我们如何知道一个模型是正确的",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV83WHl2djY2SVlQeUhqNnJ3bDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVJuZXZ2bFliOXhOa2tOZFRXc0ZyWV9KQzdwZDRvTzhqblhUd01aaTZycGI3Qk90LUdobmNsNS1vcjFvQ1JSNFdpRHdPdUh2bE9GM2ZjYmYxbjM4bHBVcDN0U0YyZTJhX0FyZ1hFYnFjZEp3fn4%3D&chksm=41bd4acb76cac3dd9b9b7d67413a9c67d94ba57a80d73f4e5665f9e716f66401d8f8c2f73dc0#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T15:08:21",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdOaHGLPMpJHQrebFIPZJ4L4jk5CxxSu0APfJKW5DITibQm1mT0RHpZRXaZws7FNoJkqMb2V0dOvXAWdP5Hgp9XltbQ85glkm3DI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkkndlgq6yaA9KiSHp9G9v_LNCem2Eh8rm4B_MQ-GvlFZ",
+      "title": "AI入门(1/5)：AI不是魔法——是函数",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8xMS84L0ZaZ21hV2I0RTYrbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SVBiWGZOa01lQXA0ZGZRSTZROG5LMjFCU2RNVTFFQ2huRVBhWldVdnAxQzFxTjZuNmJnb1A0OFdfdWUxOURwd2pobDdIVnV1UlE5M0ZpQlZ0R1o5VTdsME84cHM1d3lmUWJLZGZ5WmtBV1V3fn4%3D&chksm=41bd4a8576cac3938ccc3d2b76d7360f3663fa405ce7d23b29427f6debdfc5318c8d1050fd2f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T12:45:27",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdN7j1nFBQ7pcscmjphnb9Wjn1fibtldF2d7kC9MOeCF9BCvpSXia7qLrnyVjLia2E9eYvW2ZVECibovGD0XnBjht3bKebvYEtcWgLE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkjhEuaRxjbVWajGDv5QpvDplSaQhDGub9uxfPgL_WzmO",
+      "title": "AI入门(5/5)：大三了，该走哪条路",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8rbXYxSW1UT2dxZ2czL2NIbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S1NnV1k4UWMwY3NOSFBsQU1UcTl1MXpkWkxDM1NyeWNuZ0UtTFhrTExDY3BsdzBHNXhDeGs0MHViaHRTTTBaVG5QTFpaS2l6Zi1GLTFGcWYwTkg5V0htbEFVeXBDeG5NYUc4cVZSVm5IU2lRfn4%3D&chksm=41bd4a9576cac38384b7b55e6c4996bee08e03b7475f6bf513169c7bbd58d952577dddbfb98d#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T11:31:52",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdNuiaicqNzWdBu0kmbQB6tAHYA8A37NxHSz2ARj297GNFsyrcZbeA3t3RSASx487X1wlhkNSZDy8qLAaJKgWYAE8BcaqXJJzx7K0/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkqdejRXGaQJuabSXJSWmxN0cCAXnxIZGrExXWEYqbO4P",
+      "title": "AI入门(4/5)：学数学到底有没有用",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9HOXl4dThueGtVVTQ3eUVCbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2SUxLWkxMSkpIdEo4ejNhRHBmS1FhdTJ2cF9rTGoxTWNNajRmc2lvNVFiWDBCZ0dmTjJkZHBJOWU0SzJOc0xYV241Nml2bm5oZ05QYWdGX1hBc0xpNlNURkNZMjNxV0xWa0xfazJ3dTJESXZnfn4%3D&chksm=41bd4a9176cac387960acf1bd34158ddfb87c4798f5afd31b07fbafc1a26cd50ea285602953b#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T11:31:25",
+      "thumb_url": "http://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdP42E1nX7aw2Vbr9A8vzuLMplX8qdCNI21HeNW0QBiaxtOtjP2WI1hpaKC2ia0MndcbLicdIW7PvJxehy6ohuHql67vxuF7L5I7RI/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkvGdOo224fLImuWAGlPCJFClooJEOFzhcHXvJY_N1VuG",
+      "title": "AI入门(3/5)：大模型是怎么教出来的",
+      "digest": "行业深度研究报告",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV8ydEZHMGxaUUptbkRrVEFKbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S2ZuRDlmM19fNUdpQ2tCdGc5OHpxWDhjbUlWRHh1VVRQZzk5amFTalFNYWMyNS15U1FXeDZVNHFwMWZjdmRDQ290SUVlbGt5SjF0alRseVRSMktzaWVqYjc0VENseDBKNnphRS05UTJueHJBfn4%3D&chksm=41bd4a8d76cac39b7f4e168a6ecdc5727449494683265faaf6b25ec88468abdc87b05905b82f#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T11:30:58",
+      "thumb_url": "http://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdN4yJcmMic7sIu43B6JFEBf7BAPHgYWDgicQTDA5eXvupjD3Tmcq4BJOq1HDbYeCkvY5HI6Boez8awHHNFrNxOzGiakmqvMHFzYOw/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYklCpp5MwjBUDo5mMSZ0PjRgMZSiBSh7HefHl66NStkFS",
+      "title": "压缩即智能？——一个美丽假说的裂缝与边界",
+      "digest": "Ilya Sutskever的命题很美，但作为AI从业者，你有权知道它在哪里成立、在哪里崩塌。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9TaDhuM3hwbHlJRWRGTlVabDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2TDdraXA0d0dLY1M2T0FFREdfTDRtQXFvYU5vNm5PbHFWNkNSRV90d0tlb19Bb1F1Vmw1eHRBQzJ1RE9IelQ0X3c5Ti1ST3hGcXJZaVR1b3lzd2RBU1AxWEdib1hNczdXdnVGY2I2WWtvZmNBfn4%3D&chksm=41bd4b1b76cac20d289f0526912abe166ea7d0623746bbea537e5a72dcbdace6636e2d01224a#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-19T08:43:57",
+      "thumb_url": "https://mmbiz.qpic.cn/sz_mmbiz_jpg/HHU0pBtDtdMnVN0Fx3Z5O58o5Zw10W9IYczqH0DIZsgiby7l2SAibqWU8TGwyO92dmUwjB4odISQxN26U8HvgfMxiamO64AlWQemmSMA5duxsE/0?wx_fmt=jpeg"
+    },
+    {
+      "media_id": "4zrr4mecN-nHp1le4dPYkmX3WrrkigyKpYF4Jv15F7S4EI41W5eaJnAH8UZ2bX5P",
+      "title": "上海产业园区：八大园区深度对比",
+      "digest": "上海八大产业园区呈现三核引领、五区协同的格局：张江1.3万亿营收领跑IC与生物医药，临港4518亿产值代表制造增长极，漕河泾6933亿营收连接研发与量产，但全市产业园空置率31.9%且连续14季度上行——银行科技金融的机遇与系统性风险并存。",
+      "url": "http://mp.weixin.qq.com/s?__biz=MzkxNzc0MDc4MA==&tempkey=MTM4NV9udzRXUjFET2szc25OWlNmbDZVTW96T0dFLWwwQzUwZWJTXzlsRXBicjlaenZLZ3VJWE9PSUJRckc2S3pLdC1IeURLZU1BUjYwR25fck0zbTJsUkRORWtsUHFTTkRQVmJrOVgzZXZOeHd4UmIxNDFZN3J6dFc5WV93QnZfTWJvb2NHQ3JQRUdYb2hxb2Z5Yy1KSGpIM3pianZXd2kyOUQzUzBDTlVRfn4%3D&chksm=41bd4bc376cac2d536f2848863d8e028682a410e03ea1b5e7196902fe774f3393df3903b50ea#rd",
+      "author": "陈颖芳",
+      "pub_date": "2026-06-18T12:30:32",
+      "thumb_url": "https://mmbiz.qpic.cn/mmbiz_jpg/HHU0pBtDtdMCDia7NGzcNdavsjBT7wURVqqj8ef1CQGI3RXA0V8YoDAGa968L9kHsxVyLGkLB5RElUUS7d6mwcsttDyeflicAosKXBiag0fvLk/0?wx_fmt=jpeg"
+    }
+  ]
+}

@@ -86,5 +86,6 @@ async function testE2EOnboarding(mp) {
 
 module.exports = {
   name: 'E2E-1: Onboarding 完整提交流程(3联系人+3种关系类型)',
+  mutates: true,
   fn: testE2EOnboarding,
 };

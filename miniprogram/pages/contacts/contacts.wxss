@@ -179,6 +179,17 @@
   color: #C96442;
 }
 
+.tab-item-network {
+  background: #F5F4EE;
+  border-style: dashed;
+}
+.tab-item-network .tab-text {
+  color: #6B6860;
+}
+.tab-item-network:active {
+  background: #EDEBE3;
+}
+
 .tab-meta {
   margin-top: 2rpx;
 }
@@ -267,4 +278,61 @@
 .load-more {
   text-align: center;
   padding: 32rpx 0;
+}
+
+/* ── 粘贴文本弹窗 ── */
+.paste-textarea-wrap {
+  margin-bottom: 24rpx;
+}
+.paste-textarea {
+  width: 100%;
+  min-height: 200rpx;
+  font-size: 28rpx;
+  color: #1A1915;
+  border: 1rpx solid #D9D5C7;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+/* ── 粘贴结果列表 ── */
+.paste-result-card {
+  width: 640rpx;
+}
+.paste-result-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: 24rpx;
+}
+.paste-contact-item {
+  padding: 20rpx;
+  background: #EDEBE3;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+}
+.paste-contact-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.paste-contact-index {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #C96442;
+  flex-shrink: 0;
+  width: 40rpx;
+}
+.paste-contact-name {
+  font-weight: 600;
+}
+.paste-contact-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.paste-contact-fields .info-input {
+  font-size: 26rpx;
+  padding: 10rpx 14rpx;
 }

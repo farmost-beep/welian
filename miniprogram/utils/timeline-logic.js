@@ -43,4 +43,36 @@ function formatDateInput(d) {
   return y + '-' + m + '-' + day;
 }
 
-module.exports = { filterAndGroup, formatDateInput };
+// 构建本月点状时间轴：每天一个点，有互动的点高亮
+function buildMonthDots(rawList) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = now.getDate();
+  const dots = [];
+  const dayCounts = {};
+  rawList.forEach(item => {
+    const d = new Date(item.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      dayCounts[day] = (dayCounts[day] || 0) + 1;
+    }
+  });
+  for (let day = 1; day <= daysInMonth; day++) {
+    const count = dayCounts[day] || 0;
+    dots.push({
+      day,
+      count,
+      isToday: day === today,
+      isPast: day < today,
+      isFuture: day > today,
+      active: count > 0,
+      intensity: count >= 3 ? 'high' : count >= 2 ? 'mid' : count >= 1 ? 'low' : 'none',
+    });
+  }
+  const activeCount = Object.values(dayCounts).filter(c => c > 0).length;
+  return { dots, activeDays: activeCount, totalDays: daysInMonth, monthInteractions: Object.values(dayCounts).reduce((a, b) => a + b, 0) };
+}
+
+module.exports = { filterAndGroup, formatDateInput, buildMonthDots };

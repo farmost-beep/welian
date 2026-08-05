@@ -137,6 +137,42 @@ describe("/data/timeline CRUD", () => {
     expect(data.entry).toBeTruthy();
   });
 
+  it("POST rejects an unknown contact_name without creating an unlinked timeline entry", async () => {
+    const res = await worker.fetch(jsonReq("/data/timeline", {
+      body: { contact_name: "不存在的联系人", summary: "不应被静默记录", date: "2026-07-15" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toContain("不存在的联系人");
+    expect(JSON.parse(env.USER_DATA._store.get("timeline:testuser") || "[]")).toHaveLength(0);
+  });
+
+  it("POST preserves explicitly unlinked timeline compatibility", async () => {
+    const res = await worker.fetch(jsonReq("/data/timeline", {
+      body: { contact_id: "", contact: "", summary: "无关联互动", date: "2026-07-15" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.entry.contact).toBe("");
+  });
+
+  it("POST resolves a matched contact_name", async () => {
+    const contactRes = await worker.fetch(jsonReq("/data/contacts", {
+      body: { name: "老许" },
+      headers: authHeader(),
+    }), env, {});
+    const contact = (await contactRes.json()).contact;
+    const res = await worker.fetch(jsonReq("/data/timeline", {
+      body: { contact_name: "老许", summary: "已关联互动", date: "2026-07-15" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.entry.contact).toBe(contact.id);
+  });
+
   it("GET returns timeline entries", async () => {
     // Create an entry
     await worker.fetch(jsonReq("/data/timeline", {
@@ -197,6 +233,70 @@ describe("/data/todos CRUD", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.ok).toBe(true);
+  });
+
+  it("POST rejects an unknown contact_name without creating an unlinked todo", async () => {
+    const res = await worker.fetch(jsonReq("/data/todos", {
+      body: { contact_name: "不存在的联系人", task: "不应被静默创建", due: "" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toContain("不存在的联系人");
+    expect(JSON.parse(env.USER_DATA._store.get("todos:testuser") || "[]")).toHaveLength(0);
+  });
+
+  it("POST preserves explicitly unlinked long-term todo compatibility", async () => {
+    const res = await worker.fetch(jsonReq("/data/todos", {
+      body: { contact_id: "", contact: "", task: "无关联长期任务", due: "" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.todo.contact).toBe("");
+    expect(data.todo.due).toBe("");
+  });
+
+  it("POST resolves a matched contact_name", async () => {
+    const contactRes = await worker.fetch(jsonReq("/data/contacts", {
+      body: { name: "老许" },
+      headers: authHeader(),
+    }), env, {});
+    const contact = (await contactRes.json()).contact;
+    const res = await worker.fetch(jsonReq("/data/todos", {
+      body: { contact_name: "老许", task: "跟进已知联系人", due: "" },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.todo.contact).toBe(contact.id);
+  });
+
+  it("POST todo uses the shared event contract and idempotency", async () => {
+    const body = {
+      contact: "c-1", task: "统一待办", due: "2026-08-10",
+      source: "manual", idempotency_key: "todo-create-1",
+    };
+    const first = await worker.fetch(jsonReq("/data/todos", {
+      body, headers: authHeader(),
+    }), env, {});
+    const retry = await worker.fetch(jsonReq("/data/todos", {
+      body, headers: authHeader(),
+    }), env, {});
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    const firstData = await first.json();
+    const retryData = await retry.json();
+    expect(firstData.event_id).toBeTruthy();
+    expect(retryData.dedup).toBe(true);
+    expect(retryData.todo.id).toBe(firstData.todo.id);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(JSON.parse(env.USER_DATA._store.get("todos:testuser"))).toHaveLength(1);
+    const events = JSON.parse(env.USER_DATA._store.get("domain_events:testuser"));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: "todo_created", source: "manual", contact_id: "c-1", event_id: firstData.event_id }),
+    ]));
+    expect(events.filter(event => event.event_id === firstData.event_id)).toHaveLength(1);
   });
 
   it("GET lists pending todos", async () => {
@@ -875,9 +975,660 @@ describe("Todo completion → timeline auto-create", () => {
   });
 });
 
+describe('R0 unified fact/event contracts', () => {
+  const originalFetch = globalThis.fetch;
+  const mockCtx = { waitUntil: () => {} };
+  let env;
+
+  function intentResponse(actions) {
+    return new Response(JSON.stringify({
+      content: [{ type: 'text', text: JSON.stringify({ intent: 'record', actions, contact_name: '', keywords: [] }) }],
+      usage: { input_tokens: 10, output_tokens: 10 },
+      stop_reason: 'end_turn',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+
+  async function flushMetrics() {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  beforeEach(() => {
+    env = baseEnv();
+    if (globalThis._clearTrackActionCache) globalThis._clearTrackActionCache();
+  });
+
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('direct timeline POST records a standard interaction event and metrics', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([{ id: 'c1', name: '张三' }]));
+    const res = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '聊了合作', source: 'timeline', idempotency_key: 'timeline-1' },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.event_id).toBeTruthy();
+    expect(data.version).toBe(1);
+    await flushMetrics();
+
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].interaction_recorded).toBe(1);
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ event_type: 'interaction_recorded', source: 'timeline', contact_id: 'c1' });
+  });
+
+  it('timeline POST update uses recordInteraction and emits a versioned event', async () => {
+    const created = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '原始记录', source: 'timeline', idempotency_key: 'post-update-base' },
+      headers: authHeader(),
+    }), env, {});
+    const createdData = await created.json();
+    const updated = await worker.fetch(jsonReq('/data/timeline', {
+      body: {
+        id: createdData.entry.id,
+        contact: 'c1',
+        summary: '更新后的记录',
+        date: '2026-08-04',
+        source: 'timeline',
+        idempotency_key: 'post-update-1',
+        event_id: 'evt-post-update-1',
+        expected_version: 1,
+      },
+      headers: authHeader(),
+    }), env, {});
+    expect(updated.status).toBe(200);
+    const data = await updated.json();
+    expect(data.entry.summary).toBe('更新后的记录');
+    expect(data.entry.id).toBe(createdData.entry.id);
+    expect(data.event_id).toBe('evt-post-update-1');
+    expect(data.version).toBe(2);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_id: 'evt-post-update-1', event_type: 'interaction_recorded', contact_id: 'c1' }),
+    ]));
+  });
+
+  it('todo done records metrics and keeps the automatic timeline fact idempotent', async () => {
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo-1', task: '发送方案', contact: 'c1', status: 'pending' },
+    ]));
+    const first = await worker.fetch(jsonReq('/data/todos/done', {
+      body: { id: 'todo-1', idempotency_key: 'done-1' },
+      headers: authHeader(),
+    }), env, {});
+    const second = await worker.fetch(jsonReq('/data/todos/done', {
+      body: { id: 'todo-1', idempotency_key: 'done-1' },
+      headers: authHeader(),
+    }), env, {});
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    await flushMetrics();
+
+    const timeline = JSON.parse(env.USER_DATA._store.get('timeline:testuser'));
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]).toMatchObject({ source: 'todo:todo-1', type: 'todo_completed', contact: 'c1' });
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].todo_completed).toBe(1);
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ event_type: 'todo_completed', source: 'todo', contact_id: 'c1' });
+  });
+
+  it('extract_intent complete_todo uses the same completion operation and metrics', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([{ id: 'c1', name: '张三', alias: ['小张'] }]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo-2', task: '发送方案', contact: 'c1', status: 'pending' },
+    ]));
+    globalThis.fetch = async () => intentResponse([
+      { type: 'complete_todo', task: '发送方案', contact_name: '小张' },
+    ]);
+    const res = await worker.fetch(jsonReq('/ai/extract_intent', {
+      body: { text: '完成给小张发方案' },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.action_results[0].ok).toBe(true);
+    await flushMetrics();
+
+    const todos = JSON.parse(env.USER_DATA._store.get('todos:testuser'));
+    expect(todos[0].status).toBe('done');
+    const timeline = JSON.parse(env.USER_DATA._store.get('timeline:testuser'));
+    expect(timeline).toHaveLength(1);
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].todo_completed).toBe(1);
+  });
+
+  it('uses aliases and legacy alias consistently for timeline and todo actions', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '许志远', aliases: ['老许'] },
+      { id: 'c2', name: '王志远', alias: ['老王'] },
+    ]));
+    globalThis.fetch = async () => intentResponse([
+      { type: 'add_timeline', contact_name: '老王', summary: '聊了项目', date: '2026-08-01' },
+      { type: 'add_todo', contact_name: '老许', task: '联系老许', due: '2026-08-02' },
+    ]);
+    const res = await worker.fetch(jsonReq('/ai/extract_intent', {
+      body: { text: '记录老王并提醒联系老许' },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+
+    const timeline = JSON.parse(env.USER_DATA._store.get('timeline:testuser'));
+    const todos = JSON.parse(env.USER_DATA._store.get('todos:testuser'));
+    expect(timeline[0].contact).toBe('c2');
+    expect(todos[0].contact).toBe('c1');
+    expect(JSON.parse(env.USER_DATA._store.get('contacts:testuser'))).toHaveLength(2);
+  });
+
+  it('returns an explicit ambiguity instead of selecting one matching contact', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三甲' },
+      { id: 'c2', name: '张三乙' },
+    ]));
+    globalThis.fetch = async () => intentResponse([
+      { type: 'add_timeline', contact_name: '张三', summary: '聊了项目' },
+    ]);
+    const res = await worker.fetch(jsonReq('/ai/extract_intent', {
+      body: { text: '记一下和张三聊了项目' },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.action_results[0].ok).toBe(false);
+    expect(data.action_results[0].reason).toContain('歧义');
+    expect(env.USER_DATA._store.has('timeline:testuser')).toBe(false);
+  });
+
+  it('retries the same timeline idempotency key without duplicate fact or event', async () => {
+    const body = { contact: 'c1', summary: '重复重试', idempotency_key: 'retry-1' };
+    await worker.fetch(jsonReq('/data/timeline', { body, headers: authHeader() }), env, {});
+    await worker.fetch(jsonReq('/data/timeline', { body, headers: authHeader() }), env, {});
+    await flushMetrics();
+
+    expect(JSON.parse(env.USER_DATA._store.get('timeline:testuser'))).toHaveLength(1);
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].interaction_recorded).toBe(1);
+    expect(JSON.parse(env.USER_DATA._store.get('domain_events:testuser'))).toHaveLength(1);
+  });
+
+  it('action card done and draft use standard metrics source and contact id', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([{ id: 'c1', name: '张三' }]));
+    const draft = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: { action: 'draft', contact_id: 'c1' },
+      headers: authHeader(),
+    }), env, {});
+    const done = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: { action: 'done', contact_id: 'c1', suggested_topic: '聊近况', idempotency_key: 'action-1' },
+      headers: authHeader(),
+    }), env, {});
+    expect(draft.status).toBe(200);
+    expect(done.status).toBe(200);
+    await flushMetrics();
+
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].draft_generated).toBe(1);
+    expect(metrics.weekly[week].interaction_recorded).toBe(1);
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: 'draft_generated', source: 'action_card', contact_id: 'c1' }),
+      expect.objectContaining({ event_type: 'interaction_recorded', source: 'action_card', contact_id: 'c1' }),
+    ]));
+    const timeline = JSON.parse(env.USER_DATA._store.get('timeline:testuser'));
+    expect(timeline[0]).toMatchObject({ contact: 'c1', source: 'action_card' });
+  });
+
+  it('retries action confirmation idempotently and returns the standard action result', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([{ id: 'c1', name: '张三', nature: 'leverage' }]));
+    const body = {
+      action: 'done',
+      action_id: 'act-r1-fixed',
+      contact_id: 'c1',
+      suggested_topic: '聊合作方案',
+      idempotency_key: 'action-r1-fixed',
+    };
+    const first = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body,
+      headers: authHeader(),
+    }), env, {});
+    const retry = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body,
+      headers: authHeader(),
+    }), env, {});
+
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    const firstData = await first.json();
+    const retryData = await retry.json();
+    expect(firstData).toMatchObject({ ok: true, action_id: 'act-r1-fixed', status: 'done', retryable: false });
+    expect(retryData).toMatchObject({ ok: true, action_id: 'act-r1-fixed', status: 'done', retryable: false });
+    expect(retryData.event_id).toBe(firstData.event_id);
+    expect(JSON.parse(env.USER_DATA._store.get('timeline:testuser'))).toHaveLength(1);
+    expect(JSON.parse(env.USER_DATA._store.get('domain_events:testuser'))).toHaveLength(1);
+  });
+
+  it('rejects a stale expectedVersion without overwriting the timeline', async () => {
+    const first = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '第一条', expectedVersion: 0 },
+      headers: authHeader(),
+    }), env, {});
+    expect(first.status).toBe(200);
+    const second = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '过期写入', expectedVersion: 0 },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(second.status).toBe(500);
+    const timeline = JSON.parse(env.USER_DATA._store.get('timeline:testuser'));
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0].summary).toBe('第一条');
+  });
+
+  it('does not overwrite malformed JSON datasets', async () => {
+    const malformed = '[not valid json';
+    env.USER_DATA._store.set('timeline:testuser', malformed);
+    const res = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '不应覆盖' },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(500);
+    expect(env.USER_DATA._store.get('timeline:testuser')).toBe(malformed);
+  });
+});
+
+describe('R0 follow-up regressions', () => {
+  const originalFetch = globalThis.fetch;
+  const mockCtx = { waitUntil: () => {} };
+  let env;
+
+  function intentResponse(actions) {
+    return new Response(JSON.stringify({
+      content: [{ type: 'text', text: JSON.stringify({ intent: 'record', actions, contact_name: '', keywords: [] }) }],
+      usage: { input_tokens: 10, output_tokens: 10 },
+      stop_reason: 'end_turn',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+
+  function llmText(text) {
+    return new Response(JSON.stringify({
+      content: [{ type: 'text', text }],
+      usage: { input_tokens: 10, output_tokens: 10 },
+      stop_reason: 'end_turn',
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+
+  function failOnceKV(initial, key) {
+    const kv = trackingKV(initial);
+    let failed = false;
+    const put = kv.put.bind(kv);
+    kv.put = async (putKey, value, options) => {
+      if (!failed && putKey === key) {
+        failed = true;
+        throw new Error('simulated KV failure');
+      }
+      return put(putKey, value, options);
+    };
+    return kv;
+  }
+
+  async function flushMetrics() {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  beforeEach(() => {
+    env = baseEnv();
+    if (globalThis._clearTrackActionCache) globalThis._clearTrackActionCache();
+  });
+
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('does not create or complete data for an unresolved contact', async () => {
+    const contacts = [{ id: 'c-existing', name: '已有联系人' }];
+    const todos = [{ id: 'todo-unlinked', task: '无联系人待办', status: 'pending', contact: '' }];
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify(contacts));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify(todos));
+    globalThis.fetch = async () => intentResponse([
+      { type: 'add_timeline', contact_name: '陌生互动对象', summary: '不应写入' },
+      { type: 'add_todo', contact_name: '陌生待办对象', task: '不应创建待办', due: '2026-08-10' },
+      { type: 'complete_todo', contact_name: '不存在的联系人', task: '无联系人待办' },
+    ]);
+
+    const res = await worker.fetch(jsonReq('/ai/extract_intent', {
+      body: { text: '记录、提醒并完成不存在的联系人' },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.action_results).toHaveLength(3);
+    for (const result of data.action_results) {
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain('未找到联系人');
+    }
+    expect(JSON.parse(env.USER_DATA._store.get('contacts:testuser'))).toEqual(contacts);
+    expect(JSON.parse(env.USER_DATA._store.get('todos:testuser'))).toEqual(todos);
+    expect(env.USER_DATA._store.has('timeline:testuser')).toBe(false);
+  });
+
+  it('does not create an unresolved contact in the chat file-action path', async () => {
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo-chat-unlinked', task: '聊天待办', contact: '', status: 'pending' },
+    ]));
+    let llmCalls = 0;
+    globalThis.fetch = async () => {
+      llmCalls++;
+      return llmCalls === 1
+        ? intentResponse([
+          { type: 'add_timeline', contact_name: '聊天陌生人', summary: '不应写入' },
+          { type: 'add_todo', contact_name: '聊天待办陌生人', task: '不应创建' },
+          { type: 'complete_todo', contact_name: '聊天完成陌生人', task: '聊天待办' },
+        ])
+        : llmText('文件已处理');
+    };
+
+    const res = await worker.fetch(jsonReq('/data/upload_file', {
+      body: {
+        text: '请记下和聊天陌生人的互动',
+        file: { base64: 'dGVzdA==', media_type: 'text/plain', is_image: false },
+      },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.action_results).toHaveLength(3);
+    for (const result of data.action_results) {
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain('未找到联系人');
+    }
+    expect(env.USER_DATA._store.has('contacts:testuser')).toBe(false);
+    expect(env.USER_DATA._store.has('timeline:testuser')).toBe(false);
+    expect(JSON.parse(env.USER_DATA._store.get('todos:testuser'))).toEqual([
+      { id: 'todo-chat-unlinked', task: '聊天待办', contact: '', status: 'pending' },
+    ]);
+  });
+
+  it('upload_file routes add_todo through the shared event contract', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-upload', name: '上传联系人' },
+    ]));
+    let llmCalls = 0;
+    globalThis.fetch = async () => {
+      llmCalls++;
+      return llmCalls === 1
+        ? intentResponse([{ type: 'add_todo', task: '上传后跟进', contact_name: '上传联系人', due: '2026-08-10', idempotency_key: 'upload-todo-1' }])
+        : llmText('文件已处理');
+    };
+
+    const res = await worker.fetch(jsonReq('/data/upload_file', {
+      body: {
+        text: '请记录上传联系人待办',
+        file: { base64: 'dGVzdA==', media_type: 'text/plain', is_image: false },
+      },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.action_results[0]).toMatchObject({ type: 'add_todo', ok: true, dedup: false });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const todos = JSON.parse(env.USER_DATA._store.get('todos:testuser'));
+    expect(todos).toHaveLength(1);
+    expect(todos[0]).toMatchObject({ contact: 'c-upload', source: 'sync', task: '上传后跟进' });
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: 'todo_created', source: 'sync', contact_id: 'c-upload' }),
+    ]));
+  });
+
+  it('sync_ws routes add_todo through the shared event contract', async () => {
+    const originalPair = globalThis.WebSocketPair;
+    const syncUserId = 'sync_user_1';
+    env.USER_DATA._store.set(`contacts:${syncUserId}`, JSON.stringify([
+      { id: 'c-sync', name: '同步联系人' },
+    ]));
+    let serverSocket;
+    const makeSocket = () => {
+      const listeners = new Map();
+      return {
+        accept() {},
+        send() {},
+        close() {},
+        addEventListener(type, listener) { listeners.set(type, listener); },
+        dispatch(type, event) { return listeners.get(type)?.(event); },
+      };
+    };
+    globalThis.WebSocketPair = class {
+      constructor() {
+        this[0] = makeSocket();
+        this[1] = serverSocket = makeSocket();
+      }
+    };
+    let llmCalls = 0;
+    globalThis.fetch = async () => {
+      llmCalls++;
+      if (llmCalls === 1) {
+        return intentResponse([{ type: 'add_todo', task: '同步后跟进', contact_name: '同步联系人', due: '2026-08-11', idempotency_key: 'sync-todo-1' }]);
+      }
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: {"type":"content_block_delta","delta":{"text":"已处理"}}\\n\\n'));
+          controller.close();
+        },
+      });
+      return new Response(stream, { status: 200 });
+    };
+    try {
+      const req = new Request(`https://worker.test/data/sync_ws?token=${syncUserId}:secret`, {
+        headers: { Upgrade: 'websocket' },
+      });
+      await expect(worker.fetch(req, env, mockCtx)).rejects.toThrow(/status/);
+      await serverSocket.dispatch('message', { data: JSON.stringify({ action: 'input', value: '记录同步待办' }) });
+      serverSocket.dispatch('close', {});
+    } finally {
+      globalThis.WebSocketPair = originalPair;
+    }
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const todos = JSON.parse(env.USER_DATA._store.get(`todos:${syncUserId}`));
+    expect(todos).toHaveLength(1);
+    expect(todos[0]).toMatchObject({ task: '同步后跟进', contact: 'c-sync', source: 'sync' });
+    const events = JSON.parse(env.USER_DATA._store.get(`domain_events:${syncUserId}`));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: 'todo_created', source: 'sync', contact_id: 'c-sync' }),
+    ]));
+  });
+
+  it('agent_ws auth logs expose only token booleans, not the uid', async () => {
+    env.DEVICES = { get: async () => null };
+    const originalPair = globalThis.WebSocketPair;
+    const originalLog = console.log;
+    const logs = [];
+    globalThis.WebSocketPair = class {
+      constructor() {
+        const socket = { accept() {}, send() {}, close() {} };
+        this[0] = socket;
+        this[1] = socket;
+      }
+    };
+    console.log = (...args) => logs.push(args);
+    try {
+      const req = new Request('https://worker.test/data/agent_ws?token=sensitive_uid:secret', {
+        headers: { Upgrade: 'websocket' },
+      });
+      await expect(worker.fetch(req, env, mockCtx)).rejects.toThrow(/status/);
+    } finally {
+      globalThis.WebSocketPair = originalPair;
+      console.log = originalLog;
+    }
+    const agentLogs = logs.filter(args => args[0] === '[agent_ws] token present:' || args[0] === '[agent_ws] wxmp token verified:');
+    expect(agentLogs.length).toBeGreaterThan(0);
+    expect(JSON.stringify(agentLogs)).not.toContain('sensitive_uid');
+  });
+
+  it('keeps todo pending when the related timeline dataset is malformed', async () => {
+    const malformed = '[not valid json';
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo-malformed', task: '发送方案', contact: 'c1', status: 'pending' },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', malformed);
+
+    const res = await worker.fetch(jsonReq('/data/todos/done', {
+      body: { id: 'todo-malformed', idempotency_key: 'malformed-1' },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(500);
+    expect(JSON.parse(env.USER_DATA._store.get('todos:testuser'))[0].status).toBe('pending');
+    expect(env.USER_DATA._store.get('timeline:testuser')).toBe(malformed);
+  });
+
+  it('retries after todo save failure without duplicating the timeline or event', async () => {
+    const kv = failOnceKV({
+      'todos:testuser': JSON.stringify([
+        { id: 'todo-retry', task: '发送方案', contact: 'c1', status: 'pending' },
+      ]),
+    }, 'todos:testuser');
+    env = baseEnv({ USER_DATA: kv });
+    const body = { id: 'todo-retry', idempotency_key: 'retry-complete-1' };
+
+    const first = await worker.fetch(jsonReq('/data/todos/done', {
+      body, headers: authHeader(),
+    }), env, mockCtx);
+    expect(first.status).toBe(500);
+    const firstData = await first.json();
+    expect(firstData.retryable).toBe(true);
+    expect(firstData.retryable_scope).toBe('todos');
+    expect(firstData.partial_success).toBe('timeline_persisted');
+    expect(JSON.parse(kv._store.get('todos:testuser'))[0].status).toBe('pending');
+    expect(JSON.parse(kv._store.get('timeline:testuser'))).toHaveLength(1);
+
+    const second = await worker.fetch(jsonReq('/data/todos/done', {
+      body, headers: authHeader(),
+    }), env, mockCtx);
+    expect(second.status).toBe(200);
+    await flushMetrics();
+    expect(JSON.parse(kv._store.get('todos:testuser'))[0].status).toBe('done');
+    expect(JSON.parse(kv._store.get('timeline:testuser'))).toHaveLength(1);
+    expect(JSON.parse(kv._store.get('domain_events:testuser'))).toHaveLength(1);
+  });
+
+  it('retries when todo data was written but its version sidecar failed', async () => {
+    const kv = failOnceKV({
+      'todos:testuser': JSON.stringify([
+        { id: 'todo-version-retry', task: '补版本', contact: 'c1', status: 'pending' },
+      ]),
+    }, 'version:todos:testuser');
+    env = baseEnv({ USER_DATA: kv });
+    const body = { id: 'todo-version-retry', idempotency_key: 'version-retry-1' };
+
+    const first = await worker.fetch(jsonReq('/data/todos/done', {
+      body, headers: authHeader(),
+    }), env, mockCtx);
+    expect(first.status).toBe(500);
+    const firstData = await first.json();
+    expect(firstData.retryable).toBe(true);
+    expect(firstData.retryable_scope).toBe('todos');
+    expect(firstData.partial_success).toBe('todo_data_written');
+    expect(JSON.parse(kv._store.get('todos:testuser'))[0].status).toBe('done');
+
+    const second = await worker.fetch(jsonReq('/data/todos/done', {
+      body, headers: authHeader(),
+    }), env, mockCtx);
+    expect(second.status).toBe(200);
+    await flushMetrics();
+    expect(JSON.parse(kv._store.get('timeline:testuser'))).toHaveLength(1);
+    expect(JSON.parse(kv._store.get('domain_events:testuser'))).toHaveLength(1);
+  });
+
+  it('upsertContact distinguishes id update from no-id create and deduplicates retries', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c-existing', name: '原联系人', company: '旧公司' },
+    ]));
+    const updateBody = {
+      id: 'c-existing', name: '原联系人', company: '新公司',
+      source: 'sync', idempotency_key: 'contact-update-1', event_id: 'evt-contact-update-1',
+    };
+    const update = await worker.fetch(jsonReq('/data/contacts', {
+      body: updateBody, headers: authHeader(),
+    }), env, mockCtx);
+    const updateRetry = await worker.fetch(jsonReq('/data/contacts', {
+      body: updateBody, headers: authHeader(),
+    }), env, mockCtx);
+    expect(update.status).toBe(200);
+    expect(updateRetry.status).toBe(200);
+    const updateData = await update.json();
+    const retryData = await updateRetry.json();
+    expect(updateData.created).toBe(false);
+    expect(updateData.updated).toBe(true);
+    expect(retryData.dedup).toBe(true);
+
+    const createBody = {
+      name: '无 id 新联系人', source: 'sync',
+      idempotency_key: 'contact-create-1', event_id: 'evt-contact-create-1',
+    };
+    const create = await worker.fetch(jsonReq('/data/contacts', {
+      body: createBody, headers: authHeader(),
+    }), env, mockCtx);
+    const createRetry = await worker.fetch(jsonReq('/data/contacts', {
+      body: createBody, headers: authHeader(),
+    }), env, mockCtx);
+    expect(create.status).toBe(200);
+    expect(createRetry.status).toBe(200);
+    const createData = await create.json();
+    const createRetryData = await createRetry.json();
+    expect(createData.created).toBe(true);
+    expect(createRetryData.dedup).toBe(true);
+    expect(createRetryData.contact.id).toBe(createData.contact.id);
+    expect(JSON.parse(env.USER_DATA._store.get('contacts:testuser'))).toHaveLength(2);
+    await flushMetrics();
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toHaveLength(2);
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_id: 'evt-contact-update-1', event_type: 'contact_upserted', source: 'sync', contact_id: 'c-existing' }),
+      expect.objectContaining({ event_id: 'evt-contact-create-1', event_type: 'contact_upserted', source: 'sync', contact_id: createData.contact.id }),
+    ]));
+  });
+
+  it('timeline PUT uses the unified event and version response while preserving the old entry response', async () => {
+    const createdRes = await worker.fetch(jsonReq('/data/timeline', {
+      body: { contact: 'c1', summary: '旧记录', source: 'timeline', idempotency_key: 'put-base-1' },
+      headers: authHeader(),
+    }), env, mockCtx);
+    const created = await createdRes.json();
+    const putRes = await worker.fetch(jsonReq('/data/timeline', {
+      method: 'PUT',
+      body: {
+        id: created.entry.id, contact: 'c1', summary: '更新记录', date: '2026-08-02',
+        source: 'timeline', idempotency_key: 'put-update-1', event_id: 'evt-put-update-1', expectedVersion: 1,
+      },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(putRes.status).toBe(200);
+    const data = await putRes.json();
+    expect(data.ok).toBe(true);
+    expect(data.entry.id).toBe(created.entry.id);
+    expect(data.entry.summary).toBe('更新记录');
+    expect(data.event_id).toBe('evt-put-update-1');
+    expect(data.version).toBe(2);
+    await flushMetrics();
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_id: 'evt-put-update-1', event_type: 'interaction_recorded', source: 'timeline', contact_id: 'c1' }),
+    ]));
+  });
+});
+
 describe("Long-term tasks (due = empty string)", () => {
   let env;
-  beforeEach(() => { env = baseEnv(); });
+  beforeEach(async () => {
+    env = baseEnv();
+    await worker.fetch(jsonReq("/data/contacts", {
+      body: { name: "张总" },
+      headers: authHeader(),
+    }), env, {});
+  });
 
   it("creates todo with no due date when due is empty string", async () => {
     const res = await worker.fetch(jsonReq("/data/todos", {

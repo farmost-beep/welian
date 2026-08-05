@@ -55,5 +55,6 @@ async function testDashboard(mp) {
 
 module.exports = {
   name: 'Dashboard 行动卡+感知卡+进化阶段',
+  mutates: false,
   fn: testDashboard,
 };

@@ -1,5 +1,6 @@
 // pages/mine/mine.js — 我的（tabBar）
 const api = require('../../utils/api.js');
+const { calcEvolutionStage } = require('../../utils/dashboard-logic.js');
 const app = getApp();
 
 Page({
@@ -18,15 +19,21 @@ Page({
     showCelebration: false,
     showDeleteModal: false,
     deleteInput: '',
+    // 成长模块（从 Dashboard 迁移）
+    evolution: null,
+    evolutionMetrics: null,
+    behavioralInsights: null,
   },
 
   async onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
-      this.getTabBar().refresh();
     }
     if (!api.getToken()) {
       try { await app.loginReady; } catch (e) { return; }
+    }
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().refresh();
     }
     const g = app.globalData;
     this.setData({
@@ -37,6 +44,81 @@ Page({
     });
     this.checkBinding();
     this.refreshCredits();
+    this.loadEvolution();
+    this.fetchBehavioralInsights();
+  },
+
+  // 加载进化阶段和指标
+  async loadEvolution() {
+    const token = api.getToken();
+    if (!token) return;
+    try {
+      const [contactsResp, timelineResp] = await Promise.all([
+        api.getContacts(0, 500),
+        api.request('/data/timeline?limit=100', {}, 'GET'),
+      ]);
+      const contacts = contactsResp.leverage.concat(contactsResp.nurture);
+      const timeline = (timelineResp && timelineResp.timeline) || [];
+      const stages = app.globalData.config && app.globalData.config.evolution_stages;
+      const totalContacts = contactsResp.total || contacts.length;
+      const evolution = calcEvolutionStage(totalContacts, timeline.length, stages);
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthInteractions = timeline.filter(t => new Date(t.date || '') >= monthStart).length;
+      const leverageCount = contacts.filter(c => {
+        const n = (c.nature || '').toLowerCase();
+        return n === 'leverage' || n === 'dual' || n === '双重' || n === '撬动';
+      }).length;
+      this.setData({
+        evolution,
+        evolutionMetrics: {
+          monthInteractions,
+          totalInteractions: timeline.length,
+          contactCount: totalContacts,
+          leverageCount,
+        },
+      });
+    } catch (e) {
+      // 静默失败，不阻断 Mine 页
+    }
+  },
+
+  // 加载自进化行为洞察
+  fetchBehavioralInsights() {
+    const token = api.getToken();
+    if (!token) return;
+    wx.request({
+      url: 'https://api.welian.app/ai/evolution',
+      header: { 'Authorization': 'Bearer ' + token },
+      success: (res) => {
+        if (res.statusCode === 200 && res.data && res.data.has_insights) {
+          this.setData({ behavioralInsights: res.data });
+        }
+      },
+    });
+  },
+
+  // 重置行为洞察
+  resetBehavioralInsights() {
+    wx.showModal({
+      title: '重置行为洞察',
+      content: '小维将忘记学到的行为模式，重新开始观察。',
+      confirmText: '重置',
+      cancelText: '取消',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.request({
+          url: 'https://api.welian.app/ai/evolution',
+          method: 'DELETE',
+          header: { 'Authorization': 'Bearer ' + api.getToken() },
+          success: () => {
+            this.setData({ behavioralInsights: null });
+            wx.showToast({ title: '已重置', icon: 'success' });
+          },
+          fail: () => wx.showToast({ title: '重置失败', icon: 'none' }),
+        });
+      },
+    });
   },
 
   refreshCredits() {
@@ -85,6 +167,26 @@ Page({
 
   goProfile() {
     wx.navigateTo({ url: '/pages/profile/profile' });
+  },
+
+  goWeekly() {
+    wx.navigateTo({ url: '/pages/weekly/weekly' });
+  },
+
+  goMonthly() {
+    wx.navigateTo({ url: '/pages/monthly/monthly' });
+  },
+
+  goAnnual() {
+    wx.navigateTo({ url: '/pages/annual/annual' });
+  },
+
+  goMeetings() {
+    wx.navigateTo({ url: '/pages/meetings/meetings' });
+  },
+
+  goTimeline() {
+    wx.navigateTo({ url: '/pages/timeline/timeline' });
   },
 
   goBilling() {},

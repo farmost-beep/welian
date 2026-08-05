@@ -101,5 +101,6 @@ async function testPerception(mp) {
 
 module.exports = {
   name: '联系人详情页感知变化流程',
+  mutates: false,
   fn: testPerception,
 };

@@ -14,7 +14,7 @@
 
   <!-- 账号绑定 -->
   <view wx:if="{{!isBound && openid}}" class="card bind-card">
-    <text class="bind-title">🔗 绑定 / 注册 Web 账号</text>
+    <text class="bind-title">绑定 / 注册 Web 账号</text>
     <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">输入邮箱验证后同步数据。新邮箱将自动注册。</text>
     <input
       class="bind-input"
@@ -46,10 +46,33 @@
     </view>
   </view>
 
+  <!-- 报告回顾 -->
+  <view class="menu-group">
+    <view class="menu-item" bindtap="goWeekly">
+      <text class="menu-text">周报</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="goMonthly">
+      <text class="menu-text">月报</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="goAnnual">
+      <text class="menu-text">年度回顾</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="goMeetings">
+      <text class="menu-text">会议</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+    <view class="menu-item" bindtap="goTimeline">
+      <text class="menu-text">互动时间线</text>
+      <text class="menu-arrow text-dimmer">›</text>
+    </view>
+  </view>
+
   <!-- 个人画像 -->
   <view class="menu-group">
     <view class="menu-item" bindtap="goProfile">
-      <text class="menu-icon">🧬</text>
       <text class="menu-text">个人画像</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
@@ -70,36 +93,87 @@
   <!-- 功能入口 -->
   <view class="menu-group">
     <view class="menu-item" bindtap="goSignals">
-      <text class="menu-icon">📡</text>
       <text class="menu-text">每日信号</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
     <view class="menu-item" bindtap="showGzhQrcode">
-      <text class="menu-icon">📖</text>
       <text class="menu-text">关注公众号</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
     <view class="menu-item menu-item-contact">
-      <text class="menu-icon">💬</text>
       <text class="menu-text">联系客服</text>
       <text class="menu-arrow text-dimmer">›</text>
       <button class="contact-overlay" open-type="contact" session-from="welian"></button>
     </view>
     <view class="menu-item" bindtap="goPrivacy">
-      <text class="menu-icon">🔒</text>
       <text class="menu-text">隐私政策</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
     <view class="menu-item" bindtap="goPrivacy">
-      <text class="menu-icon">📄</text>
       <text class="menu-text">用户协议</text>
       <text class="menu-arrow text-dimmer">›</text>
     </view>
   </view>
 
-  <!-- 注销账户 -->
+  <!-- 成长模块（从 Dashboard 迁移） -->
+  <view wx:if="{{evolution}}" class="card evolution-card">
+    <view class="evolution-header">
+      <text class="evolution-icon">{{evolution.icon}}</text>
+      <text class="evolution-name">{{evolution.name}}</text>
+      <text wx:if="{{evolution.next}}" class="text-dimmer text-xs">→ {{evolution.nextIcon}} {{evolution.next}}</text>
+      <text wx:else class="text-dimmer text-xs">已满级</text>
+    </view>
+    <view class="evolution-progress-wrap">
+      <view class="evolution-progress-bar">
+        <view class="evolution-progress-fill" style="width:{{evolution.progress}}%"></view>
+      </view>
+      <text class="evolution-progress-text text-xs text-dimmer">{{evolution.progress}}%</text>
+    </view>
+    <text wx:if="{{evolution.next}}" class="evolution-gap text-dimmer text-xs">还需 {{evolution.needContacts}} 联系人 · {{evolution.needInteractions}} 互动</text>
+    <view class="evolution-badges">
+      <text wx:for="{{evolution.stages}}" wx:key="name" class="evolution-badge {{item.unlocked ? 'unlocked' : ''}}">{{item.icon}} {{item.name}}</text>
+    </view>
+    <text class="evolution-desc text-dimmer text-xs">关系网络成长度 · 多记录互动，自然会成长</text>
+  </view>
+
+  <view wx:if="{{evolutionMetrics}}" class="card evolution-metrics-card">
+    <text class="section-title-sm">进化指标</text>
+    <view class="metrics-grid">
+      <view class="metric-item">
+        <text class="metric-num">{{evolutionMetrics.monthInteractions}}</text>
+        <text class="metric-label text-dimmer text-xs">本月互动</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-num">{{evolutionMetrics.totalInteractions}}</text>
+        <text class="metric-label text-dimmer text-xs">互动总数</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-num">{{evolutionMetrics.contactCount}}</text>
+        <text class="metric-label text-dimmer text-xs">联系人</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-num">{{evolutionMetrics.leverageCount}}</text>
+        <text class="metric-label text-dimmer text-xs">经营型</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{behavioralInsights}}" class="card behavioral-insights-card">
+    <view class="bi-header">
+      <text class="section-title-sm">小维学到了</text>
+    </view>
+    <text class="bi-body text-sm">{{behavioralInsights.insights}}</text>
+    <view class="bi-meta">
+      <text class="text-dimmer text-xs">依据：过去 {{behavioralInsights.based_on.weeks_analyzed}} 周 {{behavioralInsights.based_on.total_actions}} 次行动 · 采纳率 {{behavioralInsights.based_on.adoption_rate}}%</text>
+    </view>
+    <view class="bi-actions">
+      <text class="bi-reset-link text-dimmer text-xs" bindtap="resetBehavioralInsights">重置</text>
+    </view>
+  </view>
+
+  <!-- 注销账户（放在最底部） -->
   <view class="card delete-account-card">
-    <text class="delete-account-title">⚠️ 注销账户</text>
+    <text class="delete-account-title">注销账户</text>
     <text class="text-dim text-sm" style="display:block;margin:6px 0 10px">永久删除你的所有数据，不可恢复。</text>
     <view style="padding:20rpx;text-align:center;color:#C96442;border:1rpx solid #C96442;border-radius:16rpx;background:#FFF5F0;" bindtap="deleteAccount">注销账户</view>
   </view>
@@ -130,10 +204,10 @@
   <view class="celebration-content">
     <view class="celebration-icon-wrap">
       <view class="celebration-check">✓</view>
-      <view class="spark spark-1">✨</view>
-      <view class="spark spark-2">🎉</view>
-      <view class="spark spark-3">🌱</view>
-      <view class="spark spark-4">✨</view>
+      <view class="spark spark-1"></view>
+      <view class="spark spark-2"></view>
+      <view class="spark spark-3"></view>
+      <view class="spark spark-4"></view>
     </view>
     <text class="celebration-title">注册成功！</text>
     <text class="celebration-subtitle text-dim">欢迎加入 Welian，开始用心经营你的关系网络</text>
@@ -143,7 +217,7 @@
 <!-- 公众号二维码弹窗 -->
 <view wx:if="{{showGzh}}" class="gzh-overlay" catchtap="closeGzh">
   <view class="gzh-modal" catchtap="noop">
-    <text class="gzh-title">📖 四十之后看书</text>
+    <text class="gzh-title">四十之后看书</text>
     <image class="gzh-qrcode" src="/images/gzh_qrcode.png" mode="aspectFit" show-menu-by-longpress="{{true}}" />
     <text class="gzh-hint text-dim text-sm">长按二维码识别关注</text>
     <view class="gzh-close-btn" bindtap="closeGzh">关闭</view>

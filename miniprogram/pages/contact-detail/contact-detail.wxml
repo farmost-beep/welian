@@ -1,4 +1,5 @@
 <!-- pages/contact-detail/contact-detail.wxml -->
+<wxs src="../../utils/terminology.wxs" module="term" />
 <view class="container">
   <view wx:if="{{loading}}" class="loading">
     <text class="text-dimmer text-sm">加载中…</text>
@@ -6,6 +7,7 @@
 
   <view wx:if="{{error && !loading}}" class="loading">
     <text class="text-accent text-sm">{{error}}</text>
+    <view style="margin-top:12px"><button size="mini" bindtap="loadDetail">重试</button></view>
   </view>
 
   <block wx:if="{{contact && !loading}}">
@@ -13,7 +15,7 @@
     <view class="card contact-header">
       <view class="contact-name-row">
         <text class="contact-name-lg">{{contact.name}}</text>
-        <text class="tag tag-{{contact.nature === 'leverage' ? 'leverage' : (contact.nature === 'nurture' ? 'nurture' : 'dual')}}">{{contact.nature === 'leverage' ? '撬动' : (contact.nature === 'nurture' ? '维系' : '双重')}}</text>
+        <text class="tag {{term.tagClass(contact.nature)}}">{{term.label(contact.nature)}}</text>
       </view>
       <view wx:if="{{contact.company}}" class="info-row">
         <text class="text-dim text-sm">{{contact.company}}</text>
@@ -24,27 +26,32 @@
       <view wx:if="{{contact.relation || contact.relationship}}" class="info-row">
         <text class="text-dim text-sm">关系：{{contact.relation || contact.relationship}}</text>
       </view>
+      <!-- 头部操作：编辑/删除 -->
+      <view class="header-actions">
+        <text class="text-dimmer text-xs" bindtap="editContact">编辑</text>
+        <text class="text-dimmer text-xs" bindtap="deleteContact">删除</text>
+      </view>
     </view>
 
     <!-- 快捷操作 -->
     <view class="action-bar">
-      <button class="action-btn" bindtap="recordInteraction">📝 记录互动</button>
-      <button class="action-btn" bindtap="draftMessage">✍️ 拟写消息</button>
-      <button class="action-btn" bindtap="meetingPrep" loading="{{loadingPrep}}">🧐 见面功课</button>
-      <button class="action-btn" bindtap="collectPerceptions" loading="{{loadingPerception}}">🔍 感知变化</button>
-      <button class="action-btn" open-type="share">📊 关系体检</button>
+      <button class="action-btn" bindtap="recordInteraction" aria-label="记录互动">记录互动</button>
+      <button class="action-btn" bindtap="draftMessage" aria-label="拟写消息">拟写消息</button>
+      <button class="action-btn" bindtap="meetingPrep" loading="{{loadingPrep}}" aria-label="见面功课">见面功课</button>
+      <button class="action-btn" bindtap="collectPerceptions" loading="{{loadingPerception}}" aria-label="感知变化">感知变化</button>
+      <button class="action-btn" open-type="share" aria-label="分享关系回顾">关系回顾</button>
     </view>
 
     <!-- R3-1: 感知卡列表 -->
     <view wx:if="{{perceptions.length > 0}}" class="card perceptions-card">
-      <view class="section-title-sm">🔍 最近发现的变化</view>
+      <view class="section-title-sm">最近发现的变化</view>
       <view wx:for="{{perceptions}}" wx:key="id" class="perception-item">
         <view class="perc-header">
           <text class="perc-title text-sm">{{item.title}}</text>
           <text class="perc-confidence text-xs {{item.confidence >= 0.85 ? 'text-green' : 'text-dimmer'}}">{{item.confidence >= 0.85 ? '高置信' : '中置信'}}</text>
         </view>
         <view class="perc-meta">
-          <text class="text-dimmer text-xs">📊 {{item.source.platform}} · 🕐 {{item.collected_ago}}</text>
+          <text class="text-dimmer text-xs">{{item.source.platform}} · {{item.collected_ago}}</text>
         </view>
         <view wx:if="{{item.status === 'pending'}}" class="perc-actions">
           <view class="perc-btn perc-btn-primary" catchtap="confirmPerception" data-id="{{item.id}}">确认</view>
@@ -62,11 +69,11 @@
     <!-- 冷却预警 -->
     <view wx:if="{{cooldown}}" class="card cooldown-card cooldown-{{cooldown.status}}">
       <view wx:if="{{cooldown.status === 'cold'}}">
-        <text class="text-accent text-sm">⚠️ 已 {{cooldown.days}} 天未联系</text>
+        <text class="text-accent text-sm">已 {{cooldown.days}} 天未联系</text>
         <text class="text-dim text-xs" style="display:block;margin-top:4rpx">上次互动：{{cooldown.lastDate}}</text>
       </view>
       <view wx:elif="{{cooldown.status === 'cooling'}}">
-        <text class="text-sm" style="color:#C9A042">⏳ 已 {{cooldown.days}} 天未联系</text>
+        <text class="text-sm" style="color:#C9A042">已 {{cooldown.days}} 天未联系</text>
         <text class="text-dim text-xs" style="display:block;margin-top:4rpx">上次互动：{{cooldown.lastDate}}</text>
       </view>
     </view>
@@ -89,12 +96,12 @@
     <view wx:if="{{contact.birthday || (contact.important_dates && contact.important_dates.length)}}" class="card">
       <view class="section-title-sm">重要日期</view>
       <view wx:if="{{contact.birthday}}" class="info-row">
-        <text class="text-accent text-sm">🎂 生日：{{contact.birthday}}</text>
+        <text class="text-accent text-sm">生日：{{contact.birthday}}</text>
       </view>
       <view wx:if="{{contact.important_dates && contact.important_dates.length}}">
         <view wx:for="{{contact.important_dates}}" wx:key="index" class="info-row" style="display:flex;align-items:center;justify-content:space-between">
           <text class="text-accent text-sm">{{item.label || item.name || '重要日期'}}：{{item.date}}</text>
-          <button class="action-btn" style="padding:4rpx 16rpx;font-size:24rpx" bindtap="addToCalendar" data-index="{{index}}">📅 添加到日历</button>
+          <button class="action-btn" style="padding:4rpx 16rpx;font-size:24rpx" bindtap="addToCalendar" data-index="{{index}}">添加到日历</button>
         </view>
       </view>
     </view>
@@ -107,7 +114,7 @@
 
     <!-- 经营型详情 -->
     <view wx:if="{{(contact.nature === 'leverage' || contact.nature === 'dual') && (contact.leverage_goal || contact.leverage_how || contact.leverage_direction || contact.leverage_goal)}}" class="card">
-      <view class="section-title-sm">🌳 经营信息</view>
+      <view class="section-title-sm">经营信息</view>
       <view wx:if="{{contact.leverage_goal || contact.leverage_goal}}" class="info-row">
         <text class="text-dim text-sm">目标：{{contact.leverage_goal || contact.leverage_goal}}</text>
       </view>
@@ -121,7 +128,7 @@
 
     <!-- 陪伴型详情 -->
     <view wx:if="{{(contact.nature === 'nurture' || contact.nature === 'dual') && contact.nurture_bond}}" class="card">
-      <view class="section-title-sm">🌸 情感纽带</view>
+      <view class="section-title-sm">情感纽带</view>
       <text class="text-dim text-sm">{{contact.nurture_bond}}</text>
     </view>
 
@@ -137,9 +144,38 @@
       </view>
     </view>
 
+    <!-- 连接关系 -->
+    <view class="card">
+      <view class="section-title-sm" style="display:flex;justify-content:space-between;align-items:center">
+        <text>连接关系</text>
+        <text class="text-accent text-xs" bindtap="showAddConnection">+ 添加</text>
+      </view>
+      <view wx:if="{{!contact.connections || contact.connections.length === 0}}" class="empty-state">
+        <text class="text-dimmer text-sm">暂无连接，添加与其他联系人的关系</text>
+      </view>
+      <view wx:for="{{contact.connections}}" wx:key="id" class="info-row" style="display:flex;justify-content:space-between;align-items:center">
+        <view bindtap="goToConnectedContact" data-id="{{item.id}}" style="flex:1">
+          <text class="text-sm">{{item.name}}</text>
+          <text wx:if="{{item.desc}}" class="text-dimmer text-xs" style="display:block">{{item.desc}}</text>
+        </view>
+        <text class="text-dimmer text-xs" catchtap="removeConnection" data-id="{{item.id}}">删除</text>
+      </view>
+    </view>
+
+    <!-- 同圈子（共享标签） -->
+    <view wx:if="{{sharedCircles.length > 0}}" class="card">
+      <view class="section-title-sm">同圈子</view>
+      <view wx:for="{{sharedCircles}}" wx:key="tag" class="shared-circle-group">
+        <text class="text-dim text-xs" style="display:block;margin-bottom:8rpx">{{item.tag}}（{{item.count}}人）</text>
+        <view style="display:flex;flex-wrap:wrap;gap:8rpx">
+          <text wx:for="{{item.members}}" wx:for-item="member" wx:key="id" class="tag tag-leverage" bindtap="goToConnectedContact" data-id="{{member.id}}">{{member.name}}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 记忆 -->
     <view wx:if="{{contact.memories && contact.memories.length}}" class="card">
-      <view class="section-title-sm">💭 记忆</view>
+      <view class="section-title-sm">记忆</view>
       <view wx:for="{{contact.memories}}" wx:key="index" class="info-row">
         <text class="text-dim text-sm">{{item.content || item.text || item}}</text>
       </view>
@@ -147,7 +183,7 @@
 
     <!-- 在场记录 -->
     <view wx:if="{{contact.presence_events && contact.presence_events.length}}" class="card">
-      <view class="section-title-sm">🤝 在场时刻</view>
+      <view class="section-title-sm">在场时刻</view>
       <view wx:for="{{contact.presence_events}}" wx:key="index" class="info-row">
         <text class="text-dim text-sm">{{item.date || ''}} {{item.description || item.event || item}}</text>
       </view>
@@ -169,8 +205,8 @@
             <text class="text-dimmer text-xs" style="display:block">{{item.date}}</text>
           </view>
           <view style="flex-shrink:0;display:flex;gap:12rpx">
-            <text class="text-dimmer text-xs" bindtap="editTimelineEntry" data-index="{{index}}">✏️</text>
-            <text class="text-dimmer text-xs" bindtap="deleteTimelineEntry" data-index="{{index}}">🗑️</text>
+            <text class="text-dimmer text-xs" bindtap="editTimelineEntry" data-index="{{index}}">编辑</text>
+            <text class="text-dimmer text-xs" bindtap="deleteTimelineEntry" data-index="{{index}}">删除</text>
           </view>
         </view>
       </view>
@@ -199,7 +235,7 @@
     <view class="card">
       <view class="section-title-sm" style="display:flex;justify-content:space-between;align-items:center">
         <text>近期动态</text>
-        <text class="text-accent text-xs" bindtap="webSearch">{{webSearching ? '搜索中…' : '🔍 搜索'}}</text>
+        <text class="text-accent text-xs" bindtap="webSearch">{{webSearching ? '搜索中…' : '搜索'}}</text>
       </view>
       <view wx:if="{{webResults.length === 0 && !webSearching}}" class="empty-state">
         <text class="text-dimmer text-sm">点击搜索查看公开信息</text>
@@ -211,11 +247,6 @@
       </view>
     </view>
 
-    <!-- 编辑/删除操作 -->
-    <view class="action-bar" style="margin-top:16px">
-      <button class="action-btn" bindtap="editContact">✏️ 编辑</button>
-      <button class="action-btn action-btn-danger" bindtap="deleteContact">🗑️ 删除</button>
-    </view>
   </block>
 </view>
 
@@ -247,11 +278,11 @@
     </view>
     <view class="edit-field">
       <text class="edit-label">电话</text>
-      <input class="edit-input" value="{{editForm.phone}}" bindinput="onEditInput" data-field="phone" placeholder="电话" />
+      <input class="edit-input" type="tel" value="{{editForm.phone}}" bindinput="onEditInput" data-field="phone" placeholder="电话" />
     </view>
     <view class="edit-field">
       <text class="edit-label">邮箱</text>
-      <input class="edit-input" value="{{editForm.email}}" bindinput="onEditInput" data-field="email" placeholder="邮箱" />
+      <input class="edit-input" type="email" value="{{editForm.email}}" bindinput="onEditInput" data-field="email" placeholder="邮箱" />
     </view>
     <view class="edit-field">
       <text class="edit-label">生日</text>
@@ -326,6 +357,36 @@
     </view>
     <view class="edit-actions">
       <button class="action-btn action-btn-primary" bindtap="closePrep">关闭</button>
+    </view>
+  </view>
+</view>
+
+<!-- 添加连接弹窗 -->
+<view wx:if="{{showConnectModal}}" class="edit-overlay" catchtap="closeConnectModal">
+  <view class="edit-modal" catchtap="noop">
+    <view class="edit-title">添加连接</view>
+    <text class="text-dim text-sm" style="display:block;margin-bottom:16rpx">将 {{contact.name}} 与另一位联系人建立连接</text>
+    <view class="edit-field">
+      <text class="edit-label">搜索联系人</text>
+      <input class="edit-input" value="{{connectSearch}}" bindinput="onConnectSearchInput" placeholder="输入姓名搜索…" focus="{{showConnectModal}}" />
+    </view>
+    <view wx:if="{{connectSearchResults.length > 0}}" class="connect-search-results">
+      <view wx:for="{{connectSearchResults}}" wx:key="id" class="connect-search-item" bindtap="selectConnectTarget" data-id="{{item.id}}" data-name="{{item.name}}">
+        <text class="text-sm">{{item.name}}</text>
+        <text wx:if="{{item.company}}" class="text-dimmer text-xs">{{item.company}}</text>
+      </view>
+    </view>
+    <view wx:if="{{connectTargetName}}" class="edit-field">
+      <text class="edit-label">已选择</text>
+      <text class="text-sm" style="display:block;padding:8rpx 0">{{connectTargetName}}</text>
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">关系描述（可选）</text>
+      <input class="edit-input" value="{{connectDesc}}" bindinput="onConnectDescInput" placeholder="如：同行、引荐人、合作伙伴" />
+    </view>
+    <view class="edit-actions">
+      <button class="action-btn" bindtap="closeConnectModal">取消</button>
+      <button class="action-btn action-btn-primary" bindtap="confirmConnection" loading="{{connecting}}">添加</button>
     </view>
   </view>
 </view>

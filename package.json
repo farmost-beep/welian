@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@clerk/testing": "^2.2.10",
-    "@playwright/test": "^1.61.1"
+    "@playwright/test": "^1.61.1",
+    "miniprogram-automator": "^0.12.1"
   }
 }

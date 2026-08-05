@@ -98,6 +98,75 @@ describe("/data/sync_full", () => {
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(401);
   });
+
+  it("rejects missing contact references before overwriting existing data", async () => {
+    const existingContacts = [{ id: "c-existing", name: "已有联系人", updated: "2026-07-15T10:00:00Z" }];
+    const existingTodos = [{ id: "todo-existing", task: "已有待办", contact: "c-existing", updated: "2026-07-15T10:00:00Z" }];
+    const existingTimeline = [{ id: "timeline-existing", summary: "已有互动", contact: "c-existing", updated: "2026-07-15T10:00:00Z" }];
+    env.USER_DATA._store.set("contacts:testuser_sync", JSON.stringify(existingContacts));
+    env.USER_DATA._store.set("todos:testuser_sync", JSON.stringify(existingTodos));
+    env.USER_DATA._store.set("timeline:testuser_sync", JSON.stringify(existingTimeline));
+
+    const res = await worker.fetch(jsonReq("/data/sync_full", {
+      body: {
+        ...syncTokenBody(),
+        contacts: [{ id: "c-new", name: "不应写入", updated: "2026-07-16T10:00:00Z" }],
+        todos: [{ id: "todo-invalid", task: "错误引用", contact: "c-missing", updated: "2026-07-16T10:00:00Z" }],
+        timeline: [{ id: "timeline-unlinked", summary: "允许无关联", contact: "", updated: "2026-07-16T10:00:00Z" }],
+      },
+    }), env, {});
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.code).toBe("INVALID_CONTACT_REFERENCE");
+    expect(data.references).toEqual([
+      expect.objectContaining({ dataset: "todos", item_id: "todo-invalid", contact: "c-missing" }),
+    ]);
+    expect(JSON.parse(env.USER_DATA._store.get("contacts:testuser_sync"))).toEqual(existingContacts);
+    expect(JSON.parse(env.USER_DATA._store.get("todos:testuser_sync"))).toEqual(existingTodos);
+    expect(JSON.parse(env.USER_DATA._store.get("timeline:testuser_sync"))).toEqual(existingTimeline);
+  });
+
+  it("allows empty contact references in synced timeline and todos", async () => {
+    const res = await worker.fetch(jsonReq("/data/sync_full", {
+      body: {
+        ...syncTokenBody(),
+        contacts: [],
+        todos: [{ id: "todo-unlinked", task: "长期任务", contact: "", updated: "2026-07-16T10:00:00Z" }],
+        timeline: [{ id: "timeline-unlinked", summary: "无关联互动", contact: "", updated: "2026-07-16T10:00:00Z" }],
+      },
+    }), env, {});
+    expect(res.status).toBe(200);
+    expect(JSON.parse(env.USER_DATA._store.get("todos:testuser_sync"))).toEqual([
+      expect.objectContaining({ id: "todo-unlinked", contact: "" }),
+    ]);
+    expect(JSON.parse(env.USER_DATA._store.get("timeline:testuser_sync"))).toEqual([
+      expect.objectContaining({ id: "timeline-unlinked", contact: "" }),
+    ]);
+  });
+
+  it('rejects an invalid edge reference even when an older duplicate would be hidden by the merge', async () => {
+    const existingContacts = [{ id: 'c-existing', name: '已有联系人', updated: '2026-07-15T10:00:00Z' }];
+    const existingTodos = [{ id: 'todo-same-id', task: '云端待办', contact: 'c-existing', updated: '2026-07-16T10:00:00Z' }];
+    env.USER_DATA._store.set('contacts:testuser_sync', JSON.stringify(existingContacts));
+    env.USER_DATA._store.set('todos:testuser_sync', JSON.stringify(existingTodos));
+
+    const res = await worker.fetch(jsonReq('/data/sync_full', {
+      body: {
+        ...syncTokenBody(),
+        contacts: [],
+        todos: [{ id: 'todo-same-id', task: '边缘旧待办', contact: 'c-missing', updated: '2026-07-15T10:00:00Z' }],
+        timeline: [],
+      },
+    }), env, {});
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.code).toBe('INVALID_CONTACT_REFERENCE');
+    expect(data.references).toEqual([
+      expect.objectContaining({ dataset: 'todos', item_id: 'todo-same-id', contact: 'c-missing' }),
+    ]);
+    expect(JSON.parse(env.USER_DATA._store.get('todos:testuser_sync'))).toEqual(existingTodos);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -669,6 +738,48 @@ describe("/ai/meeting_review (mocked LLM)", () => {
     expect(todos.length).toBe(1);
     expect(todos[0].task).toBe("发送合作方案给老许");
     expect(todos[0].source).toBe(`meeting:${meeting.id}`);
+    expect(todos[0].event_id).toBeTruthy();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const events = JSON.parse(env.USER_DATA._store.get("domain_events:testuser"));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: "todo_created", source: `meeting:${meeting.id}`, event_id: todos[0].event_id }),
+    ]));
+  });
+
+  it("skips a follow-up with an unknown contact_name and reports needs_confirmation", async () => {
+    await worker.fetch(jsonReq("/data/meetings", {
+      body: { title: "未知联系人复盘会", date: "2026-07-18", status: "planned" },
+      headers: authHeader(),
+    }), env, mockCtx);
+    const meeting = JSON.parse(env.USER_DATA._store.get("meetings:testuser"))[0];
+
+    globalThis.fetch = async () => llmJson({
+      summary: "需要确认跟进对象",
+      new_contacts: [],
+      follow_up_todos: [{ task: "发送资料", contact_name: "不存在的联系人", due: "2026-07-25", priority: "high" }],
+      opportunity_analysis: [],
+      leverage_insights: "",
+      goal_suggestions: [],
+    });
+
+    const res = await worker.fetch(jsonReq("/ai/meeting_review", {
+      body: { meeting_id: meeting.id },
+      headers: authHeader(),
+    }), env, mockCtx);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.status).toBe("ok");
+    expect(data.created_todos).toBe(0);
+    expect(data.follow_up_failures).toEqual([
+      expect.objectContaining({
+        task: "发送资料",
+        contact_name: "不存在的联系人",
+        status: "needs_confirmation",
+      }),
+    ]);
+    expect(data.review.follow_up_failures).toEqual(data.follow_up_failures);
+    expect(data.review.follow_up_todos[0].status).toBe("needs_confirmation");
+    expect(JSON.parse(env.USER_DATA._store.get("todos:testuser") || "[]")).toHaveLength(0);
   });
 
   it("auto-completes prep todos matching meeting title when review completes", async () => {
@@ -959,17 +1070,32 @@ describe("Self-evolution: behavioral insights", () => {
     expect(insights.length).toBeGreaterThan(20);
   });
 
-  it("skips users with no activity", async () => {
-    env.USER_DATA._store.set("wechat_bind:wx456", "user_test_002");
-    // No metrics for this user
+  it("counts normalized leverage, nurture, dual, and Chinese nature variants", async () => {
+    const userId = "user_nature_counts";
+    env.USER_DATA._store.set("wechat_bind:wx789", userId);
+    env.USER_DATA._store.set(`metrics:${userId}`, JSON.stringify({
+      weekly: { "2026-W30": { advise_generated: 1 } },
+    }));
+    env.USER_DATA._store.set(`contacts:${userId}`, JSON.stringify([
+      { id: "c1", nature: "leverage" },
+      { id: "c2", nature: "nurture" },
+      { id: "c3", nature: "dual" },
+      { id: "c4", nature: "双重" },
+      { id: "c5", nature: "经营型" },
+      { id: "c6", nature: "陪伴型" },
+    ]));
 
-    globalThis.fetch = async () => llmText("should not be called");
+    let analysisData;
+    globalThis.fetch = async (url, opts) => {
+      const body = JSON.parse(opts.body);
+      analysisData = JSON.parse(body.messages[0].content);
+      return llmText("• 关系类型计数正常");
+    };
 
     await worker.scheduled({ cron: "0 2 * * 1" }, env, mockCtx);
     await _waitPromise;
 
-    const insights = env.USER_DATA._store.get("prompt:behavioral_insights:user_test_002.md");
-    expect(insights).toBeUndefined();
+    expect(analysisData.contacts).toEqual({ total: 6, leverage: 4, nurture: 4 });
   });
 
   it("injects behavioral insights into advise system prompt", async () => {
@@ -1035,5 +1161,575 @@ describe("Self-evolution: behavioral insights", () => {
     }), env, mockCtx);
     expect(capturedSystem).toContain("行为洞察");
     expect(capturedSystem).toContain("经营型draft");
+  });
+});
+
+describe('action card authentication regressions', () => {
+  let env;
+  beforeEach(() => {
+    env = baseEnv();
+  });
+
+  it('requires auth for GET action cards and POST confirmations', async () => {
+    const getResponse = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+    }), env, {});
+    const postResponse = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: { action: 'skip', action_id: 'act-unauthenticated' },
+    }), env, {});
+
+    expect(getResponse.status).toBe(401);
+    expect(postResponse.status).toBe(401);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// /ai/action_card — skip exclusion logic
+// ═══════════════════════════════════════════════════════════════
+
+describe("/ai/action_card skip exclusion", () => {
+  let env;
+  beforeEach(() => {
+    env = baseEnv();
+    if (globalThis._clearTrackActionCache) globalThis._clearTrackActionCache();
+  });
+
+  it("skip stores contact_id and next GET excludes it", async () => {
+    // Seed: 2 leverage contacts, both overdue
+    env.USER_DATA._store.set("contacts:testuser", JSON.stringify([
+      { id: "c1", name: "张三", nature: "leverage", strength: 3 },
+      { id: "c2", name: "李四", nature: "leverage", strength: 3 },
+    ]));
+    env.USER_DATA._store.set("timeline:testuser", JSON.stringify([]));
+    env.USER_DATA._store.set("todos:testuser", JSON.stringify([]));
+    env.USER_DATA._store.set("perceptions:testuser", JSON.stringify([]));
+
+    // GET action_card → should return c1 (first by sort)
+    let res = await worker.fetch(jsonReq("/ai/action_card", {
+      method: "GET",
+      headers: authHeader(),
+    }), env, {});
+    let data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.action_card).toBeTruthy();
+    const firstContactId = data.action_card.contact.id;
+
+    // Skip it
+    res = await worker.fetch(jsonReq("/ai/action_card/confirm", {
+      body: { action: "skip", contact_id: firstContactId },
+      headers: authHeader(),
+    }), env, {});
+    data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.action).toBe("skip");
+
+    // GET again → should return the OTHER contact
+    res = await worker.fetch(jsonReq("/ai/action_card", {
+      method: "GET",
+      headers: authHeader(),
+    }), env, {});
+    data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.action_card).toBeTruthy();
+    expect(data.action_card.contact.id).not.toBe(firstContactId);
+  });
+
+  it("skip without contact_id does not exclude anything", async () => {
+    env.USER_DATA._store.set("contacts:testuser", JSON.stringify([
+      { id: "c1", name: "张三", nature: "leverage", strength: 3 },
+    ]));
+    env.USER_DATA._store.set("timeline:testuser", JSON.stringify([]));
+    env.USER_DATA._store.set("todos:testuser", JSON.stringify([]));
+    env.USER_DATA._store.set("perceptions:testuser", JSON.stringify([]));
+
+    // Skip with no contact_id
+    await worker.fetch(jsonReq("/ai/action_card/confirm", {
+      body: { action: "skip" },
+      headers: authHeader(),
+    }), env, {});
+
+    // GET should still return the same contact
+    const res = await worker.fetch(jsonReq("/ai/action_card", {
+      method: "GET",
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+    expect(data.action_card).toBeTruthy();
+    expect(data.action_card.contact.id).toBe("c1");
+  });
+});
+
+describe('/ai/action_card R1 contract', () => {
+  let env;
+  beforeEach(() => {
+    env = baseEnv();
+    if (globalThis._clearTrackActionCache) globalThis._clearTrackActionCache();
+  });
+
+  it('returns a stable R1 action schema for the same source and day', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([
+      { id: 'tl1', contact: 'c1', date: '2020-01-01', summary: '上次讨论合作方案' },
+    ]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const first = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const second = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const firstData = await first.json();
+    const secondData = await second.json();
+    const action = firstData.action_card;
+
+    expect(first.status).toBe(200);
+    expect(action).toBeTruthy();
+    expect(action.id).toBe(action.action_id);
+    expect(action.id).toBe(secondData.action_card.id);
+    expect(action.type).toBe('advise');
+    expect(action.contact).toMatchObject({ id: 'c1', name: '张三', nature: 'leverage' });
+    expect(action.nature).toBe('leverage');
+    expect(action.reason).toBeTruthy();
+    expect(action.message).toBe(action.reason);
+    expect(action.suggested_topic).toBeTruthy();
+    expect(action.source).toEqual(expect.objectContaining({
+      kind: expect.any(String),
+      id: expect.any(String),
+      evidence: expect.any(String),
+    }));
+    expect(action.available_actions).toEqual(expect.arrayContaining(['draft', 'record_done', 'snooze', 'skip']));
+    expect(action.status).toBe('presented');
+    expect(action.created_at).toBeTruthy();
+    expect(action.draft_available).toBe(true);
+  });
+
+  it('uses a deterministic fallback source when no timeline or todo exists', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const first = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const second = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const firstData = await first.json();
+    const secondData = await second.json();
+
+    expect(firstData.action_card.id).toBe(secondData.action_card.id);
+    expect(['timeline', 'todo', 'meeting', 'signal', 'perception', 'important_date', 'candidate']).toContain(firstData.action_card.source.kind);
+    expect(firstData.action_card.source).toMatchObject({ kind: 'candidate', id: 'c1' });
+  });
+
+  it('versions action records in order and rejects a stale action version', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const first = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const firstAction = (await first.json()).action_card;
+    expect(firstAction.version).toBe(1);
+    expect(env.USER_DATA._store.get('version:actions:testuser')).toBe('1');
+
+    const snooze = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: {
+        action: 'snooze',
+        action_id: firstAction.action_id,
+        version: firstAction.version,
+        idempotency_key: 'action-version-snooze-1',
+      },
+      headers: authHeader(),
+    }), env, {});
+    const snoozeData = await snooze.json();
+    expect(snooze.status).toBe(200);
+    expect(snoozeData.version).toBe(2);
+    expect(JSON.parse(env.USER_DATA._store.get('actions:testuser'))[0]).toMatchObject({
+      status: 'snoozed',
+      version: 2,
+    });
+
+    const staleSkip = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: {
+        action: 'skip',
+        action_id: firstAction.action_id,
+        version: firstAction.version,
+        idempotency_key: 'action-version-stale-skip',
+      },
+      headers: authHeader(),
+    }), env, {});
+    const staleData = await staleSkip.json();
+    expect(staleSkip.status).toBe(409);
+    expect(staleData).toMatchObject({
+      ok: false,
+      code: 'ACTION_VERSION_CONFLICT',
+      action_id: firstAction.action_id,
+      expected_version: 1,
+      version: 2,
+      retryable: true,
+    });
+    expect(JSON.parse(env.USER_DATA._store.get('actions:testuser'))[0].status).toBe('snoozed');
+
+    const sequentialSkip = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: {
+        action: 'skip',
+        action_id: firstAction.action_id,
+        version: snoozeData.version,
+        idempotency_key: 'action-version-skip-2',
+      },
+      headers: authHeader(),
+    }), env, {});
+    const sequentialData = await sequentialSkip.json();
+    expect(sequentialSkip.status).toBe(200);
+    expect(sequentialData.version).toBe(3);
+    expect(JSON.parse(env.USER_DATA._store.get('actions:testuser'))[0]).toMatchObject({
+      status: 'skipped',
+      version: 3,
+    });
+  });
+
+  it('supports snooze, idempotent retry, and re-presents the same action after expiry', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const first = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const firstData = await first.json();
+    const actionId = firstData.action_card.action_id;
+
+    const snoozeRequest = {
+      action: 'snooze',
+      action_id: actionId,
+      idempotency_key: 'snooze-action-1',
+    };
+    const snooze = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: snoozeRequest,
+      headers: authHeader(),
+    }), env, {});
+    const snoozeData = await snooze.json();
+    expect(snooze.status).toBe(200);
+    expect(snoozeData).toMatchObject({
+      ok: true,
+      action: 'snooze',
+      action_id: actionId,
+      status: 'snoozed',
+      retryable: false,
+    });
+    expect(snoozeData.snooze_until).toBeTruthy();
+    expect(new Date(snoozeData.snooze_until).getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+
+    const hidden = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    expect((await hidden.json()).action_card).toBeNull();
+
+    const retry = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: snoozeRequest,
+      headers: authHeader(),
+    }), env, {});
+    const retryData = await retry.json();
+    expect(retryData).toMatchObject({
+      ok: true,
+      action: 'snooze',
+      action_id: actionId,
+      status: 'snoozed',
+      retryable: false,
+      snooze_until: snoozeData.snooze_until,
+    });
+
+    const records = JSON.parse(env.USER_DATA._store.get('actions:testuser'));
+    expect(records[0]).toMatchObject({
+      action_id: actionId,
+      status: 'snoozed',
+      snooze_until: snoozeData.snooze_until,
+    });
+    records[0].snooze_until = new Date(Date.now() - 1000).toISOString();
+    env.USER_DATA._store.set('actions:testuser', JSON.stringify(records));
+
+    const expired = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const expiredData = await expired.json();
+    expect(expiredData.action_card).toMatchObject({
+      id: actionId,
+      action_id: actionId,
+      status: 'presented',
+    });
+
+    const customSnooze = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: {
+        action: 'snooze',
+        action_id: actionId,
+        snooze_days: 2,
+        idempotency_key: 'snooze-action-2',
+      },
+      headers: authHeader(),
+    }), env, {});
+    const customSnoozeData = await customSnooze.json();
+    expect(customSnoozeData.status).toBe('snoozed');
+    expect(new Date(customSnoozeData.snooze_until).getTime()).toBeGreaterThan(Date.now() + 47 * 60 * 60 * 1000);
+  });
+
+  it('keeps done and skip retries terminal and non-retryable', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const first = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const actionId = (await first.json()).action_card.action_id;
+    const doneRequest = {
+      action: 'done',
+      action_id: actionId,
+      contact_id: 'c1',
+      idempotency_key: 'done-action-1',
+    };
+    const done = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: doneRequest,
+      headers: authHeader(),
+    }), env, {});
+    expect((await done.json())).toMatchObject({ status: 'done', retryable: false });
+
+    const doneRetry = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: doneRequest,
+      headers: authHeader(),
+    }), env, {});
+    expect((await doneRetry.json())).toMatchObject({ status: 'done', retryable: false });
+
+    const skipAfterDone = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: { action: 'skip', action_id: actionId },
+      headers: authHeader(),
+    }), env, {});
+    expect((await skipAfterDone.json())).toMatchObject({ status: 'done', retryable: false });
+
+    const snoozeAfterDone = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: { action: 'snooze', action_id: actionId },
+      headers: authHeader(),
+    }), env, {});
+    expect((await snoozeAfterDone.json())).toMatchObject({ status: 'done', retryable: false });
+  });
+
+  it('does not double count a dashboard draft flow', async () => {
+    env.LLM_API_KEY = '';
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const actionResponse = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const actionCard = (await actionResponse.json()).action_card;
+
+    const draftResponse = await worker.fetch(jsonReq('/ai/draft', {
+      body: {
+        name: '张三',
+        nature: 'leverage',
+        contact_id: 'c1',
+        source: 'action_card',
+        event_id: 'draft-flow-generated',
+      },
+      headers: authHeader(),
+    }), env, {});
+    expect(draftResponse.status).toBe(200);
+
+    const confirmResponse = await worker.fetch(jsonReq('/ai/action_card/confirm', {
+      body: {
+        action: 'draft',
+        action_id: actionCard.action_id,
+        contact_id: 'c1',
+        draft_text: '张三你好，最近怎么样？',
+        idempotency_key: 'draft-flow-accepted',
+      },
+      headers: authHeader(),
+    }), env, {});
+    expect(confirmResponse.status).toBe(200);
+    expect((await confirmResponse.json())).toMatchObject({ status: 'accepted', retryable: false });
+
+    const metrics = JSON.parse(env.USER_DATA._store.get('metrics:testuser'));
+    const week = Object.keys(metrics.weekly)[0];
+    expect(metrics.weekly[week].draft_generated).toBe(1);
+    const events = JSON.parse(env.USER_DATA._store.get('domain_events:testuser'));
+    expect(events.filter(event => event.event_type === 'draft_generated')).toHaveLength(1);
+    expect(events.filter(event => event.event_type === 'action_accepted')).toHaveLength(1);
+  });
+
+  it('maps an important date to a nurture action source', async () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 3);
+    const dateValue = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '妈妈', nature: 'nurture', important_dates: [{ label: '生日', date: dateValue }] },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const res = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.action_card).toMatchObject({
+      type: 'nurture',
+      nature: 'nurture',
+      source: expect.objectContaining({ kind: 'important_date', id: expect.stringContaining('c1:') }),
+    });
+  });
+
+  it('turns a confirmed perception into a perception_driven action with evidence', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage' },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('perceptions:testuser', JSON.stringify([
+      {
+        id: 'p-confirmed',
+        contact_id: 'c1',
+        status: 'confirmed',
+        title: '确认的公开变化',
+        summary: '张三发布了新的项目',
+        confirmed_at: '2026-08-01T00:00:00Z',
+        source: { platform: 'github', original_text: '公开原文片段' },
+      },
+    ]));
+
+    const res = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.action_card).toMatchObject({
+      type: 'perception_driven',
+      perception_id: 'p-confirmed',
+      source: expect.objectContaining({ kind: 'perception', id: 'p-confirmed', evidence: '张三发布了新的项目' }),
+    });
+  });
+
+  it('does not turn pending perception into an executable action card', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('perceptions:testuser', JSON.stringify([
+      { id: 'p1', contact_id: 'c1', status: 'pending', title: '公开变化', summary: '待确认变化', created_at: '2026-08-01T00:00:00Z' },
+    ]));
+
+    const res = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.action_card).toBeNull();
+    expect(data.pending_review).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'p1', status: 'pending' }),
+    ]));
+  });
+
+  it('maps a meeting follow-up todo to meeting_followup with meeting source', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo1', contact: 'c1', task: '发送会议方案', due: '2099-01-01', status: 'pending', source: 'meeting:m1' },
+    ]));
+
+    const res = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.action_card).toMatchObject({
+      type: 'meeting_followup',
+      todo_id: 'todo1',
+      source: expect.objectContaining({ kind: 'meeting', id: 'm1' }),
+    });
+  });
+
+  it('maps a signal follow-up todo to signal_match with signal source', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage' },
+    ]));
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([
+      { id: 'todo-signal', contact: 'c1', task: '跟进公开信号', due: '2099-01-01', status: 'pending', source: 'signal:s1' },
+    ]));
+
+    const res = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.action_card).toMatchObject({
+      type: 'signal_match',
+      source: expect.objectContaining({ kind: 'signal', id: 's1' }),
+    });
+  });
+
+  it('keeps advise and action card candidate policy aligned', async () => {
+    env.USER_DATA._store.set('contacts:testuser', JSON.stringify([
+      { id: 'c1', name: '张三', nature: 'leverage', strength: 3 },
+    ]));
+    const recent = new Date();
+    recent.setDate(recent.getDate() - 10);
+    env.USER_DATA._store.set('timeline:testuser', JSON.stringify([
+      { id: 'tl1', contact: 'c1', date: recent.toISOString().slice(0, 10), summary: '最近聊过近况' },
+    ]));
+    env.USER_DATA._store.set('todos:testuser', JSON.stringify([]));
+
+    const advise = await worker.fetch(jsonReq('/ai/advise_cloud', {
+      body: { session_token: 'testuser:secret' },
+      headers: authHeader(),
+    }), env, {});
+    const actionCard = await worker.fetch(jsonReq('/ai/action_card', {
+      method: 'GET',
+      headers: authHeader(),
+    }), env, {});
+    const adviseData = await advise.json();
+    const actionData = await actionCard.json();
+
+    expect(advise.status).toBe(200);
+    expect(actionCard.status).toBe(200);
+    expect(adviseData.result).not.toContain('张三');
+    expect(actionData.action_card).toBeNull();
   });
 });

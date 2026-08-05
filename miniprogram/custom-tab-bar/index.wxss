@@ -30,3 +30,40 @@
   color: #C96442;
   font-weight: 600;
 }
+
+/* ── 中间凸起小维按钮（5栏布局） ── */
+.tab-sync-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 8rpx;
+  position: relative;
+}
+.tab-sync-placeholder {
+  flex: 1;
+}
+.tab-sync-circle {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4A6741 0%, #5A7A51 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(74, 103, 65, 0.4);
+  border: 4rpx solid #EDEBE3;
+  margin-top: -32rpx;
+}
+.tab-sync-icon {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+.tab-sync-text {
+  font-size: 20rpx;
+  color: #4A6741;
+  margin-top: 4rpx;
+  font-weight: 600;
+}

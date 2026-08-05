@@ -1,72 +1,106 @@
 <!-- pages/onboarding/onboarding.wxml — 3 联系人快速激活 -->
 <view class="onboarding">
-  <!-- 进度指示 -->
-  <view class="progress-bar">
-    <view class="progress-dot {{step >= 1 ? 'active' : ''}}">1</view>
-    <view class="progress-line {{step >= 2 ? 'active' : ''}}"></view>
-    <view class="progress-dot {{step >= 2 ? 'active' : ''}}">2</view>
-    <view class="progress-line {{step >= 3 ? 'active' : ''}}"></view>
-    <view class="progress-dot {{step >= 3 ? 'active' : ''}}">3</view>
+  <!-- 品牌头 -->
+  <view class="brand-section">
+    <text class="brand-name">Welian</text>
+    <text class="brand-inf">∞</text>
   </view>
+  <text class="brand-tagline">每段关系都值得用心</text>
 
-  <!-- 引导文案 -->
+  <!-- 引导文案 + 计数器 -->
   <view class="guide-text">
-    <text class="guide-title">添加 {{step}}/3 位重要的人</text>
-    <text class="guide-desc">告诉小维你最在意的人，立刻获得第一份关系建议</text>
+    <text class="guide-title">添加重要的人</text>
+    <text class="guide-desc">告诉小维你最在意谁，立刻获得第一份关系建议</text>
+    <view class="counter {{added.length >= 3 ? 'counter-full' : ''}}">
+      <text class="counter-num">{{added.length}}</text>
+      <text class="counter-total">/3</text>
+    </view>
   </view>
 
-  <!-- 联系人输入表单 -->
+  <!-- 已添加联系人（chip 列表，可删除） -->
+  <view wx:if="{{added.length > 0}}" class="added-chips">
+    <view wx:for="{{added}}" wx:key="index" class="added-chip">
+      <text class="chip-name">{{item.name}}</text>
+      <text class="chip-nature">{{item.natureLabel}}</text>
+      <text class="chip-remove" bindtap="removeContact" data-index="{{index}}">×</text>
+    </view>
+  </view>
+
+  <!-- 输入卡片 -->
   <view class="form-card">
-    <input class="name-input" placeholder="姓名" value="{{currentName}}" bindinput="onNameInput" focus="{{autoFocus}}" />
-    <view class="nature-selector">
-      <view class="nature-option {{currentNature === 'leverage' ? 'selected' : ''}}" bindtap="selectNature" data-nature="leverage">
-        <text class="nature-icon">🌿</text>
-        <text class="nature-label">经营型</text>
-        <text class="nature-desc">合作者、客户、同行</text>
+    <input
+      class="name-input"
+      placeholder="输入姓名…"
+      value="{{currentName}}"
+      bindinput="onNameInput"
+      bindconfirm="addContact"
+      focus="{{autoFocus}}"
+      confirm-type="done"
+    />
+    <text wx:if="{{nameError}}" class="form-error text-accent text-xs">{{nameError}}</text>
+
+    <!-- 关系类型 — 紧凑 pill 标签 -->
+    <view class="nature-pills">
+      <view
+        class="nature-pill {{currentNature === 'leverage' ? 'selected' : ''}}"
+        bindtap="selectNature"
+        data-nature="leverage"
+      >
+        <text class="pill-emoji">🤝</text>
+        <text class="pill-label">经营型</text>
       </view>
-      <view class="nature-option {{currentNature === 'nurture' ? 'selected' : ''}}" bindtap="selectNature" data-nature="nurture">
-        <text class="nature-icon">💛</text>
-        <text class="nature-label">陪伴型</text>
-        <text class="nature-desc">家人、挚友、恩师</text>
+      <view
+        class="nature-pill {{currentNature === 'nurture' ? 'selected' : ''}}"
+        bindtap="selectNature"
+        data-nature="nurture"
+      >
+        <text class="pill-emoji">🌿</text>
+        <text class="pill-label">陪伴型</text>
       </view>
-      <view class="nature-option {{currentNature === 'dual' ? 'selected' : ''}}" bindtap="selectNature" data-nature="dual">
-        <text class="nature-icon">🔄</text>
-        <text class="nature-label">双重</text>
-        <text class="nature-desc">既是朋友又是合作者</text>
+      <view
+        class="nature-pill {{currentNature === 'dual' ? 'selected' : ''}}"
+        bindtap="selectNature"
+        data-nature="dual"
+      >
+        <text class="pill-emoji">∞</text>
+        <text class="pill-label">双重</text>
       </view>
     </view>
-    <input class="rel-input" placeholder="关系描述（可选，如：项目合作 / 大学室友）" value="{{currentRelationship}}" bindinput="onRelInput" />
   </view>
 
-  <!-- 已添加的联系人 -->
-  <view wx:if="{{added.length > 0}}" class="added-list">
-    <view wx:for="{{added}}" wx:key="index" class="added-item">
-      <text class="added-name">{{item.name}}</text>
-      <text class="added-nature">{{item.natureLabel}}</text>
+  <!-- 底部操作区 -->
+  <view class="action-bar">
+    <!-- 主按钮：随状态变化 -->
+    <button
+      wx:if="{{added.length < 3}}"
+      class="btn btn-primary btn-block"
+      bindtap="addContact"
+    >
+      添加{{added.length > 0 ? '下一个' : ''}}
+    </button>
+    <button
+      wx:if="{{added.length >= 3 || added.length >= 1}}"
+      class="btn btn-complete btn-block"
+      bindtap="submitAll"
+      loading="{{submitting}}"
+    >
+      完成{{added.length > 0 ? '（已添加' + added.length + '人）' : ''}}
+    </button>
+    <!-- 跳过 — subtle 文字链接 -->
+    <view class="skip-link" bindtap="skipOnboarding">
+      <text>先逛逛，稍后再添加</text>
     </view>
   </view>
 
-  <!-- 操作按钮 -->
-  <view class="action-section">
-    <button wx:if="{{step < 3}}" class="btn btn-primary btn-block" bindtap="addContact" loading="{{submitting}}">
-      添加第 {{step}} 位（还差 {{3 - step}} 位）
-    </button>
-    <button wx:if="{{step >= 3 && added.length >= 3}}" class="btn btn-primary btn-block" bindtap="submitAll" loading="{{submitting}}">
-      完成，获取我的第一份建议
-    </button>
-    <button wx:if="{{step >= 3 && added.length < 3}}" class="btn btn-primary btn-block" bindtap="addContact" loading="{{submitting}}">
-      继续添加（已 {{added.length}}/3）
-    </button>
-    <view class="skip-link" bindtap="skipOnboarding">跳过，稍后再添加</view>
-  </view>
-
-  <!-- 首次建议展示 -->
-  <view wx:if="{{firstAdvise}}" class="advise-card">
-    <view class="advise-header">
-      <text class="advise-icon">🌱</text>
-      <text class="advise-title">小维的第一份建议</text>
+  <!-- 首次建议 — 淡入卡片 -->
+  <view wx:if="{{firstAdvise}}" class="advise-overlay" catchtap="noop">
+    <view class="advise-card advise-fade-in">
+      <view class="advise-header">
+        <text class="advise-emoji">✨</text>
+        <text class="advise-title">小维的第一份建议</text>
+      </view>
+      <text class="advise-body">{{firstAdvise}}</text>
+      <button class="btn btn-primary btn-block" bindtap="goDashboard">进入仪表盘</button>
     </view>
-    <text class="advise-body">{{firstAdvise}}</text>
-    <button class="btn btn-primary btn-block" bindtap="goDashboard">进入仪表盘</button>
   </view>
 </view>

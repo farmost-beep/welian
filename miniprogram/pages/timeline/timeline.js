@@ -1,6 +1,6 @@
 // pages/timeline/timeline.js — 互动记录页
 const api = require('../../utils/api.js');
-const { filterAndGroup, formatDateInput } = require('../../utils/timeline-logic.js');
+const { filterAndGroup, formatDateInput, buildMonthDots } = require('../../utils/timeline-logic.js');
 
 Page({
   data: {
@@ -20,6 +20,10 @@ Page({
       date: '',
     },
     contactSuggestions: [],
+    // #4: 月度点状时间轴
+    monthDots: [],
+    monthActiveDays: 0,
+    monthInteractions: 0,
   },
 
   onLoad() {
@@ -72,7 +76,9 @@ Page({
   applyFilter() {
     const { rawList, searchKey } = this.data;
     const groups = filterAndGroup(rawList, searchKey);
-    this.setData({ groups });
+    // #4: 月度点状时间轴（基于全部数据，不受搜索影响）
+    const dotData = buildMonthDots(rawList);
+    this.setData({ groups, monthDots: dotData.dots, monthActiveDays: dotData.activeDays, monthInteractions: dotData.monthInteractions });
   },
 
   onSearchInput(e) {
@@ -179,7 +185,13 @@ Page({
       success: (res) => {
         this.setData({ saving: false });
         if (res.statusCode === 200 && (res.data.ok || res.data.id)) {
-          wx.showToast({ title: isEdit ? '已保存' : '已添加', icon: 'success' });
+          if (!isEdit) {
+            // #2: 温暖反馈（文案后端驱动）
+            const app = getApp();
+            wx.showToast({ title: app.getWarmMessage(form.contact_name.trim()), icon: 'none', duration: 2500 });
+          } else {
+            wx.showToast({ title: '已保存', icon: 'success' });
+          }
           this.setData({ showModal: false });
           this.loadTimeline();
         } else {

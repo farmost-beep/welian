@@ -1,11 +1,19 @@
 // Tests for cloud data endpoints — /ai/import (CSV direct parse) and /data/push.
 // No real LLM calls: CSV import parses locally via _parseCSV. KV is mocked.
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import worker from "../src/worker.js";
 import { baseEnv, authHeader, jsonReq } from "./helpers.js";
 
 function toBase64(text) {
   return Buffer.from(text, "utf-8").toString("base64");
+}
+
+function llmJson(obj) {
+  return new Response(JSON.stringify({
+    content: [{ type: "text", text: JSON.stringify(obj) }],
+    usage: { input_tokens: 10, output_tokens: 10 },
+    stop_reason: "end_turn",
+  }), { status: 200, headers: { "content-type": "application/json" } });
 }
 
 describe("/ai/import: CSV direct parse", () => {
@@ -78,6 +86,47 @@ describe("/ai/import: CSV direct parse", () => {
     });
     const res = await worker.fetch(req, env, {});
     expect(res.status).toBe(401);
+  });
+});
+
+describe("/ai/interactions/auto_extract: todo domain event", () => {
+  const originalFetch = globalThis.fetch;
+  let env;
+  beforeEach(() => {
+    env = baseEnv();
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("creates an import todo with a standard event", async () => {
+    env.USER_DATA._store.set("contacts:testuser", JSON.stringify([
+      { id: "c-import", name: "导入联系人" },
+    ]));
+    globalThis.fetch = async () => llmJson({
+      summary: "讨论了导入流程",
+      key_points: ["需要补材料"],
+      pending: "补充导入材料",
+    });
+
+    const res = await worker.fetch(jsonReq("/ai/interactions/auto_extract", {
+      body: {
+        contact_name: "导入联系人",
+        messages: [{ sender: "导入联系人", content: "请补充导入材料" }],
+      },
+      headers: authHeader(),
+    }), env, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.todo_created).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const todos = JSON.parse(env.USER_DATA._store.get("todos:testuser"));
+    expect(todos).toHaveLength(1);
+    expect(todos[0]).toMatchObject({ task: "补充导入材料", contact: "c-import", source: "import" });
+    const events = JSON.parse(env.USER_DATA._store.get("domain_events:testuser"));
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: "todo_created", source: "import", contact_id: "c-import" }),
+    ]));
   });
 });
 

@@ -104,7 +104,13 @@ function request(path, data, method = 'GET') {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
         } else {
-          reject(new Error('请求失败: ' + res.statusCode));
+          const responseData = res.data && typeof res.data === 'object' ? res.data : {};
+          const requestError = new Error(responseData.error || responseData.message || '请求失败: ' + res.statusCode);
+          Object.assign(requestError, responseData);
+          requestError.statusCode = res.statusCode;
+          requestError.data = res.data;
+          requestError.response = res;
+          reject(requestError);
         }
       },
       fail: (err) => reject(err),
@@ -219,17 +225,25 @@ module.exports = {
   },
 
   // 关系列表（compact 模式，分页加载）
+  // 分别请求 leverage 和 nurture，确保少数类型不被分页丢失
   getContacts(offset = 0, limit = 100) {
-    return request('/data/contacts?limit=' + limit + '&offset=' + offset + '&compact=1').then((data) => {
-      const contacts = data.contacts || [];
-      const leverage = contacts.filter(c => c.nature === 'leverage' || c.nature === 'dual' || c.nature === '双重');
-      const nurture = contacts.filter(c => c.nature === 'nurture' || c.nature === 'dual' || c.nature === '双重');
+    const levReq = request('/data/contacts?limit=' + limit + '&offset=' + offset + '&compact=1&nature=leverage');
+    const nurReq = request('/data/contacts?limit=' + limit + '&offset=' + offset + '&compact=1&nature=nurture');
+    return Promise.all([levReq, nurReq]).then(([levData, nurData]) => {
+      const leverage = (levData.contacts || []).map(formatContact);
+      const nurture = (nurData.contacts || []).map(formatContact);
+      // dual contacts appear in both lists — deduplicate for allList
+      const levIds = new Set(leverage.map(c => c.id));
+      const all = leverage.concat(nurture.filter(c => !levIds.has(c.id)));
+      const levHasMore = (levData.offset || 0) + (levData.limit || limit) < (levData.total || 0);
+      const nurHasMore = (nurData.offset || 0) + (nurData.limit || limit) < (nurData.total || 0);
       return {
-        leverage: leverage.map(formatContact),
-        nurture: nurture.map(formatContact),
-        total: data.total || contacts.length,
-        offset: data.offset || 0,
-        hasMore: (data.offset || 0) + (data.limit || limit) < (data.total || 0),
+        leverage,
+        nurture,
+        all,
+        total: (levData.total || 0) + (nurData.total || 0),
+        offset: levData.offset || 0,
+        hasMore: levHasMore || nurHasMore,
       };
     });
   },
@@ -290,10 +304,13 @@ module.exports = {
   // 信号预览（公开，无需登录）
   getSignals(refresh) {
     return new Promise((resolve, reject) => {
+      const token = getToken();
+      const header = { 'Content-Type': 'application/json' };
+      if (token) header['Authorization'] = 'Bearer ' + token;
       wx.request({
         url: BASE_URL + '/ai/signals_preview' + (refresh ? '?refresh=1' : ''),
         method: 'GET',
-        header: { 'Content-Type': 'application/json' },
+        header,
         success: (res) => {
           if (res.statusCode === 200 && res.data) {
             resolve(res.data.report || { signals: [], themes: [] });

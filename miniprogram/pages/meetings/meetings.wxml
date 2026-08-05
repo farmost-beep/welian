@@ -2,7 +2,7 @@
 <view class="container">
   <!-- 标题 -->
   <view class="header">
-    <text class="page-title">🗓️ 会议</text>
+    <text class="page-title">会议</text>
     <text class="page-subtitle">拍议程、拍名片、拍笔记，智能帮你记</text>
   </view>
 
@@ -42,11 +42,11 @@
         <text class="status-badge status-{{item.status}}">{{item.statusLabel}}</text>
       </view>
       <view class="meeting-meta">
-        <text class="meta-item">📅 {{item.dateLabel}}</text>
-        <text wx:if="{{item.location}}" class="meta-item">📍 {{item.location}}</text>
+        <text class="meta-item">{{item.dateLabel}}</text>
+        <text wx:if="{{item.location}}" class="meta-item">{{item.location}}</text>
       </view>
       <view class="meeting-footer">
-        <text class="text-dim text-xs">👥 {{item.attendeeCount}}人</text>
+        <text class="text-dim text-xs">{{item.attendeeCount}}人</text>
         <text wx:if="{{item.purpose}}" class="text-dimmer text-xs purpose-ellipsis">{{item.purpose}}</text>
       </view>
     </view>
@@ -61,7 +61,7 @@
     <!-- 拍议程照片 -->
     <view class="modal-field">
       <button class="photo-btn {{scanning ? 'photo-btn-loading' : ''}}" bindtap="scanAgenda" loading="{{scanning}}">
-        {{scanning ? '识别中…' : '📷 拍议程照片自动填充'}}
+        {{scanning ? '识别中…' : '拍议程照片自动填充'}}
       </button>
     </view>
 

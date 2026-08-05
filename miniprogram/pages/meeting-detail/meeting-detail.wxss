@@ -171,7 +171,7 @@
   width: 100%; max-width: 500px;
   max-height: 85vh; overflow-y: auto;
   border-radius: 20rpx 20rpx 0 0;
-  padding: 24rpx 32rpx 48rpx;
+  padding: 24rpx 32rpx calc(120rpx + env(safe-area-inset-bottom));
 }
 .modal-title {
   font-size: 34rpx; font-weight: 600; color: #1A1915;

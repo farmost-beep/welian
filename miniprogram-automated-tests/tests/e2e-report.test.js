@@ -1,4 +1,4 @@
-// e2e-report.test.js — E2E: 关系体检报告完整流程
+// e2e-report.test.js — E2E: 关系回顾报告完整流程
 // 旅程: 直接打开report(无cid) → 降级为sharedView → 带cid打开 → 降级 → 带真实cid打开
 const h = require('../helpers');
 
@@ -16,16 +16,17 @@ async function testE2EReport(mp) {
   // 无 token 时应该降级为 sharedView
   if (data.isSharedView && data.report) {
     h.assert(true, '无参数降级为 sharedView');
-    h.assert(typeof data.report.temperature === 'number', '简化报告有温度值');
-    h.assert(Array.isArray(data.report.suggestions), '简化报告有建议');
-    console.log('  简化报告温度:', data.report.temperature);
+    h.assert(Array.isArray(data.report.facts), '简化报告有事实清单');
+    h.assert(data.report.facts.length > 0, '事实清单不为空');
+    h.assert(data.report.temperature === undefined, '无温度字段');
+    console.log('  简化报告事实数:', data.report.facts.length);
   } else if (data.report) {
     // 有 token 时生成真实报告
     h.assert(true, '有token生成真实报告');
     h.assert(data.report.contactName !== undefined, '真实报告有联系人名');
-    console.log('  真实报告:', data.report.contactName, data.report.temperature + '°');
+    h.assert(Array.isArray(data.report.facts), '真实报告有事实清单');
+    console.log('  真实报告:', data.report.contactName);
   } else if (data.error) {
-    // 不应该出现 — 降级逻辑应该处理所有错误
     throw new Error('无参数打开不应报错: ' + data.error);
   }
 
@@ -62,15 +63,11 @@ async function testE2EReport(mp) {
     console.log('  真实cid: isSharedView=' + data.isSharedView + ' report=' + (data.report ? 'yes' : 'no'));
 
     if (data.report) {
-      h.assert(typeof data.report.temperature === 'number', '真实报告有温度');
-      h.assert(data.report.tempDesc, '真实报告有温度描述');
-      h.assert(Array.isArray(data.report.suggestions), '真实报告有建议');
-      console.log('  报告:', data.report.contactName, data.report.temperature + '°');
-      console.log('  描述:', data.report.tempDesc);
-      console.log('  建议数:', data.report.suggestions.length);
-
-      // 验证温度范围
-      h.assert(data.report.temperature >= 0 && data.report.temperature <= 100, '温度在0-100');
+      h.assert(Array.isArray(data.report.facts), '真实报告有事实清单');
+      h.assert(data.report.facts.length > 0, '事实清单不为空');
+      h.assert(data.report.temperature === undefined, '无温度字段');
+      console.log('  报告:', data.report.contactName);
+      console.log('  事实数:', data.report.facts.length);
 
       // 验证统计字段
       h.assert(data.report.totalInteractions !== undefined, '有总互动数');
@@ -92,11 +89,13 @@ async function testE2EReport(mp) {
   h.assert(data._contactName === '测试联系人', '分享场景 contactName 正确');
   h.assert(data.report, '分享场景有简化报告');
   if (data.report) {
-    console.log('  分享场景报告:', data.report.contactName, data.report.temperature + '°');
+    h.assert(Array.isArray(data.report.facts), '分享场景有事实清单');
+    console.log('  分享场景报告:', data.report.contactName);
   }
 }
 
 module.exports = {
-  name: 'E2E-7: 关系体检报告(无参数+假cid+真实cid+分享场景)',
+  name: 'E2E-7: 关系回顾报告(无参数+假cid+真实cid+分享场景)',
+  mutates: false,
   fn: testE2EReport,
 };

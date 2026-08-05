@@ -2,7 +2,7 @@
 <view class="container">
   <!-- 标题 -->
   <view class="header">
-    <text class="page-title">📋 待办</text>
+    <text class="page-title">待办</text>
     <text class="page-subtitle">该联系谁、该做什么，一目了然</text>
   </view>
 
@@ -66,7 +66,7 @@
       <text class="tab-text">已完成（{{doneCount}}）</text>
     </view>
     <view wx:if="{{activeTab === 'pending' && pending.length > 0}}" class="tab-calendar-btn" bindtap="batchAddCalendar">
-      <text class="text-sm">📅 导入日历</text>
+      <text class="text-sm">导入日历</text>
     </view>
   </view>
 
@@ -84,27 +84,73 @@
   <!-- 待办列表 -->
   <block wx:if="{{activeTab === 'pending' && !loading}}">
     <view wx:if="{{pending.length === 0}}" class="empty-state">
-      <text class="text-dimmer text-sm">没有待办，继续保持 👍</text>
+      <text class="text-dimmer text-sm">没有待办，继续保持</text>
     </view>
     <block wx:for="{{pendingGroups}}" wx:key="key">
       <view class="todo-group-header">
         <text class="todo-group-label">{{item.icon}} {{item.label}}（{{item.items.length}}）</text>
       </view>
-      <view wx:for="{{item.items}}" wx:for-item="todo" wx:key="id" class="card todo-item">
-        <view class="todo-checkbox" bindtap="markDone" data-id="{{todo.id}}">
-          <text class="checkbox-circle">○</text>
-        </view>
-        <view class="todo-content" bindtap="showTodoActions" data-id="{{todo.id}}">
-          <text class="todo-task">{{todo.task}}</text>
-          <view class="todo-meta">
-            <text wx:if="{{todo.priorityLabel}}" class="todo-priority">{{todo.priorityLabel}}</text>
-            <text wx:if="{{todo.contact_name}}" class="todo-contact text-dim text-xs">👤 {{todo.contact_name}}</text>
-            <text wx:if="{{todo.dueLabel}}" class="todo-due todo-due-{{todo.dueStatus}}">{{todo.dueLabel}}</text>
-            <text wx:if="{{!todo.due && todo.dueStatus === 'nodate'}}" class="todo-due todo-due-nodate">长期</text>
-            <text wx:if="{{todo.postponed}}" class="todo-postponed text-dim text-xs">↩︎ 推迟{{todo.postponed}}次</text>
+      <block wx:for="{{item.items}}" wx:for-item="todo" wx:key="id">
+        <!-- 序列卡片 -->
+        <view wx:if="{{todo.isSeries}}" class="card todo-series-card">
+          <!-- 头部：序列名 + 进度条 + 展开按钮 -->
+          <view class="series-header" bindtap="toggleSeries" data-series-id="{{todo.series_id}}">
+            <view class="series-header-left">
+              <text class="series-label">{{todo.series_label}}</text>
+              <view class="series-progress-bar">
+                <view class="series-progress-fill" style="width: {{todo.series_percent}}%"></view>
+              </view>
+              <text class="series-progress-text text-dim text-xs">{{todo.series_completed}}/{{todo.series_total}} 步</text>
+            </view>
+            <text class="series-chevron {{todo.expanded ? 'series-chevron-up' : ''}}">›</text>
+          </view>
+
+          <!-- 当前步骤 -->
+          <view class="series-current">
+            <view class="series-current-num">{{todo.active_index + 1}}</view>
+            <view class="todo-checkbox series-checkbox" catchtap="markSeriesStepDone" data-step-id="{{todo.active_step.id}}" data-series-id="{{todo.series_id}}">
+              <text class="checkbox-circle">○</text>
+            </view>
+            <view class="series-current-content">
+              <text class="todo-task">{{todo.active_step.task}}</text>
+              <view class="todo-meta">
+                <text wx:if="{{todo.contact_name}}" class="todo-contact text-dim text-xs">{{todo.contact_name}}</text>
+                <text wx:if="{{todo.dueLabel}}" class="todo-due todo-due-{{todo.dueStatus}}">{{todo.dueLabel}}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 展开时显示所有步骤 -->
+          <view wx:if="{{todo.expanded}}" class="series-steps">
+            <view wx:for="{{todo.series_steps}}" wx:for-item="step" wx:key="id" class="series-step-row {{step.done || step.status === 'done' ? 'step-done' : ''}} {{step.series_active ? 'step-current' : ''}}">
+              <view class="step-num">{{index + 1}}</view>
+              <view class="step-line"></view>
+              <view class="step-body">
+                <text class="step-task">{{step.task}}</text>
+                <text wx:if="{{step.due}}" class="step-due text-dim text-xs">{{step.dueLabel}}</text>
+              </view>
+              <text wx:if="{{step.done || step.status === 'done'}}" class="step-check">✓</text>
+            </view>
           </view>
         </view>
-      </view>
+
+        <!-- 普通待办 -->
+        <view wx:if="{{!todo.isSeries}}" class="card todo-item">
+          <view class="todo-checkbox" bindtap="markDone" data-id="{{todo.id}}">
+            <text class="checkbox-circle">○</text>
+          </view>
+          <view class="todo-content" bindtap="showTodoActions" data-id="{{todo.id}}">
+            <text class="todo-task">{{todo.task}}</text>
+            <view class="todo-meta">
+              <text wx:if="{{todo.priorityLabel}}" class="todo-priority">{{todo.priorityLabel}}</text>
+              <text wx:if="{{todo.contact_name}}" class="todo-contact text-dim text-xs">{{todo.contact_name}}</text>
+              <text wx:if="{{todo.dueLabel}}" class="todo-due todo-due-{{todo.dueStatus}}">{{todo.dueLabel}}</text>
+              <text wx:if="{{!todo.due && todo.dueStatus === 'nodate'}}" class="todo-due todo-due-nodate">长期</text>
+              <text wx:if="{{todo.postponed}}" class="todo-postponed text-dim text-xs">↩︎ 推迟{{todo.postponed}}次</text>
+            </view>
+          </view>
+        </view>
+      </block>
     </block>
   </block>
 
@@ -120,7 +166,7 @@
       <view class="todo-content" bindtap="showTodoActions" data-id="{{item.id}}">
         <text class="todo-task todo-task-done">{{item.task}}</text>
         <view class="todo-meta">
-          <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">👤 {{item.contact_name}}</text>
+          <text wx:if="{{item.contact_name}}" class="todo-contact text-dim text-xs">{{item.contact_name}}</text>
           <text wx:if="{{item.completedLabel}}" class="todo-contact text-dimmer text-xs">✓ {{item.completedLabel}}</text>
         </view>
       </view>
@@ -132,17 +178,18 @@
 <view wx:if="{{showActions}}" class="action-overlay" bindtap="closeActions">
   <view class="action-sheet" catchtap="noop">
     <view class="action-sheet-title">{{actionTodo.task}}</view>
-    <view class="action-sheet-item" bindtap="doDetail">📋 详情</view>
+    <view class="action-sheet-item" bindtap="doDetail">详情</view>
     <block wx:if="{{actionTodo.status !== 'done' && !actionTodo.done}}">
       <view class="action-sheet-item" bindtap="doMarkDone">✓ 标记完成</view>
       <view class="action-sheet-item" bindtap="doPostpone">↩︎ 推迟</view>
       <view class="action-sheet-item" bindtap="doEdit">✏️ 编辑</view>
+      <view class="action-sheet-item" bindtap="doCreateSeries">🔗 创建序列</view>
       <view class="action-sheet-item action-sheet-danger" bindtap="doCancel">✕ 取消待办</view>
     </block>
     <block wx:else>
       <view class="action-sheet-item" bindtap="doReopen">↩︎ 重新打开</view>
     </block>
-    <view class="action-sheet-item action-sheet-danger" bindtap="doDelete">🗑️ 彻底删除</view>
+    <view class="action-sheet-item action-sheet-danger" bindtap="doDelete">彻底删除</view>
     <view class="action-sheet-item action-sheet-cancel" bindtap="closeActions">取消</view>
   </view>
 </view>
@@ -211,7 +258,7 @@
     </view>
     <view wx:if="{{detailTodo.contact_name}}" class="detail-field">
       <text class="detail-label">关联联系人</text>
-      <text class="detail-value">👤 {{detailTodo.contact_name}}</text>
+      <text class="detail-value">{{detailTodo.contact_name}}</text>
     </view>
     <view class="detail-field">
       <text class="detail-label">优先级</text>
@@ -224,6 +271,10 @@
     <view class="detail-field">
       <text class="detail-label">状态</text>
       <text class="detail-value">{{detailTodo.done || detailTodo.status === 'done' ? '已完成' : '待完成'}}</text>
+    </view>
+    <view wx:if="{{detailTodo.series_label}}" class="detail-field">
+      <text class="detail-label">所属序列</text>
+      <text class="detail-value">{{detailTodo.series_label}}（步骤 {{detailTodo.series_order + 1}}/{{detailTodo.series_total}}）</text>
     </view>
     <view wx:if="{{detailTodo.completedLabel}}" class="detail-field">
       <text class="detail-label">完成时间</text>
@@ -242,8 +293,55 @@
       <text class="detail-value text-dim text-xs">{{detailTodo.createdLabel}}</text>
     </view>
     <view class="edit-actions">
-      <button class="action-btn" bindtap="addTodoToCalendar">📅 日历</button>
+      <button class="action-btn" bindtap="addTodoToCalendar">日历</button>
       <button class="action-btn action-btn-primary" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+</view>
+
+<!-- 创建序列弹窗 -->
+<view wx:if="{{showSeries}}" class="edit-overlay" catchtap="closeSeries">
+  <view class="edit-modal" catchtap="noop">
+    <view class="edit-title">创建待办序列</view>
+    <view class="series-create-intro">
+      <text class="text-dim text-sm">当前待办将成为序列第 1 步，添加后续步骤形成连续动作链。</text>
+    </view>
+    <view class="edit-field">
+      <text class="edit-label">序列名称</text>
+      <input class="edit-input" value="{{seriesForm.label}}" bindinput="onSeriesInput" data-field="label" placeholder="如：和老许聚餐" />
+    </view>
+
+    <!-- 步骤列表 -->
+    <view class="series-create-steps">
+      <!-- 第1步（当前待办，不可编辑） -->
+      <view class="series-create-step">
+        <view class="step-num step-num-fixed">1</view>
+        <view class="step-line"></view>
+        <view class="series-create-step-body">
+          <text class="series-create-step-task">{{actionTodo.task}}</text>
+          <text class="text-dimmer text-xs">当前待办</text>
+        </view>
+      </view>
+      <!-- 后续步骤 -->
+      <view wx:for="{{seriesForm.steps}}" wx:key="index" class="series-create-step">
+        <view class="step-num">{{index + 2}}</view>
+        <view wx:if="{{index < seriesForm.steps.length - 1}}" class="step-line"></view>
+        <view class="series-create-step-body">
+          <input class="edit-input series-create-input" value="{{item.task}}" bindinput="onSeriesStepInput" data-index="{{index}}" data-field="task" placeholder="后续步骤内容" />
+          <view class="series-create-step-row">
+            <picker mode="date" value="{{item.due}}" bindchange="onSeriesStepDate" data-index="{{index}}">
+              <view class="series-create-date {{item.due ? '' : 'text-dimmer'}}">{{item.due || '选日期'}}</view>
+            </picker>
+            <view wx:if="{{seriesForm.steps.length > 1}}" class="series-create-remove" catchtap="removeSeriesStep" data-index="{{index}}">✕</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="series-create-add" bindtap="addSeriesStep">＋ 添加步骤</view>
+    <view class="edit-actions">
+      <button class="action-btn" bindtap="closeSeries">取消</button>
+      <button class="action-btn action-btn-primary" bindtap="saveSeries" loading="{{savingSeries}}">创建序列</button>
     </view>
   </view>
 </view>
