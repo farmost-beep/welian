@@ -400,6 +400,28 @@ async function saveStructuredInsights(env, userId, insights) {
   await env.USER_DATA.put(`evolution_insights:${userId}`, JSON.stringify(insights));
 }
 
+// R2: Perception audit trail — records who/when/what/why for confirm/reject/revoke
+async function writePerceptionAudit(env, userId, perceptionId, action, note) {
+  const key = `perception_audit:${userId}`;
+  const raw = await env.USER_DATA.get(key);
+  const audit = raw ? JSON.parse(raw) : [];
+  audit.push({
+    id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    perception_id: perceptionId,
+    action, // confirm | reject | revoke
+    note: note || null,
+    timestamp: new Date().toISOString(),
+  });
+  // Keep last 200 entries
+  const trimmed = audit.slice(-200);
+  await env.USER_DATA.put(key, JSON.stringify(trimmed));
+}
+
+async function loadPerceptionAudit(env, userId) {
+  const raw = await env.USER_DATA.get(`perception_audit:${userId}`);
+  return raw ? JSON.parse(raw) : [];
+}
+
 // R2: Parse LLM Markdown into structured insight objects with evidence
 function parseStructuredInsights(text, analysisData) {
   const lines = text.split('\n').filter(l => l.trim());
@@ -621,6 +643,7 @@ function buildRelationshipAction(userId, candidate, type, today, topic) {
   const source = normalizeActionSource(candidate.source || actionSource('candidate', contact.id, candidate.reasonHint));
   const actionId = makeStableActionId(userId, type, source, day);
   const reason = candidate.reasonHint || buildWarmReason(contact, candidate, type);
+  const whyNow = buildWhyNow(contact, candidate, type);
   return {
     id: actionId,
     action_id: actionId,
@@ -628,6 +651,7 @@ function buildRelationshipAction(userId, candidate, type, today, topic) {
     contact: { id: contact.id, name: contact.name, nature: normalizeNature(contact.nature) },
     nature: normalizeNature(contact.nature),
     reason,
+    why_now: whyNow,
     message: reason,
     suggested_topic: topic || candidate.topic || (candidate.lastInteraction ? `接着聊：${candidate.lastInteraction.slice(0, 40)}` : '聊聊近况'),
     source: actionSource(source.kind, source.id, source.evidence || reason),
@@ -1119,6 +1143,27 @@ function _findForgottenContact(contacts, timeline, skipped, today) {
 }
 
 // ── 温暖的推荐理由 ──
+// R2: Build "why now" — explains why this week is the right time to act
+function buildWhyNow(contact, selected, type) {
+  if (type === 'perception_driven') {
+    return '有新的动态变化，趁热打铁';
+  }
+  if (type === 'nurture') {
+    if (selected.reasonHint && selected.reasonHint.includes('生日')) return '生日快到了，提前准备';
+    if (selected.reasonHint && selected.reasonHint.includes('重要日期')) return '重要日期临近';
+    return '好久没记录互动了，想念的话就现在';
+  }
+  if (type === 'forgotten') {
+    return '已经很久没联系了，再不联系可能就断了';
+  }
+  if (selected.daysSince === 9999) return '还没有联系过，是时候开始了';
+  if (selected.daysSince >= 21) return `已经 ${selected.daysSince} 天没联系了，关系正在冷却`;
+  if (selected.daysSince >= 14) return `已经 ${selected.daysSince} 天没联系了`;
+  if (selected.reasonHint && selected.reasonHint.includes('待办')) return '有待办需要跟进';
+  if (selected.reasonHint && selected.reasonHint.includes('上次聊到')) return '上次的话题还没续上';
+  return '本周值得主动联系一次';
+}
+
 function buildWarmReason(contact, selected, type) {
   const name = contact.name;
   if (type === 'nurture') {
@@ -14026,6 +14071,8 @@ ${chatText}
           perc.reject_note = note || '';
         }
         await saveDataset(env, userId, 'perceptions', perceptions);
+        // R2: Write audit trail
+        await writePerceptionAudit(env, userId, perc.id, action, note || null);
         return jsonResponse({ ok: true, perception: perc });
       }
 
@@ -14036,6 +14083,7 @@ ${chatText}
         const perceptions = await loadDataset(env, userId, 'perceptions');
         const perc = perceptions.find(p => p.id === percId);
         if (!perc) return jsonResponse({ error: 'perception not found' }, 404);
+        const prevStatus = perc.status;
         // If was confirmed, remove from contact memories
         if (perc.status === 'confirmed' && perc.contact_id) {
           const contacts = await loadDataset(env, userId, 'contacts');
@@ -14048,7 +14096,17 @@ ${chatText}
         perc.status = 'rejected';
         perc.undone_at = new Date().toISOString();
         await saveDataset(env, userId, 'perceptions', perceptions);
+        // R2: Write audit trail
+        await writePerceptionAudit(env, userId, perc.id, 'revoke', `prev_status=${prevStatus}`);
         return jsonResponse({ ok: true, message: '感知已撤销' });
+      }
+
+      // R2: Perception audit log
+      if (path === '/ai/perceptions/audit' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const audit = await loadPerceptionAudit(env, userId);
+        return jsonResponse({ ok: true, audit });
       }
 
       if (path === '/ai/perceptions/collect' && method === 'POST') {

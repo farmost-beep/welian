@@ -86,6 +86,9 @@
         <text wx:if="{{actionCard.series_id}}" class="ac-series-badge">{{actionCard.series_label}} · 步骤 {{actionCard.series_order + 1}}/{{actionCard.series_total}}</text>
       </view>
       <text class="ac-reason text-sm">{{actionCard.reason}}</text>
+      <view wx:if="{{actionCard.why_now}}" class="ac-why-now">
+        <text class="ac-why-now-label text-dimmer text-xs">为什么是现在：{{actionCard.why_now}}</text>
+      </view>
       <view wx:if="{{actionCard.contact}}" class="ac-contact">
         <text class="ac-contact-name text-sm">{{actionCard.contact.name}}</text>
         <text class="ac-topic text-dimmer text-xs">{{actionCard.suggested_topic}}</text>

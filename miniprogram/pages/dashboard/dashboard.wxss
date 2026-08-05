@@ -221,6 +221,13 @@
   color: #1A1915;
   line-height: 1.6;
 }
+.ac-why-now {
+  padding: 4rpx 0 0;
+}
+.ac-why-now-label {
+  display: block;
+  line-height: 1.5;
+}
 .ac-contact {
   display: flex;
   flex-direction: column;
