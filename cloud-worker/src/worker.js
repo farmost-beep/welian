@@ -422,6 +422,153 @@ async function loadPerceptionAudit(env, userId) {
   return raw ? JSON.parse(raw) : [];
 }
 
+// ── 群聊自动回复 ──
+
+const DEFAULT_GROUP_CHAT_CONFIG = {
+  enabled: false,
+  target_groups: [],          // [{ id, name }]
+  trigger_keywords: [],       // 触发关键词，空数组=仅@小维
+  require_at: true,           // 是否必须@小维才回复
+  max_replies_per_hour: 5,    // 每群每小时上限
+  max_replies_per_day: 20,    // 每群每日上限
+  min_interval_seconds: 30,   // 最小回复间隔
+  reply_prefix: '🤖 ',        // AI 标注前缀
+  system_prompt: '你是小维，一个关系管理助手。在微信群中简洁、友好地回复。用中文，不超过100字。不确定时说"我不太确定"。不要编造事实。',
+};
+
+async function loadGroupChatConfig(env, userId) {
+  const raw = await env.USER_DATA.get(`group_chat_config:${userId}`);
+  if (!raw) return { ...DEFAULT_GROUP_CHAT_CONFIG };
+  const config = JSON.parse(raw);
+  // Merge with defaults for any missing fields
+  return { ...DEFAULT_GROUP_CHAT_CONFIG, ...config };
+}
+
+async function saveGroupChatConfig(env, userId, config) {
+  await env.USER_DATA.put(`group_chat_config:${userId}`, JSON.stringify(config));
+}
+
+// Load group chat rate-limit state: { [groupId]: { last_reply_at, hourly_count, daily_count, hour_reset, day_reset } }
+async function loadGroupChatState(env, userId) {
+  const raw = await env.USER_DATA.get(`group_chat_state:${userId}`);
+  return raw ? JSON.parse(raw) : {};
+}
+
+async function saveGroupChatState(env, userId, state) {
+  await env.USER_DATA.put(`group_chat_state:${userId}`, JSON.stringify(state));
+}
+
+// Check rate limits; returns { allowed, reason }
+function checkRateLimit(state, groupId, config) {
+  const now = Date.now();
+  const groupState = state[groupId] || { last_reply_at: 0, hourly_count: 0, daily_count: 0, hour_reset: now, day_reset: now };
+  // Reset counters
+  if (now - groupState.hour_reset > 3600000) {
+    groupState.hourly_count = 0;
+    groupState.hour_reset = now;
+  }
+  if (now - groupState.day_reset > 86400000) {
+    groupState.daily_count = 0;
+    groupState.day_reset = now;
+  }
+  // Check min interval
+  if (groupState.last_reply_at && (now - groupState.last_reply_at) < config.min_interval_seconds * 1000) {
+    return { allowed: false, reason: `min_interval: ${config.min_interval_seconds}s not elapsed`, groupState };
+  }
+  // Check hourly limit
+  if (groupState.hourly_count >= config.max_replies_per_hour) {
+    return { allowed: false, reason: `hourly limit reached (${config.max_replies_per_hour})`, groupState };
+  }
+  // Check daily limit
+  if (groupState.daily_count >= config.max_replies_per_day) {
+    return { allowed: false, reason: `daily limit reached (${config.max_replies_per_day})`, groupState };
+  }
+  return { allowed: true, groupState };
+}
+
+// Handle incoming group message from Bridge
+async function handleGroupMessage(req, env) {
+  const body = await req.json().catch(() => ({}));
+  const userId = await getVerifiedUserId(req, env, body);
+  if (!userId) return { status: 401, data: { error: 'Authentication required' } };
+
+  const { group_id, group_name, sender_id, sender_name, message, is_at_bot, bot_name } = body;
+  if (!group_id || !message) {
+    return { status: 400, data: { error: 'group_id and message required' } };
+  }
+
+  const config = await loadGroupChatConfig(env, userId);
+
+  // Gate 1: Global enable check
+  if (!config.enabled) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'group_chat disabled' } };
+  }
+
+  // Gate 2: Group whitelist
+  const targetGroup = config.target_groups.find(g => g.id === group_id);
+  if (!targetGroup) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'group not in whitelist' } };
+  }
+
+  // Gate 3: Trigger condition
+  const trimmedMsg = (message || '').trim();
+  const hasKeyword = config.trigger_keywords.length > 0 && config.trigger_keywords.some(kw => trimmedMsg.includes(kw));
+  const hasAt = is_at_bot === true || (bot_name && trimmedMsg.includes(`@${bot_name}`));
+  if (config.require_at && !hasAt && !hasKeyword) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'not triggered (require_at=true)' } };
+  }
+  if (!config.require_at && !hasAt && !hasKeyword) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'not triggered' } };
+  }
+
+  // Gate 4: Rate limit
+  const state = await loadGroupChatState(env, userId);
+  const rateCheck = checkRateLimit(state, group_id, config);
+  if (!rateCheck.allowed) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: rateCheck.reason } };
+  }
+
+  // Generate reply via LLM
+  let replyText = '';
+  try {
+    const systemPrompt = config.system_prompt || DEFAULT_GROUP_CHAT_CONFIG.system_prompt;
+    const userPrompt = `群：${group_name || targetGroup.name || group_id}\n发送人：${sender_name || sender_id || '未知'}\n消息：${trimmedMsg}\n\n请简短回复（不超过100字）：`;
+    replyText = await callLLM(userPrompt, systemPrompt, env, { max_tokens: 200, temperature: 0.4 });
+  } catch (e) {
+    console.error('[group_chat] LLM error:', e.message);
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'LLM error' } };
+  }
+
+  if (!replyText || !replyText.trim()) {
+    return { status: 200, data: { ok: true, should_reply: false, reason: 'empty reply' } };
+  }
+
+  // Apply prefix
+  const prefixedReply = `${config.reply_prefix}${replyText.trim()}`;
+
+  // Update rate limit state
+  const now = Date.now();
+  rateCheck.groupState.last_reply_at = now;
+  rateCheck.groupState.hourly_count = (rateCheck.groupState.hourly_count || 0) + 1;
+  rateCheck.groupState.daily_count = (rateCheck.groupState.daily_count || 0) + 1;
+  state[group_id] = rateCheck.groupState;
+  await saveGroupChatState(env, userId, state);
+
+  // Log the reply for audit
+  console.log(`[group_chat] Reply to ${group_id}: ${prefixedReply.slice(0, 80)}...`);
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      should_reply: true,
+      reply: prefixedReply,
+      group_id,
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
 // R2: Parse LLM Markdown into structured insight objects with evidence
 function parseStructuredInsights(text, analysisData) {
   const lines = text.split('\n').filter(l => l.trim());
@@ -14121,6 +14268,39 @@ ${chatText}
 
       if (path === '/ai/perceptions/collect' && method === 'POST') {
         const r = await handlePerceptionCollect(request, env);
+        return jsonResponse(r.data, r.status);
+      }
+
+      // ── 群聊自动回复（需 wechat-mac-hook Bridge） ──
+
+      if (path === '/ai/group_chat/config' && method === 'GET') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const config = await loadGroupChatConfig(env, userId);
+        return jsonResponse({ ok: true, config });
+      }
+
+      if (path === '/ai/group_chat/config' && method === 'POST') {
+        const userId = await getVerifiedUserId(request, env, {});
+        if (!userId) return jsonResponse({ error: 'Authentication required' }, 401);
+        const body = await request.json().catch(() => ({}));
+        const config = await loadGroupChatConfig(env, userId);
+        // Merge allowed fields
+        if (body.enabled !== undefined) config.enabled = !!body.enabled;
+        if (Array.isArray(body.target_groups)) config.target_groups = body.target_groups;
+        if (Array.isArray(body.trigger_keywords)) config.trigger_keywords = body.trigger_keywords;
+        if (body.require_at !== undefined) config.require_at = !!body.require_at;
+        if (typeof body.max_replies_per_hour === 'number') config.max_replies_per_hour = body.max_replies_per_hour;
+        if (typeof body.max_replies_per_day === 'number') config.max_replies_per_day = body.max_replies_per_day;
+        if (typeof body.min_interval_seconds === 'number') config.min_interval_seconds = body.min_interval_seconds;
+        if (typeof body.reply_prefix === 'string') config.reply_prefix = body.reply_prefix;
+        if (typeof body.system_prompt === 'string') config.system_prompt = body.system_prompt;
+        await saveGroupChatConfig(env, userId, config);
+        return jsonResponse({ ok: true, config });
+      }
+
+      if (path === '/ai/group_message' && method === 'POST') {
+        const r = await handleGroupMessage(request, env);
         return jsonResponse(r.data, r.status);
       }
 
