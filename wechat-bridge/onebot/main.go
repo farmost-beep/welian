@@ -141,7 +141,9 @@ func attachWechat() {
 	}
 	session, err = device.Attach(pid, nil)
 	if err != nil {
-		Fatal("Attach 失败 (请检查 SIP 状态或权限)", "err", err)
+		Error("Attach 失败 (请检查 SIP 状态或权限)", "err", err)
+		Info("HTTP 服务将继续启动，但 Frida 功能不可用")
+		return
 	}
 	Info("成功 Attach 微信进程", "PID", pid)
 	loadJs()

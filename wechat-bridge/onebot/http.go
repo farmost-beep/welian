@@ -119,7 +119,7 @@ func sendTextViaFrida(msg *SendMsg) error {
 		"at_user":  msg.AtUser,
 	}
 	postBytes, _ := json.Marshal(postData)
-	fridaScript.Post(string(postBytes))
+	fridaScript.Post(string(postBytes), nil)
 
 	atomicAddTaskId()
 	return nil
