@@ -801,7 +801,14 @@ async function handleCloudAdvise(req, env) {
   const timeline = await loadDataset(env, userId, 'timeline');
   const todos = await loadDataset(env, userId, 'todos');
   const today = localDate(req);
-  const { leverageCandidates, nurtureCandidates } = selectRelationshipCandidates({ contacts, todos, timeline, today });
+  // Load skipped list for consistency with action_card
+  let skipped = { contacts: [], todos: [], perceptions: [] };
+  try {
+    const weekKey = getWeekKey(today.toISOString());
+    const raw = await env.USER_DATA.get(`action_card_skipped:${userId}:${weekKey}`);
+    if (raw) skipped = { ...skipped, ...JSON.parse(raw) };
+  } catch (e) { /* non-critical */ }
+  const { leverageCandidates, nurtureCandidates } = selectRelationshipCandidates({ contacts, todos, timeline, skipped, today });
   const topLeverage = leverageCandidates.slice(0, 5);
   const topNurture = nurtureCandidates.slice(0, 5);
   const parts = [];
@@ -1328,6 +1335,7 @@ async function handleActionCardConfirm(req, env) {
     suggested_topic: body.suggested_topic || stored?.suggested_topic || '',
     source,
     snooze_until: snoozeUntil,
+    skip_reason: body.skip_reason || stored?.skip_reason || '',
     created_at: stored?.created_at || `${localDate(req).toISOString().slice(0, 10)}T00:00:00.000Z`,
   };
 
@@ -1457,11 +1465,13 @@ async function handleActionCardConfirm(req, env) {
   }
 
   const skipEventId = event_id || makeEventId('action_card_skip', idempotencyKey);
+  const skipReason = body.skip_reason || '';
   await trackAction(env, userId, 'action_card_skip', {
     event_id: skipEventId,
     contact_id: contactId,
     source: 'action_card',
     action_id: actionId,
+    skip_reason: skipReason || undefined,
   });
   if (contactId || todoId || perceptionId) {
     try {
@@ -16911,11 +16921,20 @@ async function handleDailyAdvisePush(env) {
       const todos = await loadDataset(env, clerkUserId, 'todos');
       if (contacts.length === 0) continue;
 
+      // Load skipped list for consistency with action_card
+      let skippedContacts = [];
+      try {
+        const weekKey = getWeekKey(new Date().toISOString());
+        const raw = await env.USER_DATA.get(`action_card_skipped:${clerkUserId}:${weekKey}`);
+        if (raw) skippedContacts = (JSON.parse(raw).contacts) || [];
+      } catch (e) { /* non-critical */ }
+
       // Reuse advise scoring logic
       const today = new Date();
       const candidates = [];
       for (const c of contacts) {
         if (normalizeNature(c.nature) !== 'leverage' && normalizeNature(c.nature) !== 'dual') continue;
+        if (skippedContacts.includes(c.id)) continue;
         const contactTimeline = timeline
           .filter(t => t.contact === c.id)
           .sort((a, b) => (b.date || '').localeCompare(a.date || ''));

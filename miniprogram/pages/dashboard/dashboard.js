@@ -522,7 +522,7 @@ Page({
     });
   },
 
-  // R2-2: 行动卡 — 跳过
+  // R2-2: 行动卡 — 跳过（可选原因）
   onActionCardSkip(e) {
     if (this.data.notLoggedIn || !api.getToken() || this.data.actionBusy) return;
     const actionId = e && e.currentTarget && e.currentTarget.dataset.actionId;
@@ -533,34 +533,47 @@ Page({
     const todoId = card && card.todo_id ? card.todo_id : undefined;
     const perceptionId = card && card.perception_id ? card.perception_id : undefined;
     const release = () => this.setData({ actionBusy: false, drafting: false });
-    this.setData({ actionBusy: true, drafting: false });
-    wx.request({
-      url: 'https://api.welian.app/ai/action_card/confirm',
-      method: 'POST',
-      header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
-      data: {
-        action: 'skip',
-        action_id: actionId || card.action_id || card.id,
-        contact_id: contactId,
-        todo_id: todoId,
-        perception_id: perceptionId,
-        version: actionVersion === undefined ? card.version : actionVersion,
-      },
-      success: (res) => {
-        if (res.statusCode === 200 && res.data && res.data.ok) {
-          this.setData({ actionCard: null });
-          this.fetchActionCard()
-            .then((ac) => this.setData({ actionCard: ac }))
-            .catch(() => {})
-            .then(release);
-        } else {
-          release();
-          wx.showToast({ title: '操作失败', icon: 'none' });
-        }
+
+    // 先弹原因选择（可选，不强制）
+    wx.showActionSheet({
+      itemList: ['时机不对', '关系描述不准', '不想联系', '直接跳过'],
+      success: (sheetRes) => {
+        const reasons = ['timing', 'inaccurate', 'dont_want', ''];
+        const skipReason = reasons[sheetRes.tapIndex] || '';
+        this.setData({ actionBusy: true, drafting: false });
+        wx.request({
+          url: 'https://api.welian.app/ai/action_card/confirm',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + api.getToken(), 'Content-Type': 'application/json' },
+          data: {
+            action: 'skip',
+            action_id: actionId || card.action_id || card.id,
+            contact_id: contactId,
+            todo_id: todoId,
+            perception_id: perceptionId,
+            version: actionVersion === undefined ? card.version : actionVersion,
+            skip_reason: skipReason,
+          },
+          success: (res) => {
+            if (res.statusCode === 200 && res.data && res.data.ok) {
+              this.setData({ actionCard: null });
+              this.fetchActionCard()
+                .then((ac) => this.setData({ actionCard: ac }))
+                .catch(() => {})
+                .then(release);
+            } else {
+              release();
+              wx.showToast({ title: '操作失败', icon: 'none' });
+            }
+          },
+          fail: () => {
+            release();
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          },
+        });
       },
       fail: () => {
-        release();
-        wx.showToast({ title: '操作失败', icon: 'none' });
+        // 用户取消，不跳过
       },
     });
   },
