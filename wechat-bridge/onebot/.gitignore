@@ -1,0 +1,6 @@
+# OneBot 构建产物
+onebot
+proto/*.pb.go
+
+# Go 工作目录
+vendor/
