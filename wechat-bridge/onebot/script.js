@@ -14,51 +14,60 @@ var searchEnd = moduleBase.add(searchSize);
 var _req2bufSearchAddr = null;
 var baseAddr = null;
 
-var ranges = Process.enumerateRanges("r--").filter(function(r) {
-    var rangeEnd = r.base.add(r.size);
-    return r.base.compare(searchEnd) < 0 && rangeEnd.compare(moduleBase) > 0;
-});
+function searchReq2Buf() {
+    _req2bufSearchAddr = null;
+    var ranges = Process.enumerateRanges("r--").filter(function(r) {
+        var rangeEnd = r.base.add(r.size);
+        return r.base.compare(searchEnd) < 0 && rangeEnd.compare(moduleBase) > 0;
+    });
 
-console.log("[+] Found " + ranges.length + " readable ranges within 1000MB window");
+    console.log("[+] Found " + ranges.length + " readable ranges within 1000MB window");
 
-var pending = ranges.length;
-if (pending === 0) {
-    throw new Error("[-] No readable ranges found within 1000MB from module base");
-}
+    var pending = ranges.length;
+    if (pending === 0) {
+        console.log("[!] No readable ranges, retrying in 3s...");
+        setTimeout(searchReq2Buf, 3000);
+        return;
+    }
 
-ranges.forEach(function(r) {
-    Memory.scan(r.base, r.size, "72 65 71 32 62 75 66", {
-        onMatch: function(address, size) {
-            if (_req2bufSearchAddr === null) {
-                var rangeInfo = Process.findRangeByAddress(address);
-                if (rangeInfo) {
-                    if (rangeInfo.size > 100 * 1024 * 1024) {
-                        _req2bufSearchAddr = address;
-                        console.log("[+] Range size > 100MB, accepted as base address");
+    ranges.forEach(function(r) {
+        Memory.scan(r.base, r.size, "72 65 71 32 62 75 66", {
+            onMatch: function(address, size) {
+                if (_req2bufSearchAddr === null) {
+                    var rangeInfo = Process.findRangeByAddress(address);
+                    if (rangeInfo) {
+                        if (rangeInfo.size > 50 * 1024 * 1024) {
+                            _req2bufSearchAddr = address;
+                            console.log("[+] Range size > 100MB, accepted as base address");
+                        }
                     }
                 }
-            }
-        },
-        onError: function(reason) {
-            // skip unreadable sub-pages
-        },
-        onComplete: function() {
-            pending--;
-            if (pending === 0) {
-                if (_req2bufSearchAddr === null) {
-                    throw new Error("[-] Cannot find 'req2buf' keyword in a range > 100MB");
+            },
+            onError: function(reason) {
+                // skip unreadable sub-pages
+            },
+            onComplete: function() {
+                pending--;
+                if (pending === 0) {
+                    if (_req2bufSearchAddr === null) {
+                        console.log("[!] req2buf not found, retrying in 3s...");
+                        setTimeout(searchReq2Buf, 3000);
+                        return;
+                    }
+
+                    var foundRange = Process.findRangeByAddress(_req2bufSearchAddr);
+                    baseAddr = foundRange.base;
+                    console.log("[+] Base address from range: " + baseAddr);
+                    console.log("[+] Range size: " + foundRange.size);
+
+                    initAddresses();
                 }
-
-                var foundRange = Process.findRangeByAddress(_req2bufSearchAddr);
-                baseAddr = foundRange.base;
-                console.log("[+] Base address from range: " + baseAddr);
-                console.log("[+] Range size: " + foundRange.size);
-
-                initAddresses();
             }
-        }
+        });
     });
-});
+}
+
+searchReq2Buf();
 
 function initAddresses() {
     // 文本消息全局变量 (new_text.js approach)
